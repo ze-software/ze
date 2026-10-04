@@ -226,6 +226,27 @@ needing a `bgpd` module (`-M bmp` for one that drives Ze's BMP receiver) carries
 its own copy instead of adding the module to every scenario in the suite. Without
 one, the shared `test/interop/daemons` is mounted.
 
+It may also carry an `frr-image` file holding one image reference. Its FRR
+containers then start from that release instead of the suite's FRR (and
+`FRR_IMAGE` does not replace it), and the suite pulls each pinned release once.
+A scenario needs this when the behavior under test exists only in a later FRR:
+`bgp-linklocal-only-multihop-withdraw-frr` pins FRR 10.4.1, the first release
+here that negotiates the Link-Local Next Hop capability (77), because without it
+a different gate withholds the route and the scenario cannot go red. A file
+naming no image, or two, is an error.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
+<!-- source: internal/le/interoplab/bgp/run.go -- pinnedFRRImages -->
+
+`bgp-linklocal-only-multihop-withdraw-frr` exercises the off-connected-subnet
+gate on one lab network: FRR's session address is on its loopback (10.255.0.3),
+outside every subnet Ze is attached to, and the checker gives Ze a host route
+via FRR's adjacent interface. There is no intervening router. This proves the
+gate and FRR's received withdrawal, not a physically multihop path.
+`test/plugin/linklocal-only-multihop-withdraw.ci` supplies the separate routed
+IPv6-hop proof through a transit namespace. Ze's link scope reads the interface
+table, not the configured BGP TTL.
+<!-- source: internal/le/interoplab/bgp/check_linklocal_multihop.go -- checkLinkLocalOnlyMultihopWithdraw -->
+
 A BMP scenario with no `pmbmpd.conf` starts `le test interop-bgp bmp-collector`. Announcement and
 observer process plugins use `le test interop-bgp process <scenario> <plugin>`.
 These personalities are compiled into `le`; no interpreter or source mount
@@ -733,7 +754,21 @@ pmacct to print the configured Peer AS, the configured Peer BGP ID, the `global`
 VRF/Table Name TLV and reason code 6 on the Peer Down; `bmp-locrib-receiver-frr`
 turns the direction around, so FRR's `bmpd` drives Ze's BMP receiver and
 `show bmp peers` must report the third party's Loc-RIB peer and its address
-family), PATHS-LIMIT,
+family; `bgp-addpath-best-path-pmacct` has the raw injector announce one prefix
+under two ADD-PATH identifiers, MED 10 then MED 50, and requires pmacct's reading
+of the Loc-RIB stream to carry the MED 10 best and never the MED 50 path, told
+apart by their AS_PATHs since Ze's Loc-RIB Route Monitoring carries no MED, because
+Ze advertises no best path to a BGP peer and the Loc-RIB feed is where a foreign
+implementation can observe its election), an RFC 8277 labelled withdrawal
+(`bgp-labeled-withdraw-compatibility-frr` has the raw injector announce 10.10.0.0/24 under
+label 100 and 10.11.0.0/24 under label 101 in ipv4/mpls-label, then withdraw 10.10.0.0/24 alone
+with the Compatibility value 0x800000 in the label field. FRR, fed through bgp-rs, must hold both
+routes, then lose 10.10.0.0/24 with exactly one logged withdrawal while the injector session stays
+Established. The checker then stops the injector, FRR must lose 10.11.0.0/24 through bgp-rs's
+peer-down withdrawals, and its log must still hold one withdrawal of 10.10.0.0/24. bgp-rs relays
+the withdrawal's bytes unchanged, so FRR losing the route alone cannot tell whether Ze read it:
+Ze's reading decides what bgp-rs keeps in its route inventory, and a misread withdrawal leaves
+10.10.0.0/24 there to be withdrawn a second time at peer down), PATHS-LIMIT,
 max-prefix cease, a reload of the global router-id (`bgp-reload-global-router-id`
 starts Ze with 10.255.0.1, reloads it to 10.255.0.2, and requires BIRD, a static
 peer, and FRR, which Ze adds after the reload with `create bgp peer`, each to
@@ -743,6 +778,9 @@ ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop coun
 what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak
 (`bgp-path-asn-leak-frr` gives FRR two prefixes that differ only in their AS_PATH, and requires
 ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
+next-hop self under `local ip auto` (`bgp-nexthop-self-local-auto-frr` configures no local
+address toward FRR, and requires FRR to hold both ze's own route and a route relayed from a raw
+injector with NEXT_HOP 172.30.0.2, ze's connected endpoint, never the injector's 172.30.0.9),
 ADD-PATH re-advertisement (`bgp-addpath-readvertise-collision-frr`
 proves a receiver keeps two paths whose sources both chose one Path Identifier, and
 `bgp-addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
@@ -751,6 +789,9 @@ bytes for one path), the RFC 6793 mixed-width relay
 AS_TRANS and whose AS4_PATH carries the real four-octet AS number, and requires FRR to report that
 AS number and never 23456; `as-path-prepend-two-octet-peer` turns the direction around, so ze's own
 non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), the
+RFC 8669 Section 6 repeated Prefix-SID TLV (`bgp-prefix-sid-duplicate-tlv-frr` gives ze an SRv6
+L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and requires FRR, whose own
+parser refuses a repeated type-5 TLV, to hold the route with the first SID only), the
 Software Version capability (`frr-software-version` holds two sessions to one FRR: peer `legacy`
 sends the length-prefixed form over IPv4 and must reach Established with FRR showing ze's version,
 while peer `draft` sends the draft's bare form over IPv6 and must be refused, with ze recording
@@ -805,7 +846,7 @@ deferred DSCP marking, withdrawal, and excess-rate drops. It requires
 is not packet-forwarding evidence.
 
 <!-- source: internal/le/interoplab/bgp/checkers.go -- bgp-flowspec-sctp-gobgp -->
-<!-- source: internal/plugins/flowspec-firewall/selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
+<!-- source: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
 
 | # | Scenario | Daemons | What It Tests |
 |---|----------|---------|---------------|

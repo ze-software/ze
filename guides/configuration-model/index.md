@@ -1735,7 +1735,7 @@ bgp {
 | `del/med` | empty | present | Remove MULTI_EXIT_DISC from the route |
 | `origin` | enum | igp, egp, incomplete | Set ORIGIN |
 | `next-hop` | IP address | IPv4 | Set NEXT_HOP |
-| `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times |
+| `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times. In an export filter it is not applied toward an internal peer (peer AS equals local AS, or the configured migration AS, RFC 7705 Section 4.2): RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to one, so the route leaves with its AS_PATH unchanged and the rest of the filter's answer still applies |
 
 `increment` and `decrement` compute from the value the route carries. When the
 route carries none, they start from `bgp { defaults { attribute { } } }`:
@@ -1862,7 +1862,16 @@ peer transit-a {
 }
 ```
 
+A configured route is sent only when the session negotiated its address
+family. A route whose family the peer did not advertise, an `ipv6/mpls-vpn`
+route to a peer without the AFI 2 / SAFI 128 Multiprotocol capability for
+example, is not sent on that session, and Ze logs a warning naming the peer,
+the prefix and the family (RFC 4659 Section 3.4, RFC 4760). A VPN route also
+needs at least one `label`: config load refuses one without.
+
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
+<!-- source: internal/component/bgp/reactor/peer_static_wire.go -- negotiatedStaticRoutes, the negotiated-family filter -->
+<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label -->
 
 ## MPLS
 
@@ -2113,7 +2122,8 @@ An IKE proposal requires `hash` beside every cipher, because it names the PRF th
 RFC 7296 Section 3.3.3 makes mandatory. An ESP proposal requires `hash` beside a non-AEAD
 cipher and refuses it beside an AEAD cipher, because an AEAD cipher carries its own
 integrity.
-DH groups: 1-31 (14 = MODP-2048 recommended minimum).
+DH groups: the schema accepts 1-31, and Ze implements 14 (MODP-2048), 19 (ECP-256) and
+20 (ECP-384); a proposal naming any other group is refused at commit.
 Authentication modes: `pre-shared-secret` (with a `$9$`-encoded key), `x509` (PKI store
 references), `eap-tls`, `eap-mschapv2`, or `eap-md5`. RFC 7296 Section 2.16 discourages
 `eap-md5`, which establishes no shared key, and the daemon warns once when a configuration

@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 100.0% | 13 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 21.4% | 6 of 28 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 50.0% | 16 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 10 | of 13 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 28 |
-| Tagged units | 28 |
+| Test tags | 32 |
+| Tagged units | 32 |
 | Recorded audit verdicts | 10 |
-| Discrimination records | 6 |
+| Discrimination records | 16 |
 | Summary | `rfc/short/rfc1334.md` |
 | Requirement shard | `rfc/requirements/rfc1334.md` |
 | RFC text | `rfc/full/rfc1334.txt` |
@@ -96,9 +90,10 @@ Verification remains for the retry and post-authentication reanswer changes in [
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 13 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
@@ -109,19 +104,19 @@ Verification remains for the retry and post-authentication reanswer changes in [
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1334-1-1` | If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | MUST | 1 | **positive:** `unit/verify` [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L669). **negative:** `unit/verify` [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) |
-| `RFC1334-x-1` | Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestDefaultAuthFallbackOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L270). **negative:** `unit/verify` [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L112) |
-| `RFC1334-2.3-1` | If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L293). **negative:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L411) |
-| `RFC1334-2.3-2` | If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407). **negative:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297) |
-| `RFC1334-2.2.1-1` | The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L52). **negative:** `unit/verify` [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L53) |
-| `RFC1334-2.2.1-2` | The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L125). **negative:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L126) |
+| `RFC1334-1-1` | If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | MUST | 1 | **positive:** `unit/verify` [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L675). **negative:** `unit/verify` [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) |
+| `RFC1334-x-1` | Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49). **positive:** `unit/verify` [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L97). **positive:** `unit/verify` [`TestDefaultAuthFallbackOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L270). **negative:** `unit/verify` [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50). **negative:** `unit/verify` [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98). **negative:** `unit/verify` [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L112) |
+| `RFC1334-2.3-1` | If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293). **negative:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411) |
+| `RFC1334-2.3-2` | If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407). **negative:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297) |
+| `RFC1334-2.2.1-1` | The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L52). **negative:** `unit/verify` [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L53) |
+| `RFC1334-2.2.1-2` | The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L125). **negative:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L126) |
 | `RFC1334-2.2.1-3` | Upon reception of an Authenticate-Request packet, some type of Authenticate reply (described below) MUST be returned. (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPRequestInAuthPhaseIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L74). **negative:** `unit/verify` [`TestPAPRejectedRequestIsStillAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L92) |
 | `RFC1334-2.2.1-4` | Implementation Note: Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate- Request packets after completing the Authentication phase. (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L144). **negative:** `unit/verify` [`TestPAPReanswerDiscardsMalformedRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L205) |
 | `RFC1334-2.2.1-5` | Protocol phase MUST return the same reply Code returned when the Authentication phase completed (§2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L145). **negative:** `unit/verify` [`TestPAPReanswerPreservesDecision`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L178) |
 | `RFC1334-2.2.1-6` | Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestPAPRequestOutsideAuthPhaseIsSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L109). **negative:** `unit/verify` [`TestPAPRequestInAuthPhaseIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L75) |
-| `RFC1334-2.2-1` | The Identifier field MUST be changed each time an Authenticate-Request packet is issued. (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L127). **negative:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L128) |
-| `RFC1334-2.3-3` | The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply. (Section 2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146). **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L414). **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L300). **negative:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147) |
-| `RFC1334-2.3-4` | It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L49). **negative:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L53) |
+| `RFC1334-2.2-1` | The Identifier field MUST be changed each time an Authenticate-Request packet is issued. (Section 2.2.1) | MUST | 2.2.1 | **positive:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L127). **negative:** `unit/verify` [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L128) |
+| `RFC1334-2.3-3` | The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply. (Section 2.2.2) | MUST | 2.2.2 | **positive:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146). **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414). **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300). **negative:** `unit/verify` [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147) |
+| `RFC1334-2.3-4` | It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L55). **negative:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L56) |
 | `RFC1334-2.3-5` | If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak), and SHOULD take action to terminate the link. (§2.2.2) | SHOULD | 2.2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1334-2.3-6` | The Message field is zero or more octets, and its contents are implementation dependent. (§2.2.2) | MAY | 2.2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1334-2.2-2` | The peer is in control of the frequency and timing of the attempts. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -138,23 +133,27 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: authentication configured but the LCP CONFREQ omits Auth-Protocol. TestLocalCONFREQAdvertisesAuthMethod asserts lookupOption(LCPOptAuthProto) ok and the protocol 0xC023 for PAP (0xC223 plus algorithm for CHAP) in the first CONFREQ from the driver; TestAuthProtoRejectClearsMethod asserts the option is absent once authentication is no longer desired, so an unconditional option goes red there.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) | unit/verify | unproven |
-| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L669) | unit/verify | unproven |
+| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) | unit/verify | revert, verified |
+| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L675) | unit/verify | revert, verified |
 
 ### [`RFC1334-x-1`](#rfc1334-x-1)
 
 Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an implementation that includes CHAP offering PAP before offering CHAP in LCP negotiation. The positive TestDefaultAuthFallbackOrder asserts only the helper list [CHAP-MD5, MS-CHAPv2, PAP]; the negative TestSelectAuthFallback asserts a CHAP-only order refuses a PAP suggestion, which is downgrade refusal, a neighbouring rule. No tagged unit drives LCP and asserts the first CONFREQ carries CHAP (0xC223) with PAP offered only after CHAP is refused, and a session configured with AuthMethod PAP opens with PAP regardless of the order list.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Both entry points now proven. TestConfiguredPAPStillOffersCHAPFirst starts a session through Driver/spawnSession with AuthMethod PAP and the default order: the first Configure-Request must offer CHAP 0xc223 (red on the old copy of StartSession.AuthMethod, observed before the fix and recorded against initialAuthMethod), PAP only after the peer's PAP Nak; the PAP-alone control keeps PAP first where no stronger method is included. TestAuthOffersCHAPBeforePAP drives the default path and the fallback after a PAP Nak. The negative (first Configure-Request never PAP while CHAP is in the order) reads the same first frame as the positive; a send-side MUST has no refusing input, so the pair is the correct shape. TestDefaultAuthFallbackOrder and TestSelectAuthFallback are supporting unit tags with no discrimination record.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L112) | unit/verify | unproven |
-| positive | [`TestDefaultAuthFallbackOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L270) | unit/verify | unproven |
+| negative | [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L112) | unit/verify | revert, verified |
+| negative | [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50) | unit/verify | revert, verified |
+| negative | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98) | unit/verify | revert, verified |
+| positive | [`TestDefaultAuthFallbackOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L270) | unit/verify | revert, verified |
+| positive | [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49) | unit/verify | revert, verified |
+| positive | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L97) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.3-1`](#rfc1334-2.3-1)
 
@@ -164,8 +163,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L411) | unit/verify | unproven |
-| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L293) | unit/verify | unproven |
+| negative | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411) | unit/verify | unproven |
+| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293) | unit/verify | unproven |
 
 ### [`RFC1334-2.3-2`](#rfc1334-2.3-2)
 
@@ -175,8 +174,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297) | unit/verify | unproven |
-| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407) | unit/verify | unproven |
+| negative | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297) | unit/verify | unproven |
+| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407) | unit/verify | unproven |
 
 ### [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1)
 
@@ -186,8 +185,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L53) | unit/verify | revert, verified |
-| positive | [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L52) | unit/verify | revert, verified |
+| negative | [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L53) | unit/verify | revert, verified |
+| positive | [`TestClientOpensAuthPhaseWithPAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L52) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.2.1-2`](#rfc1334-2.2.1-2)
 
@@ -197,8 +196,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L126) | unit/verify | unproven |
-| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L125) | unit/verify | unproven |
+| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L126) | unit/verify | unproven |
+| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L125) | unit/verify | unproven |
 
 ### [`RFC1334-2.2.1-3`](#rfc1334-2.2.1-3)
 
@@ -252,8 +251,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L128) | unit/verify | unproven |
-| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L127) | unit/verify | unproven |
+| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L128) | unit/verify | unproven |
+| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L127) | unit/verify | unproven |
 
 ### [`RFC1334-2.3-3`](#rfc1334-2.3-3)
 
@@ -265,19 +264,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 |---|---|---|---|
 | negative | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147) | unit/verify | unproven |
 | positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146) | unit/verify | unproven |
-| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L414) | unit/verify | unproven |
-| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L300) | unit/verify | unproven |
+| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414) | unit/verify | unproven |
+| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300) | unit/verify | unproven |
 
 ### [`RFC1334-2.3-4`](#rfc1334-2.3-4)
 
 It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 2.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the Message field changing the outcome. TestPAPReplyMessageDoesNotAffectOutcome sends Ack with 'welcome aboard' (success) and Nak with 'invalid credentials' (failure). The messages differ, contrary to the tag prose ('the same Message text on both codes'), so an implementation that decides on the message text and ignores the Code passes both cases. No tagged case holds the Code fixed and varies the Message (or puts a failure-like message on an Ack), which is the input that isolates the rule.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge ppp5 2026-09-30. The Message binds the receiver of the Ack/Nak, the pppoeclient peer (runClientAuth); ppp's authenticator never receives it. TestPAPReplyMessageDoesNotAffectOutcome now holds the Code fixed per group and varies the Message over the same three values ('', 'welcome aboard', 'invalid credentials'): every Ack succeeds (+), every Nak returns the 'PAP auth rejected' error (-), which an ignored Nak (retry exhaustion) would not give. A Message-driven decision turns one group red. Records: runClientAuth revert, both polarities.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L53) | unit/verify | unproven |
-| positive | [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L49) | unit/verify | unproven |
+| negative | [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L55) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

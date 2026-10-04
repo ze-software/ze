@@ -13,8 +13,10 @@ what Ze has
 | Tested both ways | 100.0% | 13 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 27 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 18.2% | 6 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 13 | of 13 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,15 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 13 | of 13 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +41,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 27 |
-| Tagged units | 27 |
+| Test tags | 33 |
+| Tagged units | 33 |
 | Recorded audit verdicts | 13 |
-| Discrimination records | 0 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc9687.md` |
 | Requirement shard | `rfc/requirements/rfc9687.md` |
 | RFC text | `rfc/full/rfc9687.txt` |
@@ -96,9 +91,10 @@ No tracked gap in current source anchors.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 13 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
@@ -111,14 +107,14 @@ No tracked gap in current source anchors.
 |---|---|---|---|---|
 | `RFC9687-4.3-1` | starts the SendHoldTimer if the SendHoldTime is non-zero (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldTimerArmedOnEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L309). **negative:** `unit/verify` [`TestRFC9687SendHoldTimerNotArmedBeforeEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L330) |
 | `RFC9687-4.3-2` | logs an error message in the local system with the BGP Error \| Code "Send Hold Timer Expired" (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L145). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L241) |
-| `RFC9687-4.3-3` | releases all BGP resources (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L147). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L242) |
+| `RFC9687-4.3-3` | releases all BGP resources (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L171). **positive:** `unit/verify` [`TestRFC9687Event29ReleasesTheLivePeersRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_rib_release_test.go#L47). **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L147). **negative:** `unit/verify` [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L172). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L242) |
 | `RFC9687-4.3-4` | sets the ConnectRetryTimer to zero (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L150). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L244) |
 | `RFC9687-4.3-5` | drops the TCP connection (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L152). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L246) |
 | `RFC9687-4.3-6` | increments the ConnectRetryCounter by 1 (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L154). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L248) |
 | `RFC9687-4.3-7` | changes its state to Idle (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L156). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L250) |
-| `RFC9687-4.3-8` | Each time the local system sends a BGP message, it restarts the \| SendHoldTimer (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L376). **negative:** `unit/verify` [`TestRFC9687SilenceDoesNotRestartTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L414) |
+| `RFC9687-4.3-8` | Each time the local system sends a BGP message, it restarts the \| SendHoldTimer (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687EveryWriterRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L93). **positive:** `unit/verify` [`TestRFC9687RemainingWritersRestartSendHold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_remaining_writers_test.go#L17). **positive:** `unit/verify` [`TestRFC9687SendRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L376). **negative:** `unit/verify` [`TestRFC9687SilenceDoesNotRestartTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L414) |
 | `RFC9687-4.3-9` | unless the SendHoldTime value is zero or the \| negotiated HoldTime value is zero, in which case the \| SendHoldTimer is stopped. (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L449). **negative:** `unit/verify` [`TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L487) |
-| `RFC9687-4.3-10` | The SendHoldTimer is stopped following any transition out of \| the Established state as part of the "release all BGP \| resources" action. (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L158). **positive:** `unit/verify` [`TestRFC9687TeardownStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L518). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L252) |
+| `RFC9687-4.3-10` | The SendHoldTimer is stopped following any transition out of \| the Established state as part of the "release all BGP \| resources" action. (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L122). **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L158). **positive:** `unit/verify` [`TestRFC9687TeardownStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L518). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L252) |
 | `RFC9687-4.4-1` | If SendHoldTime is non-zero, then it MUST be \| greater than the value of HoldTime; see Section 6 of [RFC9687] for \| suggested default values. (§4.4) | MUST | 4.4 - Changes to BGP Timers | **positive:** `unit/verify` [`TestRFC9687SendHoldTimeMustExceedHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L547). **negative:** `unit/verify` [`TestRFC9687SendHoldTimeAboveHoldTimeAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L588) |
 | `RFC9687-5-1` | If the local system does not send any BGP messages within the period specified in SendHoldTime, then a NOTIFICATION message with the "Send Hold Timer Expired" Error Code MAY be sent and the BGP connection MUST be closed. (§5) | MUST | 5 - Send Hold Timer Expired Error Handling | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L160). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L254) |
 | `RFC9687-5-2` | Additionally, an error MUST be logged in the local system, indicating the "Send Hold Timer Expired" Error Code. (§5) | MUST | 5 - Send Hold Timer Expired Error Handling | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L161). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L256) |
@@ -164,11 +160,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 releases all BGP resources (§4.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: BGP resources kept after Event 29. The tagged units assert only that the KeepaliveTimer stopped (IsKeepaliveTimerRunning false after, true before). 'All BGP resources' also covers the HoldTimer and the routes learned over the connection; no tagged assertion goes red if the HoldTimer stays armed or the learned routes stay installed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9687 section 4.3 adds the Event 29 action list: if SendHoldTimer_Expires occurs, the local system releases all BGP resources, drops TCP and changes to Idle; it also says the SendHoldTimer is stopped following any transition out of Established as part of the release-all-resources action. Read all currently tagged units. TestRFC9687Event29ReleasesTheLivePeersRIB establishes a real Peer through a borrowed plugin server, installs two wire-learned routes in the running bgp-rib plugin before advancing the fake clock, and requires both routes and the peer snapshot entry to disappear, the old session to detach and become Idle, its connection to become nil, and the wire to contain the Send Hold Timer Expired notification. It therefore closes the prior verdict's specific missing RIB-release proof and distinguishes an unrelated teardown. TestRFC9687Event29ReleasesHoldTimerAndConnection requires live Hold/Keepalive timers and TCP one nanosecond before expiry and their release after expiry. TestRFC9687SendHoldExpiryRunsTheEvent29ActionList and TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact additionally contrast SendHold/ConnectRetry resources across the expiry boundary. Read sendHoldTimerExpired and the RIB handleStructuredState down path, which releases and deletes peer storage. The live test proves observable resource removal, not allocator internals or every optional plugin configuration. The startup change waits for the borrowed server's real startup completion before starting peers; it manufactures no DOWN event and removes no assertion. Renewal of its unit-changed positive discrimination record remains required; no new mutant run is claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L172) | unit/verify | revert, verified |
 | negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L242) | unit/verify | unproven |
+| positive | [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L171) | unit/verify | revert, verified |
+| positive | [`TestRFC9687Event29ReleasesTheLivePeersRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_rib_release_test.go#L47) | unit/verify | revert, verified |
 | positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L147) | unit/verify | unproven |
 
 ### [`RFC9687-4.3-4`](#rfc9687-4.3-4)
@@ -219,11 +218,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Each time the local system sends a BGP message, it restarts the | SendHoldTimer (§4.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a BGP message sent without restarting the SendHoldTimer. TestRFC9687SendRestartsTheSendHoldTimer proves the restart for one send path only, Session.SendRawMessage; resetSendHoldTimer is called from about fifteen send sites in session_write.go and forward_pool.go (writeMessage, the forward pool, the update writers), and a site that stopped calling it leaves both tagged units green. The negative (silence does not restart) is sound.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9687 Section 4.3: "Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped." Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9687SilenceDoesNotRestartTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L414) | unit/verify | unproven |
+| positive | [`TestRFC9687EveryWriterRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L93) | unit/verify | revert, verified |
+| positive | [`TestRFC9687RemainingWritersRestartSendHold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_remaining_writers_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestRFC9687SendRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L376) | unit/verify | unproven |
 
 ### [`RFC9687-4.3-9`](#rfc9687-4.3-9)
@@ -241,11 +242,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The SendHoldTimer is stopped following any transition out of | the Established state as part of the "release all BGP | resources" action. (§4.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a SendHoldTimer left armed after any transition out of Established. The tagged units cover two transitions, the Event 29 expiry (armed() false after) and CloseWithNotification(Cease) (TestRFC9687TeardownStopsTheSendHoldTimer). 'Any transition' also covers a HoldTimer expiry, a received NOTIFICATION and a TCP failure; no tagged unit drives those, so a path that bypassed closeConn would stay green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a SendHoldTimer left armed after a transition out of Established. Tagged units drive four transitions over the real Run loop and assert armed() false after: Event 29 expiry, local Cease (TestRFC9687TeardownStopsTheSendHoldTimer), a NOTIFICATION received from the peer and a peer TCP close (TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer), each with armed() true as precondition. The stop lives in closeConn and in Run's deferred stopSendHoldTimer, which every exit path shares; HoldTimer expiry and a ze-sent error NOTIFICATION are not driven but reach the same two stop sites.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L252) | unit/verify | unproven |
+| positive | [`TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L122) | unit/verify | revert, verified |
 | positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L158) | unit/verify | unproven |
 | positive | [`TestRFC9687TeardownStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L518) | unit/verify | unproven |
 

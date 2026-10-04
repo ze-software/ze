@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5575 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5575: Dissemination of Flow Specification Rules. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5575: Dissemination of Flow Specification Rules. 9 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5575 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5575: Dissemination of Flow Specification Rules. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5575: Dissemination of Flow Specification Rules. 9 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5575 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5575: Dissemination of Flow Specification Rules. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5575: Dissemination of Flow Specification Rules. 9 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>62.5%</strong><b>5 of 8 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>37.5%</strong><b>3 of 8 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.8%</strong><b>7 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>1 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>34.8%</strong><b>8 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>8</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 8 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 8 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>11.1%</strong><b>1 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 9 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,8 +165,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Partial proof; remaining gap</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -207,13 +213,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>16</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>8</td>
+<td>9</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>15</td>
+<td>23</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>15</td>
+<td>23</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5575.md</code></td>
@@ -270,11 +276,11 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>3</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -285,21 +291,25 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Derived from other rows</td>
-<td><strong>4</strong></td>
+<td><strong>3</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>8</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc5575-4-3"><code>RFC5575-4-3</code></a>, <a href="#rfc5575-4-4"><code>RFC5575-4-4</code></a>, <a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a>, <a href="#rfc5575-5.1-1"><code>RFC5575-5.1-1</code></a>, <a href="#rfc5575-8-1"><code>RFC5575-8-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc5575-4-1"><code>RFC5575-4-1</code></a>, <a href="#rfc5575-4-2"><code>RFC5575-4-2</code></a>, <a href="#rfc5575-7-1"><code>RFC5575-7-1</code></a></p>
-<p class="rfc-id-list"><strong>Derived from other rows (4):</strong> <a href="#rfc5575-6-1"><code>RFC5575-6-1</code></a>, <a href="#rfc5575-6-2"><code>RFC5575-6-2</code></a>, <a href="#rfc5575-6-3"><code>RFC5575-6-3</code></a>, <a href="#rfc5575-6-4"><code>RFC5575-6-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc5575-4-1"><code>RFC5575-4-1</code></a>, <a href="#rfc5575-4-2"><code>RFC5575-4-2</code></a>, <a href="#rfc5575-4-3"><code>RFC5575-4-3</code></a>, <a href="#rfc5575-4-4"><code>RFC5575-4-4</code></a>, <a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a>, <a href="#rfc5575-5.1-1"><code>RFC5575-5.1-1</code></a>, <a href="#rfc5575-8-1"><code>RFC5575-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (2):</strong> <a href="#rfc5575-6-1"><code>RFC5575-6-1</code></a>, <a href="#rfc5575-7-1"><code>RFC5575-7-1</code></a></p>
+<p class="rfc-id-list"><strong>Derived from other rows (3):</strong> <a href="#rfc5575-6-2"><code>RFC5575-6-2</code></a>, <a href="#rfc5575-6-3"><code>RFC5575-6-3</code></a>, <a href="#rfc5575-6-4"><code>RFC5575-6-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -312,8 +322,9 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L845" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the flowspec plugin unconditionally maps its declared ipv4/flow family to a Multiprotocol (Code 1) capability during OPEN, and there is no wrong input the negotiation path rejects (internal/component/bgp/plugins/nlri/flowspec/register.go:19-22, types.go:47)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-4-2">RFC5575-4-2</code></td><td colspan="3"><span class="rfc-subject">The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. (§4)</span></td></tr>
 <tr><td></td>
@@ -322,8 +333,9 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L420" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecIPv4Basic</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L646" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNFamily</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the (AFI 1, SAFI 133/134) assignment is a family-registration constant, not an input guard, so only the positive assignment is assertable (internal/component/bgp/plugins/nlri/flowspec/types.go:47-49, encode.go:79-95)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-4-3">RFC5575-4-3</code></td><td colspan="3"><span class="rfc-subject">Flow specification components must follow strict type ordering. (§4)</span></td></tr>
 <tr><td></td>
@@ -351,7 +363,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{rollup}:</strong> RFC8955-6-2; RFC 5575 is obsoleted and this sentence is restated by RFC 8955 Section 6, later replaced by RFC 9117 Section 4.2, so the row holds exactly when RFC8955-6-2 does</p><p class="rfc-mark"><strong>derived:</strong> met</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not enforce this first-AS check for Flow Specification; RFC9117 Section 7 makes the original rule OPTIONAL again, and the owner chose disclosure rather than implementing that optional check on 2026-10-02</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-6-2">RFC5575-6-2</code></td><td colspan="3"><span class="rfc-subject">A flow specification NLRI must be validated such that it is considered feasible if and only if: a) The originator of the flow specification matches the originator of the best-match unicast route for the destination prefix embedded in the flow specification. b) There are no more specific unicast routes, when compared with the flow destination prefix, that have been received from a different neighboring AS than the best-match unicast route, which has been determined in step a). (§6)</span></td></tr>
 <tr><td></td>
@@ -395,7 +407,9 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-4-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L16" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L481" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L482" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-5.1-1">RFC5575-5.1-1</code></td><td colspan="3"><span class="rfc-subject">This ordering function must be such that it must not depend on the arrival order of the flow specification&#39;s rules and must be constant in the network. (§5.1)</span></td></tr>
@@ -404,7 +418,9 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go" target="_blank" rel="noopener"><code>TestFlowSpecPrecedenceFromWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go" target="_blank" rel="noopener"><code>TestRFC5575PrecedenceIndependentOfArrival</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go" target="_blank" rel="noopener"><code>TestFlowSpecPrecedenceFromWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go#L15" title="internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go" target="_blank" rel="noopener"><code>TestRFC5575PrecedenceIndependentOfArrival</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-8-1">RFC5575-8-1</code></td><td colspan="3"><span class="rfc-subject">The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification. (§8)</span></td></tr>
@@ -462,8 +478,8 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc5575-6-1"><code>RFC5575-6-1</code></a> BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {rollup}: RFC8955-6-2; RFC 5575 is obsoleted and this sentence is restated by RFC 8955 Section 6, later replaced by RFC 9117 Section 4.2, so the row holds exactly when RFC8955-6-2 does</td>
+<td>{gap}, no test</td>
+<td>Ze does not enforce this first-AS check for Flow Specification; RFC9117 Section 7 makes the original rule OPTIONAL again, and the owner chose disclosure rather than implementing that optional check on 2026-10-02</td>
 </tr>
 <tr><td><a href="#rfc5575-6-2"><code>RFC5575-6-2</code></a> A flow specification NLRI must be validated such that it is considered feasible if and only if: a) The originator of the flow specification matches the originator of the best-match unicast route for the destination prefix embedded in the flow specification. b) There are no more specific unicast routes, when compared with the flow destination prefix, that have been received from a different neighboring AS than the best-match unicast route, which has been determined in step a). (§6)</td>
 <td>no test</td>
@@ -485,26 +501,41 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5575-4-1"><code>RFC5575-4-1</code></a></h3>
 <p>Implementations wishing to exchange flow specification rules MUST use BGP&#39;s Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760]. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: exchanging flow specification rules without the Multiprotocol (Code 1) capability in OPEN. TestIPv4FlowSpecNegotiatesMultiprotocolCapability only checks the plugin registers ipv4/flow and then builds a capability.Multiprotocol in the test itself, so mp.Code()==1 is tautological; no assertion reads a real OPEN, and nothing goes red if sendOpen omits the capability or flow routes go to a peer that did not negotiate it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 5575 Section 4: &#34;Implementations wishing to exchange flow specification rules MUST use BGP&#39;s Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760].&#34; RFC 8955 Section 4 restates this obligation; the existing superseded disposition is retained. TestIPv4FlowSpecNegotiatesMultiprotocolCapability is only registration/constructed-capability evidence. The current reactor/rfc5575_capability_wire_test.go TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily additionally decodes buildOpen OptionalParams produced from real parsed configuration, verifies Code-1 families, and sends through AnnounceNLRIBatch. Matching SAFI sends exactly the required MP_REACH bytes; advertising only the other FlowSpec SAFI returns ErrNoPeersAcceptedFamily and writes zero bytes. Producers session_negotiate.go buildOpen, capability.Negotiate and reactor_api_batch.go AnnounceNLRIBatch/buildBatchAnnounceUpdate were read. Distinct matched/mismatched negotiation arms are a genuine positive/negative pair. Removed only the now-false single-polarity annotation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L845" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5575-4-2"><code>RFC5575-4-2</code></a></h3>
 <p>The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an MP capability (AFI, SAFI) pair that differs from the pair the application&#39;s NLRI is sent under. TestFlowSpecIPv4Basic and TestFlowSpecVPNFamily assert family constants (1,133) and (1,134) only; no assertion compares the capability pair with the MP_REACH AFI/SAFI the encoder emits (encode.go chooses afi separately), so an encoder writing another SAFI stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 5575 Section 4: &#34;The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type.&#34; Successor RFC 8955 Section 4 makes the pairs explicit: &#34;The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=1, SAFI=133) for IPv4 Flow Specification and (AFI=1, SAFI=134) for VPNv4 Flow Specification.&#34; types_test.go TestFlowSpecIPv4Basic/TestFlowSpecVPNFamily pin both constants. TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily now compares parsed production OPEN pairs to exact MP_REACH output for both flow and flow-vpn, retaining the VPN RD, and rejects the crossed SAFI without output. AnnounceNLRIBatch checks the negotiated batch.Family and buildBatchAnnounceUpdate passes that same AFI/SAFI to NewMPReachNLRI. Wrong wire SAFI and shared-AFI negotiation leakage both fail. Removed only the stale single-polarity marker; successor policy remains unchanged. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L420" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecIPv4Basic</code></a></td>
 <td>unit/verify</td>
@@ -514,6 +545,11 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L646" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -596,7 +632,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 </div>
 <h3><a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a></h3>
 <p>Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Two clauses. Encode: TestFlowSpecUpdateIgnoresConfiguredNextHop asserts reach[3]==0 and no valid next hop even with a configured IPv4/IPv6 address, red on a non-empty next hop. Receipt: no tagged unit feeds a received FlowSpec MP_REACH with a non-zero next hop and asserts it is ignored, so a receiver that uses or refuses it stays green.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Historical identity retained; RFC 5575 is superseded, not the live authority. RFC 5575 Section 4: &#39;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.&#39; The live obligations are RFC 8955 Section 4: &#39;When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.&#39; and &#39;The Network Address of the Next-Hop field MUST be ignored.&#39; Both tagged functions were read. internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop drives UpdateBuilder.BuildFlowSpec and the UPDATE writer, asserts the literal zero next-hop length and unchanged NLRI bytes with each configured IPv4/IPv6 address, and rejects a decoded forwarding address. Its producer is internal/component/bgp/message/update_build_flowspec.go::buildMPReachFlowSpec, which never reads the configured NextHop. However, gopls references for BuildFlowSpec identify internal/chaos/peer/sender.go::buildFlowSpecRoute as its only non-test caller. The daemon&#39;s config-route sender instead invokes BuildPlugin at internal/component/bgp/reactor/peer_initial_sync.go::sendPluginRoutesVia, and the independent internal/component/bgp/message/update_build_plugin.go::buildMPReachPlugin asks Family.NeedsNextHop before encoding the length. The API batch and queued RIB writers have their own family-dependent gates. Neither tagged function reaches these daemon advertisement producers. A configured-address regression in buildMPReachPlugin therefore leaves the tagged encoding assertion unchanged; this is a source-backed discrimination gap, not an executed mutation result or a present encoding defect. internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec does prove the receipt clause: handleReceivedStructured receives nil, self-address and non-address next-hop bytes; each generation must remain eligible, have exactly one real candidate, and preserve the single selected rule and exact action bytes. The nil case is the conforming control; nonzero cases isolate ignored receipt semantics. gatherCandidatesHeld reaches gatherCandidatesLocked, candidateAdmitted and extractCandidate read rib_bestchange.go::entryNextHopAddr, and its FlowSpec branch ignores both MP and unrelated legacy NEXT_HOP. Existing receipt revert records prove this producer reach only. The whole historical row remains weak because the advertised-zero clause does not exercise the daemon&#39;s producing functions. No test or discrimination command was run for this judgment, and no tests or production were edited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -606,17 +642,27 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L482" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L16" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L481" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5575-5.1-1"><code>RFC5575-5.1-1</code></a></h3>
 <p>This ordering function must be such that it must not depend on the arrival order of the flow specification&#39;s rules and must be constant in the network. (§5.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an ordering that depends on arrival order. TestFlowSpecPrecedenceFromWire always parses the expected-first rule first, so an arrival-order tie-break still yields Compare(a,b)&lt;0 and Compare(b,a)&gt;0; the negative tag says reversing arrival order cannot reverse precedence, but no case parses the pair in the reverse order or feeds the ordering from two arrival sequences.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 5575 Section 5.1: &#34;This ordering function must be such that it must not depend on the arrival order of the flow specification&#39;s rules and must be constant in the network.&#34; RFC 8955 Section 5.1 restates arrival independence and network consistency. TestFlowSpecPrecedenceFromWire checks both comparison signs and self equality across prefix, component and received-byte cases. TestRFC5575PrecedenceIndependentOfArrival additionally parses independent copies in BOTH insertion orders, sorts through production Compare, and requires identical exact output for overlapping prefixes and differing component types. Compare reads components/bytes, not identity or arrival metadata. This is no longer a one-order test masquerading as an arrival-order negative. No new supersession exclusion was introduced. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -626,10 +672,20 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go#L15" title="internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go" target="_blank" rel="noopener"><code>TestRFC5575PrecedenceIndependentOfArrival</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go" target="_blank" rel="noopener"><code>TestFlowSpecPrecedenceFromWire</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go" target="_blank" rel="noopener"><code>TestRFC5575PrecedenceIndependentOfArrival</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -867,9 +923,9 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>RFC 8955 Section 4.2 keeps the rule that a component, if present, MUST precede any component of higher numeric type value</td>
 </tr>
 <tr><td><a href="#rfc5575-6-1"><code>RFC5575-6-1</code></a> BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6)</td>
-<td>restated</td>
-<td>RFC8955-6-2</td>
-<td>RFC 8955 Section 6 restates this rule, and RFC 9117 Section 4.2 subsequently replaces it with comparison against the first AS of the best-match unicast route</td>
+<td>dropped</td>
+<td>not stated</td>
+<td>RFC 8955 Section 6 restated this sentence, and RFC 9117 Section 4.2, which updates RFC 8955, replaces it with a comparison against the left-most AS of the best-match unicast route (row RFC9117-4.2-1) and Section 7 makes the original rule optional again, so the documents in force state no equivalent obligation; RFC8955-6-2 was retired 2026-10-02 (rfc/corrections/rfc8955.md)</td>
 </tr>
 <tr><td><a href="#rfc5575-6-2"><code>RFC5575-6-2</code></a> A flow specification NLRI must be validated such that it is considered feasible if and only if: a) The originator of the flow specification matches the originator of the best-match unicast route for the destination prefix embedded in the flow specification. b) There are no more specific unicast routes, when compared with the flow destination prefix, that have been received from a different neighboring AS than the best-match unicast route, which has been determined in step a). (§6)</td>
 <td>restated</td>
@@ -959,7 +1015,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>62.5%</strong><b>5 of 8 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>12 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.5%</strong><b>1 of 8 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 8 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>10</td>
+<td>18</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>10</td>
+<td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>12</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5443.md</code></td>
@@ -273,7 +278,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -284,6 +289,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -298,7 +307,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc5443-2-1"><code>RFC5443-2-1</code></a>, <a href="#rfc5443-2-2"><code>RFC5443-2-2</code></a>, <a href="#rfc5443-2-5"><code>RFC5443-2-5</code></a>, <a href="#rfc5443-3-1"><code>RFC5443-3-1</code></a>, <a href="#rfc5443-4-1"><code>RFC5443-4-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc5443-2-3"><code>RFC5443-2-3</code></a>, <a href="#rfc5443-2-4"><code>RFC5443-2-4</code></a>, <a href="#rfc5443-2-6"><code>RFC5443-2-6</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc5443-2-3"><code>RFC5443-2-3</code></a>, <a href="#rfc5443-2-4"><code>RFC5443-2-4</code></a>, <a href="#rfc5443-2-6"><code>RFC5443-2-6</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -311,7 +320,9 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncForcesMaxMetric</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L145" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443NotOperationalLinkAdvertisedAtMaxCost</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L170" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443OperationalLinkAdvertisedAtConfiguredCost</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-2">RFC5443-2-2</code></td><td colspan="3"><span class="rfc-subject">In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]. (§2)</span></td></tr>
@@ -320,7 +331,9 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncMaxMetricValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L148" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443NotOperationalLinkAdvertisedAtMaxCost</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncDisabledIsNoOp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L188" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-3">RFC5443-2-3</code></td><td colspan="3"><span class="rfc-subject">In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE). (§2)</span></td></tr>
@@ -347,7 +360,9 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncSubscribesSessionEvents</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5443_sessionup_test.go#L144" title="internal/plugins/ldp/rfc5443_sessionup_test.go" target="_blank" rel="noopener"><code>TestRFC5443SessionUpOnPeerKeepAlive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5443_sessionup_test.go#L121" title="internal/plugins/ldp/rfc5443_sessionup_test.go" target="_blank" rel="noopener"><code>TestRFC5443NoSessionUpBeforePeerKeepAlive</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-6">RFC5443-2-6</code></td><td colspan="3"><span class="rfc-subject">The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received. (§2)</span></td></tr>
@@ -364,8 +379,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L156" title="internal/plugins/ospf/rfc6138_broadcast_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443BroadcastCostOutCoversWholeSegment</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L203" title="internal/plugins/ospf/rfc6138_broadcast_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-4-1">RFC5443-4-1</code></td><td colspan="3"><span class="rfc-subject">The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes. (§4)</span></td></tr>
@@ -373,8 +390,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L208" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L226" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443CostOutLeavesExplicitTEMetric</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-2">RFC5443-3-2</code></td><td colspan="3"><span class="rfc-subject">Note however that non- optimal IP forwarding only occurs for a short time after a link comes up or when there is a genuine problem on a link. In the latter case, an implementation should issue network management alerts to report the error condition and enable the operator to address it. (§3)</span></td></tr>
@@ -460,7 +477,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5443-2-1"><code>RFC5443-2-1</code></a></h3>
 <p>In detail: when LDP is not &#34;fully operational&#34; (see below) on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: the originated router-LSA keeps the configured cost while LDP is not fully operational. No tagged assertion reads an originated LSA: TestLDPSyncForcesMaxMetric and TestLDPSyncRestoresAfterHoldDown assert effectiveP2PCost, whose only non-test caller is the show snapshot (ldp_sync.go:664); the advertised cost comes from applyLDPSyncOverride setting InterfaceInfo.LDPSyncMaxMetric and lsdb/origination.go:245/279 reading it. Deleting that flag assignment leaves every tag green. Broadcast links are withheld (RFC 6138 style), not costed out, and no tag covers that for this row.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 by an independent judge. TestRFC5443NotOperationalLinkAdvertisedAtMaxCost builds the engine from config, runs the production applyLDPSyncOverride, originates the Router-LSA and decodes it: the p2p link is exactly 0xFFFF before session-up and again during hold-down, while the subnet stub keeps 100 (only the link is costed out). TestRFC5443OperationalLinkAdvertisedAtConfiguredCost synchronizes (session-up, hold-down fired) and reads the configured 100, so an always-max stub fails. Both have observed-red revert records on applyLDPSyncOverride. The older helper-level tags (effectiveP2PCost, show path only) stay and add nothing. The &#39;fully operational&#39; definition itself is RFC5443-2-5.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -470,17 +487,27 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L170" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443OperationalLinkAdvertisedAtConfiguredCost</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncForcesMaxMetric</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L145" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443NotOperationalLinkAdvertisedAtMaxCost</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5443-2-2"><code>RFC5443-2-2</code></a></h3>
 <p>In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: advertising a max cost other than 0xFFFF. TestLDPSyncMaxMetricValue asserts only the constant ospflsdb.LSInfinity == 0xFFFF; no tagged assertion reads the metric the origination emits for an LDPSyncMaxMetric link. The negative (TestLDPSyncDisabledIsNoOp) proves an unmanaged interface keeps its cost, a neighbouring rule, not the value.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. The positive reads exactly 0xFFFF from the originated, decoded Router-LSA. TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost configures 0xFFFE: not-synchronized reads 0xFFFF (not the configured near-max value), synchronized returns 0xFFFE, so a cost-out to any value other than LSInfinity goes red. Revert records on lsdb routerLinks, which sets LSInfinity for LDPSyncMaxMetric. The older tags (constant check, unmanaged interface) stay and prove only neighbouring facts.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -490,10 +517,20 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L188" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncMaxMetricValue</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L148" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443NotOperationalLinkAdvertisedAtMaxCost</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -508,20 +545,30 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <p>No test carries RFC5443-2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5443-2-5"><code>RFC5443-2-5</code></a></h3>
 <p>LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session (matching the LDP Identifier of the hello adjacency) is established to the peer at the other end of the link, and all label bindings have been exchanged over the session. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Three clauses: hello adjacency exists, a session matching the adjacency&#39;s LDP Identifier is established, all bindings exchanged. Tagged units (TestLDPSyncSubscribesSessionEvents, TestLDPSyncRestoresAfterHoldDown) drive the real ldpSyncManager: SessionUp -&gt; hold-down, timer -&gt; synchronized, so a machine declaring sync on SessionUp goes red. No assertion covers the hello-adjacency or the LDP-Identifier-match clause: a session-up for a session not matching the link&#39;s adjacency is never exercised.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Three clauses: a hello adjacency exists, a session matching its LDP Identifier is established, all bindings exchanged. Established (RULINGS R4 fix, c29): TestRFC5443NoSessionUpBeforePeerKeepAlive drives runSession with a peer that completes TCP and the Initialization exchange but sends no KeepAlive, and requires zero SessionUp and state open-received; TestRFC5443SessionUpOnPeerKeepAlive sends the KeepAlive and requires exactly one SessionUp naming the adjacency&#39;s interface eth0 and LDP Identifier 10.0.0.2:0. Revert records (handleInit, keepaliveReceived) prove reach; author overlays with HEAD&#39;s OPENSENT-&gt;OPERATIONAL handleInit and a KeepAlive that makes no transition turned each red with the clause-specific message (judge read the job logs). Adjacency and LDP Identifier: SessionUp is published only by runSession for the adjacency startSessionForAdj dialed, from the operational transition, and an Initialization from another LSR ID or label space is refused before OPENREC (RFC5036-3.5.3-9 units), so no SessionUp is published for a non-matching session. Bindings exchanged (hold-down estimate): TestLDPSyncSubscribesSessionEvents and TestLDPSyncRestoresAfterHoldDown drive the real ldpSyncManager (SessionUp -&gt; hold-down at LSInfinity, Synchronized only on timer expiry), with revert records on onSessionUp and onHoldDownExpiry added by the judge. Interop ospf-ldp-sync-frr passed with the fix (2026-10-02). Not this row: onDone emits SessionDown also for a session that never published SessionUp (journal state-read-after-teardown-reset-it.md).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5443_sessionup_test.go#L121" title="internal/plugins/ldp/rfc5443_sessionup_test.go" target="_blank" rel="noopener"><code>TestRFC5443NoSessionUpBeforePeerKeepAlive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5443_sessionup_test.go#L144" title="internal/plugins/ldp/rfc5443_sessionup_test.go" target="_blank" rel="noopener"><code>TestRFC5443SessionUpOnPeerKeepAlive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncSubscribesSessionEvents</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -532,27 +579,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <p>No test carries RFC5443-2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc5443-3-1"><code>RFC5443-3-1</code></a></h3>
 <p>On broadcast links with more than one IGP/LDP peer, the cost-out procedure can only be applied to the link as a whole and not to an individual peer. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: a per-peer cost-out on a broadcast link. TestLDPSyncTECostUntouched asserts ldpSyncWithholdTransit(notSynced, managed, cutEdge=false) is true and cut-edge false; the function takes no peer input, so the whole-link granularity is structural and no assertion would go red on a per-neighbour withhold introduced in applyLDPSyncOverride. The negative/positive both test RFC 6138 cut-edge logic rather than peer granularity.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc5443-4-1"><code>RFC5443-4-1</code></a></h3>
-<p>The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes. (§4)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The row forbids raising the TE link cost. TestLDPSyncTECostUntouched asserts effectiveP2PCost == LSInfinity (the IP cost override, RFC5443-2-1) and the cut-edge withhold (RFC 6138 section 4); no assertion reads any TE metric. The tag prose says ze originates no TE LSA, yet interface_cost_test.go has TestDerivedCostReachesLDPSyncAndTEMetric, so that claim needs checking. Both tags prove neighbouring rules.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). TestRFC5443BroadcastCostOutCoversWholeSegment builds a real engine with broadcast eth1, two Full IGP peers, a real ospfspf.Computer over a three-router LSDB with an alternate path, runs production applyLDPSyncOverride and decodes the originated Router-LSA: not synchronized -&gt; 0 transit and 0 point-to-point links (only the subnet stub), synchronized -&gt; exactly 1 transit link to the pseudonode and 0 per-peer links, so the cost-out never has per-peer granularity. Negative TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut: an LDP session up with hold-down pending still yields 0 transit and 0 per-peer links. Ze applies the RFC 6138 transit-link withhold on broadcast, which is the whole-link cost-out. Note: LDP session events are per interface, so the negative cannot name WHICH peer came up; it proves no partial cost-in. Revert records on applyLDPSyncOverride.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -562,10 +589,40 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L203" title="internal/plugins/ospf/rfc6138_broadcast_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6138_broadcast_origination_test.go#L156" title="internal/plugins/ospf/rfc6138_broadcast_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443BroadcastCostOutCoversWholeSegment</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5443-4-1"><code>RFC5443-4-1</code></a></h3>
+<p>The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes. (§4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. Level: RFC 5443 section 4 reads lowercase &#39;should only be applied to the IP link cost&#39;; under D-3 a lowercase keyword keeps the row&#39;s MUST level, so no correction is owed. TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric originates both LSAs from one not-synchronized snapshot: the Router-LSA link is 0xFFFF and the TE Link LSA (teOriginateType1, decoded) keeps the TE metric defaulted from the configured IP cost, 100. TestRFC5443CostOutLeavesExplicitTEMetric covers the explicit te-metric branch (50 unchanged). Both branches of applyTELinkAttributes are covered and a TE metric raised by the cost-out goes red. The false &#39;Ze originates no TE LSA&#39; tags were removed from TestLDPSyncTECostUntouched.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L226" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443CostOutLeavesExplicitTEMetric</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5443_origination_test.go#L208" title="internal/plugins/ospf/rfc5443_origination_test.go" target="_blank" rel="noopener"><code>TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -729,7 +786,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

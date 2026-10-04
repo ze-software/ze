@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>31.2%</strong><b>5 of 16 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>25.0%</strong><b>4 of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.0%</strong><b>4 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.2%</strong><b>1 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>1</strong><b>of 16 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>14</td>
+<td>16</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>14</td>
+<td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8484.md</code></td>
@@ -270,7 +275,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +286,10 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -295,7 +304,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc8484-4.1-2"><code>RFC8484-4.1-2</code></a>, <a href="#rfc8484-4.2-1"><code>RFC8484-4.2-1</code></a>, <a href="#rfc8484-5.4-1"><code>RFC8484-5.4-1</code></a>, <a href="#rfc8484-6-2"><code>RFC8484-6-2</code></a>, <a href="#rfc8484-6-3"><code>RFC8484-6-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (11):</strong> <a href="#rfc8484-3-1"><code>RFC8484-3-1</code></a>, <a href="#rfc8484-4.1-1"><code>RFC8484-4.1-1</code></a>, <a href="#rfc8484-4.1-3"><code>RFC8484-4.1-3</code></a>, <a href="#rfc8484-5-1"><code>RFC8484-5-1</code></a>, <a href="#rfc8484-5.1-1"><code>RFC8484-5.1-1</code></a>, <a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>, <a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a>, <a href="#rfc8484-5.3-1"><code>RFC8484-5.3-1</code></a>, <a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a>, <a href="#rfc8484-6-1"><code>RFC8484-6-1</code></a>, <a href="#rfc8484-6-4"><code>RFC8484-6-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc8484-3-1"><code>RFC8484-3-1</code></a>, <a href="#rfc8484-4.1-1"><code>RFC8484-4.1-1</code></a>, <a href="#rfc8484-4.1-3"><code>RFC8484-4.1-3</code></a>, <a href="#rfc8484-5-1"><code>RFC8484-5-1</code></a>, <a href="#rfc8484-5.1-1"><code>RFC8484-5.1-1</code></a>, <a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>, <a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a>, <a href="#rfc8484-5.3-1"><code>RFC8484-5.3-1</code></a>, <a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a>, <a href="#rfc8484-6-1"><code>RFC8484-6-1</code></a>, <a href="#rfc8484-6-4"><code>RFC8484-6-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -344,7 +353,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L140" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHListener</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L477" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L487" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5-1">RFC8484-5-1</code></td><td colspan="3"><span class="rfc-subject">This protocol MUST be used with the https URI scheme (§5)</span></td></tr>
@@ -361,7 +370,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L539" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHCacheControlMatchesSmallestTTL</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L549" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHCacheControlMatchesSmallestTTL</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the handler sets Cache-Control max-age to exactly the smallest Answer-section TTL, so the assigned freshness equals (hence never exceeds) that minimum (internal/core/dnsserver/secure.go:416-419, :478)</p></td>
 </tr>
@@ -398,7 +407,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-5.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L176" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>assertDoHAnswer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L478" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L488" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.4-2">RFC8484-5.4-2</code></td><td colspan="3"><span class="rfc-subject">Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4)</span></td></tr>
@@ -415,7 +424,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L564" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHIgnoresEDNSUDPSize</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L574" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHIgnoresEDNSUDPSize</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the handler packs the full reply and writes it over HTTP framing, never consulting the request&#39;s EDNS UDP payload size and never UDP-truncating, so the size is ignored by construction (internal/core/dnsserver/secure.go:410-422)</p></td>
 </tr>
@@ -425,7 +434,9 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L156" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHListener</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L491" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsBadDNSParam</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_get_base64url_test.go#L46" title="internal/core/dnsserver/rfc8484_get_base64url_test.go" target="_blank" rel="noopener"><code>TestRFC8484GetPayloadIsBase64URLInTheDNSVariable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L501" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsBadDNSParam</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_get_base64url_test.go#L47" title="internal/core/dnsserver/rfc8484_get_base64url_test.go" target="_blank" rel="noopener"><code>TestRFC8484GetPayloadIsBase64URLInTheDNSVariable</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-6-3">RFC8484-6-3</code></td><td colspan="3"><span class="rfc-subject">Padding characters for base64url MUST NOT be included (§6)</span></td></tr>
@@ -434,7 +445,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-6-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L157" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHListener</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L518" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsPaddedDNSParam</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L528" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsPaddedDNSParam</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-6-4">RFC8484-6-4</code></td><td colspan="3"><span class="rfc-subject">When using the POST method, the data payload for this media type MUST NOT be encoded and is used directly as the HTTP message body (§6)</span></td></tr>
@@ -628,7 +639,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L477" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L487" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -663,7 +674,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L539" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHCacheControlMatchesSmallestTTL</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L549" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHCacheControlMatchesSmallestTTL</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -690,7 +701,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L478" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L488" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -714,7 +725,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L564" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHIgnoresEDNSUDPSize</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L574" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHIgnoresEDNSUDPSize</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -723,20 +734,30 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </div>
 <h3><a href="#rfc8484-6-2"><code>RFC8484-6-2</code></a></h3>
 <p>When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named &#34;dns&#34; to the URI Template expansion. (§6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. GET data MUST be base64url and carried in the variable &#39;dns&#39;. Positive TestDoH... GET is answered. The negative TestDoHGetRejectsBadDNSParam sends a missing &#39;dns&#39; (goes red if another variable name were read) and &#39;*&#39;, which is outside both the base64 and base64url alphabets. A server that decoded standard base64 (&#39;+&#39;, &#39;/&#39;) would still pass: no assertion sends a standard-alphabet value, so the base64url clause is unproven.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both clauses: a query whose ID 0xfbff makes base64url begin &#39;-_&#39; is answered under &#39;dns&#39; (200 + A); the same octets in standard base64 (&#39;+/&#39;) under &#39;dns&#39; are refused 400 (the &#39;*&#39; of the HEAD negative is in neither alphabet), and the base64url value under &#39;query&#39; is refused 400. Records: dohRequestBody revert, both polarities observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L491" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsBadDNSParam</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_get_base64url_test.go#L47" title="internal/core/dnsserver/rfc8484_get_base64url_test.go" target="_blank" rel="noopener"><code>TestRFC8484GetPayloadIsBase64URLInTheDNSVariable</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L501" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsBadDNSParam</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_get_base64url_test.go#L46" title="internal/core/dnsserver/rfc8484_get_base64url_test.go" target="_blank" rel="noopener"><code>TestRFC8484GetPayloadIsBase64URLInTheDNSVariable</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L156" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHListener</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -749,7 +770,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L518" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsPaddedDNSParam</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L528" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHGetRejectsPaddedDNSParam</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1026,7 +1047,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -74,7 +74,10 @@ ACCM, ACFC or FCS Alternatives, and both reject peer requests for them.
 These restrictions do not change L2TP negotiation. A PADT matching the
 session ID and both MAC addresses ends the PPPoE transport immediately;
 PPP termination packets are not sent afterwards. Local teardown also
-stops PPP before sending PADT.</p>
+stops PPP before sending PADT. A subscriber's LCP Terminate-Request is
+answered with a Terminate-Ack, and one Restart time later (3 seconds) the
+AC sends the PADT, with User Request as the accounting cause; a new LCP
+Configure-Request arriving before the PADT completes is still answered.</p>
 <pre><code>Subscriber CPE
     |
     | Ethernet (ethertype 0x8863 discovery, 0x8864 session)
@@ -114,7 +117,12 @@ answers no PADI.</p>
 <h3 id="subscriber-authentication">Subscriber authentication</h3>
 <p><code>auth-method</code> is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: <code>chap-md5</code> (the default), <code>pap</code>, <code>ms-chap-v2</code>, or <code>none</code>.
-<code>none</code> requires <code>allow-no-auth true</code>. The daemon rejects <code>none</code> without that
+With <code>pap</code>, the first Configure-Request still offers CHAP-MD5, and PAP is
+offered only after the subscriber sends a Configure-Nak that suggests PAP
+(RFC 1334 Section 2: an implementation that includes CHAP MUST offer it before
+PAP).</p>
+<!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
+<p><code>none</code> requires <code>allow-no-auth true</code>. The daemon rejects <code>none</code> without that
 opt-in, and rejects an unknown authentication method, with
 <code>parse pppoe config: ...</code>.</p>
 <table>
@@ -364,7 +372,7 @@ ID for L2TP) and SessionID.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

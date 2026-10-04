@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4.3% | 1 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 47.8% | 11 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 13.0% | 3 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 39.1% | 9 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 65.0% | 13 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 4.3% | 1 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 8 | of 23 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 13 |
-| Tagged units | 13 |
+| Test tags | 20 |
+| Tagged units | 20 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 0 |
+| Discrimination records | 13 |
 | Summary | `rfc/short/rfc2181.md` |
 | Requirement shard | `rfc/requirements/rfc2181.md` |
 | RFC text | `rfc/full/rfc2181.txt` |
@@ -97,45 +98,46 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 22 | one part of the gated population |
+| Positive and negative tests | 3 | one part of the gated population |
+| Annotated (including scoped evidence) | 20 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **23** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (1):** [`RFC2181-8-1`](#rfc2181-8-1)
+**Positive and negative tests (3):** [`RFC2181-5.4-2`](#rfc2181-5.4-2), [`RFC2181-8-1`](#rfc2181-8-1), [`RFC2181-11-1`](#rfc2181-11-1)
 
-**Annotated instead of tested (22):** [`RFC2181-4.1-1`](#rfc2181-4.1-1), [`RFC2181-4.2-1`](#rfc2181-4.2-1), [`RFC2181-4.2-2`](#rfc2181-4.2-2), [`RFC2181-5.1-1`](#rfc2181-5.1-1), [`RFC2181-5.2-1`](#rfc2181-5.2-1), [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2), [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3), [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4), [`RFC2181-5.4-1`](#rfc2181-5.4-1), [`RFC2181-5.4-2`](#rfc2181-5.4-2), [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3), [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9), [`RFC2181-5.5-4`](#rfc2181-5.5-4), [`RFC2181-10.1-4`](#rfc2181-10.1-4), [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1), [`RFC2181-10.2-1`](#rfc2181-10.2-1), [`RFC2181-10.3-1`](#rfc2181-10.3-1), [`RFC2181-10.3-2`](#rfc2181-10.3-2), [`RFC2181-11-1`](#rfc2181-11-1), [`RFC2181-11-2`](#rfc2181-11-2), [`RFC2181-11-3`](#rfc2181-11-3)
+**Annotated (including scoped evidence) (20):** [`RFC2181-4.1-1`](#rfc2181-4.1-1), [`RFC2181-4.2-1`](#rfc2181-4.2-1), [`RFC2181-4.2-2`](#rfc2181-4.2-2), [`RFC2181-5.1-1`](#rfc2181-5.1-1), [`RFC2181-5.2-1`](#rfc2181-5.2-1), [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2), [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3), [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4), [`RFC2181-5.4-1`](#rfc2181-5.4-1), [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3), [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9), [`RFC2181-5.5-4`](#rfc2181-5.5-4), [`RFC2181-10.1-4`](#rfc2181-10.1-4), [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1), [`RFC2181-10.2-1`](#rfc2181-10.2-1), [`RFC2181-10.3-1`](#rfc2181-10.3-1), [`RFC2181-10.3-2`](#rfc2181-10.3-2), [`RFC2181-11-2`](#rfc2181-11-2), [`RFC2181-11-3`](#rfc2181-11-3)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2181-4.1-1` | To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L345). **negative:** no negative test. **{single-polarity}:** each UDP listener binds one specific IP at internal/core/dnsserver/manager.go:160 so the kernel sources every reply from the query destination address, and ze has no wildcard-bind or explicit-source path that could send from another address |
-| `RFC2181-4.2-1` | Replies to all queries must be directed to the port from which they were sent. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L350). **negative:** no negative test. **{single-polarity}:** the reply is written on the same socket the query arrived on via internal/core/dnsserver/handler.go:62 so miekg/dns directs it to the query source port, a property ze cannot violate |
-| `RFC2181-4.2-2` | For queries received by UDP the server must take note of the source port and use that as the destination port in the response. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L355). **negative:** no negative test. **{single-polarity}:** miekg/dns ServeUDP records the datagram source port and uses it as the reply destination for the write at internal/core/dnsserver/handler.go:62, so ze always answers to the query source port |
+| `RFC2181-4.1-1` | To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L56). **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L345). **negative:** no negative test. **{single-polarity}:** each UDP listener binds one specific IP at internal/core/dnsserver/manager.go:160 so the kernel sources every reply from the query destination address, and ze has no wildcard-bind or explicit-source path that could send from another address |
+| `RFC2181-4.2-1` | Replies to all queries must be directed to the port from which they were sent. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L350). **negative:** no negative test. **{single-polarity}:** the reply is written on the same socket the query arrived on via internal/core/dnsserver/handler.go:62 so miekg/dns directs it to the query source port, a property ze cannot violate |
+| `RFC2181-4.2-2` | For queries received by UDP the server must take note of the source port and use that as the destination port in the response. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L355). **negative:** no negative test. **{single-polarity}:** miekg/dns ServeUDP records the datagram source port and uses it as the reply destination for the write at internal/core/dnsserver/handler.go:62, so ze always answers to the query source port |
 | `RFC2181-5.1-1` | The response must be marked as "truncated" if the entire RRSet will not fit in the response. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked |
-| `RFC2181-5.2-1` | Consequently the use of differing TTLs in an RRSet is hereby deprecated, the TTLs of all RRs in an RRSet must be the same. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L397). **negative:** no negative test. **{single-polarity}:** geodns assigns one TTL per host record set at internal/plugins/geodns/config.go:271 and as112 uses fixed per-zone TTL constants, so an emitted RRSet never carries unequal TTLs and no code path can produce one |
+| `RFC2181-5.2-1` | Consequently the use of differing TTLs in an RRSet is hereby deprecated, the TTLs of all RRs in an RRSet must be the same. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L397). **negative:** no negative test. **{single-polarity}:** geodns assigns one TTL per host record set at internal/plugins/geodns/config.go:271 and as112 uses fixed per-zone TTL constants, so an emitted RRSet never carries unequal TTLs and no code path can produce one |
 | `RFC2181-5.3.1-2` | However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include |
 | `RFC2181-5.3.1-3` | Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about |
 | `RFC2181-5.3.1-4` | Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server. (§5.3.1) | MUST NOT | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned |
-| `RFC2181-5.4-1` | Servers must never merge RRs from a response with RRs in their cache to form an RRSet. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L226). **negative:** no negative test. **{single-polarity}:** the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones |
-| `RFC2181-5.4-2` | If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234). **negative:** no negative test. **{single-polarity}:** put discards the entire cached RRSet before storing the new answer at internal/component/resolve/dns/cache.go:145, taking the discard-cached branch of the rule rather than merging |
+| `RFC2181-5.4-1` | Servers must never merge RRs from a response with RRs in their cache to form an RRSet. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L226). **negative:** no negative test. **{single-polarity}:** the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones |
+| `RFC2181-5.4-2` | If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L21). **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234). **negative:** `unit/verify` [`TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31) |
 | `RFC2181-5.4.1-3` | Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources |
 | `RFC2181-5.4.1-8` | When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data |
 | `RFC2181-5.4.1-9` | However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1) | MUST | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73 |
 | `RFC2181-5.5-4` | Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises |
-| `RFC2181-8-1` | It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8) | SHALL | 8 | **positive:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L225). **negative:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238) |
+| `RFC2181-8-1` | It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8) | SHALL | 8 | **positive:** `unit/verify` [`TestRFC2181TTLTransmittedWithSignBitClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L171). **positive:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L225). **negative:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L238) |
 | `RFC2181-10.1-4` | An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1) | MUST NOT | 10.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data |
 | `RFC2181-10.1.1-1` | Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | MUST | 10.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve |
 | `RFC2181-10.2-1` | Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2) | MUST NOT | 10.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias |
-| `RFC2181-10.3-1` | The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3) | MUST NOT | 10.3 | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L437). **negative:** no negative test. **{single-polarity}:** geodns synthesizes NS targets as canonical ns<n>.<zone> names at internal/plugins/geodns/server.go:154 and as112 uses fixed canonical names, so ze never emits a CNAME as an NS or MX value and serves no MX at all |
-| `RFC2181-10.3-2` | This domain name must have as its value one or more address records. (§10.3) | MUST | 10.3 | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L454). **negative:** no negative test. **{single-polarity}:** geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records |
-| `RFC2181-11-1` | The length of any one label is limited to between 1 and 63 octets. A full domain name is limited to 255 octets (including the separators). (§11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L481). **negative:** no negative test. **{single-polarity}:** the DNS wire codec ze packs and unpacks through rejects a label of 64+ octets at vendor/github.com/miekg/dns/msg.go:281 and caps a name at 255, and geodns/as112 emit only short synthetic names, so no over-limit name is produced |
-| `RFC2181-11-2` | Implementations of the DNS protocols must not place any restrictions on the labels that can be used. (§11) | MUST NOT | 11 | **positive:** `unit/verify` [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L271). **negative:** no negative test. **{single-polarity}:** geodns applies no label-content restriction -- parseHost at internal/plugins/geodns/config.go:270 accepts any label characters and only requires a configured-zone suffix, so underscore and other non-hostname labels are served |
-| `RFC2181-11-3` | DNS servers must not refuse to serve a zone because it contains labels that might not be acceptable to some DNS client programs. (§11) | MUST NOT | 11 | **positive:** `unit/verify` [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L260). **negative:** no negative test. **{single-polarity}:** geodns never refuses a zone for questionable labels -- config parsing at internal/plugins/geodns/config.go:246 rejects only a missing zone suffix or an invalid IP, never label characters |
+| `RFC2181-10.3-1` | The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3) | MUST NOT | 10.3 | **positive:** `unit/verify` [`TestRFC2181NSTargetIsNotAnAlias`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L88). **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L437). **negative:** no negative test. **{single-polarity}:** geodns synthesizes NS targets as canonical ns<n>.<zone> names at internal/plugins/geodns/server.go:154 and as112 uses fixed canonical names, so ze never emits a CNAME as an NS or MX value and serves no MX at all |
+| `RFC2181-10.3-2` | This domain name must have as its value one or more address records. (§10.3) | MUST | 10.3 | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L454). **negative:** no negative test. **{single-polarity}:** geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records |
+| `RFC2181-11-1` | The length of any one label is limited to between 1 and 63 octets. A full domain name is limited to 255 octets (including the separators). (§11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L131). **positive:** `unit/verify` [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L481). **negative:** `unit/verify` [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L145) |
+| `RFC2181-11-2` | Implementations of the DNS protocols must not place any restrictions on the labels that can be used. (§11) | MUST NOT | 11 | **positive:** `unit/verify` [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L271). **negative:** no negative test. **{single-polarity}:** geodns applies no label-content restriction -- parseHost at internal/plugins/geodns/config.go:270 accepts any label characters and only requires a configured-zone suffix, so underscore and other non-hostname labels are served |
+| `RFC2181-11-3` | DNS servers must not refuse to serve a zone because it contains labels that might not be acceptable to some DNS client programs. (§11) | MUST NOT | 11 | **positive:** `unit/verify` [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L260). **negative:** no negative test. **{single-polarity}:** geodns never refuses a zone for questionable labels -- config parsing at internal/plugins/geodns/config.go:246 rejects only a missing zone suffix or an invalid IP, never label characters |
 | `RFC2181-4.1-3` | That address should be chosen to maximise the possibility that the client will be able to use it for further queries. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-4.2-3` | Replies should always be sent from the port to which they were directed. (§4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5-1` | It is meaningless for two records to ever have label, class, type and data all equal - servers should suppress such duplicates if encountered. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
@@ -208,11 +210,12 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_UDPReplySourceAndPort sends to 127.0.0.1 on loopback and asserts the reply source is 127.0.0.1; a wildcard-bound listener would also source a loopback reply from 127.0.0.1, so the assertion cannot fail for the regression the row guards (reply sourced from another address on a multi-homed host).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. TestRFC2181ReplySourcedFromTheQueriedAddress binds the listener to 127.0.0.2 and queries from 127.0.0.1, asserting reply source 127.0.0.2; a wildcard bind would source from 127.0.0.1, so the assertion discriminates (the earlier weak finding). Record: dnsserver Manager.bind revert observed red. {single-polarity} holds: every UDP listener binds one address and there is no explicit-source path to drive negatively.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L345) | unit/verify | unproven |
+| positive | [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L345) | unit/verify | revert, verified |
 
 ### [`RFC2181-4.2-1`](#rfc2181-4.2-1)
 
@@ -222,7 +225,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L350) | unit/verify | unproven |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L350) | unit/verify | unproven |
 
 ### [`RFC2181-4.2-2`](#rfc2181-4.2-2)
 
@@ -232,7 +235,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L355) | unit/verify | unproven |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L355) | unit/verify | unproven |
 
 ### [`RFC2181-5.1-1`](#rfc2181-5.1-1)
 
@@ -250,7 +253,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L397) | unit/verify | unproven |
+| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L397) | unit/verify | unproven |
 
 ### [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2)
 
@@ -284,17 +287,19 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L226) | unit/verify | unproven |
+| positive | [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L226) | unit/verify | unproven |
 
 ### [`RFC2181-5.4-2`](#rfc2181-5.4-2)
 
 If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_CacheReplacesRRSetNoMerge: the assertion carrying this tag only checks one cache entry exists, which a merge into the same entry also satisfies; the discard of the whole cached RRSet is proven only by the RFC2181-5.4-1 assertions above it (same assertion wearing two hats).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition's false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234) | unit/verify | unproven |
+| negative | [`TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31) | unit/verify | revert, verified |
+| positive | [`TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L21) | unit/verify | revert, verified |
+| positive | [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234) | unit/verify | revert, verified |
 
 ### [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3)
 
@@ -332,12 +337,13 @@ No test carries RFC2181-5.5-4, so no unit is bound to it.
 
 It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_TTLSignBitBound drives parseTTL alone: it accepts 2147483647 and rejects 2147483648, so a config parse that let the sign bit through goes red. Two clauses stay unproven: the 'when transmitted' clause (no assertion reads the TTL field of an emitted RR, so a TTL from another source, SOA/NS/as112 constants, or a pack that set the top bit, stays green) and the minimum value of 0 (parseTTL("0") is never accepted under test).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: parseTTL('0') is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value <= 2^31-1, closing the earlier 'when transmitted' gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238) | unit/verify | unproven |
-| positive | [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L225) | unit/verify | unproven |
+| negative | [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L238) | unit/verify | revert, verified |
+| positive | [`TestRFC2181TTLTransmittedWithSignBitClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L171) | unit/verify | revert, verified |
+| positive | [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L225) | unit/verify | revert, verified |
 
 ### [`RFC2181-10.1-4`](#rfc2181-10.1-4)
 
@@ -367,11 +373,12 @@ No test carries RFC2181-10.2-1, so no unit is bound to it.
 
 The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_NSCanonicalWithGlue asserts the NS targets have an ns<n>.<zone> shape and that no CNAME appears in the NS answer or glue; it never queries the target name for a CNAME, so the name-shape check asserts what the code does rather than that the target is not an alias.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. TestRFC2181NSTargetIsNotAnAlias queries each NS target itself: a CNAME query returns no CNAME, an A query returns only A records owned by the target holding the configured addresses (an alias would answer a CNAME chain). Record: appendNS revert observed red. {single-polarity} holds: Ze serves no CNAME and no MX, so there is no alias to refuse.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L437) | unit/verify | unproven |
+| positive | [`TestRFC2181NSTargetIsNotAnAlias`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L88) | unit/verify | revert, verified |
+| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L437) | unit/verify | revert, verified |
 
 ### [`RFC2181-10.3-2`](#rfc2181-10.3-2)
 
@@ -381,17 +388,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L454) | unit/verify | unproven |
+| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L454) | unit/verify | unproven |
 
 ### [`RFC2181-11-1`](#rfc2181-11-1)
 
 The length of any one label is limited to between 1 and 63 octets. A full domain name is limited to 255 octets (including the separators). (§11)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_WireNameLimits proves the codec refuses a 64-octet label, but the emitted-name checks run over a short configured name and cannot fail, and the 255-octet full-name limit is never exercised against the codec or geodns config.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both sides of each bound: a 63-octet label accepted by parseConfig, a 255-octet name accepted by checkName and packed by the codec; a 64-octet label, an EMPTY label (the D-8 defect, fixed in checkName with the section 11 quote) and a 256-octet name refused, and the codec refuses 256. Records: checkName revert, both polarities observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L481) | unit/verify | unproven |
+| negative | [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L145) | unit/verify | revert, verified |
+| positive | [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L131) | unit/verify | revert, verified |
+| positive | [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L481) | unit/verify | revert, verified |
 
 ### [`RFC2181-11-2`](#rfc2181-11-2)
 
@@ -401,7 +410,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L271) | unit/verify | unproven |
+| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L271) | unit/verify | unproven |
 
 ### [`RFC2181-11-3`](#rfc2181-11-3)
 
@@ -411,7 +420,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L260) | unit/verify | unproven |
+| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L260) | unit/verify | unproven |
 
 ## Extraction sign-off
 

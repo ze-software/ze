@@ -411,6 +411,12 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 </tr>
 <tr>
 <td></td>
+<td>DHCPv4 flags bits 1 to 15 sent as zero, even when the server's OFFER or ACK sets them (RFC 2131 section 2)</td>
+<td>have</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
 <td>NTP servers from DHCP (option 42)</td>
 <td>have</td>
 <td></td>
@@ -1032,7 +1038,14 @@ Per-case leaf sets are constrained by the schema: <code>key</code> only appears 
 cases, <code>hoplimit</code>/<code>tclass</code>/<code>encaplimit</code> only in v6-underlay cases. Local and
 remote endpoints use the same <code>local { ip ... } remote { ip ... }</code> shape as the
 BGP peer connection block, with <code>local { interface ... }</code> as an alternative when
-the source should be taken from another interface.</li>
+the source should be taken from another interface. The remote is mandatory and
+must be a specific address: the netlink backend refuses <code>0.0.0.0</code> and <code>::</code>,
+because the kernel decapsulator matches the outer source address against the
+remote, and an unspecified remote accepts packets from any source (RFC 4213
+Section 3.6 requires the decapsulator to verify the tunnel source).</li>
+</ul>
+<!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- parseTunnelRemote -->
+<ul>
 <li><strong>Idempotent cleanup.</strong> Delete and mirror removal succeed even if already gone.</li>
 <li><strong>The mirror shares its qdisc, so it owns only its filters.</strong> Mirroring attaches a
 tc mirred filter at priority 1 to the qdisc at handle <code>ffff:</code> on the source
@@ -2305,7 +2318,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

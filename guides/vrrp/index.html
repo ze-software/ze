@@ -459,6 +459,11 @@ firewall tables, <code>ze_vrrp_owner_arp</code> and <code>ze_vrrp_owner_nd</code
 <code>show firewall ruleset</code> lists. Hosts therefore learn only the virtual MAC, as
 the RFCs require. The ARP table needs a kernel built with
 <code>CONFIG_NF_TABLES_ARP</code>; ze's appliance kernel has it.</li>
+<li><strong>A Backup drops traffic sent to the virtual MAC.</strong> The virtual-MAC interface
+exists in every state, and the kernel would forward what it receives even with
+no virtual IP on it. While a group is not Active, ze drops every packet that
+interface receives with the firewall table <code>ze_vrrp_backup</code>, which
+<code>show firewall ruleset</code> lists. The Active router forwards that traffic.</li>
 <li><strong>First-resolution race (IPv4 only).</strong> The very first host to ARP for the
 virtual IP right as a router becomes Active can, for one resolution, cache the
 parent's real MAC before the macvlan takes over; it converges to the virtual
@@ -676,7 +681,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

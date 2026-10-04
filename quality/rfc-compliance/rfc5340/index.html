@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>69.6%</strong><b>16 of 23 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>16.2%</strong><b>6 of 37 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>35.6%</strong><b>16 of 45 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>21.7%</strong><b>5 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>13</strong><b>of 23 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>37</td>
+<td>45</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>37</td>
+<td>45</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>13</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>16</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5340.md</code></td>
@@ -270,7 +275,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +286,10 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -295,7 +304,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (16):</strong> <a href="#rfc5340-2.5-1"><code>RFC5340-2.5-1</code></a>, <a href="#rfc5340-2.8-3"><code>RFC5340-2.8-3</code></a>, <a href="#rfc5340-2.8-4"><code>RFC5340-2.8-4</code></a>, <a href="#rfc5340-4.1.2-2"><code>RFC5340-4.1.2-2</code></a>, <a href="#rfc5340-4.2.1.1-1"><code>RFC5340-4.2.1.1-1</code></a>, <a href="#rfc5340-4.2.1.1-2"><code>RFC5340-4.2.1.1-2</code></a>, <a href="#rfc5340-4.2.1.2-1"><code>RFC5340-4.2.1.2-1</code></a>, <a href="#rfc5340-4.2.2-5"><code>RFC5340-4.2.2-5</code></a>, <a href="#rfc5340-a.3.1-2"><code>RFC5340-A.3.1-2</code></a>, <a href="#rfc5340-a.4.7-1"><code>RFC5340-A.4.7-1</code></a>, <a href="#rfc5340-a.4.7-2"><code>RFC5340-A.4.7-2</code></a>, <a href="#rfc5340-a.4.8-1"><code>RFC5340-A.4.8-1</code></a>, <a href="#rfc5340-c.3-1"><code>RFC5340-C.3-1</code></a>, <a href="#rfc5340-c.3-2"><code>RFC5340-C.3-2</code></a>, <a href="#rfc5340-c.3-3"><code>RFC5340-C.3-3</code></a>, <a href="#rfc5340-c.3-4"><code>RFC5340-C.3-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc5340-2.5-2"><code>RFC5340-2.5-2</code></a>, <a href="#rfc5340-2.8-2"><code>RFC5340-2.8-2</code></a>, <a href="#rfc5340-4.2.2-1"><code>RFC5340-4.2.2-1</code></a>, <a href="#rfc5340-4.2.2-2"><code>RFC5340-4.2.2-2</code></a>, <a href="#rfc5340-4.2.2-3"><code>RFC5340-4.2.2-3</code></a>, <a href="#rfc5340-4.9-1"><code>RFC5340-4.9-1</code></a>, <a href="#rfc5340-4.9-2"><code>RFC5340-4.9-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (7):</strong> <a href="#rfc5340-2.5-2"><code>RFC5340-2.5-2</code></a>, <a href="#rfc5340-2.8-2"><code>RFC5340-2.8-2</code></a>, <a href="#rfc5340-4.2.2-1"><code>RFC5340-4.2.2-1</code></a>, <a href="#rfc5340-4.2.2-2"><code>RFC5340-4.2.2-2</code></a>, <a href="#rfc5340-4.2.2-3"><code>RFC5340-4.2.2-3</code></a>, <a href="#rfc5340-4.9-1"><code>RFC5340-4.9-1</code></a>, <a href="#rfc5340-4.9-2"><code>RFC5340-4.9-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -334,8 +343,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-2.8-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L183" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L186" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L189" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L192" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.8-4">RFC5340-2.8-4</code></td><td colspan="3"><span class="rfc-subject">a link-LSA MUST list all of a router&#39;s addresses on the link (§2.8)</span></td></tr>
@@ -343,8 +352,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-2.8-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L221" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L225" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L227" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L231" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.1.2-2">RFC5340-4.1.2-2</code></td><td colspan="3"><span class="rfc-subject">For IPv6, the IPv6 address appearing in the source of OSPF packets sent on the interface is almost always a link-local address. The one exception is for virtual links that MUST use one of the router&#39;s own global IPv6 addresses as IP interface address. (§4.1.2)</span></td></tr>
@@ -380,7 +389,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>4.2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-4.2.1.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L154" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340DBDescOptionsBits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L158" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340DBDescOptionsBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L160" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340DBDescOptionsBits</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.2-1">RFC5340-4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">In order for the packet to be passed to OSPF for processing, the following tests must be performed on the encapsulating IPv6 headers: o The packet&#39;s IP destination address MUST be one of the IPv6 unicast addresses associated with the receiving interface (this includes link-local addresses), one of the IPv6 multicast addresses AllSPFRouters or AllDRouters, or an IPv6 global address (for virtual links). (§4.2.2)</span></td></tr>
@@ -415,8 +424,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-4.2.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/header_test.go#L31" title="internal/plugins/ospf/v3/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3HeaderRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/header_test.go#L80" title="internal/plugins/ospf/v3/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3DecodeHeaderBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L31" title="internal/plugins/ospf/v3/packet/rfc5340_header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3HeaderRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L80" title="internal/plugins/ospf/v3/packet/rfc5340_header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3DecodeHeaderBounds</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.9-1">RFC5340-4.9-1</code></td><td colspan="3"><span class="rfc-subject">o Each of the multiple interfaces MUST be configured with the same Interface Instance ID to be considered on the same link. (§4.9)</span></td></tr>
@@ -442,8 +451,10 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>A.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-A.3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L367" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L371" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L373" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_reserved_send_test.go#L25" title="internal/plugins/ospf/rfc5340_reserved_send_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetZeroOnSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L377" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_reserved_send_test.go#L29" title="internal/plugins/ospf/rfc5340_reserved_send_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetZeroOnSend</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-a.4.7-1">RFC5340-A.4.7-1</code></td><td colspan="3"><span class="rfc-subject">Forwarding address A fully qualified IPv6 address (128 bits). Included in the LSA if and only if bit F has been set. If included, data traffic for the advertised destination will be forwarded to this address. It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7)</span></td></tr>
@@ -451,9 +462,9 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST NOT</td>
 <td>A.4.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-A.4.7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L292" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L298" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L45" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L294" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L56" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding</code></a></span></div>
 </div></td>
 </tr>
@@ -462,9 +473,9 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>A.4.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-A.4.7-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L306" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L67" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorAdvertisesGlobalForwarding</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L304" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L310" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L74" title="internal/plugins/ospf/rfc5340_nssa_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5340TranslatorAdvertisesGlobalForwarding</code></a></span></div>
 </div></td>
 </tr>
@@ -473,8 +484,12 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>A.4.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-A.4.8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L336" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L339" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go#L78" title="internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressFromKernelInterface</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_select_test.go#L62" title="internal/plugins/ospf/rfc5340_nssa_fa_select_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressSelectsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L342" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go#L68" title="internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressFromKernelInterface</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_select_test.go#L50" title="internal/plugins/ospf/rfc5340_nssa_fa_select_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressSelectsGlobal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L345" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-1">RFC5340-C.3-1</code></td><td colspan="3"><span class="rfc-subject">The interface output cost MUST always be greater than 0 (§C.3)</span></td></tr>
@@ -482,8 +497,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>C.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-C.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L424" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L427" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L430" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L433" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-2">RFC5340-C.3-2</code></td><td colspan="3"><span class="rfc-subject">InfTransDelay The estimated number of seconds it takes to transmit a Link State Update packet over this interface. LSAs contained in the update packet must have their age incremented by this amount before transmission. This value should take into account the transmission and propagation delays of the interface. It MUST be greater than 0. (§C.3)</span></td></tr>
@@ -491,8 +506,10 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>C.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-C.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L430" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L433" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L66" title="internal/plugins/ospf/rfc5340_flood_age_test.go" target="_blank" rel="noopener"><code>TestRFC5340FloodIncrementsAgeByInfTransDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L436" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L73" title="internal/plugins/ospf/rfc5340_flood_age_test.go" target="_blank" rel="noopener"><code>TestRFC5340FloodIncrementsAgeByInfTransDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L439" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-3">RFC5340-C.3-3</code></td><td colspan="3"><span class="rfc-subject">HelloInterval The length of time, in seconds, between Hello packets that the router sends on the interface. This value is advertised in the router&#39;s Hello packets. It MUST be the same for all routers attached to a common link. (§C.3)</span></td></tr>
@@ -500,8 +517,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>C.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-C.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L466" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L469" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L472" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L475" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-c.3-4">RFC5340-C.3-4</code></td><td colspan="3"><span class="rfc-subject">RouterDeadInterval After ceasing to hear a router&#39;s Hello packets, the number of seconds before its neighbors declare the router down. This is also advertised in the router&#39;s Hello packets in their RouterDeadInterval field. This should be some multiple of the HelloInterval (e.g., 4). This value again MUST be the same for all routers attached to a common link. (§C.3)</span></td></tr>
@@ -509,8 +526,8 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>C.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-C.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L472" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L474" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L478" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L480" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-2.11-1">RFC5340-2.11-1</code></td><td colspan="3"><span class="rfc-subject">The Router ID of 0.0.0.0 is reserved and SHOULD NOT be used. (§2.11)</span></td></tr>
@@ -795,12 +812,12 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L186" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L192" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L183" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L189" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NetworkLSAListsAttachedRouters</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -815,12 +832,12 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L225" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L231" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L221" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L227" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340LinkLSAListsLinkAddresses</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -889,20 +906,20 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc5340-4.2.1.2-1"><code>RFC5340-4.2.1.2-1</code></a></h3>
 <p>Those that MUST be set correctly in Database Description packets are as follows. The DC-bit is set if and only if the router wishes to suppress the sending of Hellos over the interface (see [DEMAND]). (§4.2.1.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence governs only the DC-bit in DD packets. TestRFC5340DBDescOptionsBits asserts DC stays clear, which is right since ze never suppresses Hellos, but its positive tag claims the E/V6/R bits, which this sentence does not govern, so the positive polarity proves nothing about this row.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestRFC5340DBDescOptionsBits tags now claim only the DC-bit: DDs of a regular and a stub area carry DC clear (Ze suppresses no Hellos, so &#39;if and only if&#39; requires clear), and neutral Options carrying DC handed to the encoder still yield DC clear. Revert records on encoder_v6.go::neutralToV6Options observed red. The &#39;set when suppressing&#39; direction has no Ze path (no demand circuits).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L158" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340DBDescOptionsBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L160" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340DBDescOptionsBits</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L154" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340DBDescOptionsBits</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -938,12 +955,12 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/header_test.go#L80" title="internal/plugins/ospf/v3/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3DecodeHeaderBounds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L80" title="internal/plugins/ospf/v3/packet/rfc5340_header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3DecodeHeaderBounds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/header_test.go#L31" title="internal/plugins/ospf/v3/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3HeaderRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L31" title="internal/plugins/ospf/v3/packet/rfc5340_header_test.go" target="_blank" rel="noopener"><code>TestOSPFv3HeaderRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -960,18 +977,28 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC5340-4.9-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5340-a.3.1-2"><code>RFC5340-A.3.1-2</code></a></h3>
 <p>These fields are reserved. They SHOULD be set to 0 when sending protocol packets and MUST be ignored when receiving protocol packets. (§A.3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: acting on a non-zero Reserved octet on receive, and (SHOULD) sending a non-zero one. TestRFC5340ReservedHeaderOctetIgnoredOnReceive dispatches a Hello with Reserved=0xFF and asserts the neighbor forms (receive clause proven, Instance ID still honoured). The quoted send clause &#39;SHOULD be set to 0 when sending protocol packets&#39; has no assertion: no tagged unit reads the Reserved octet of a packet Ze encodes.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge, continuations 3+4): receive clause unchanged (TestRFC5340ReservedHeaderOctetIgnoredOnReceive). Send clause now proven: TestRFC5340ReservedHeaderOctetZeroOnSend reads offset 15 of v6Encoder Hello, DBDesc and LSAck with Instance ID 0 and 0xFF, and a Header.WriteTo over a 0xFF-filled buffer, all 0. Revert records on encoder_v6.go::EncodeHello observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L371" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_reserved_send_test.go#L29" title="internal/plugins/ospf/rfc5340_reserved_send_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetZeroOnSend</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L377" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L367" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_reserved_send_test.go#L25" title="internal/plugins/ospf/rfc5340_reserved_send_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetZeroOnSend</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L373" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ReservedHeaderOctetIgnoredOnReceive</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -980,7 +1007,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc5340-a.4.7-1"><code>RFC5340-A.4.7-1</code></a></h3>
 <p>Forwarding address A fully qualified IPv6 address (128 bits). Included in the LSA if and only if bit F has been set. If included, data traffic for the advertised destination will be forwarded to this address. It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Local origination: v6UsableForwardingAddress rejects fe80::1, ::, ::1, ff02::5 and v6OriginateNSSALSA drops an all-zero address. Translation: translateNSSAV6 (nssa.go) now refuses to translate a received NSSA-LSA whose forwarding address fails v6UsableForwardingAddress. TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding runs translateNSSA on an elected v6 NSSA ABR: a global forwarding address is carried into the Type-5 unchanged, and fe80::2 produces no Type-5. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge, continuations 3+4): translateNSSAV6 changed only at its election call (RFC 3101 3.1 reachability, decided flag); the v6UsableForwardingAddress gate on translated forwarding addresses is unchanged and the tagged units are byte-identical; the fixture declares every router reached. Prior judgement: Local origination: v6UsableForwardingAddress rejects fe80::1, ::, ::1, ff02::5 and v6OriginateNSSALSA drops an all-zero address. Translation: translateNSSAV6 (nssa.go) now refuses to translate a received NSSA-LSA whose forwarding address fails v6UsableForwardingAddress. TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding runs translateNSSA on an elected v6 NSSA ABR: a global forwarding address is carried into the Type-5 unchanged, and fe80::2 produces no Type-5. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -991,7 +1018,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L294" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1001,7 +1028,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L292" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L298" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1010,7 +1037,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc5340-a.4.7-2"><code>RFC5340-A.4.7-2</code></a></h3>
 <p>While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address. (§A.4.7)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Origination selects only a global address (interfaceIPv6ForwardingAddress via v6UsableForwardingAddress). The translator now advertises only a forwarding address that passes the same rule: TestRFC5340TranslatorAdvertisesGlobalForwarding requires the translated Type-5 forwarding address to be global unicast, and requires no Type-5 for fe80::3. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge, continuations 3+4): translateNSSAV6 changed only at its election call; the global-forwarding gate is unchanged. Prior judgement: Origination selects only a global address (interfaceIPv6ForwardingAddress via v6UsableForwardingAddress). The translator now advertises only a forwarding address that passes the same rule: TestRFC5340TranslatorAdvertisesGlobalForwarding requires the translated Type-5 forwarding address to be global unicast, and requires no Type-5 for fe80::3. Re-read 2026-09-27 (DF-OSPF-B): translateNSSAV6 changed only in its RFC 3101 Section 3.2 yield test (equivalentType5V6); the A.4.7 forwarding-address gate is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1021,7 +1048,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L304" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L310" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1031,7 +1058,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L306" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340ForwardingAddressIsGlobal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1040,18 +1067,38 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc5340-a.4.8-1"><code>RFC5340-A.4.8-1</code></a></h3>
 <p>A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers. (§A.4.8)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: selecting a non-global (link-local, unspecified) address as the forwarding address of a P-bit NSSA-LSA. TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress passes the forwarding address straight into v6OriginateNSSALSA (a global, then a zero), so the SELECTION is not under test: forwardingAddressForAF / v6UsableForwardingAddress is not called, and no unit offers a link-local candidate. A selector that returned fe80:: would leave the unit green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, ospf c13). Appendix A.4.8: &#39;A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers.&#39; The c12 gap is closed: NEW TestRFC5340NSSAForwardingAddressFromKernelInterface (linux, own user+net namespace) calls the production interfaceIPv6ForwardingAddress over a real dummy link: - a link with only fe80::1 and lo with only ::1 yield no address; + after adding 2001:db8:9::1 the lookup returns exactly that address. Judge overlay removing the v6UsableForwardingAddress filter from interfaceIPv6ForwardingAddress reds the negative (&#39;ospffa0 with only fe80::1 yielded forwarding address fe80::1&#39;); base green. The unit also caught a defect the author fixed: the lookup never loaded the iface backend (siblings at interface_addr.go:29/46 do), so it answered no address everywhere and a negative would have passed vacuously; EnsureBackend added. Selection across interfaces stays proven by the seam unit TestRFC5340NSSAForwardingAddressSelectsGlobal; propagation gating by TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress (mutant records on v6OriginateNSSALSA). Residual: the kernel unit Skips where a dummy link cannot be created.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L339" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go#L68" title="internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressFromKernelInterface</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_select_test.go#L50" title="internal/plugins/ospf/rfc5340_nssa_fa_select_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressSelectsGlobal</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L345" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L336" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go#L78" title="internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressFromKernelInterface</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_select_test.go#L62" title="internal/plugins/ospf/rfc5340_nssa_fa_select_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAForwardingAddressSelectsGlobal</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L342" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1061,26 +1108,6 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <h3><a href="#rfc5340-c.3-1"><code>RFC5340-C.3-1</code></a></h3>
 <p>The interface output cost MUST always be greater than 0 (§C.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L427" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L424" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc5340-c.3-2"><code>RFC5340-C.3-2</code></a></h3>
-<p>InfTransDelay The estimated number of seconds it takes to transmit a Link State Update packet over this interface. LSAs contained in the update packet must have their age incremented by this amount before transmission. This value should take into account the transmission and propagation delays of the interface. It MUST be greater than 0. (§C.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an InfTransDelay of 0, and LSAs transmitted without their age incremented by InfTransDelay. TestRFC5340IPv6InterfaceCostAndTransmitDelay asserts validateConfig refuses transmit-delay 0 (ErrTransmitDelayZero) and accepts 1, which proves the &#39;greater than 0&#39; clause. The quoted clause &#39;LSAs contained in the update packet must have their age incremented by this amount before transmission&#39; has no assertion in any tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1098,6 +1125,36 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc5340-c.3-2"><code>RFC5340-C.3-2</code></a></h3>
+<p>InfTransDelay The estimated number of seconds it takes to transmit a Link State Update packet over this interface. LSAs contained in the update packet must have their age incremented by this amount before transmission. This value should take into account the transmission and propagation delays of the interface. It MUST be greater than 0. (§C.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both obligations proven. &#39;MUST be greater than 0&#39;: TestRFC5340IPv6InterfaceCostAndTransmitDelay accepts transmit-delay 1 and refuses 0 with ErrTransmitDelayZero. &#39;must have their age incremented by this amount before transmission&#39;: TestRFC5340FloodIncrementsAgeByInfTransDelay drives the shared lsdb flood path through v6Encoder and decodes the OSPFv3 LS Updates from the wire with ospfv3packet.DecodePacket: a Link-LSA originated at age 0 leaves with 7 (InfTransDelay 7) and its retransmission 5 s later with 12 (held 5 + 7 once), exact values that fail if either send skips the increment; an InfTransDelay of 65535 leaves at MaxAge, never past (the RFC 2328 13.3 (5) cap RFC 5340 keeps). Revert records on lsdb/flooding.go::floodCopy (+/-) observed red. The &#39;should take into account&#39; sentence is advice on the configured value, not a checkable obligation.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L73" title="internal/plugins/ospf/rfc5340_flood_age_test.go" target="_blank" rel="noopener"><code>TestRFC5340FloodIncrementsAgeByInfTransDelay</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L439" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L66" title="internal/plugins/ospf/rfc5340_flood_age_test.go" target="_blank" rel="noopener"><code>TestRFC5340FloodIncrementsAgeByInfTransDelay</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L436" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceCostAndTransmitDelay</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5340-c.3-3"><code>RFC5340-C.3-3</code></a></h3>
 <p>HelloInterval The length of time, in seconds, between Hello packets that the router sends on the interface. This value is advertised in the router&#39;s Hello packets. It MUST be the same for all routers attached to a common link. (§C.3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a neighbor whose HelloInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts ReceiveDecodedHello accepts a matching HelloInterval (empty reason) and drops DefaultHelloInterval+1 with reason hello-interval; accepting the mismatch turns it red.</p>
@@ -1106,12 +1163,12 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L469" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L475" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L466" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L472" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1126,12 +1183,12 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L474" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L480" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L472" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L478" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1881,7 +1938,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

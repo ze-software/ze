@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,11 +117,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.6%</strong><b>1 of 18 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5.6%</strong><b>1 of 18 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>1 of 1 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>7 of 7 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>1</strong><b>of 18 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 18 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 18 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>1</td>
+<td>7</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>1</td>
+<td>7</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>7</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3032.md</code></td>
@@ -265,11 +266,11 @@ No tracked gap in current source anchors.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>18</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>17</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -279,6 +280,10 @@ No tracked gap in current source anchors.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -292,7 +297,8 @@ No tracked gap in current source anchors.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (18):</strong> <a href="#rfc3032-1-1"><code>RFC3032-1-1</code></a>, <a href="#rfc3032-2.1-1"><code>RFC3032-2.1-1</code></a>, <a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a>, <a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a>, <a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a>, <a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a>, <a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a>, <a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a>, <a href="#rfc3032-2.4.3-1"><code>RFC3032-2.4.3-1</code></a>, <a href="#rfc3032-3.3-1"><code>RFC3032-3.3-1</code></a>, <a href="#rfc3032-3.3-2"><code>RFC3032-3.3-2</code></a>, <a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a>, <a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a>, <a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a>, <a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a>, <a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a>, <a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a>, <a href="#rfc3032-3.6-2"><code>RFC3032-3.6-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc3032-2.1-1"><code>RFC3032-2.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (17):</strong> <a href="#rfc3032-1-1"><code>RFC3032-1-1</code></a>, <a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a>, <a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a>, <a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a>, <a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a>, <a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a>, <a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a>, <a href="#rfc3032-2.4.3-1"><code>RFC3032-2.4.3-1</code></a>, <a href="#rfc3032-3.3-1"><code>RFC3032-3.3-1</code></a>, <a href="#rfc3032-3.3-2"><code>RFC3032-3.3-2</code></a>, <a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a>, <a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a>, <a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a>, <a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a>, <a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a>, <a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a>, <a href="#rfc3032-3.6-2"><code>RFC3032-3.6-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -313,9 +319,14 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>2.1 - Encoding the Label Stack</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/fsm_test.go#L70" title="internal/plugins/rsvpte/fsm_test.go" target="_blank" rel="noopener"><code>TestLSPTableAllocateSkipsReservedLabels</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the local label allocator starts at firstDynamicLabel=1000 and wraps back to 1000, so ze never hands out any label in 0-15 and there is no receive path that would allocate a reserved label (internal/plugins/rsvpte/fsm.go:184, :205, :215-217)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc3032_mplsentry_test.go#L70" title="internal/plugins/fib/kernel/rfc3032_mplsentry_test.go" target="_blank" rel="noopener"><code>TestHandleMPLSEntryPushImplicitNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_fsm_test.go#L70" title="internal/plugins/rsvpte/rfc3032_fsm_test.go" target="_blank" rel="noopener"><code>TestLSPTableAllocateSkipsReservedLabels</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L77" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032ImplicitNullBypassLabelNotStacked</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L30" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032ImplicitNullResvProgramsPop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L55" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032IngressNeverPushesImplicitNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L66" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032IngressPushesOrdinaryLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L90" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032OrdinaryResvLabelSwapped</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.2-1">RFC3032-2.2-1</code></td><td colspan="3"><span class="rfc-subject">This means that the identity of the network layer protocol must be inferable from the value of the label which is popped from the bottom of the stack, possibly along with the contents of the network layer header itself. (S2.2)</span></td></tr>
 <tr><td></td>
@@ -604,13 +615,43 @@ No tracked gap in current source anchors.
 <p>No test carries RFC3032-1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3032-2.1-1"><code>RFC3032-2.1-1</code></a></h3>
 <p>A value of 3 represents the &#34;Implicit NULL Label&#34;. This is a label that an LSR may assign and distribute, but which never actually appears in the encapsulation. When an LSR would otherwise replace the label at the top of the stack with a new label, but the new label is &#34;Implicit NULL&#34;, the LSR will pop the stack instead of doing the replacement. Although this value may never appear in the encapsulation, it needs to be specified in the Label Distribution Protocol, so a value is reserved. v. Values 4-15 are reserved. (§2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} covers only allocation. Asserted: AllocateLabel never returns below firstDynamicLabel, including across the MaxLabel wrap, so 0-15 is never allocated. The quote also states the Implicit NULL semantics: when the new label is 3 the LSR pops instead of swapping, and 3 never appears in the encapsulation. No tagged assertion covers a received label 3.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Item iv at every imposing site Ze owns: a transit given label 3 programs a pop and no swap (TestRFC3032ImplicitNullResvProgramsPop / -OrdinaryResvLabelSwapped), an ingress programs an empty push stack (TestRFC3032IngressNeverPushesImplicitNull / -IngressPushesOrdinaryLabel), a bypass label 3 is not stacked (TestRFC3032ImplicitNullBypassLabelNotStacked), and fib-kernel installs an empty push as a plain route via the next hop (TestHandleMPLSEntryPushImplicitNull). Item v: TestLSPTableAllocateSkipsReservedLabels. Not covered: the transit backup stack that empties to a pop, and the kernel acceptance run in the QEMU guest (TestMPLSIntegration_PushImplicitNull, untagged, owed).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L66" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032IngressPushesOrdinaryLabel</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L90" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032OrdinaryResvLabelSwapped</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/fsm_test.go#L70" title="internal/plugins/rsvpte/fsm_test.go" target="_blank" rel="noopener"><code>TestLSPTableAllocateSkipsReservedLabels</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc3032_mplsentry_test.go#L70" title="internal/plugins/fib/kernel/rfc3032_mplsentry_test.go" target="_blank" rel="noopener"><code>TestHandleMPLSEntryPushImplicitNull</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_fsm_test.go#L70" title="internal/plugins/rsvpte/rfc3032_fsm_test.go" target="_blank" rel="noopener"><code>TestLSPTableAllocateSkipsReservedLabels</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L77" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032ImplicitNullBypassLabelNotStacked</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L30" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032ImplicitNullResvProgramsPop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3032_implicit_null_test.go#L55" title="internal/plugins/rsvpte/rfc3032_implicit_null_test.go" target="_blank" rel="noopener"><code>TestRFC3032IngressNeverPushesImplicitNull</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1072,7 +1113,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

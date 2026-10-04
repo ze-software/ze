@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,10 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14.8%</strong><b>4 of 27 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>40.7%</strong><b>11 of 27 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>18.5%</strong><b>5 of 27 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>37.0%</strong><b>10 of 27 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>26.3%</strong><b>5 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>39.1%</strong><b>9 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.5%</strong><b>5 of 27 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 27 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>19</td>
+<td>23</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>19</td>
+<td>23</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>5</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4552.md</code></td>
@@ -267,11 +272,11 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>4</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>23</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>22</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -281,6 +286,10 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -294,8 +303,8 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc4552-3-1"><code>RFC4552-3-1</code></a>, <a href="#rfc4552-4-2"><code>RFC4552-4-2</code></a>, <a href="#rfc4552-6-6"><code>RFC4552-6-6</code></a>, <a href="#rfc4552-12-1"><code>RFC4552-12-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (23):</strong> <a href="#rfc4552-2-2"><code>RFC4552-2-2</code></a>, <a href="#rfc4552-3-2"><code>RFC4552-3-2</code></a>, <a href="#rfc4552-3-4"><code>RFC4552-3-4</code></a>, <a href="#rfc4552-3-5"><code>RFC4552-3-5</code></a>, <a href="#rfc4552-4-3"><code>RFC4552-4-3</code></a>, <a href="#rfc4552-4-4"><code>RFC4552-4-4</code></a>, <a href="#rfc4552-6-1"><code>RFC4552-6-1</code></a>, <a href="#rfc4552-6-2"><code>RFC4552-6-2</code></a>, <a href="#rfc4552-6-3"><code>RFC4552-6-3</code></a>, <a href="#rfc4552-6-4"><code>RFC4552-6-4</code></a>, <a href="#rfc4552-6-5"><code>RFC4552-6-5</code></a>, <a href="#rfc4552-6-7"><code>RFC4552-6-7</code></a>, <a href="#rfc4552-6-9"><code>RFC4552-6-9</code></a>, <a href="#rfc4552-6-11"><code>RFC4552-6-11</code></a>, <a href="#rfc4552-7-1"><code>RFC4552-7-1</code></a>, <a href="#rfc4552-9-1"><code>RFC4552-9-1</code></a>, <a href="#rfc4552-9-2"><code>RFC4552-9-2</code></a>, <a href="#rfc4552-9-3"><code>RFC4552-9-3</code></a>, <a href="#rfc4552-9-4"><code>RFC4552-9-4</code></a>, <a href="#rfc4552-11-1"><code>RFC4552-11-1</code></a>, <a href="#rfc4552-11-2"><code>RFC4552-11-2</code></a>, <a href="#rfc4552-11-3"><code>RFC4552-11-3</code></a>, <a href="#rfc4552-11-4"><code>RFC4552-11-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc4552-3-1"><code>RFC4552-3-1</code></a>, <a href="#rfc4552-4-2"><code>RFC4552-4-2</code></a>, <a href="#rfc4552-6-6"><code>RFC4552-6-6</code></a>, <a href="#rfc4552-7-1"><code>RFC4552-7-1</code></a>, <a href="#rfc4552-12-1"><code>RFC4552-12-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (22):</strong> <a href="#rfc4552-2-2"><code>RFC4552-2-2</code></a>, <a href="#rfc4552-3-2"><code>RFC4552-3-2</code></a>, <a href="#rfc4552-3-4"><code>RFC4552-3-4</code></a>, <a href="#rfc4552-3-5"><code>RFC4552-3-5</code></a>, <a href="#rfc4552-4-3"><code>RFC4552-4-3</code></a>, <a href="#rfc4552-4-4"><code>RFC4552-4-4</code></a>, <a href="#rfc4552-6-1"><code>RFC4552-6-1</code></a>, <a href="#rfc4552-6-2"><code>RFC4552-6-2</code></a>, <a href="#rfc4552-6-3"><code>RFC4552-6-3</code></a>, <a href="#rfc4552-6-4"><code>RFC4552-6-4</code></a>, <a href="#rfc4552-6-5"><code>RFC4552-6-5</code></a>, <a href="#rfc4552-6-7"><code>RFC4552-6-7</code></a>, <a href="#rfc4552-6-9"><code>RFC4552-6-9</code></a>, <a href="#rfc4552-6-11"><code>RFC4552-6-11</code></a>, <a href="#rfc4552-9-1"><code>RFC4552-9-1</code></a>, <a href="#rfc4552-9-2"><code>RFC4552-9-2</code></a>, <a href="#rfc4552-9-3"><code>RFC4552-9-3</code></a>, <a href="#rfc4552-9-4"><code>RFC4552-9-4</code></a>, <a href="#rfc4552-11-1"><code>RFC4552-11-1</code></a>, <a href="#rfc4552-11-2"><code>RFC4552-11-2</code></a>, <a href="#rfc4552-11-3"><code>RFC4552-11-3</code></a>, <a href="#rfc4552-11-4"><code>RFC4552-11-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -352,7 +361,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L203" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L200" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L88" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecAHWithEncryptionRejected</code></a></span></div>
 </div></td>
 </tr>
@@ -424,8 +433,8 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>MUST NOT</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-6-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L205" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L224" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L202" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L221" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-7">RFC4552-6-7</code></td><td colspan="3"><span class="rfc-subject">Except when in conflict with the above statement, the key words &#34;MUST&#34;, &#34;MUST NOT&#34;, &#34;REQUIRED&#34;, &#34;SHOULD&#34;, and &#34;SHOULD NOT&#34; that appear in the [N6] document for algorithms to be supported are to be interpreted as described in [N7] for OSPFv3 support as well. (§6)</span></td></tr>
@@ -461,8 +470,9 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L194" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAPerDestinationWithOSPFSelector</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> one manually configured SPI/key drives the single shared SA that both protects egress and verifies ingress (buildIPsecSA installed once, ipsec_install.go); there is no reject path</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_same_keys_test.go#L38" title="internal/plugins/ospf/rfc4552_same_keys_test.go" target="_blank" rel="noopener"><code>TestRFC4552EveryStateSharesSPIAndKeys</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_same_keys_test.go#L41" title="internal/plugins/ospf/rfc4552_same_keys_test.go" target="_blank" rel="noopener"><code>TestRFC4552EveryStateSharesSPIAndKeys</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-9-1">RFC4552-9-1</code></td><td colspan="3"><span class="rfc-subject">A different SA than the SA of the underlying interface MUST be provided for virtual links (§9)</span></td></tr>
 <tr><td></td>
@@ -506,6 +516,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-11-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L271" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecPoliciesInterfaceScopedWildcard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_barrier_test.go#L27" title="internal/plugins/ospf/rfc4552_barrier_test.go" target="_blank" rel="noopener"><code>TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the out/in/fwd proto-89 policies put the IPsec barrier around all OSPF traffic on the interface (buildIPsecPolicies, ipsec_install.go); the barrier is installed, never rejected</p></td>
 </tr>
@@ -518,14 +529,15 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a disabled interface installs no require-policy (setConfig adds only interfaces with an IPsec block, ipsec_install.go), so its OSPF is bypassed by the kernel default; the bypass has no reject path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-3">RFC4552-11-3</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. No. source destination protocol action 2 fe80::/10 any OSPF protect 3 fe80::/10 any ESP/OSPF or AH/OSPF protect 4 src/128 dst/128 OSPF protect 5 src/128 dst/128 ESP/OSPF or AH/OSPF protect (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-3">RFC4552-11-3</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. No. source destination protocol action 2 fe80::/10 any OSPF protect 3 fe80::/10 any ESP/OSPF or AH/OSPF protect (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-11-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L128" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallOnInterfaceUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_barrier_test.go#L30" title="internal/plugins/ospf/rfc4552_barrier_test.go" target="_blank" rel="noopener"><code>TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> an enabled interface installs the out/in/fwd protect (require) policies (installLocked, ipsec_install.go); the protect rules are installed, never rejected</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> an enabled interface installs the out/in/fwd protect (require) policies (installLocked, ipsec_install.go); the protect rules are installed, never rejected. Ze&#39;s source selector is ::/0 scoped to the interface and to protocol 89, wider than fe80::/10, so every OSPF packet on the interface is protected, not only link-local-sourced ones. The virtual-link rules 4 and 5 of the same table are the gap row RFC4552-11-4</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-4">RFC4552-11-4</code></td><td colspan="3"><span class="rfc-subject">These rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link. (§11)</span></td></tr>
 <tr><td></td>
@@ -542,7 +554,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4552-12-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L43" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestParseOSPFIPsecConfig</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L238" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L235" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-1">RFC4552-4-1</code></td><td colspan="3"><span class="rfc-subject">Implementations conforming to this specification SHOULD support confidentiality for OSPFv3 (§4)</span></td></tr>
@@ -778,7 +790,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L203" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L200" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -876,12 +888,12 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L224" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L221" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecStreamCipherRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L205" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L202" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPConfidentialityValid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -902,13 +914,23 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <p>No test carries RFC4552-6-11, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-7-1"><code>RFC4552-7-1</code></a></h3>
 <p>Therefore, the implementations MUST use manually configured keys with the same SA parameters (Security Parameter Index (SPI), keys, etc.) for both inbound and outbound SAs (as shown in Figure 3). (§7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;same SPI for inbound and outbound&#39;: TestIPsecSAPerDestinationWithOSPFSelector asserts SPI 256 on every state, including the inbound link-local one, and the shared direction on the multicast states. Clause &#39;same keys&#39;: no 7-1-tagged assertion compares the key material across states, so an installer that keyed the inbound state differently passes. TestSAParamsSharedKey checks only that AuthKey is non-empty, and it carries the RFC4552-6-5 tag, not this one.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). TestRFC4552EveryStateSharesSPIAndKeys builds the ESP interface&#39;s whole SA set (inbound unicast plus the two bidirectional multicast states) and asserts every state carries the one configured SPI and byte-identical integrity and encryption keys; the second half configures another SPI and other keys and finds those on every state, which refuses keys not taken from manual configuration. Records on buildIPsecInterfaceSAs and buildIPsecSA. The stale {single-polarity} annotation was removed from the row by the judge (./le rfc check demanded it). Not driven: the per-neighbour outbound unicast state (onNeighborSeen), which calls the same buildIPsecSA with the same spec.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_same_keys_test.go#L41" title="internal/plugins/ospf/rfc4552_same_keys_test.go" target="_blank" rel="noopener"><code>TestRFC4552EveryStateSharesSPIAndKeys</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L194" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAPerDestinationWithOSPFSelector</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_same_keys_test.go#L38" title="internal/plugins/ospf/rfc4552_same_keys_test.go" target="_blank" rel="noopener"><code>TestRFC4552EveryStateSharesSPIAndKeys</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -933,7 +955,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <p>No test carries RFC4552-9-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-11-1"><code>RFC4552-11-1</code></a></h3>
 <p>The IPsec protection barrier MUST be around the OSPF protocol. (§11)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: any inbound or outbound OSPF traffic that bypasses IPsec processing. TestIPsecPoliciesInterfaceScopedWildcard asserts out, in and fwd policies exist with UpperProto 89, ::/0 selectors and transport mode, red if a direction were missing. It never asserts the policy Action (the zero value protects, SPActionBypass is template-free) or the Proto template, so an installer that laid bypass policies in all three directions keeps every assertion green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 6, judge): single-polarity positive holds. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection asserts out/in/fwd proto-89 protect policies with the ESP or AH transform on both esp and ah interfaces; the revert record on buildIPsecPolicies was re-observed red after the test gained selector assertions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -942,6 +964,11 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L271" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecPoliciesInterfaceScopedWildcard</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_barrier_test.go#L27" title="internal/plugins/ospf/rfc4552_barrier_test.go" target="_blank" rel="noopener"><code>TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -962,8 +989,8 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-11-3"><code>RFC4552-11-3</code></a></h3>
-<p>The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. No. source destination protocol action 2 fe80::/10 any OSPF protect 3 fe80::/10 any ESP/OSPF or AH/OSPF protect 4 src/128 dst/128 OSPF protect 5 src/128 dst/128 ESP/OSPF or AH/OSPF protect (§11)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestIPsecInstallOnInterfaceUp asserts only len(fake.pols) == 3 on an enabled interface. The quoted sentence carries the rule table: rules 2 and 3 (link-local source, protect, OSPF and ESP/AH-over-OSPF) and rules 4 and 5 (virtual-link src/128 dst/128). No tagged assertion checks the protect action, the transform, or any selector, and nothing covers the virtual-link rules 4 and 5, so a set of three bypass policies passes. Ze also installs a ::/0 source where the table names fe80::/10; that is wider, and no unit states it.</p>
+<p>The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. No. source destination protocol action 2 fe80::/10 any OSPF protect 3 fe80::/10 any ESP/OSPF or AH/OSPF protect (§11)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 6, judge): the weak finding (source selector unasserted) is closed. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection now asserts, for every out/in/fwd policy on esp and ah interfaces, that the source selector covers fe80::/10 (selectorCovers: prefix length &lt;= 10 containing fe80::; Ze installs ::/0, wider, as the row annotation states) and the destination is any (::/0), plus upper protocol 89 and the protect transform. Records: installLocked mutant and buildIPsecPolicies revert, observed red. Single-polarity positive per annotation (the rules are installed, never refused). Virtual-link rules 4 and 5 stay gap row RFC4552-11-4.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -972,6 +999,11 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L128" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallOnInterfaceUp</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4552_barrier_test.go#L30" title="internal/plugins/ospf/rfc4552_barrier_test.go" target="_blank" rel="noopener"><code>TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -988,7 +1020,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L238" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L235" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecNonHexKeyRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1265,7 +1297,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

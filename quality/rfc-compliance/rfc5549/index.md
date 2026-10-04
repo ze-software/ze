@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 50.0% | 3 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 50.0% | 3 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 34.6% | 9 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 5 | of 6 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 17 |
-| Tagged units | 17 |
+| Test tags | 26 |
+| Tagged units | 26 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 0 |
+| Discrimination records | 9 |
 | Summary | `rfc/short/rfc5549.md` |
 | Requirement shard | `rfc/requirements/rfc5549.md` |
 | RFC text | `rfc/full/rfc5549.txt` |
@@ -96,27 +90,28 @@ Main public claim uses RFC 8950.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 3 | one part of the gated population |
-| Annotated instead of tested | 3 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (3):** [`RFC5549-4-1`](#rfc5549-4-1), [`RFC5549-3-1`](#rfc5549-3-1), [`RFC5549-4-4`](#rfc5549-4-4)
 
-**Annotated instead of tested (3):** [`RFC5549-4-2`](#rfc5549-4-2), [`RFC5549-4-3`](#rfc5549-4-3), [`RFC5549-5-1`](#rfc5549-5-1)
+**Annotated (including scoped evidence) (3):** [`RFC5549-4-2`](#rfc5549-4-2), [`RFC5549-4-3`](#rfc5549-4-3), [`RFC5549-5-1`](#rfc5549-5-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5549-4-1` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1151). **positive:** `unit/verify` [`TestNegotiateExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L287). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1182). **negative:** `unit/verify` [`TestNegotiateExtendedNextHopMismatch`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L326) |
-| `RFC5549-4-2` | A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L541). **positive:** `unit/verify` [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L574). **negative:** no negative test. **{single-polarity}:** ze advertises and parses the Extended Next Hop Encoding capability exclusively through the RFC 5492 capability TLV framework (internal/core/bgp/capability/capability.go:644 WriteTo, :667 parseExtendedNextHop). There is no non-RFC-5492 signalling path in ze, so no wrong-procedure case exists to assert as a negative; the peer-support-not-ascertained negative is covered by RFC5549-4-1 |
+| `RFC5549-4-1` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1151). **positive:** `unit/verify` [`TestNegotiateExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L287). **positive:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44). **positive:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1182). **negative:** `unit/verify` [`TestNegotiateExtendedNextHopMismatch`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L326). **negative:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45). **negative:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39) |
+| `RFC5549-4-2` | A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L541). **positive:** `unit/verify` [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L574). **positive:** `unit/verify` [`TestRFC8950PeerSupportDecidedPerPair`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go#L62). **negative:** no negative test. **{single-polarity}:** ze advertises and parses the Extended Next Hop Encoding capability exclusively through the RFC 5492 capability TLV framework (internal/core/bgp/capability/capability.go:644 WriteTo, :667 parseExtendedNextHop). There is no non-RFC-5492 signalling path in ze, so no wrong-procedure case exists to assert as a negative; the peer-support-not-ascertained negative is covered by RFC5549-4-1 |
 | `RFC5549-4-3` | o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L17). **positive:** `unit/verify` [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L544). **positive:** `unit/verify` [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L577). **negative:** no negative test. **{single-polarity}:** the Extended Next Hop Encoding capability code is the fixed constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:646). The code has no alternate-value code path, so there is no wrong-code case to reject as a negative |
 | `RFC5549-3-1` | The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next hop address belongs to (§3) | MUST | 3 | **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L342). **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop_DualStack`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L446). **positive:** `unit/verify` [`TestParseMPReachNLRI_ExtendedNextHop_VPN`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L400). **negative:** `unit/verify` [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L493) |
-| `RFC5549-5-1` | When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5) | MUST NOT | 5 - Operations | **positive:** `unit/verify` [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L237). **negative:** no negative test. **{single-polarity}:** on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop |
-| `RFC5549-4-4` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185). **negative:** `unit/verify` [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206) |
+| `RFC5549-5-1` | When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5) | MUST NOT | 5 - Operations | **positive:** `unit/verify` [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L258). **negative:** no negative test. **{single-polarity}:** on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop |
+| `RFC5549-4-4` | A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4) | MUST | 4 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154). **positive:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46). **positive:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40). **negative:** `unit/verify` [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185). **negative:** `unit/verify` [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206). **negative:** `unit/verify` [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47). **negative:** `unit/verify` [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41) |
 | `RFC5549-5-2` | By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6), and if the BGP speaker sending an update is putting its own address in as the next hop, then the next hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5) | SHOULD | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
 | `RFC5549-4-5` | The Extended Next Hop Encoding capability MAY be dynamically updated through the use of the Dynamic Capability capability and associated mechanisms defined in [DYN-CAP]. (§4) | MAY | 4 - Use of BGP Capability Advertisement | **positive:** no positive test. **negative:** no negative test |
 | `RFC5549-5-3` | This default behavior may be overridden by policy. (§5) | MAY | 5 - Operations | **positive:** no positive test. **negative:** no negative test |
@@ -133,25 +128,30 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Forbidden: sending an IPv6 next hop for IPv4 NLRI to a peer that did not advertise the tuple; red on it: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and the absent-tuple assert in TestNegotiateExtendedNextHopMismatch. Unproven clauses: VPN-IPv4 NLRI (no unit drives SAFI 128), and the per-pair clause (no unit shows a tuple negotiated for IPv4/unicast does not license VPN-IPv4 or the reverse). The units test the canUseNextHopFor helper, not the UPDATE build path.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Superseded row restating RFC8950-4-1; same judgement. The explicit-next-hop gap is closed by TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair (AnnounceNLRIBatch over a live session: IPv4 unicast sent only with <1/1, IPv6>, refused with ErrNextHopIncompatible and no UPDATE otherwise; VPN-IPv4 resolved only with <1/128, IPv6>), next-hop self by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair, and the negotiated intersection by the capability units. The forward-rail half is proven under RFC8950-4-1 by TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, which carries only RFC8950 tags. Observed-red records on canUseNextHopFor both polarities.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1182) | unit/verify | unproven |
+| negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45) | unit/verify | revert, verified |
+| negative | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39) | unit/verify | revert, verified |
 | negative | [`TestNegotiateExtendedNextHopMismatch`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L326) | unit/verify | unproven |
 | positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1151) | unit/verify | unproven |
+| positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44) | unit/verify | revert, verified |
+| positive | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestNegotiateExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L287) | unit/verify | unproven |
 
 ### [`RFC5549-4-2`](#rfc5549-4-2)
 
 A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST use RFC 5492 Capability Advertisement with the Extended Next Hop Encoding capability to establish whether the peer supports this for the NLRI AFI/SAFI pair(s). The 4-2-tagged units (TestExtendedNextHopCapability, TestExtendedNextHopRoundTrip) prove only the capability TLV encodes and parses. The clause 'to establish whether its peer supports this' (support decided from the peer's advertised capability) has no 4-2-tagged assertion; the negotiation units that would prove it carry only 4-1 and RFC8950 tags.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Row single-polarity positive, superseded by RFC8950-4-2. TestRFC8950PeerSupportDecidedPerPair proves peer support is decided per NLRI pair through the Extended Next Hop capability negotiation (Negotiated and EncodingCaps). The negative tag moved off the RFC8950 negative (approval D-15), consistent with the row's single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L541) | unit/verify | unproven |
 | positive | [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L574) | unit/verify | unproven |
+| positive | [`TestRFC8950PeerSupportDecidedPerPair`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go#L62) | unit/verify | revert, verified |
 
 ### [`RFC5549-4-3`](#rfc5549-4-3)
 
@@ -186,19 +186,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L237) | unit/verify | unproven |
+| positive | [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L258) | unit/verify | unproven |
 
 ### [`RFC5549-4-4`](#rfc5549-4-4)
 
 A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Same sentence as RFC5549-4-1 (MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair). Red on the IPv4/unicast case: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and TestCanUseNextHopFor_NilSendCtx. Unproven: VPN-IPv4 NLRI and the per-pair clause, and only the canUseNextHopFor helper is driven. The tag prose still calls the row 'the MUST NOT', which the quoted sentence no longer says.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Superseded row, the negative spelling of RFC8950-4-1; same judgement as RFC5549-4-1. The explicit next hop to a peer lacking the pair is now refused at the announce entry point with no UPDATE on the wire (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair), and next-hop self per pair by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor both polarities. The tag prose on TestCanUseNextHopFor_ExtendedNH still says 'the MUST NOT'.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185) | unit/verify | unproven |
 | negative | [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206) | unit/verify | unproven |
+| negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47) | unit/verify | revert, verified |
+| negative | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41) | unit/verify | revert, verified |
 | positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154) | unit/verify | unproven |
+| positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46) | unit/verify | revert, verified |
+| positive | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

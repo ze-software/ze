@@ -91,7 +91,9 @@ and prefixes.
 Connected and passive-interface prefixes are refreshed on activation and each
 commit, including interface, family, metric and level changes.
 Point-to-point links send and receive ISO 9542 ISHs as well as IS-IS Hellos.
-An ISH starts discovery but cannot establish or sustain an Up adjacency.</p>
+An ISH starts discovery but cannot establish or sustain an Up adjacency.
+Ze does not require one either: a neighbor that sends only IS-IS Hellos still
+forms its adjacency through the Hello exchange.</p>
 <p>Ze accepts narrow IPv4 reachability in TLV 128 and TLV 130 and preserves its
 internal or external metric type through SPF and inter-level leaking. Local
 connected and redistributed IPv4 prefixes use wide TLV 135. An adjacent
@@ -621,7 +623,7 @@ System ID embedded in the first NET.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

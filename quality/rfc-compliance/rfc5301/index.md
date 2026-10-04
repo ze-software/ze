@@ -13,6 +13,7 @@ what Ze has
 | Tested both ways | 100.0% | 7 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 7 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
@@ -28,7 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,6 +40,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -88,9 +90,10 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 7 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
@@ -101,13 +104,13 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5301-3-4` | The Dynamic hostname TLV is defined here as TLV type 137 (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L110). **negative:** `unit/verify` [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L166). **positive:** `interop/nightly` [`checkISISDynamicHostname`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1133) |
-| `RFC5301-3-5` | Length - total length of the value field (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L114). **negative:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L125) |
-| `RFC5301-3-6` | Value - a string of 1 to 255 bytes (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L118). **negative:** `unit/verify` [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L162). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L100). **positive:** `interop/nightly` [`checkISISDynamicHostname`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1137) |
-| `RFC5301-3-7` | The Value field is encoded in 7-bit ASCII (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L149). **positive:** `unit/verify` [`TestLoadConfigRefusesAnISISHostnameOutside7BitASCII`](https://github.com/ze-software/ze/blob/main/internal/component/config/cli/cmd_validate_startup_agreement_test.go#L43). **negative:** `unit/verify` [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L153). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L55). **positive:** `functional/verify` [`isis-hostname-startup-refused.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-startup-refused.ci#L16) |
-| `RFC5301-3-8` | The string is not null- terminated. (Section 3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L121). **negative:** `unit/verify` [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L80) |
-| `RFC5301-3-9` | The content of this value is a domain name, see [RFC2181] (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L196). **negative:** `unit/verify` [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L201). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L73) |
-| `RFC5301-3-10` | If a user-interface for configuring or displaying this field permits Unicode characters, that user-interface is responsible for applying the ToASCII and/or ToUnicode algorithm as described in [RFC3490] to achieve the correct format for transmission or display (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameUnicodeRefusedNotConverted`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L260). **negative:** `unit/verify` [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L72). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L56) |
+| `RFC5301-3-4` | The Dynamic hostname TLV is defined here as TLV type 137 (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L110). **negative:** `unit/verify` [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L166). **positive:** `interop/nightly` [`checkISISDynamicHostname`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1133) |
+| `RFC5301-3-5` | Length - total length of the value field (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L114). **negative:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L125) |
+| `RFC5301-3-6` | Value - a string of 1 to 255 bytes (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L118). **negative:** `unit/verify` [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L162). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L100). **positive:** `interop/nightly` [`checkISISDynamicHostname`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1137) |
+| `RFC5301-3-7` | The Value field is encoded in 7-bit ASCII (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L149). **positive:** `unit/verify` [`TestLoadConfigRefusesAnISISHostnameOutside7BitASCII`](https://github.com/ze-software/ze/blob/main/internal/component/config/cli/rfc5301_cmd_validate_startup_agreement_test.go#L43). **negative:** `unit/verify` [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L153). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L55). **positive:** `functional/verify` [`isis-hostname-startup-refused.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-startup-refused.ci#L16) |
+| `RFC5301-3-8` | The string is not null- terminated. (Section 3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L121). **negative:** `unit/verify` [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L80) |
+| `RFC5301-3-9` | The content of this value is a domain name, see [RFC2181] (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L196). **negative:** `unit/verify` [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L201). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L73) |
+| `RFC5301-3-10` | If a user-interface for configuring or displaying this field permits Unicode characters, that user-interface is responsible for applying the ToASCII and/or ToUnicode algorithm as described in [RFC3490] to achieve the correct format for transmission or display (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISHostnameUnicodeRefusedNotConverted`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L260). **negative:** `unit/verify` [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L72). **positive:** `functional/verify` [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L56) |
 | `RFC5301-3-1` | The use of FQDN or a subset of it is strongly recommended (Section 3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5301-3-3` | If this TLV is present in a pseudonode LSP, then it SHOULD NOT be interpreted as the DNS hostname of the router (Section 3) | SHOULD NOT | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5301-4-1` | If a system receives a mapping for a name or system ID that is different from the mapping in the local cache, an implementation SHOULD replace the existing mapping with the latest information (Section 4) | SHOULD | 4 - Implementation | **positive:** no positive test. **negative:** no negative test |
@@ -133,9 +136,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L166) | unit/verify | unproven |
+| negative | [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L166) | unit/verify | unproven |
 | positive | [`checkISISDynamicHostname`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1133) | interop/nightly | unproven |
-| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L110) | unit/verify | unproven |
+| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L110) | unit/verify | unproven |
 
 ### [`RFC5301-3-5`](#rfc5301-3-5)
 
@@ -145,8 +148,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L125) | unit/verify | unproven |
-| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L114) | unit/verify | unproven |
+| negative | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L125) | unit/verify | unproven |
+| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L114) | unit/verify | unproven |
 
 ### [`RFC5301-3-6`](#rfc5301-3-6)
 
@@ -156,9 +159,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L162) | unit/verify | unproven |
+| negative | [`TestISISHostnameEmptyOmitsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L162) | unit/verify | unproven |
 | positive | [`checkISISDynamicHostname`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1137) | interop/nightly | unproven |
-| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L118) | unit/verify | unproven |
+| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L118) | unit/verify | unproven |
 | positive | [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L100) | functional/verify | unproven |
 
 ### [`RFC5301-3-7`](#rfc5301-3-7)
@@ -169,9 +172,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L153) | unit/verify | unproven |
-| positive | [`TestLoadConfigRefusesAnISISHostnameOutside7BitASCII`](https://github.com/ze-software/ze/blob/main/internal/component/config/cli/cmd_validate_startup_agreement_test.go#L43) | unit/verify | unproven |
-| positive | [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L149) | unit/verify | unproven |
+| negative | [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L153) | unit/verify | unproven |
+| positive | [`TestLoadConfigRefusesAnISISHostnameOutside7BitASCII`](https://github.com/ze-software/ze/blob/main/internal/component/config/cli/rfc5301_cmd_validate_startup_agreement_test.go#L43) | unit/verify | unproven |
+| positive | [`TestISISHostnameValidatorCharset`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L149) | unit/verify | unproven |
 | positive | [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L55) | functional/verify | unproven |
 | positive | [`isis-hostname-startup-refused.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-startup-refused.ci#L16) | functional/verify | unproven |
 
@@ -183,8 +186,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L80) | unit/verify | unproven |
-| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L121) | unit/verify | unproven |
+| negative | [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L80) | unit/verify | unproven |
+| positive | [`TestISISHostnameTLVFraming`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L121) | unit/verify | unproven |
 
 ### [`RFC5301-3-9`](#rfc5301-3-9)
 
@@ -194,8 +197,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L201) | unit/verify | unproven |
-| positive | [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L196) | unit/verify | unproven |
+| negative | [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L201) | unit/verify | unproven |
+| positive | [`TestISISHostnameValidatorLabels`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L196) | unit/verify | unproven |
 | positive | [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L73) | functional/verify | unproven |
 
 ### [`RFC5301-3-10`](#rfc5301-3-10)
@@ -206,8 +209,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L72) | unit/verify | unproven |
-| positive | [`TestISISHostnameUnicodeRefusedNotConverted`](https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L260) | unit/verify | unproven |
+| negative | [`TestISISHostnameTLVIsPrintableASCII`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L72) | unit/verify | unproven |
+| positive | [`TestISISHostnameUnicodeRefusedNotConverted`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L260) | unit/verify | unproven |
 | positive | [`isis-hostname-ascii.ci`](https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L56) | functional/verify | unproven |
 
 ## Extraction sign-off

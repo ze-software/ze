@@ -21,7 +21,7 @@
             "label": "Appliance",
             "category": "platform",
             "chips": ["gokrazy image", "Read-only root filesystem"],
-            "body": "A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision.",
+            "body": "A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.",
             "link": {"href": "guides/ze-install/", "label": "Install guide", "sublabel": "PXE, ISO, or Ventoy"}
         }
     ],

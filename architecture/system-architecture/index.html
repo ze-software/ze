@@ -175,6 +175,14 @@ build, and mounts it at <code>/usr/local/bin/le</code> in the sender container, 
 <code>ZE_LE_BUILD_NAME</code> is unset and <code>refuseWrongBuildName</code> answers 0.</p>
 <!-- source: internal/test/perfrunner/run.go -- buildLinuxBinary -->
 <!-- source: internal/test/perfrunner/run.go -- runPerf -->
+<p>A Go test process is a new fixture boundary, not a continuation of the named
+le build. Native test environments remove every spelling of the outer build
+name and checkout root. Fixture binaries receive their own explicit environment;
+functional suite binaries likewise drop the outer build name but retain their
+selected checkout. These boundaries do not change <code>refuseWrongBuildName</code>: an
+explicit wrong identity still refuses the child.</p>
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment -->
+<!-- source: internal/le/test/functional/binaries.go -- BinarySet.Environment -->
 <p>Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal <code>ze</code> build imports no <code>internal/le</code> package,
 while the non-default <code>ze_le</code> build companion imports <code>internal/le/register.go</code>
@@ -990,7 +998,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

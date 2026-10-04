@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>6 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>38.1%</strong><b>8 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 9 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>15</td>
+<td>21</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>15</td>
+<td>21</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7684.md</code></td>
@@ -268,7 +269,7 @@ Same OSPF experimental status.
 <td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -279,6 +280,10 @@ Same OSPF experimental status.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -293,7 +298,7 @@ Same OSPF experimental status.
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc7684-5-3"><code>RFC7684-5-3</code></a>, <a href="#rfc7684-2.1-1"><code>RFC7684-2.1-1</code></a>, <a href="#rfc7684-2.1-2"><code>RFC7684-2.1-2</code></a>, <a href="#rfc7684-2.1-3"><code>RFC7684-2.1-3</code></a>, <a href="#rfc7684-3.1-1"><code>RFC7684-3.1-1</code></a>, <a href="#rfc7684-5-1"><code>RFC7684-5-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc7684-4-1"><code>RFC7684-4-1</code></a>, <a href="#rfc7684-6.5-1"><code>RFC7684-6.5-1</code></a>, <a href="#rfc7684-6.5-2"><code>RFC7684-6.5-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc7684-4-1"><code>RFC7684-4-1</code></a>, <a href="#rfc7684-6.5-1"><code>RFC7684-6.5-1</code></a>, <a href="#rfc7684-6.5-2"><code>RFC7684-6.5-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -305,8 +310,8 @@ Same OSPF experimental status.
 <td>MUST NOT</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L198" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressValidCarriage</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L135" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressMalformedDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L198" title="internal/plugins/ospf/rfc7684_ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressValidCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L135" title="internal/plugins/ospf/rfc7684_ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressMalformedDiscard</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-1">RFC7684-2.1-1</code></td><td colspan="3"><span class="rfc-subject">If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive</span></td></tr>
@@ -314,8 +319,8 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L77" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L66" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L77" title="internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L66" title="internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-2">RFC7684-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The flag is preserved when the OSPFv2 Extended Prefix Opaque LSA is propagated between areas. (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix</span></td></tr>
@@ -323,8 +328,10 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L121" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagPreservedInterArea</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L150" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagNotSetNonHostInterArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L121" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagPreservedInterArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L64" title="internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go" target="_blank" rel="noopener"><code>TestRFC7684NFlagOfAnotherRouterPreservedInterArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L150" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagNotSetNonHostInterArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L83" title="internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go" target="_blank" rel="noopener"><code>TestRFC7684NFlagNotInventedInterArea</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-3">RFC7684-2.1-3</code></td><td colspan="3"><span class="rfc-subject">However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</span></td></tr>
@@ -332,8 +339,10 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-2.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L167" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L63" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684EveryPrefixInAnLSAFitsItsScope</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L100" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-3.1-1">RFC7684-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Only one OSPFv2 Extended Link TLV SHALL be advertised in each OSPFv2 Extended Link Opaque LSA (§3.1) -- origination emits one per LSA; decode uses the first and logs extras</span></td></tr>
@@ -341,8 +350,8 @@ Same OSPF experimental status.
 <td>SHALL</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_link_origin_test.go#L46" title="internal/plugins/ospf/ext_link_origin_test.go" target="_blank" rel="noopener"><code>TestExtLinkMirrorsRouterLSALink</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L74" title="internal/plugins/ospf/packet/ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkSingleTLVEnforced</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_link_origin_test.go#L46" title="internal/plugins/ospf/rfc7684_ext_link_origin_test.go" target="_blank" rel="noopener"><code>TestExtLinkMirrorsRouterLSALink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L74" title="internal/plugins/ospf/packet/rfc7684_ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkSingleTLVEnforced</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-4-1">RFC7684-4-1</code></td><td colspan="3"><span class="rfc-subject">However, future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality. (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665</span></td></tr>
@@ -359,11 +368,13 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L25" title="internal/plugins/ospf/packet/ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkTLVRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_prefix_test.go#L28" title="internal/plugins/ospf/packet/ext_prefix_test.go" target="_blank" rel="noopener"><code>TestExtPrefixTLVRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L111" title="internal/plugins/ospf/packet/fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtLinkBody</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L91" title="internal/plugins/ospf/packet/fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtPrefixBody</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L163" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixMalformedCounted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25" title="internal/plugins/ospf/packet/rfc7684_ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkTLVRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28" title="internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go" target="_blank" rel="noopener"><code>TestExtPrefixTLVRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L27" title="internal/plugins/ospf/packet/rfc7684_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC7684MalformedPermutationsDetected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111" title="internal/plugins/ospf/packet/rfc7684_fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtLinkBody</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91" title="internal/plugins/ospf/packet/rfc7684_fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtPrefixBody</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160" title="internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixMalformedCounted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L30" title="internal/plugins/ospf/packet/rfc7684_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC7684MalformedPermutationsDetected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-6.5-1">RFC7684-6.5-1</code></td><td colspan="3"><span class="rfc-subject">Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4</span></td></tr>
@@ -512,38 +523,38 @@ Same OSPF experimental status.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7684-5-3"><code>RFC7684-5-3</code></a></h3>
 <p>Malformed LSAs MUST NOT be stored in the Link State Database (LSDB), acknowledged, or reflooded. (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a malformed Extended Prefix or Extended Link LSA stored, acknowledged, or reflooded. TestExtIngressMalformedDiscard drives both opaque types in link, area and AS scope through the router ingress with a TLV overrun, trailing data shorter than a TLV header, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated input, and fails on any LSDB lookup hit (stored) or any send after RetransmitTick (acknowledged or reflooded), so each of the three clauses goes red. TestExtIngressValidCarriage is the positive: valid bodies are stored byte-for-byte, acknowledged and flooded to the expected interfaces.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after the D-15 body fix in TestExtIngressValidCarriage (unknown-application body ff -&gt; ff 00 00 00, assertions unchanged): a 1-octet Opaque body is no Opaque LSA under RFC 5250 Section 3, so the positive now carries a valid unknown application; it still proves valid extended LSAs and unknown applications are stored byte-for-byte, acked and flooded by scope after a malformed companion. Negative TestExtIngressMalformedDiscard unchanged: TLV overrun, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated cases are 4-octet aligned and reach validateExtLSA; revert record on ext.go validateExtLSA observed red. Its trailing-header case (valid + 1 octet) is now discarded first by the RFC 5250 alignment check, still the outcome this row forbids. Positive revert record on ReceiveUpdate.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L135" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressMalformedDiscard</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L135" title="internal/plugins/ospf/rfc7684_ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressMalformedDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L198" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressValidCarriage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L198" title="internal/plugins/ospf/rfc7684_ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressValidCarriage</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7684-2.1-1"><code>RFC7684-2.1-1</code></a></h3>
 <p>If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry&#39;s flags still carry ExtPrefixFlagN, which is what every consumer reads; the positive half fails if N is dropped from a /32 host prefix, so the ignore is confined to the non-host case. Both polarities present.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: unit changed only by the lookupPrefix area argument (types.BackboneArea, the zero AreaID the receive path keys an unset area with); assertions unchanged. Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry&#39;s flags still carry ExtPrefixFlagN; the positive half fails if N is dropped from a /32 host prefix. Both polarities present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L66" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L66" title="internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L77" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L77" title="internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagIgnoredNonHost</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -552,40 +563,60 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc7684-2.1-2"><code>RFC7684-2.1-2</code></a></h3>
 <p>The flag is preserved when the OSPFv2 Extended Prefix Opaque LSA is propagated between areas. (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an ABR dropping the N-Flag when the Extended Prefix information is propagated into another area. TestExtPrefixNFlagPreservedInterArea proves it only for the ABR&#39;s own locally connected host /32 (N set by Ze&#39;s own origination): no unit propagates an N-Flag that another router advertised in its intra-area Extended Prefix LSA, which is the propagation the sentence is about. The negative (TestExtPrefixNFlagNotSetNonHostInterArea) asserts a /24 gains no N and carries A, a neighbouring rule (RFC7684-2.1-1 and the A-Flag row), not a violation of preservation.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the D-8 fix. Forbidden: an ABR dropping (or inventing) the N-Flag when Extended Prefix information crosses areas. extRecv now keys received entries by source area (extRecvKey.area; AS scope keys the zero area), and selfPrefixAdverts ORs N into the inter-area TLV when hostFlagOutside finds an area-scope entry for the prefix, in an area other than the summary&#39;s target, carrying N (non-host N already cleared on receipt). + TestRFC7684NFlagOfAnotherRouterPreservedInterArea: 2.2.2.2&#39;s N /32 received in area 0, this ABR&#39;s Type-3 into area 1 carries N (prefix not connected locally, so only the received flag can set it; red before the fix). - TestRFC7684NFlagNotInventedInterArea: no N when the area-0 advertisement lacks it, when N is advertised only in the target area 1, or on a non-host /24. Records on ext.go::hostFlagOutside (+/-) observed red. Older ext_prefix_origin_test tags (own connected host /32) stay supplementary and carry no record. The handoff&#39;s suggested &#39;via that router&#39; condition is not applied: any other-area N advertisement for the same host prefix sets N, which matches &#39;preserved&#39; for a prefix identifying one router.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L150" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagNotSetNonHostInterArea</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L150" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagNotSetNonHostInterArea</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L83" title="internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go" target="_blank" rel="noopener"><code>TestRFC7684NFlagNotInventedInterArea</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L121" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagPreservedInterArea</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L121" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixNFlagPreservedInterArea</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L64" title="internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go" target="_blank" rel="noopener"><code>TestRFC7684NFlagOfAnotherRouterPreservedInterArea</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7684-2.1-3"><code>RFC7684-2.1-3</code></a></h3>
 <p>However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an Extended Prefix Opaque LSA whose flooding scope is narrower than a prefix it carries requires, e.g. an AS-external prefix in an LS Type 10 LSA. TestExtPrefixScopeSelection asserts the per-route-type mapping of extPrefixScope (intra and inter to area, external and NSSA-external to AS), which goes red on a wrong mapping. The clause &#39;for all the prefixes included in a single&#39; LSA has no assertion: no unit shows an originated LSA never mixes prefixes needing different scopes; it holds today only because origination emits one prefix per LSA, and nothing pins that.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an Extended Prefix Opaque LSA whose flooding scope fails a prefix it carries. + TestRFC7684EveryPrefixInAnLSAFitsItsScope: real self LSAs (stub, two Type-3s, two Type-5s) through extPrefixOnOriginate; every TLV of every decoded body has extPrefixScope(routeType) == the LSA scope, and the counts pin 3 area-scope and 2 AS-scope TLVs (so a mapping that put externals in area scope also fails). - TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA (R1(b)): 10.0.0.0/24 as intra, inter and external never sits in an LSA whose scope fails its role, and all three roles are originated. Records on ext_prefix.go::extPrefixOnOriginate (+/-) observed red; author&#39;s overlay forcing area scope on every origination turned both red. TestExtPrefixScopeSelection keeps the per-route-type mapping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L100" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167" title="internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L167" title="internal/plugins/ospf/ext_prefix_origin_test.go" target="_blank" rel="noopener"><code>TestExtPrefixScopeSelection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L63" title="internal/plugins/ospf/rfc7684_scope_per_lsa_test.go" target="_blank" rel="noopener"><code>TestRFC7684EveryPrefixInAnLSAFitsItsScope</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -598,12 +629,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L74" title="internal/plugins/ospf/packet/ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkSingleTLVEnforced</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L74" title="internal/plugins/ospf/packet/rfc7684_ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkSingleTLVEnforced</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_link_origin_test.go#L46" title="internal/plugins/ospf/ext_link_origin_test.go" target="_blank" rel="noopener"><code>TestExtLinkMirrorsRouterLSALink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_link_origin_test.go#L46" title="internal/plugins/ospf/rfc7684_ext_link_origin_test.go" target="_blank" rel="noopener"><code>TestExtLinkMirrorsRouterLSALink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -616,35 +647,45 @@ Same OSPF experimental status.
 <p>No test carries RFC7684-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7684-5-1"><code>RFC7684-5-1</code></a></h3>
 <p>Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a malformed TLV or sub-TLV permutation that goes undetected or crashes the process. TestExtPrefixMalformedCounted asserts a top-level TLV overrun of an Extended Prefix body is counted and stores nothing, and the two decode tests pin that valid bodies decode. Detection of a sub-TLV overrun, and of any malformed Extended Link body, has no 5-1 tagged assertion: FuzzOSPFExtPrefixBody and FuzzOSPFExtLinkBody discard err and assert only no panic, over three seeds each under go test, so a decoder that silently accepted an overrunning sub-TLV stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: supplementary unit TestExtPrefixMalformedCounted changed only by the lookupPrefix area argument; the verdict rests unchanged on TestRFC7684MalformedPermutationsDetected (+ valid prefix and link bodies accepted by DecodeExt*LSA and ValidateExtLSABody; - nine single-fault permutations each refused by both paths, panic converted to t.Fatalf). Records on DecodeExtPrefixLSA (+) and decodeExtSubTLVs (-) observed red; older supplementary tags carry no record and are not relied on.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L163" title="internal/plugins/ospf/ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixMalformedCounted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111" title="internal/plugins/ospf/packet/rfc7684_fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtLinkBody</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L111" title="internal/plugins/ospf/packet/fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtLinkBody</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91" title="internal/plugins/ospf/packet/rfc7684_fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtPrefixBody</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L91" title="internal/plugins/ospf/packet/fuzz_test.go" target="_blank" rel="noopener"><code>FuzzOSPFExtPrefixBody</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L30" title="internal/plugins/ospf/packet/rfc7684_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC7684MalformedPermutationsDetected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160" title="internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go" target="_blank" rel="noopener"><code>TestExtPrefixMalformedCounted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L25" title="internal/plugins/ospf/packet/ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkTLVRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25" title="internal/plugins/ospf/packet/rfc7684_ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkTLVRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_prefix_test.go#L28" title="internal/plugins/ospf/packet/ext_prefix_test.go" target="_blank" rel="noopener"><code>TestExtPrefixTLVRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28" title="internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go" target="_blank" rel="noopener"><code>TestExtPrefixTLVRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L27" title="internal/plugins/ospf/packet/rfc7684_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC7684MalformedPermutationsDetected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -847,7 +888,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

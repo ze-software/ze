@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>44.4%</strong><b>4 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>44.4%</strong><b>4 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>84.0%</strong><b>21 of 25 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 9 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>16</td>
+<td>25</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>16</td>
+<td>25</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>7</td>
+<td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>21</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5310.md</code></td>
@@ -268,7 +269,7 @@ Same IS-IS experimental status.
 <td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -279,6 +280,10 @@ Same IS-IS experimental status.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -293,7 +298,7 @@ Same IS-IS experimental status.
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc5310-3.2-1"><code>RFC5310-3.2-1</code></a>, <a href="#rfc5310-3.2-2"><code>RFC5310-3.2-2</code></a>, <a href="#rfc5310-3.2-3"><code>RFC5310-3.2-3</code></a>, <a href="#rfc5310-4-2"><code>RFC5310-4-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (5):</strong> <a href="#rfc5310-3.2-5"><code>RFC5310-3.2-5</code></a>, <a href="#rfc5310-3.2-6"><code>RFC5310-3.2-6</code></a>, <a href="#rfc5310-3.4-1"><code>RFC5310-3.4-1</code></a>, <a href="#rfc5310-3.4-2"><code>RFC5310-3.4-2</code></a>, <a href="#rfc5310-4-1"><code>RFC5310-4-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (5):</strong> <a href="#rfc5310-3.2-5"><code>RFC5310-3.2-5</code></a>, <a href="#rfc5310-3.2-6"><code>RFC5310-3.2-6</code></a>, <a href="#rfc5310-3.4-1"><code>RFC5310-3.4-1</code></a>, <a href="#rfc5310-3.4-2"><code>RFC5310-3.4-2</code></a>, <a href="#rfc5310-4-1"><code>RFC5310-4-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -305,8 +310,8 @@ Same IS-IS experimental status.
 <td>SHALL</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthEngineSignLevel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L202" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthChainSelection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L49" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310Level1SNPUsesAreaString</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L66" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310Level1SNPRefusesOtherStrings</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-2">RFC5310-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Level 2 Sequence Number PDUs shall use the domain authentication string, as in Level 2 Link State PDUs (§3.2)</span></td></tr>
@@ -314,8 +319,8 @@ Same IS-IS experimental status.
 <td>SHALL</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L116" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthEngineSignLevel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L284" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthLevelChainCrossUseL2</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthEngineSignLevel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L270" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthLevelChainCrossUseL2</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-3">RFC5310-3.2-3</code></td><td colspan="3"><span class="rfc-subject">IS-IS HELLO PDUs SHALL use the Link Level Authentication string (§3.2)</span></td></tr>
@@ -323,8 +328,8 @@ Same IS-IS experimental status.
 <td>SHALL</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L156" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthReject</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L168" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthReject</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L86" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310HelloUsesLinkString</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L103" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310HelloRefusesAreaAndDomainStrings</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-5">RFC5310-3.2-5</code></td><td colspan="3"><span class="rfc-subject">The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled. (§3.2)</span></td></tr>
@@ -333,6 +338,7 @@ Same IS-IS experimental status.
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L72" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L159" title="internal/plugins/isis/circuit/rfc5303_sent_iih_test.go" target="_blank" rel="noopener"><code>TestRFC5310P2PHelloSignedOverPaddedPDU</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze always pads the IIH before signing it (circuit/runtime.go:273-276 for LAN, :293-304 for P2P), so there is no sign-before-pad code path and no negative (unpadded-sign) behavior to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the bytes handed to the signer are already padded to MTU-LLC and carry Padding TLV 8</p></td>
 </tr>
@@ -361,6 +367,7 @@ Same IS-IS experimental status.
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L75" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L161" title="internal/plugins/isis/circuit/rfc5303_sent_iih_test.go" target="_blank" rel="noopener"><code>TestRFC5310P2PHelloSignedOverPaddedPDU</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze pads the IIH before signing it (circuit/runtime.go:273-276 pads then signs), with no sign-before-pad code path, so no negative (auth-computed-before-padding) behavior exists to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the signer receives the PDU already padded to MTU-LLC</p></td>
 </tr>
@@ -370,7 +377,7 @@ Same IS-IS experimental status.
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L391" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthLSPChecksumAfterSign</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L666" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotationOverlapAccepts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go#L17" title="internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC5310LifetimeNotAuthenticated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze always zeroes the Checksum and Remaining Lifetime before the LSP digest (auth_sign.go:268-272), so those fields are never part of the HMAC. The exclusion is observable only as non-rejection -- a post-sign Remaining-Lifetime change still verifies -- and there is no field-included code path that rejects, so no negative exists. The positive is proven in TestISISAuthLSPChecksumAfterSign and the HMAC-SHA-256 type-3 LSP round-trip TestISISAuthRotationOverlapAccepts</p></td>
 </tr>
@@ -379,10 +386,9 @@ Same IS-IS experimental status.
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_keystore_test.go#L78" title="internal/plugins/isis/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L663" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotationOverlapAccepts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L688" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthKeyIDMismatchRejected</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L637" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthWrongKeyRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_keystore_test.go#L78" title="internal/plugins/isis/rfc5310_auth_keystore_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L662" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotationOverlapAccepts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L122" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310NonSendingKeyStillUsed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.5-1">RFC5310-3.5-1</code></td><td colspan="3"><span class="rfc-subject">The calculated data is compared with the received authentication data in the PDU, and the PDU is discarded if the two do not match. In such a case, an error event SHOULD be logged. (§3.5)</span></td></tr>
@@ -390,8 +396,14 @@ Same IS-IS experimental status.
 <td>SHOULD</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5310-3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_discard_rfc1195_test.go#L29" title="internal/plugins/isis/auth_discard_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InvalidAuthLSPDiscardedAtReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_error_event_test.go#L44" title="internal/plugins/isis/rfc5310_auth_error_event_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchLogsAnErrorEvent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_warn_test.go#L23" title="internal/plugins/isis/rfc5310_auth_warn_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchWarnsRateLimited</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L683" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthKeyIDMismatchRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L637" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthWrongKeyRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_discard_rfc1195_test.go#L30" title="internal/plugins/isis/auth_discard_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InvalidAuthLSPDiscardedAtReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_error_event_test.go#L47" title="internal/plugins/isis/rfc5310_auth_error_event_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchLogsAnErrorEvent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_warn_test.go#L28" title="internal/plugins/isis/rfc5310_auth_warn_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchWarnsRateLimited</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5310-3.2-4">RFC5310-3.2-4</code></td><td colspan="3"><span class="rfc-subject">IS-IS HELLO PDUs SHALL use the Link Level Authentication string, which MAY be different from that of Link State PDUs. (§3.2)</span></td></tr>
@@ -433,20 +445,20 @@ Same IS-IS experimental status.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5310-3.2-1"><code>RFC5310-3.2-1</code></a></h3>
 <p>When calculating the CRYPTO_AUTH result for Sequence Number PDUs, Level 1 Sequence Number PDUs SHALL use the Area Authentication string, as in Level 1 Link State PDUs. (§3.2)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence binds Level 1 Sequence Number PDUs (CSNP/PSNP). Both tagged units drive an LSP (authTestLSP): TestISISAuthEngineSignLevel round-trips an L1 LSP through signLevelPDU/verifyFrame, and TestISISAuthChainSelection rejects an L1 LSP signed with the IIH key. They prove the neighbouring rule that L1 LSPs use the area string. No tagged unit signs or verifies an L1 SNP, so an SNP signed with the domain or IIH string stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Now drives Level 1 SNPs, not LSPs. TestRFC5310Level1SNPUsesAreaString: signLevelPDU signs an L1 CSNP and PSNP that verify with areasecret under Key ID 1 and not with domainsecret under the same Key ID, and verifyFrame accepts them. TestRFC5310Level1SNPRefusesOtherStrings: the same CSNP/PSNP signed with the domain or link string, under Key ID 1 and under that string&#39;s own Key ID (2, 3), is rejected by verifyFrame while the area-signed copy is accepted, so a receiver that tried every configured chain goes red. Recorded red on signLevelPDU and verifyFrame.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L202" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthChainSelection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L66" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310Level1SNPRefusesOtherStrings</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthEngineSignLevel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L49" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310Level1SNPUsesAreaString</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -459,12 +471,12 @@ Same IS-IS experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L284" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthLevelChainCrossUseL2</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L270" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthLevelChainCrossUseL2</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L116" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthEngineSignLevel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthEngineSignLevel</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -473,35 +485,40 @@ Same IS-IS experimental status.
 </div>
 <h3><a href="#rfc5310-3.2-3"><code>RFC5310-3.2-3</code></a></h3>
 <p>IS-IS HELLO PDUs SHALL use the Link Level Authentication string (§3.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an IIH authenticated with a string other than the Link Level one (the area or domain string); (b) no tagged assertion goes red on it. The positive round-trips signHelloPDU through verifyFrame, which stays green if both sides switched to the area chain (self-consistent). The negative rejects an IIH with no TLV 10, which proves &#39;authentication is required&#39;, not which string. The untagged wrong-key case uses an unconfigured key &#39;nope&#39;. Missing: an IIH signed with the area/domain key rejected, and a check that the sender picks the per-interface chain.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5310HelloUsesLinkString: signHelloPDU signs a LAN and a P2P IIH that verify with iihsecret under Key ID 3 and not with areasecret under Key ID 3, and verifyFrame accepts them, so a sender using the area chain goes red. TestRFC5310HelloRefusesAreaAndDomainStrings: the IIHs signed with the area or domain string, under Key ID 3 and under their own Key IDs (1, 2), are rejected while the link-signed IIH is accepted. Recorded red on signHelloPDU and verifyFrame. The old self-consistent round trip and no-TLV-10 tags are gone.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L168" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthReject</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L103" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310HelloRefusesAreaAndDomainStrings</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L156" title="internal/plugins/isis/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestISISAuthReject</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L86" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310HelloUsesLinkString</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5310-3.2-5"><code>RFC5310-3.2-5</code></a></h3>
 <p>The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled. (§3.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Single-polarity positive. (a) forbidden: computing the IIH CRYPTO_AUTH result before padding to MTU; (b) TestISISHelloSignedOverPaddedPDU len(cs.pdu)!=wantPDU and the Padding TLV 8 check go red on sign-before-pad, but only on a LAN circuit (lanCircuit, SendHello-&gt;sendLANHello). The P2P IIH producer (sendP2PHello, runtime.go) has no tagged assertion, so a sign-before-pad there stays green. Ze has no padding-disable option, so the conditional branch does not arise.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (no sign-before-pad path, no padding-disable option). Both IIH producers are now asserted: circuit TestISISHelloSignedOverPaddedPDU on the LAN IIH (sendLANHello) and TestRFC5310P2PHelloSignedOverPaddedPDU on the point-to-point IIH (sendP2PHello), each capturing the bytes handed to the CRYPTO_AUTH signer and requiring length MTU - LLC with Padding TLV 8 present, so signing before padding on either path goes red. Recorded + on hello.go padHello for the P2P unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L159" title="internal/plugins/isis/circuit/rfc5303_sent_iih_test.go" target="_blank" rel="noopener"><code>TestRFC5310P2PHelloSignedOverPaddedPDU</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L72" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -532,22 +549,27 @@ Same IS-IS experimental status.
 </div>
 <h3><a href="#rfc5310-3.4-2"><code>RFC5310-3.4-2</code></a></h3>
 <p>The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS Hello (IIH) has been padded to the MTU size, if padding is not explicitly disabled. (§3.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Same unit and gap as RFC5310-3.2-5: the pad-before-sign assertion (len == MTU-LLC, Padding TLV 8 present) runs on the LAN IIH only; the P2P IIH producer sendP2PHello has no tagged assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Same units as RFC5310-3.2-5: the LAN IIH (TestISISHelloSignedOverPaddedPDU) and the point-to-point IIH (TestRFC5310P2PHelloSignedOverPaddedPDU) are both handed to the signer already padded to MTU - LLC with Padding TLV 8, so authentication data computed before padding on either producer goes red. Single-polarity positive per the row. Recorded + on padHello.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L161" title="internal/plugins/isis/circuit/rfc5303_sent_iih_test.go" target="_blank" rel="noopener"><code>TestRFC5310P2PHelloSignedOverPaddedPDU</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L75" title="internal/plugins/isis/circuit/runtime_test.go" target="_blank" rel="noopener"><code>TestISISHelloSignedOverPaddedPDU</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5310-4-1"><code>RFC5310-4-1</code></a></h3>
 <p>This document states that the remaining lifetime of the LSP MUST be set to zero before computing the authentication, thus this field is not authenticated. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Single-polarity positive. (a) forbidden: including the Remaining Lifetime in the CRYPTO_AUTH digest; (b) the only assertion that goes red on it, TestISISAuthLSPChecksumAfterSign &#39;VerifyPDU after lifetime change&#39;, signs with HMAC-MD5 (RFC 5304 type 54), not a CRYPTO_AUTH key. The type-3 unit TestISISAuthRotationOverlapAccepts only round-trips an LSP without touching the lifetime, so it stays green if the lifetime were hashed on both sides. The zeroing in auth_sign.go is shared across algorithms today, but no tagged unit proves it on the RFC 5310 path.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive, now on the CRYPTO_AUTH path. New TestRFC5310LifetimeNotAuthenticated signs an LSP with HMAC-SHA-256 (type 3, Key ID 7), sets the Remaining Lifetime to 1, 600 and 0xFFFF with the Fletcher checksum recomputed, and requires VerifyPDU to accept each; a digest that covered the lifetime (lspAuthLayout not zeroing it) goes red. A changed sequence number is refused, so an accept-all verifier also goes red. Recorded red on auth_sign.go lspAuthLayout. The {single-polarity} marker holds (no lifetime-included path exists to refuse). Its prose still names TestISISAuthRotationOverlapAccepts, whose tag was removed: stale annotation text, not a coverage gap.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -555,42 +577,87 @@ Same IS-IS experimental status.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L391" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthLSPChecksumAfterSign</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L666" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotationOverlapAccepts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go#L17" title="internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC5310LifetimeNotAuthenticated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5310-4-2"><code>RFC5310-4-2</code></a></h3>
 <p>To ensure greater security, the keys used should be changed periodically, and implementations MUST be able to store and use more than one key at the same time. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive is sound: TestISISAuthRotationOverlapAccepts verifies PDUs signed by either of two candidate keys, and TestISISAuthRotation asserts verifyKeys returns 2 keys before and after rollover; a one-key store goes red. The negative tags (TestISISAuthWrongKeyRejected, TestISISAuthKeyIDMismatchRejected) prove a neighbouring rule, rejection of an unknown key or Key ID (RFC 5304 sec 2 / RFC 5310 sec 3.5), not a violation of &#39;store and use more than one key&#39;. No true negative and no {single-polarity} marker.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) on its positives, per the main-thread decision following the owner&#39;s BFD RFC5880-6.1-3 ruling (a capability MUST with no refusal path is proven by its positives). Every clause is proven: STORE more than one key, root TestISISAuthRotation requires verifyKeys to return both keys (len 2) before and after the send rollover; USE more than one key at the same time, packet TestISISAuthRotationOverlapAccepts verifies a PDU signed by either of two candidate keys, and root TestRFC5310NonSendingKeyStillUsed verifies with an accepted key that is not the sending key, while signKey moves from key 1 to key 2 in TestISISAuthRotation. Each fails with a one-key store (keys[:1] fails the new-key verify; a single-entry store fails len 2). Records: + revert acceptKeys (TestISISAuthRotation), + revert VerifyPDU (TestISISAuthRotationOverlapAccepts, recorded by this judge), - revert acceptKeys (TestRFC5310NonSendingKeyStillUsed). The negative tag on TestRFC5310NonSendingKeyStillUsed is kept as supplementary because the coverage ratchet holds it: it is a further positive, not a rejected violation, and no input drives the store toward one key.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L688" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthKeyIDMismatchRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L122" title="internal/plugins/isis/rfc5310_auth_scope_test.go" target="_blank" rel="noopener"><code>TestRFC5310NonSendingKeyStillUsed</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L662" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotationOverlapAccepts</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_keystore_test.go#L78" title="internal/plugins/isis/rfc5310_auth_keystore_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5310-3.5-1"><code>RFC5310-3.5-1</code></a></h3>
+<p>The calculated data is compared with the received authentication data in the PDU, and the PDU is discarded if the two do not match. In such a case, an error event SHOULD be logged. (§3.5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the D-8 (R41) fix: verifyFrame now logs a Warn (RFC 5310 sec 3.5 quoted above it), rate-limited to one line per interface and level per 10 s by auth_warn.go authWarnLimiter, with the suppressed count on the next line; every failure still increments ze_isis_auth_failures_total. Both clauses now held. Discard: root TestRFC1195InvalidAuthLSPDiscardedAtReceive, TestRFC5310MismatchLogsAnErrorEvent and TestRFC5310MismatchWarnsRateLimited deliver the matching HMAC-SHA-256 L1 LSP and drop the one-octet-altered copy before the handler; packet TestISISAuthWrongKeyRejected and TestISISAuthKeyIDMismatchRejected refuse at VerifyPDU. Error event: TestRFC5310MismatchWarnsRateLimited runs the logger at Info (Debug hidden) and requires a WARN line naming level=l1 and the neighbor SNPA on the first mismatch, none 1 s later, and a second line with suppressed=1 after the interval (positive); the matching LSP logs no WARN (negative). A regression to Debug goes red at the assertion. Recorded + on auth_warn.go allow, - on verifyFrame.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_discard_rfc1195_test.go#L30" title="internal/plugins/isis/auth_discard_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InvalidAuthLSPDiscardedAtReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L683" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthKeyIDMismatchRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L637" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthWrongKeyRejected</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_error_event_test.go#L47" title="internal/plugins/isis/rfc5310_auth_error_event_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchLogsAnErrorEvent</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_warn_test.go#L28" title="internal/plugins/isis/rfc5310_auth_warn_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchWarnsRateLimited</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_keystore_test.go#L78" title="internal/plugins/isis/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_discard_rfc1195_test.go#L29" title="internal/plugins/isis/auth_discard_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InvalidAuthLSPDiscardedAtReceive</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L663" title="internal/plugins/isis/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestISISAuthRotationOverlapAccepts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_error_event_test.go#L44" title="internal/plugins/isis/rfc5310_auth_error_event_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchLogsAnErrorEvent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_warn_test.go#L23" title="internal/plugins/isis/rfc5310_auth_warn_test.go" target="_blank" rel="noopener"><code>TestRFC5310MismatchWarnsRateLimited</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -794,7 +861,7 @@ Same IS-IS experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

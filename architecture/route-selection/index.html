@@ -219,12 +219,17 @@ the receiver; the sender's TCP address is accepted. The receive path uses an
 immutable interface snapshot captured at connection setup and replaced on
 interface address events. It performs no kernel lookup per UPDATE.</p>
 <p>A semantic failure withdraws the legacy announcements while preserving explicit
-withdrawals and MP routes in the same UPDATE. It is logged without a NOTIFICATION
-or session reset. iBGP and multihop eBGP still reject the speaker's own addresses,
+withdrawals and MP routes in the same UPDATE. It sends no NOTIFICATION and does
+not reset the session. Each failure writes one WARN record from the session
+logger, <code>route ignored: semantically incorrect NEXT_HOP</code>, naming the peer and the
+NEXT_HOP, so the default log level (WARN) shows it. Ze has no log rate limiter, so a
+peer that keeps sending such routes produces one record per UPDATE. The RFC 7606
+diagnostics line with the update's hex dump (<code>event=invalid-next-hop</code>) is written
+only at Debug. iBGP and multihop eBGP still reject the speaker's own addresses,
 but do not apply the one-hop common-subnet condition. A sender at a loopback
 address, or at an address this host holds, runs on the receiving host. It is zero
 IP hops away, so the common-subnet condition does not apply to it either.</p>
-<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop, withdrawLegacyAnnouncements -->
+<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop, logIgnoredNextHopRoute, withdrawLegacyAnnouncements -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- refreshPeerLinkScopes -->
 <h3 id="rpki-validation">RPKI Validation</h3>
 <p>RPKI validation is asynchronous. <code>validation-timeout</code> defaults to 30 seconds and
@@ -327,7 +332,7 @@ decides.</p>
 <td><code>lost-med</code></td>
 <td>Lowest MED wins (same neighbor AS only)</td>
 <td>4271</td>
-<td>Compared only when first AS matches. Section 9.1.2.2 (c) gives a route that carries no MULTI_EXIT_DISC the lowest possible value, 0, so an absent attribute wins this step</td>
+<td>Compared only when the neighbor AS matches. The neighbor AS is the leftmost AS of the AS_PATH; an IBGP-learned route with an empty AS_PATH was originated inside the local AS, so its neighbor AS is the local AS and two such routes compare MED. A path that begins with an AS_SET has no leftmost AS (the set is unordered, <code>firstASInPath</code>), so an IBGP aggregate led by one also takes the local AS, as Section 9.1.2.2 (c) says. An EBGP route with no leftmost AS (empty or AS_SET-led), or a route whose session class is unknown, compares no MED (<code>neighborAS</code>, <code>bestpath.go</code>). Section 9.1.2.2 (c) gives a route that carries no MULTI_EXIT_DISC the lowest possible value, 0, so an absent attribute wins this step</td>
 </tr>
 <tr>
 <td>14</td>
@@ -360,13 +365,27 @@ decides.</p>
 <tr>
 <td>18</td>
 <td><code>lost-peer-address</code></td>
-<td>Lowest peer IP address wins (final tiebreak)</td>
+<td>Lowest peer IP address wins</td>
 <td>4271</td>
 <td>Numeric IP comparison</td>
+</tr>
+<tr>
+<td>19</td>
+<td><code>lost-path-id</code></td>
+<td>Lowest received ADD-PATH path identifier wins (final tiebreak)</td>
+<td>Ze</td>
+<td>Not RFC text: RFC 7911 gives the identifier no rank. It orders two paths of one session that tie on every step above, so the elected path does not depend on storage order</td>
 </tr>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
+<p>Under ADD-PATH (RFC 7911) every path a session holds for a CIDR prefix is a
+candidate of the one selection for that prefix: RFC 8277 Section 3.1 makes two
+paths of one session, under different path identifiers, comparable. The RIB
+elects one best per prefix across every peer and every path, and the
+best-change names the winning path by its path id
+(<code>gatherPrefixCandidatesLocked</code>, <code>rib_commands.go</code>).</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked -->
 <h3 id="candidate-extraction">Candidate Extraction</h3>
 <p>Before comparison, each route's attributes are extracted from pool handles into a
 flat <code>Candidate</code> struct: LocalPref, AIGP, HasAIGP, IGPCost, ASPathLen, FirstAS,
@@ -591,6 +610,12 @@ it fails.</p>
 <td>Selection</td>
 <td>4271</td>
 </tr>
+<tr>
+<td>19</td>
+<td><code>lost-path-id</code></td>
+<td>Selection</td>
+<td>Ze</td>
+</tr>
 </tbody>
 </table>
 <h2 id="implementation-notes">Implementation Notes</h2>
@@ -623,7 +648,7 @@ updated after.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

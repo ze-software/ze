@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2545 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 5 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2545 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 5 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2545 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing. 5 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,23 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>4 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 28 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>4</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>4 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>3.4%</strong><b>1 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 6 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>1 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
+<p>The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,8 +165,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Partial proof; remaining gap</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -180,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -200,16 +210,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>6</td>
+<td>7</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -221,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>28</td>
+<td>29</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>28</td>
+<td>29</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2545.md</code></td>
@@ -252,13 +262,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Status:</strong> Supported</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
-<li>Enrolled 2026-08-07. All four SHALL-level requirements sit in Section 3 and govern the MP_REACH_NLRI Network Address of Next Hop field</li>
-<li>each is proven in both polarities by verify-tier functional tests, bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2545.md" target="_blank" rel="noopener"><code>rfc/short/rfc2545.md</code></a> and listed in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc2545.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc2545.md</code></a>. Send side: ze evaluates the Section 3 condition itself. <code>linkScope.linkLocalNextHop</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/link_scope.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/link_scope.go</code></a>) emits the 32-octet form (global address first, link-local second, length octet 0x20) only when the speaker shares a locally connected subnet with the peer AND with the entity named by the global next hop, and the 16-octet form (one address, length octet 0x10) in every other case. Connected subnets come from <code>network.ConnectedPrefixes</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/network/connected.go" target="_blank" rel="noopener"><code>internal/core/network/connected.go</code></a>), snapshotted per session. The <code>session &gt; link-local</code> leaf supplies the address</li>
+<li>Enrolled 2026-08-07. The five SHALL-level requirement rows sit in Section 3 and govern the MP_REACH_NLRI Network Address of Next Hop field</li>
+<li><a href="#rfc2545-3-6"><code>RFC2545-3-6</code></a> is a recorded gap (Support remaining), and each of the other four is proven in both polarities by verify-tier functional tests, bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2545.md" target="_blank" rel="noopener"><code>rfc/short/rfc2545.md</code></a> and listed in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc2545.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc2545.md</code></a>. Send side: ze evaluates the Section 3 condition itself. <code>linkScope.linkLocalNextHop</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/link_scope.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/link_scope.go</code></a>) emits the 32-octet form (global address first, link-local second, length octet 0x20) only when the speaker shares a locally connected subnet with the peer AND with the entity named by the global next hop, AND that global is the speaker&#39;s own address (the link-local appended is the speaker&#39;s own, so it is never paired with another router&#39;s global), and the 16-octet form (one address, length octet 0x10) in every other case. Connected subnets come from <code>network.ConnectedPrefixes</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/network/connected.go" target="_blank" rel="noopener"><code>internal/core/network/connected.go</code></a>), snapshotted per session. The <code>session &gt; link-local</code> leaf supplies the address</li>
 <li>it does not decide inclusion. The snapshot is re-settled for every established peer when an address is added to or removed from ANY interface, <code>refreshPeerLinkScopes</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_iface.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor_iface.go</code></a>), so a change on an interface other than the session&#39;s does not leave a stale answer behind a surviving TCP session. A link-local address is refused wherever it could reach the FIRST slot of that field: the three route-level entry points (<code>ParseRouteAttributes</code>, <code>handleAnnounceUnicast</code>, <code>parseNhopFlat</code>) and the two peer config leaves <code>connection &gt; local &gt; ip</code> and <code>session &gt; next-hop</code> (<code>ValidatePeerGlobalNextHop</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_nexthop_form.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config_nexthop_form.go</code></a>) all call <code>ValidateGlobalNextHop</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/nexthop_form.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/nexthop_form.go</code></a>), and <code>linkScope.linkLocalNextHop</code> refuses independently of all of them, appending nothing when the global address it is given is not a global IPv6 address. Receive side: <code>parseNextHops</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/mpnlri.go</code></a>) accepts lengths 16 and 32 for an IPv6 next hop and rejects every other length for AFI 2.</li>
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-No tracked gap in current source anchors. Sections 2 and 4 bind a network administrator, an IPv6 router&#39;s neighbor-discovery behavior, and the operator who configures a session; those sites are classified in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc2545.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc2545.json</code></a> rather than gated here. The BGP Identifier uniqueness that Section 4 restates is gated under RFC 6286. Capability code 77 is draft-based; RFC 2545 covers the next-hop wire behavior.
+One SHALL-level gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2545.md" target="_blank" rel="noopener"><code>rfc/short/rfc2545.md</code></a>: <a href="#rfc2545-3-6"><code>RFC2545-3-6</code></a>, the include half of Section 3 for a next hop that is another router sharing a subnet with the speaker and the peer, on the rails where Ze writes the next hop (an explicit <code>session next-hop</code>, a static or API route naming that router). Ze holds no source for that router&#39;s Link-Local there, so such a route is sent with that router&#39;s global alone (<code>linkScope.linkLocalNextHop</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/link_scope.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/link_scope.go</code></a>). A route relayed under next hop unchanged or auto keeps the received Next Hop field as it arrived, so a 32-octet field the source sent still carries that router&#39;s own Link-Local to a peer the speaker shares a subnet with; toward a peer no connected subnet holds, the Link-Local half is removed (<code>egressNextHopGlobalHalf</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/forward_next_hop.go</code></a>). Sections 2 and 4 bind a network administrator, an IPv6 router&#39;s neighbor-discovery behavior, and the operator who configures a session; those sites are classified in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc2545.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc2545.json</code></a> rather than gated here. The BGP Identifier uniqueness that Section 4 restates is gated under RFC 6286. Capability code 77 is draft-based; RFC 2545 covers the next-hop wire behavior.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -270,8 +280,8 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>0</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -282,6 +292,10 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -290,11 +304,12 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>5</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc2545-3-1"><code>RFC2545-3-1</code></a>, <a href="#rfc2545-3-2"><code>RFC2545-3-2</code></a>, <a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a>, <a href="#rfc2545-3-4"><code>RFC2545-3-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc2545-3-6"><code>RFC2545-3-6</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -307,10 +322,11 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L618" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L136" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L133" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L67" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceRefusesUnusableIPv6NextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L105" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L136" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L133" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go#L33" title="internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go" target="_blank" rel="noopener"><code>TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L67" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceRefusesUnusableIPv6NextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L105" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L17" title="test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-rfc2545-next-hop.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L7" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L1" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></span></div>
@@ -322,9 +338,9 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L622" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L140" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L136" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L108" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L140" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L136" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L108" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L21" title="test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-rfc2545-next-hop.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L13" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L8" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></span></div>
@@ -337,14 +353,23 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L625" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L143" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L143" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L650" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L176" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L176" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L16" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-lla-only.ci#L7" title="test/exabgp-compat/encoding/conf-llnh-lla-only.ci" target="_blank" rel="noopener"><code>conf-llnh-lla-only.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L523" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L529" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-6">RFC2545-3-6</code></td><td colspan="3"><span class="rfc-subject">The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>3 - Constructing the Next Hop field</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the include half for a next hop that is ANOTHER router on a subnet the speaker shares with it and with the peer, on the rails where Ze WRITES the next hop (an explicit `session next-hop`, a static or API route naming that router). Section 3&#39;s second address is &#34;the link-local IPv6 address of the next hop&#34;, and Ze holds no source for another router&#39;s Link-Local on those rails, so it writes that router&#39;s global alone (length 16) rather than pair it with its own. A relayed route under next hop unchanged or auto is outside the gap: Ze does not edit the received Next Hop field (precomputeNextHop, nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go), so a 32-octet field the source sent passes as received, carrying that router&#39;s own Link-Local, to a peer the speaker shares a subnet with; toward a peer no connected subnet holds, the Link-Local half is removed (egressNextHopGlobalHalf, internal/component/bgp/reactor/forward_next_hop.go). On the rails Ze writes, linkScope.linkLocalNextHop appends the configured Link-Local only after a global that nextHopOwners.classify names as the speaker&#39;s own address (internal/component/bgp/reactor/link_scope.go). The include half for the speaker&#39;s own global, and the exclude half, stay under RFC2545-3-3</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-4">RFC2545-3-4</code></td><td colspan="3"><span class="rfc-subject">In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16). (§3)</span></td></tr>
 <tr><td></td>
@@ -352,7 +377,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L654" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L180" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L180" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L11" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L22" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 </div></td>
@@ -380,35 +405,45 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 2545 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc2545-3-6"><code>RFC2545-3-6</code></a> The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)</td>
+<td>{gap}, no test</td>
+<td>the include half for a next hop that is ANOTHER router on a subnet the speaker shares with it and with the peer, on the rails where Ze WRITES the next hop (an explicit `session next-hop`, a static or API route naming that router). Section 3&#39;s second address is &#34;the link-local IPv6 address of the next hop&#34;, and Ze holds no source for another router&#39;s Link-Local on those rails, so it writes that router&#39;s global alone (length 16) rather than pair it with its own. A relayed route under next hop unchanged or auto is outside the gap: Ze does not edit the received Next Hop field (precomputeNextHop, nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go), so a 32-octet field the source sent passes as received, carrying that router&#39;s own Link-Local, to a peer the speaker shares a subnet with; toward a peer no connected subnet holds, the Link-Local half is removed (egressNextHopGlobalHalf, internal/component/bgp/reactor/forward_next_hop.go). On the rails Ze writes, linkScope.linkLocalNextHop appends the configured Link-Local only after a global that nextHopOwners.classify names as the speaker&#39;s own address (internal/component/bgp/reactor/link_scope.go). The include half for the speaker&#39;s own global, and the exclude half, stay under RFC2545-3-3</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2545-3-1"><code>RFC2545-3-1</code></a></h3>
 <p>A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Next Hop field whose first address is not the global next hop, a link-local second address placed first, a non-link-local second address, or a second address appended unconditionally. (b) conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci pin global-then-link-local by exact wire hex (offset order); TestSendAnnounceRefusesUnusableIPv6NextHop requires ErrNextHopUnencodable and empty wire for an IPv4 or unset address in the global slot; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the same for a global second address; new-v6.ci pins the one-address form when no link-local exists.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c19 judge). (a) forbidden: a Next Hop field whose first address is not the global next hop, a link-local second address placed first, a non-link-local second address, a second address appended unconditionally, or a second address that is not the next hop&#39;s own (the speaker&#39;s Link-Local after another router&#39;s global). (b) conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci pin global-then-link-local by exact wire hex (offset order); TestSendAnnounceRefusesUnusableIPv6NextHop requires ErrNextHopUnencodable and empty wire for an IPv4 or unset address in the global slot; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the same for a global second address; new-v6.ci pins the one-address form when no link-local exists. NEW negative TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink (sendStaticRoutes, one-hop internal peer, explicit next hop 2001:db8:1::99 on the shared link) asserts Contains the 16-octet ::99 attribute AND NotContains [::99, fe80::1]; it was observed red as the c18 probe before the R55 fix and carries a record on classify. Fixture positives (conf-llnh-update.conf local-address fd00::2 = next hop; interop fd00:1e:0::2 held on the lab interface) keep a speaker-own global, so the fix leaves them valid by reading; their re-run is owed to the functional/interop gates.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L67" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceRefusesUnusableIPv6NextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L67" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceRefusesUnusableIPv6NextHop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L105" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L105" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go#L33" title="internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go" target="_blank" rel="noopener"><code>TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L1" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L133" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></td>
-<td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
@@ -417,7 +452,12 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L136" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L133" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L136" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -442,7 +482,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L108" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L108" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -452,17 +492,17 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L136" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L622" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L140" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L136" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L140" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -486,7 +526,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </div>
 <h3><a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a></h3>
 <p>The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: including the link-local address when either half of the condition fails, or omitting it when both hold. (b) conf-llnh-update.ci and TestSendAnnounceAppendsLinkLocalWhenSection3Holds assert the 32-octet form when both halves hold; conf-llnh-lla-only.ci asserts the 16-octet form when the global next hop is on no connected subnet (the config differs in that one variable); TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the 16-octet form and NotContains the 32-octet one when the peer half fails. Both halves are broken separately.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c19 judge) after the RFC2545-3-6 split: this row now carries the include half for a global that is the speaker&#39;s own address and the exclude half. (a) forbidden: including the link-local address when either half of the condition fails, or omitting it when both hold for the speaker&#39;s own global. (b) conf-llnh-update.ci (local-address fd00::2 = next hop) and TestSendAnnounceAppendsLinkLocalWhenSection3Holds / TestDefaultOriginateAppendsLinkLocalWhenSection3Holds assert the 32-octet form when both halves hold; conf-llnh-lla-only.ci asserts the 16-octet form when the global next hop is on no connected subnet; TestSendAnnounceOmitsLinkLocalWhenPeerOffLink / TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink assert the 16-octet form and NotContains the 32-octet one when the peer half fails; checkRFC2545NextHops proves both against FRR. Both halves are broken separately. Note: the speaker&#39;s own Link-Local is supplied by the session &gt; link-local leaf (YANG says set it on a shared-link session); with no leaf Ze includes none.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -497,7 +537,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L176" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L176" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -517,7 +557,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L143" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L143" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -534,6 +574,10 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc2545-3-6"><code>RFC2545-3-6</code></a></h3>
+<p>The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Judged 2026-10-01 (BGP c19 judge). Split from RFC2545-3-3 under R3/R55(a); the quote is the whole Section 3 iff sentence, which coincides with the clause. Gap confirmed at the producer: linkScope.linkLocalNextHop appends the configured Link-Local only for nextHopRouterSpeaker (nextHopOwners.classify: session endpoint, configured local address, held interface address), so a next hop Ze WRITES that names another router on a subnet shared with the speaker and the peer (explicit next hop, static or API route) goes as the 16-octet global alone, where Section 3 asks for &#39;the link-local IPv6 address of the next hop&#39;. Ze has no source for that router&#39;s Link-Local on these rails. Annotation imprecision (reported to main thread, not fixed by the judge): on the relay rail with next hop unchanged/auto (precomputeNextHop nhModeNone) the received field passes verbatim, so a 32-octet field the source sent does carry the third party&#39;s own Link-Local; the gap is the rails where Ze writes the next hop, not &#39;Ze learns no other router&#39;s Link-Local&#39;.</p>
+<p>No test carries RFC2545-3-6, so no unit is bound to it.</p>
 <h3><a href="#rfc2545-3-4"><code>RFC2545-3-4</code></a></h3>
 <p>In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16). (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a second address or a length other than 16 when the inclusion condition does not hold. (b) TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the global-only form with length 0x10 and NotContains the 32-octet form; new-v6.ci pins 01 10 plus one address byte for byte; conf-llnh-update.ci is the negative, asserting the field is not reduced to 16 while the condition holds.</p>
@@ -552,7 +596,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L180" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L180" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -630,7 +674,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>Constructing the Next Hop field</td>
 <td>4</td>
 <td>walked</td>
-<td>Constructing the Next Hop field. The only section that binds a BGP speaker. All four sites are mapped, one per requirement, to RFC2545-3-1 through RFC2545-3-4. The section&#39;s fifth sentence is the MAY captured as RFC2545-3-5; &#39;may&#39; is not a derived site under either scan, which is why the site count is four rather than five.</td>
+<td>Constructing the Next Hop field. The only section that binds a BGP speaker. All four sites are mapped, one per requirement, to RFC2545-3-1 through RFC2545-3-4. The section&#39;s fifth sentence is the MAY captured as RFC2545-3-5; &#39;may&#39; is not a derived site under either scan, which is why the site count is four rather than five. RFC2545-3-6 (2026-10-01, rfc/corrections/rfc2545.md) is split from RFC2545-3-3 and quotes the same sentence as site 3:3: it carries the third-party include half as a recorded gap, so it is listed here as unsourced rather than given a second site.</td>
 </tr>
 <tr><td><code>4</code></td>
 <td>Transport</td>
@@ -737,7 +781,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>4 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>20.0%</strong><b>1 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>40.0%</strong><b>6 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>9</td>
+<td>15</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>9</td>
+<td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8203.md</code></td>
@@ -268,7 +270,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -279,6 +281,10 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -293,7 +299,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc8203-2-1"><code>RFC8203-2-1</code></a>, <a href="#rfc8203-2-3"><code>RFC8203-2-3</code></a>, <a href="#rfc8203-6-1"><code>RFC8203-6-1</code></a>, <a href="#rfc8203-2-4"><code>RFC8203-2-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc8203-2-2"><code>RFC8203-2-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc8203-2-2"><code>RFC8203-2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -305,7 +311,9 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8203-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L21" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L23" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
 </div></td>
 </tr>
@@ -323,7 +331,9 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8203-2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L60" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L62" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></span></div>
 </div></td>
 </tr>
@@ -333,7 +343,9 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <td>6 - Security Considerations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8203-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L64" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L66" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-4">RFC8203-2-4</code></td><td colspan="3"><span class="rfc-subject">A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2)</span></td></tr>
@@ -392,7 +404,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8203-2-1"><code>RFC8203-2-1</code></a></h3>
 <p>Subcode: the Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence constrains the Cease NOTIFICATION that carries a Shutdown Communication: its subcode MUST be 2 or 4. Forbidden behaviour: Ze sending a Shutdown Communication under any other Cease subcode. The sender gate is session_connection.go (BuildShutdownData only for NotifyCeaseAdminShutdown/NotifyCeaseAdminReset), and no tagged unit asserts it. TestRFC8203Subcode asserts only the receive side: ShutdownMessage extracts for 2 and 4 (require.Equal &#34;hi&#34;) and returns empty for subcode 3 (require.Empty). The sender clause has no assertion that goes red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sender side: TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4 requires BuildCeaseData to return length+message under subcodes 2 and 4 and nothing under 0,1,3,5..10. BuildCeaseData is the teardown&#39;s only Cease-data builder (session_connection.go, behaviour unchanged); other Cease senders (max-prefix, collision, policy) send their own non-shutdown data. Judge break (return the message for every subcode): red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -402,10 +414,20 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L23" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L21" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -427,7 +449,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </div>
 <h3><a href="#rfc8203-2-3"><code>RFC8203-2-3</code></a></h3>
 <p>Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence is a sender duty: the field MUST be encoded using UTF-8. Forbidden behaviour: BuildShutdownData emitting invalid UTF-8, from an invalid input string or from a 128-octet cut inside a multibyte character. BuildShutdownData strips invalid UTF-8 (bytes.ToValidUTF8) and walks back to a character boundary, but no tagged unit feeds it invalid UTF-8 or a multibyte string longer than 128 octets. The positive tag (TestRFC8203UTF8Valid) round-trips valid UTF-8, and the negative tag (TestRFC8203UTF8Invalid) proves receive rejection, which is RFC8203-2-4&#39;s rule.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8: valid 2/3/4-octet UTF-8 sent octet-exact; stray octets, overlong, surrogate and a 128-octet cut inside a character each yield a field with a consistent length octet, utf8.Valid and &lt;=128 octets; overlong input sent as &#39;xy&#39;.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -437,17 +459,27 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L62" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L60" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8203-6-1"><code>RFC8203-6-1</code></a></h3>
 <p>UTF-8 &#34;Shortest Form&#34; encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Shortest Form is REQUIRED of the encoding on both sides. Receive side: TestRFC8203ShortestFormUTF8 require.Error on the overlong 0xC0 0xAF goes red if ShutdownMessage accepts it, and 0xC3 0xA9 is accepted. Send side: no tagged unit feeds BuildShutdownData an overlong sequence, so Ze emitting a non-shortest-form Shutdown Communication has no assertion that goes red (ToValidUTF8 would strip it, unasserted).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Same unit: U+00E9 shortest form sent unchanged; the overlong 0xC0 0xAF and surrogate 0xED 0xA0 0x80 never reach the field (utf8.Valid refuses both forms, and the overlong case is asserted exact). Receive side held by the HEAD units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -457,10 +489,20 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L66" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L64" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -633,7 +675,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

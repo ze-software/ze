@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7854 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7854: BGP Monitoring Protocol (BMP). 32 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7854: BGP Monitoring Protocol (BMP). 39 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7854 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 32 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 39 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7854 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 32 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 39 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>81.2%</strong><b>26 of 32 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>18.8%</strong><b>6 of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>31.5%</strong><b>23 of 73 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>79.5%</strong><b>31 of 39 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>20.5%</strong><b>8 of 39 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>49.5%</strong><b>47 of 95 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>32</strong><b>of 41 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 32 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>39</strong><b>of 48 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 39 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>36</strong><b>of 32 gated MUSTs judged</b><p>10 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>43</strong><b>of 39 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 39 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -204,10 +210,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>41</td>
+<td>48</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>32</td>
+<td>39</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>73</td>
+<td>95</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>73</td>
+<td>95</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>36</td>
+<td>43</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>23</td>
+<td>47</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7854.md</code></td>
@@ -261,8 +267,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <li>bounded transmit queues reset stalled sessions.</li>
 </ul>
 </details>
-<p><strong>What the ledger says remains:</strong></p>
-Focused execution, producer discrimination and third-party pmacct acceptance of the current changes remain unrun. Loc-RIB monitoring is defined under RFC 9069 and Adj-RIB-Out under RFC 8671.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Focused execution, producer discrimination and third-party pmacct acceptance of the current changes remain unrun. Loc-RIB monitoring is defined under RFC 9069 and Adj-RIB-Out under RFC 8671. Post-policy Adj-RIB-In monitoring, the optional view with the L flag set on received routes, is not offered: the route-monitoring-policy post-policy choice streams the Adj-RIB-Out.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -270,11 +277,11 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>26</strong></td>
+<td><strong>31</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>6</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>8</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -285,6 +292,10 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -293,12 +304,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>32</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>39</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (26):</strong> <a href="#rfc7854-x-1"><code>RFC7854-x-1</code></a>, <a href="#rfc7854-x-2"><code>RFC7854-x-2</code></a>, <a href="#rfc7854-x-3"><code>RFC7854-x-3</code></a>, <a href="#rfc7854-x-5"><code>RFC7854-x-5</code></a>, <a href="#rfc7854-x-8"><code>RFC7854-x-8</code></a>, <a href="#rfc7854-4.9-1"><code>RFC7854-4.9-1</code></a>, <a href="#rfc7854-4.5-2"><code>RFC7854-4.5-2</code></a>, <a href="#rfc7854-x-18"><code>RFC7854-x-18</code></a>, <a href="#rfc7854-3.2-1"><code>RFC7854-3.2-1</code></a>, <a href="#rfc7854-3.2-2"><code>RFC7854-3.2-2</code></a>, <a href="#rfc7854-3.3-1"><code>RFC7854-3.3-1</code></a>, <a href="#rfc7854-4.1-1"><code>RFC7854-4.1-1</code></a>, <a href="#rfc7854-4.2-1"><code>RFC7854-4.2-1</code></a>, <a href="#rfc7854-4.4-1"><code>RFC7854-4.4-1</code></a>, <a href="#rfc7854-4.4-2"><code>RFC7854-4.4-2</code></a>, <a href="#rfc7854-4.4-3"><code>RFC7854-4.4-3</code></a>, <a href="#rfc7854-4.5-1"><code>RFC7854-4.5-1</code></a>, <a href="#rfc7854-4.5-3"><code>RFC7854-4.5-3</code></a>, <a href="#rfc7854-4.7-1"><code>RFC7854-4.7-1</code></a>, <a href="#rfc7854-4.7-2"><code>RFC7854-4.7-2</code></a>, <a href="#rfc7854-4.8-1"><code>RFC7854-4.8-1</code></a>, <a href="#rfc7854-4.8-2"><code>RFC7854-4.8-2</code></a>, <a href="#rfc7854-5-1"><code>RFC7854-5-1</code></a>, <a href="#rfc7854-5-2"><code>RFC7854-5-2</code></a>, <a href="#rfc7854-5-3"><code>RFC7854-5-3</code></a>, <a href="#rfc7854-8.2-1"><code>RFC7854-8.2-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (6):</strong> <a href="#rfc7854-x-4"><code>RFC7854-x-4</code></a>, <a href="#rfc7854-x-6"><code>RFC7854-x-6</code></a>, <a href="#rfc7854-x-7"><code>RFC7854-x-7</code></a>, <a href="#rfc7854-x-9"><code>RFC7854-x-9</code></a>, <a href="#rfc7854-x-10"><code>RFC7854-x-10</code></a>, <a href="#rfc7854-x-12"><code>RFC7854-x-12</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (31):</strong> <a href="#rfc7854-x-1"><code>RFC7854-x-1</code></a>, <a href="#rfc7854-x-2"><code>RFC7854-x-2</code></a>, <a href="#rfc7854-x-3"><code>RFC7854-x-3</code></a>, <a href="#rfc7854-x-5"><code>RFC7854-x-5</code></a>, <a href="#rfc7854-x-8"><code>RFC7854-x-8</code></a>, <a href="#rfc7854-4.9-1"><code>RFC7854-4.9-1</code></a>, <a href="#rfc7854-4.5-2"><code>RFC7854-4.5-2</code></a>, <a href="#rfc7854-x-18"><code>RFC7854-x-18</code></a>, <a href="#rfc7854-3.2-1"><code>RFC7854-3.2-1</code></a>, <a href="#rfc7854-3.2-2"><code>RFC7854-3.2-2</code></a>, <a href="#rfc7854-3.3-1"><code>RFC7854-3.3-1</code></a>, <a href="#rfc7854-4.1-1"><code>RFC7854-4.1-1</code></a>, <a href="#rfc7854-4.2-1"><code>RFC7854-4.2-1</code></a>, <a href="#rfc7854-4.3-2"><code>RFC7854-4.3-2</code></a>, <a href="#rfc7854-4.4-1"><code>RFC7854-4.4-1</code></a>, <a href="#rfc7854-4.4-2"><code>RFC7854-4.4-2</code></a>, <a href="#rfc7854-4.4-3"><code>RFC7854-4.4-3</code></a>, <a href="#rfc7854-4.5-1"><code>RFC7854-4.5-1</code></a>, <a href="#rfc7854-4.5-3"><code>RFC7854-4.5-3</code></a>, <a href="#rfc7854-4.5-4"><code>RFC7854-4.5-4</code></a>, <a href="#rfc7854-4.7-1"><code>RFC7854-4.7-1</code></a>, <a href="#rfc7854-4.7-2"><code>RFC7854-4.7-2</code></a>, <a href="#rfc7854-4.7-3"><code>RFC7854-4.7-3</code></a>, <a href="#rfc7854-4.8-1"><code>RFC7854-4.8-1</code></a>, <a href="#rfc7854-4.8-2"><code>RFC7854-4.8-2</code></a>, <a href="#rfc7854-4.8-3"><code>RFC7854-4.8-3</code></a>, <a href="#rfc7854-4.10-1"><code>RFC7854-4.10-1</code></a>, <a href="#rfc7854-5-1"><code>RFC7854-5-1</code></a>, <a href="#rfc7854-5-2"><code>RFC7854-5-2</code></a>, <a href="#rfc7854-5-4"><code>RFC7854-5-4</code></a>, <a href="#rfc7854-8.2-1"><code>RFC7854-8.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (8):</strong> <a href="#rfc7854-x-4"><code>RFC7854-x-4</code></a>, <a href="#rfc7854-x-6"><code>RFC7854-x-6</code></a>, <a href="#rfc7854-x-7"><code>RFC7854-x-7</code></a>, <a href="#rfc7854-x-9"><code>RFC7854-x-9</code></a>, <a href="#rfc7854-x-10"><code>RFC7854-x-10</code></a>, <a href="#rfc7854-x-12"><code>RFC7854-x-12</code></a>, <a href="#rfc7854-4.5-5"><code>RFC7854-4.5-5</code></a>, <a href="#rfc7854-5-6"><code>RFC7854-5-6</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -311,8 +322,9 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L18" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L68" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L37" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L77" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L77" title="internal/component/bgp/plugins/bmp/rfc7854_session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-2">RFC7854-x-2</code></td><td colspan="3"><span class="rfc-subject">Version (1 byte): Indicates the BMP version. This is set to &#39;3&#39; for all messages defined in this specification. (&#39;1&#39; and &#39;2&#39; were used by draft versions of this document.) Version 0 is reserved and MUST NOT be sent. o Message Length (4 bytes): Length of the message in bytes (including headers, data, and encapsulated messages, if any). o Message Type (1 byte): This identifies the type of the BMP message. (§4.1, Common Header)</span></td></tr>
@@ -321,6 +333,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L83" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderEncode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L70" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L30" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></span></div>
 </div></td>
 </tr>
@@ -330,7 +343,9 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L285" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestHasPeerHeader</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L106" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PerPeerHeaderFollowsTheCommonHeader</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L287" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestHasPeerHeader</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L110" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PerPeerHeaderFollowsTheCommonHeader</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-4">RFC7854-x-4</code></td><td colspan="3"><span class="rfc-subject">If a 16-bit AS number is stored in this field [RFC6793], it should be padded with zeroes in the 16 most significant bits. (§4.2, Per-Peer Header)</span></td></tr>
@@ -340,6 +355,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L116" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPPeerHeaderDecode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L173" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPPeerHeaderEncode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L148" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Peer AS is unconditionally a 4-octet field on every encode and decode, so there is no shorter-AS variant to reject and no negative case to construct</p></td>
 </tr>
@@ -357,7 +373,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L19" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderConnects</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L19" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderConnects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the sender always emits Initiation as the first message on a fresh connection, so there is no valid session in which another message precedes it to reject</p></td>
 </tr>
@@ -366,7 +382,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L84" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderInitiation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L84" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderInitiation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Initiation the sender builds always includes the sysName TLV, so there is no valid Initiation omitting it to assert against</p></td>
 </tr>
@@ -375,9 +391,9 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L211" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L211" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerUp</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L136" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L40" title="internal/component/bgp/plugins/bmp/peerup_openless_test.go" target="_blank" rel="noopener"><code>TestPeerUpOnCacheMissNeverReachesTheCollector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go#L40" title="internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go" target="_blank" rel="noopener"><code>TestPeerUpOnCacheMissNeverReachesTheCollector</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-9">RFC7854-x-9</code></td><td colspan="3"><span class="rfc-subject">Following the common BMP header and per-peer header is a BGP Update PDU. (§4.6, Route Monitoring)</span></td></tr>
@@ -385,7 +401,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L279" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderRouteMonitoring</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L279" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderRouteMonitoring</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Route Monitoring is only ever constructed around a complete BGP UPDATE PDU, so there is no valid Route Monitoring lacking one to reject</p></td>
 </tr>
@@ -394,7 +410,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L248" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L248" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerDown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against</p></td>
@@ -404,8 +420,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MAY</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-11">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L363" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderTermination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561" title="internal/component/bgp/plugins/bmp/sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L363" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderTermination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L561" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject</p></td>
 </tr>
@@ -414,7 +430,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L135" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L135" title="internal/component/bgp/plugins/bmp/rfc7854_session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct</p></td>
 </tr>
@@ -423,8 +439,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.9-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownCarriesTheDataItsReasonRequires</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L148" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go#L88" title="internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownCarriesTheDataItsReasonRequires</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go#L148" title="internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.5-2">RFC7854-4.5-2</code></td><td colspan="3"><span class="rfc-subject">Likewise, the monitoring station MUST close the TCP session after receiving a termination message. (§4.5, Termination Message)</span></td></tr>
@@ -432,8 +448,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9" title="internal/component/bgp/plugins/bmp/termination_close_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverClosesAfterTermination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9" title="internal/component/bgp/plugins/bmp/termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverKeepsSessionWithoutTermination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go#L9" title="internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverClosesAfterTermination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L9" title="internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverKeepsSessionWithoutTermination</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-13">RFC7854-x-13</code></td><td colspan="3"><span class="rfc-subject">Exponential backoff with a default initial backoff of 30 seconds and a maximum of 720 seconds is suggested. (§3.2, Connection Establishment and Termination)</span></td></tr>
@@ -468,8 +484,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>SHOULD</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-16">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L463" title="internal/component/bgp/plugins/bmp/bmp_reconnect_test.go" target="_blank" rel="noopener"><code>TestConcurrentDumpsStayAddressedToTheirOwnCollector</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L95" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L97" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-17">RFC7854-x-17</code></td><td colspan="3"><span class="rfc-subject">It subsequently sends a Peer Up message over the BMP session for each of its monitored BGP peers that is in the Established state. It follows by sending the contents of its Adj- RIBs-In (pre-policy, post-policy, or both, see Section 5) encapsulated in Route Monitoring messages. (§3.3, Lifecycle of a BMP Session)</span></td></tr>
@@ -477,8 +493,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>SHOULD</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-17">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L466" title="internal/component/bgp/plugins/bmp/bmp_reconnect_test.go" target="_blank" rel="noopener"><code>TestConcurrentDumpsStayAddressedToTheirOwnCollector</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L128" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L131" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-18">RFC7854-x-18</code></td><td colspan="3"><span class="rfc-subject">The sysDescr and sysName Information TLVs MUST be sent, any others are optional. (§4.3, Initiation Message)</span></td></tr>
@@ -487,7 +503,9 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-18">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L29" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationCarriesSysDescr</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L39" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationEmptyIdentityValuesAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L19" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationCarriesSysName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L40" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationEmptyIdentityValuesAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L28" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestBMPInitiationMissingSysNameEndsSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L15" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationMissingSysDescrEndsSession</code></a></span></div>
 </div></td>
 </tr>
@@ -564,6 +582,15 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.3-2">RFC7854-4.3-2</code></td><td colspan="3"><span class="rfc-subject">The initiation message consists of the common BMP header followed by two or more Information TLVs (Section 4.4) containing information about the monitored router. (§4.3, Initiation Message)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L70" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L99" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused</code></a></span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.4-1">RFC7854-4.4-1</code></td><td colspan="3"><span class="rfc-subject">If multiple strings are included, their ordering MUST be preserved when they are reported. (§4.4, Information TLV)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -607,18 +634,37 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L53" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderTerminationCarriesReason</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L85" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationRequiresTwoByteReason</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L54" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderTerminationCarriesReason</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L86" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationRequiresTwoByteReason</code></a></span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.5-4">RFC7854-4.5-4</code></td><td colspan="3"><span class="rfc-subject">The termination message consists of the common BMP header followed by one or more TLVs containing information about the reason for the termination (§4.5, Termination Message)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L113" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationIsTheCommonHeaderThenTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L149" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationWithNoTLVIsRefused</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.5-5">RFC7854-4.5-5</code></td><td colspan="3"><span class="rfc-subject">Although use of this message is RECOMMENDED, a monitoring station must always be prepared for the session to terminate with no message. (§4.5, Termination Message)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L74" title="internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L568" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> a router that closes with no Termination message sends no non-compliant input, because the sentence permits exactly that close, so the station has nothing to refuse. TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination proves the station clause and TestSenderStopSendsTerminationToCollector proves the RECOMMENDED clause on the router side</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.7-1">RFC7854-4.7-1</code></td><td colspan="3"><span class="rfc-subject">If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs. (§4.7, Route Mirroring)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L119" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L120" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L421" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854RouteMirroringBGPMessageTLVLast</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L133" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854MirrorBGPMessageNotLastEndsSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L134" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854MirrorBGPMessageNotLastEndsSession</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.7-2">RFC7854-4.7-2</code></td><td colspan="3"><span class="rfc-subject">Code = 0: Errored PDU. The contained message was found to have some error that made it unusable, causing it to be treated-as- withdraw [RFC7606]. A BGP Message TLV MUST also occur in the TLV list. (§4.7, Route Mirroring)</span></td></tr>
@@ -626,8 +672,17 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.7-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L120" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L145" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithoutPDUEndsSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L121" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L146" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithoutPDUEndsSession</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.7-3">RFC7854-4.7-3</code></td><td colspan="3"><span class="rfc-subject">Following the common BMP header and per-peer header is a set of TLVs that contain information about a message or set of messages. (§4.7, Route Mirroring)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.7-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L176" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L209" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.8-1">RFC7854-4.8-1</code></td><td colspan="3"><span class="rfc-subject">A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field. (§4.8, Stats Reports)</span></td></tr>
@@ -645,7 +700,25 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.8-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L451" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatsReportCarriesAStatistic</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L174" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderRefusesEmptyStatistics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L175" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderRefusesEmptyStatistics</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.8-3">RFC7854-4.8-3</code></td><td colspan="3"><span class="rfc-subject">Following the common BMP header and per-peer header is a 4-byte field that indicates the number of counters in the stats message where each counter is encoded as a TLV. (§4.8, Stats Reports)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.8-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L238" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatsReportCountNamesTheCountersThatFollow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L270" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.10-1">RFC7854-4.10-1</code></td><td colspan="3"><span class="rfc-subject">Following the common BMP header and per-peer header is the following (§4.10, Peer Up Notification)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L294" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L339" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-5-1">RFC7854-5-1</code></td><td colspan="3"><span class="rfc-subject">Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set. (§5, Route Monitoring)</span></td></tr>
@@ -666,14 +739,23 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L142" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854KnownRouteTimeSurvivesReplay</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-5-3">RFC7854-5-3</code></td><td colspan="3"><span class="rfc-subject">The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set. (§5, Route Monitoring)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-5-4">RFC7854-5-4</code></td><td colspan="3"><span class="rfc-subject">The withdraw MUST have its L flag set to correspond to that of any previous announcement (§5, Route Monitoring)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-5-3">
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-5-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L479" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagFollowsPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L504" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagNotDecidedByBody</code></a></span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-5-6">RFC7854-5-6</code></td><td colspan="3"><span class="rfc-subject">When a change occurs to a route, such as an attribute change, the router must update the monitoring station with the new attribute. (§5, Route Monitoring)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-5-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L247" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854ChangedAttributesCanReturnToEarlierValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every received UPDATE that changes a route is compliant input to the router, so the sender holds no refusal path. TestRFC7854ChangedAttributesCanReturnToEarlierValue asserts one Route Monitoring message for each ORIGIN change, including the return to an earlier value</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-8.2-1">RFC7854-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0. (§8.2, Peer Up Notification)</span></td></tr>
 <tr><td></td>
@@ -695,7 +777,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7854-x-1"><code>RFC7854-x-1</code></a></h3>
 <p>This is set to &#39;3&#39; for all messages defined in this specification. (§4.1, Common Header)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. every tagged unit (header_test decode table, session_test TestBMPMalformedHeaderDrops) proves the RECEIVER accepts 3 and drops 2; the quote is a sender obligation (set to &#39;3&#39; for all messages) and no tagged unit reads the Version octet off a message Ze transmitted</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength builds all seven types through the writers the sender calls (writeRouteMonitoring, writeStatisticsReport, writePeerDown, writePeerUp, writeInitiation, writeTermination, writeRouteMirroring) into a 0xA5-patterned buffer and requires octet 0 == 3 on each, so a writer that emits another version or leaves the octet unset goes red. The sentence binds the sender and no input can make it send another version; the negatives (header_test decode table #2, session_test TestBMPMalformedHeaderDrops) are the receiver refusing a version-2 header, the same rule read at the other end. The old decode-table positive stays tagged and proves only decode.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -706,7 +788,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L77" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L77" title="internal/component/bgp/plugins/bmp/rfc7854_session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -715,12 +797,17 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L68" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7854-x-2"><code>RFC7854-x-2</code></a></h3>
 <p>Version (1 byte): Indicates the BMP version. This is set to &#39;3&#39; for all messages defined in this specification. (&#39;1&#39; and &#39;2&#39; were used by draft versions of this document.) Version 0 is reserved and MUST NOT be sent. o Message Length (4 bytes): Length of the message in bytes (including headers, data, and encapsulated messages, if any). o Message Type (1 byte): This identifies the type of the BMP message. (§4.1, Common Header)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Version and Type are pinned on encode (buf[0]==3, buf[5]==type) and a 3-octet buffer is refused, but the Message Length clause (length of the message including headers, data and encapsulated messages) has no assertion on a transmitted message: TestBMPCommonHeaderEncode writes a caller-given Length 48 and never reads buf[1..4], and the decode table only parses Length, so a sender that wrote a wrong total stays green</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength reads the transmitted octets of all seven types: octet 0 == 3 (so never the reserved 0), octets 1-4 == the whole message computed independently from the case&#39;s own inputs (common header + per-peer header where present + data) and equal to the octets the writer produced, and octet 5 == the type. Each clause of the quoted definition is asserted on a sent message. The tagged negative (header_test, a 3-octet buffer refused) is thin, but the clauses are sender field definitions with no input to refuse; the positive discriminates every one.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -735,12 +822,17 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L70" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7854-x-3"><code>RFC7854-x-3</code></a></h3>
 <p>The per-peer header follows the common header for most BMP messages. (§4.2, Per-Peer Header)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestHasPeerHeader pins hasPeerHeader for all seven types, but hasPeerHeader (header.go) has no non-test caller: no encoder or decoder consults it, so a transmitted Peer Up, Route Monitoring or Stats Report that lost its per-peer header after the common header would leave both units green</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader writes all seven types and decodes a per-peer header at octet 6 of Route Monitoring, Statistics Report, Peer Down, Peer Up and Route Mirroring, requiring it to equal the header the writer was given (4-octet AS 4200000001); for Initiation and Termination it requires the first TLV (type 1, length 2) at octet 6 and a message too short to hold a per-peer header, which is the &#39;most&#39; of the sentence. The older TestHasPeerHeader tags stay: hasPeerHeader has no non-test caller, so those two tags prove a helper table only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -750,17 +842,27 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L110" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PerPeerHeaderFollowsTheCommonHeader</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L285" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestHasPeerHeader</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L106" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PerPeerHeaderFollowsTheCommonHeader</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7854-x-4"><code>RFC7854-x-4</code></a></h3>
 <p>If a 16-bit AS number is stored in this field [RFC6793], it should be padded with zeroes in the 16 most significant bits. (§4.2, Per-Peer Header)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. both units use 16-bit ASNs (65001, 65002) and never read bytes 26..27 raw: a 16-bit field at offset 28 decodes 00 00 FD E9 as 65001 and round-trips 65002, so neither unit fails if the padding or the 4-octet width is lost; needs an AS above 65535 and a raw-byte assertion on the encoded header</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded writes a Peer Down (writePeerHeader) into a patterned buffer and reads per-peer octets 26-29 raw: 65001 must be 00 00 FD E9 (the 16 most significant bits zero) and 4200000001 must be FA 56 EA 01, so a 2-octet field, a lost padding or a misplaced AS goes red. {single-polarity: positive} holds: the field is a fixed 4-octet encode with no shorter variant to refuse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -774,6 +876,11 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L173" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPPeerHeaderEncode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L148" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -806,7 +913,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L19" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderConnects</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L19" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderConnects</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -821,7 +928,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L84" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderInitiation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L84" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderInitiation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -836,7 +943,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L40" title="internal/component/bgp/plugins/bmp/peerup_openless_test.go" target="_blank" rel="noopener"><code>TestPeerUpOnCacheMissNeverReachesTheCollector</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go#L40" title="internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go" target="_blank" rel="noopener"><code>TestPeerUpOnCacheMissNeverReachesTheCollector</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -846,7 +953,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L211" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L211" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerUp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -861,7 +968,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L279" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderRouteMonitoring</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L279" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderRouteMonitoring</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -881,7 +988,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L248" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerDown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L248" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerDown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -890,18 +997,18 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </div>
 <h3><a href="#rfc7854-x-11"><code>RFC7854-x-11</code></a></h3>
 <p>The router MAY send a Termination message prior to closing the session. (§3.3, Lifecycle of a BMP Session)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Termination is produced on shutdown, both on the encoder and through stop() racing holdConnection; single-polarity marker</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561" title="internal/component/bgp/plugins/bmp/sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L561" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L363" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderTermination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L363" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderTermination</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -916,7 +1023,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L135" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L135" title="internal/component/bgp/plugins/bmp/rfc7854_session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -931,12 +1038,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L148" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go#L148" title="internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownCarriesTheDataItsReasonRequires</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go#L88" title="internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownCarriesTheDataItsReasonRequires</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -951,12 +1058,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9" title="internal/component/bgp/plugins/bmp/termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverKeepsSessionWithoutTermination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L9" title="internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverKeepsSessionWithoutTermination</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9" title="internal/component/bgp/plugins/bmp/termination_close_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverClosesAfterTermination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go#L9" title="internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverClosesAfterTermination</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -985,50 +1092,70 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </div>
 <h3><a href="#rfc7854-x-16"><code>RFC7854-x-16</code></a></h3>
 <p>It subsequently sends a Peer Up message over the BMP session for each of its monitored BGP peers that is in the Established state. (§3.3, Lifecycle of a BMP Session)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. both tags sit above TestConcurrentDumpsStayAddressedToTheirOwnCollector, which tests Loc-RIB dump isolation between two collectors and asserts nothing about Peer Up; the tag prose describes the next function, TestSenderReconnectReplaysInitiationPeerUpAndDump</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. The wrong tags on TestConcurrentDumpsStayAddressedToTheirOwnCollector are gone. rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers primes a new collector (primeSender) over one Established peer and one peer that exchanged OPENs and sent an UPDATE but never reported Up; it counts Peer Ups per address on the collector&#39;s bytes: exactly 1 for the Established peer, 0 for the other, and the first message is the Peer Up. A producer that announced every peer with cached OPENs, or none, goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L463" title="internal/component/bgp/plugins/bmp/bmp_reconnect_test.go" target="_blank" rel="noopener"><code>TestConcurrentDumpsStayAddressedToTheirOwnCollector</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L97" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L95" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7854-x-17"><code>RFC7854-x-17</code></a></h3>
 <p>It subsequently sends a Peer Up message over the BMP session for each of its monitored BGP peers that is in the Established state. It follows by sending the contents of its Adj- RIBs-In (pre-policy, post-policy, or both, see Section 5) encapsulated in Route Monitoring messages. (§3.3, Lifecycle of a BMP Session)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. tag sits above TestConcurrentDumpsStayAddressedToTheirOwnCollector, which counts Loc-RIB routes and EORs per collector and asserts no ordering against Peer Up; the quote is the Adj-RIBs-In dump, which rfc7854_replay_test TestRFC7854AdjReplayEndsEachFamily orders (tagged 3.3-1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp reads the same two-peer session in order: no Route Monitoring before the Peer Up, the Established peer&#39;s received route (exact UPDATE body announceBody(1)) arrives as a pre-policy Route Monitoring (L clear, the default pre-policy selection), and nothing is dumped for the peer that never reached Established. Order, content and scope of the Adj-RIB-In dump are each asserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L466" title="internal/component/bgp/plugins/bmp/bmp_reconnect_test.go" target="_blank" rel="noopener"><code>TestConcurrentDumpsStayAddressedToTheirOwnCollector</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L131" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L128" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7854-x-18"><code>RFC7854-x-18</code></a></h3>
 <p>The sysDescr and sysName Information TLVs MUST be sent, any others are optional. (§4.3, Initiation Message)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. sysDescr clause holds both polarities (sender Initiation carries a non-empty sysDescr; a receiver refuses an Initiation with sysName alone), but the sysName clause of the same quote has no assertion in these units: TestRFC7854InitiationCarriesSysDescr skips every TLV but sysDescr and no unit feeds an Initiation missing sysName</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. Both clauses now hold both polarities. Sender: rfc7854_test.go TestRFC7854InitiationCarriesSysDescr and the new rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName decode the Initiation sendInitiation writes and require exactly one sysName (type 2) and a sysDescr (type 1). Receiver: TestRFC7854InitiationMissingSysDescrEndsSession and TestBMPInitiationMissingSysNameEndsSession (tag added) each send an Initiation missing one TLV and require the session closed (decodeInitiation checks each independently); TestRFC7854InitiationEmptyIdentityValuesAccepted keeps presence, not length, as the test.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L28" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestBMPInitiationMissingSysNameEndsSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L15" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationMissingSysDescrEndsSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L39" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationEmptyIdentityValuesAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L40" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationEmptyIdentityValuesAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L19" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationCarriesSysName</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L29" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationCarriesSysDescr</code></a></td>
@@ -1143,6 +1270,26 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7854-4.3-2"><code>RFC7854-4.3-2</code></a></h3>
+<p>The initiation message consists of the common BMP header followed by two or more Information TLVs (Section 4.4) containing information about the monitored router. (§4.3, Initiation Message)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs reads the octets sender.go::sendInitiation writes off a pipe, checks type 4 and walks TLVs by hand from octet 6 to exactly the end, requiring &gt;= 2. Negative (R1(a)) ::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused: a one-TLV Initiation is refused by the receiver. The refusal comes from decodeInitiation&#39;s sysName-presence check (RFC7854-x-18), not a count check, but every one-TLV Initiation lacks sysName or sysDescr, so no one-TLV input is accepted; the buffer is otherwise valid.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L99" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L70" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7854-4.4-1"><code>RFC7854-4.4-1</code></a></h3>
 <p>If multiple strings are included, their ordering MUST be preserved when they are reported. (§4.4, Information TLV)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Initiation and Peer Up strings reach the command output in transmitted order, with duplicates kept</p>
@@ -1241,14 +1388,54 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L85" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationRequiresTwoByteReason</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L86" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationRequiresTwoByteReason</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L53" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderTerminationCarriesReason</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L54" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderTerminationCarriesReason</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7854-4.5-4"><code>RFC7854-4.5-4</code></a></h3>
+<p>The termination message consists of the common BMP header followed by one or more TLVs containing information about the reason for the termination (§4.5, Termination Message)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs reads the octets the sender&#39;s Termination path writes, walks TLVs from octet 6 to exactly the end, requires at least one and exactly one Reason TLV. Negative ::TestRFC7854TerminationWithNoTLVIsRefused: a 6-octet header-only Termination is refused (decodeTermination&#39;s missing-Reason branch, which any zero-TLV body reaches).</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L149" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationWithNoTLVIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L113" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationIsTheCommonHeaderThenTLVs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7854-4.5-5"><code>RFC7854-4.5-5</code></a></h3>
+<p>Although use of this message is RECOMMENDED, a monitoring station must always be prepared for the session to terminate with no message. (§4.5, Termination Message)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Station clause: termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination sends Initiation + Peer Up, confirms one router and one peer held, closes the pipe with no Termination, and requires handleSession to return with zero routers and zero peers (record: removeRouter break observed red). RECOMMENDED clause: sender_queue_test.go::TestSenderStopSendsTerminationToCollector reads a Termination on the collector side through stop() racing holdConnection (record: writeTerminationLocked break observed red). {single-polarity: positive} holds: the sentence permits the no-message close, so no non-compliant router input exists for the station to refuse.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L568" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L74" title="internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1261,12 +1448,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L133" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854MirrorBGPMessageNotLastEndsSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L134" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854MirrorBGPMessageNotLastEndsSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L119" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L120" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1286,14 +1473,34 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L145" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithoutPDUEndsSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L146" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithoutPDUEndsSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L120" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L121" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7854-4.7-3"><code>RFC7854-4.7-3</code></a></h3>
+<p>Following the common BMP header and per-peer header is a set of TLVs that contain information about a message or set of messages. (§4.7, Route Mirroring)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs: writeRouteMirroring output decodes a per-peer header equal to the input at octet 6, then TLVs walked by hand from octet 48 to exactly the end, same types and values in order. Negative ::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused: the valid message is first accepted, then a 3-octet tail that is no TLV (length fixed up) is refused, so only the not-TLVs body differs.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L209" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L176" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1326,7 +1533,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L174" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderRefusesEmptyStatistics</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L175" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderRefusesEmptyStatistics</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1338,9 +1545,49 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7854-4.8-3"><code>RFC7854-4.8-3</code></a></h3>
+<p>Following the common BMP header and per-peer header is a 4-byte field that indicates the number of counters in the stats message where each counter is encoded as a TLV. (§4.8, Stats Reports)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow: the 4-octet count at octet 48 equals 3 and exactly three counter TLVs, walked by hand, run to the end with the input types and values. Negative ::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused: the valid report is first accepted, then count+1 (truncated entry) and count-1 (trailing data) are each refused by decodeStatisticsReport.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L270" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L238" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatsReportCountNamesTheCountersThatFollow</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7854-4.10-1"><code>RFC7854-4.10-1</code></a></h3>
+<p>Following the common BMP header and per-peer header is the following (§4.10, Peer Up Notification)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. The row&#39;s sentence is the lead-in to the §4.10 figure, the only statement of the Peer Up layout, so the obligation judged is that figure: Local Address (16), Local Port, Remote Port, Sent OPEN, Received OPEN after the per-peer header (Information TLVs are RFC7854-x-19, the OPEN contents RFC7854-x-8). Positive rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs reads each field raw at its offset from writePeerUp output and the exact total length. Negative ::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused: a valid Peer Up is accepted, the same cut 10 octets into the fixed fields is refused (decodePeerUp short check).</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L339" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L294" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7854-5-1"><code>RFC7854-5-1</code></a></h3>
 <p>Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set. (§5, Route Monitoring)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. received (pre-policy) Route Monitoring leaves with L clear, sent with L set, decided by direction not body; Ze sends no post-policy Adj-RIB-In, its L-set stream is the RFC 8671 Adj-RIB-Out (O and L set)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (the negative unit gained the RFC7854-5-4 tag line only; assertions unchanged). rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: received announce and withdraw leave with L clear, sent with L set. ::TestRFC7854LFlagNotDecidedByBody: one body streamed on both sides leaves L clear received and L set sent, so the flag follows the direction (policy stage) and not the message. Ze sends no post-policy Adj-RIB-In; its L-set stream is the RFC 8671 Adj-RIB-Out (O and L set, peerHeaderFromEvent).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1378,9 +1625,9 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc7854-5-3"><code>RFC7854-5-3</code></a></h3>
-<p>The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set. (§5, Route Monitoring)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. units prove a withdraw carries its direction&#39;s L flag; the second clause (a route announced with L both clear and set is withdrawn twice) is asserted by no unit</p>
+<h3><a href="#rfc7854-5-4"><code>RFC7854-5-4</code></a></h3>
+<p>The withdraw MUST have its L flag set to correspond to that of any previous announcement (§5, Route Monitoring)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29 (first clause of the §5 sentence; the twice-sent-withdraw clause left with retired RFC7854-5-3). Producer peerHeaderFromEvent sets L only on the sent direction, so a route&#39;s announcement and its withdraw take their L from the same direction. Positive rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: a received withdraw carries L clear like a received announce, a sent withdraw L set like a sent announce. Negative ::TestRFC7854LFlagNotDecidedByBody: the same withdraw body on both sides gets L clear and L set, so a withdraw cannot carry the other side&#39;s flag. Both observed red under the peerHeaderFromEvent break. The test does not pair one announce with its own withdraw by prefix; the direction is the only input L reads, so no pairing can diverge.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1392,6 +1639,21 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L479" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagFollowsPolicy</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7854-5-6"><code>RFC7854-5-6</code></a></h3>
+<p>When a change occurs to a route, such as an attribute change, the router must update the monitoring station with the new attribute. (§5, Route Monitoring)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue receives one prefix three times with ORIGIN IGP, INCOMPLETE, IGP and requires exactly three Route Monitoring messages, each body byte-equal to the UPDATE carrying that ORIGIN, so a sender that suppresses or dedupes the return to an earlier value fails (record: handleSenderUpdate break observed red). One attribute (ORIGIN) samples &#39;such as an attribute change&#39;. {single-polarity: positive} holds: every route change is compliant input to the router, which has no refusal path.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L247" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854ChangedAttributesCanReturnToEarlierValue</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1428,10 +1690,10 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-29</td>
 </tr>
 <tr><td>Register</td>
-<td>rfc2119</td>
+<td>prose</td>
 </tr>
 <tr><td>Source</td>
 <td>rfc/full/rfc7854.txt</td>
@@ -1443,10 +1705,10 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>rfc/extraction/rfc7854.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>22</td>
+<td>24</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>11</td>
+<td>15</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -1464,7 +1726,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <tbody>
 <tr><td><code>front</code></td>
 <td>not stated</td>
-<td>0</td>
+<td>1</td>
 <td>walked</td>
 <td>not stated</td>
 </tr>
@@ -1542,7 +1804,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tr>
 <tr><td><code>4.5</code></td>
 <td>not stated</td>
-<td>3</td>
+<td>4</td>
 <td>walked</td>
 <td>not stated</td>
 </tr>
@@ -1560,7 +1822,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tr>
 <tr><td><code>4.8</code></td>
 <td>not stated</td>
-<td>2</td>
+<td>3</td>
 <td>walked</td>
 <td>not stated</td>
 </tr>
@@ -1578,7 +1840,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tr>
 <tr><td><code>5</code></td>
 <td>not stated</td>
-<td>4</td>
+<td>6</td>
 <td>walked</td>
 <td>not stated</td>
 </tr>
@@ -1608,7 +1870,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </tr>
 <tr><td><code>8.2</code></td>
 <td>not stated</td>
-<td>1</td>
+<td>2</td>
 <td>walked</td>
 <td>not stated</td>
 </tr>
@@ -1716,15 +1978,35 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <table class="rfc-table">
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Front-matter boilerplate the extractor did not strip: the IETF Trust Legal Provisions notice binds whoever extracts Code Components from the RFC document, not a BMP router or monitoring station. The lowercase must is the license condition of the copyright notice.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
 <tr><td><code>3.3:1</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Restates the obligation section 4.3 states at the site this walk maps to RFC7854-x-6: &#39;An initiation message MUST be sent as the first message after the TCP session comes up.&#39; Section 3.3 states it as the first step of the session lifecycle; section 4.3 states it as the rule of the message itself.</td>
 <td>It MUST begin by sending an Initiation message.</td>
 </tr>
+<tr><td><code>4.8:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The sentence is the 64-bit Gauge definition that section 4.8 adopts from Section 4 of RFC 2856 (the section says the stats types are defined after the examples in Section 3.2.3.3 of RFC 1155 and Section 4 of RFC 2856). The lowercase shall describes the semantics of that data type as RFC 2856 defines it; section 4.8 states its own obligations on stats reports at the sites this walk maps to RFC7854-4.8-1 and RFC7854-4.8-2.</td>
+<td>64-bit Gauge: A non-negative integer that may increase or decrease, but shall never exceed a maximum value, nor fall below a minimum one.</td>
+</tr>
 <tr><td><code>5:1</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Restates the per-peer End-of-RIB obligation section 3.3 states at the site this walk maps to RFC7854-3.3-1: &#39;Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer&#39;. Section 5 adds only where the marker is defined (Section 2 of RFC 4724) and that it carries the BMP encapsulation header.</td>
 <td>When the initial dump is completed for a given peer, this MUST be indicated by sending an End-of-RIB marker for that peer (as specified in Section 2 of [RFC4724], plus the BMP encapsulation header).</td>
+</tr>
+<tr><td><code>5:6</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The prose scanner matched the ordinary English required in (Route mirroring (Section 6) is provided if this is required.), which describes when an operator uses Route Mirroring, and the lowercase should attempt to generate updates promptly, which the same paragraph relaxes: it is acceptable that the router generate the final state of that prefix. Neither states an obligation on the router; RFC 7854 invokes RFC 2119 for the capitalized keywords only.</td>
+<td>(Route mirroring (Section 6) is provided if this is required.) While the router should attempt to generate updates promptly, there is a finite time that could elapse between reception of an update, the generation an RM message, and its transmission to the monitoring station.</td>
+</tr>
+<tr><td><code>8.2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The prose scanner matched the ordinary English Some consideration is required, which introduces section 8.2 and states no obligation. The section obligation on locally originated routes is the next site, mapped to RFC7854-8.2-1.</td>
+<td>Some consideration is required for routes originated into BGP by the local router, whether as a result of redistribution from another protocol or for some other reason.</td>
 </tr>
 <tr><td><code>10.1:1</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
@@ -1807,7 +2089,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

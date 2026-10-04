@@ -13,8 +13,10 @@ what Ze has
 | Tested both ways | 16.7% | 1 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 83.3% | 5 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 53.8% | 7 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 6 | of 6 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,15 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 6 | of 6 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +41,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 8 |
-| Tagged units | 8 |
+| Test tags | 13 |
+| Tagged units | 13 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 0 |
+| Discrimination records | 7 |
 | Summary | `rfc/short/rfc1071.md` |
 | Requirement shard | `rfc/requirements/rfc1071.md` |
 | RFC text | `rfc/full/rfc1071.txt` |
@@ -87,36 +82,37 @@ Enrolled: Computing the Internet Checksum (ones-complement 16-bit): eight MUST-l
 
 Ze computes the ones-complement 16-bit checksum in its own Go for the OSPF packet header and LSAs (`PacketChecksum`, `FinalizeLSAChecksum`), VRRP (`FillChecksum`), the ICMP probe (`icmpChecksum`) and RSVP-TE, and verifies received OSPF and VRRP packets (`VerifyPacketChecksum`, `verifyChecksumSum`).
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-The verification rule ([`RFC1071-1-5`](#rfc1071-1-5)) is audited wrong: its tagged tests check the generated checksum with a test helper and drive no Ze verify function, so receive-side checksum verification is implemented but not proven under this document.
+Every MUST row (1-1 to 1-6) is audited enforced. The verification rule ([`RFC1071-1-5`](#rfc1071-1-5)) is proven on the OSPFv2 packet verifier (`VerifyPacketChecksum`) alone: VRRP's `verifyChecksumSum` is implemented but carries no 1-5 test, and the ICMP probe verifies no received checksum.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 5 | one part of the gated population |
+| Annotated (including scoped evidence) | 5 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC1071-1-5`](#rfc1071-1-5)
 
-**Annotated instead of tested (5):** [`RFC1071-1-1`](#rfc1071-1-1), [`RFC1071-1-2`](#rfc1071-1-2), [`RFC1071-1-3`](#rfc1071-1-3), [`RFC1071-1-4`](#rfc1071-1-4), [`RFC1071-1-6`](#rfc1071-1-6)
+**Annotated (including scoped evidence) (5):** [`RFC1071-1-1`](#rfc1071-1-1), [`RFC1071-1-2`](#rfc1071-1-2), [`RFC1071-1-3`](#rfc1071-1-3), [`RFC1071-1-4`](#rfc1071-1-4), [`RFC1071-1-6`](#rfc1071-1-6)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1071-1-1` | To generate a checksum, the checksum field itself is cleared, the 16-bit 1's complement sum is computed over the octets concerned, and the 1's complement of this sum is placed in the checksum field. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestOSPFPacketChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L14). **negative:** no negative test. **{single-polarity}:** generate-side shape -- header.go:301 zeroes the Checksum field and header.go:322-323 stores the complemented PacketChecksum, pinned by the round-trip test; a generate rule has no reject path, corruption detection being requirement 1-5 |
+| `RFC1071-1-1` | To generate a checksum, the checksum field itself is cleared, the 16-bit 1's complement sum is computed over the octets concerned, and the 1's complement of this sum is placed in the checksum field. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestOSPFPacketChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L14). **positive:** `unit/verify` [`TestRFC1071PacketChecksumClearedSummedAndComplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L60). **negative:** no negative test. **{single-polarity}:** generate-side shape -- header.go:301 zeroes the Checksum field and header.go:322-323 stores the complemented PacketChecksum, pinned by the round-trip test; a generate rule has no reject path, corruption detection being requirement 1-5 |
 | `RFC1071-1-2` | On a 2's complement machine, the 1's complement sum must be computed by means of an "end around carry", i.e., any overflows from the most significant bits are added into the least significant bits. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestChecksumRFC1071`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum_test.go#L30). **negative:** no negative test. **{single-polarity}:** pure accumulator -- vrrp/packet/checksum.go:19-38 onesComplementSum+fold is cross-checked against an independent straight-line RFC 1071 reference on even and odd inputs, which discriminates a missing end-around carry; a summation function has no reject path |
-| `RFC1071-1-3` | the 16-bit 1's complement sum is computed over the octets concerned, and the 1's complement of this sum is placed in the checksum field. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L61). **negative:** no negative test. **{single-polarity}:** generate-side shape -- internetChecksum returns the bitwise-NOT of the folded sum (ospf/types/checksum.go:102) and the exact vector 0x1411 fails if the complement is dropped; a generate rule has no reject path |
-| `RFC1071-1-4` | Using the notation [a,b] for the 16-bit integer a*256+b, where a and b are bytes, then the 16-bit 1's complement sum of these bytes is given by one of the following: [A,B] +' [C,D] +' ... +' [Y,Z] [1] [A,B] +' [C,D] +' ... +' [Z,0] [2] where +' indicates 1's complement addition. These cases correspond to an even or odd count of bytes, respectively. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestInternetChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L97). **positive:** `unit/verify` [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L231). **negative:** no negative test. **{single-polarity}:** generate-side shape -- internetSum pads an odd tail with one zero octet for the sum only (ospf/types/checksum.go:146-148) while the transmitted length stays odd, pinned by the odd-length vectors; a generate rule has no reject path |
-| `RFC1071-1-5` | To check a checksum, the 1's complement sum is computed over the same set of octets, including the checksum field. If the result is all 1 bits (-0 in 1's complement arithmetic), the check succeeds. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestRFC792ChecksumValid`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L210). **negative:** `unit/verify` [`TestRFC792ChecksumRejectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L220) |
-| `RFC1071-1-6` | When the sum has been computed, we "fold" the long sum into 16 bits by adding the 16-bit segments. Each 16-bit addition may produce new end-around carries that must be added. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L62). **negative:** no negative test. **{single-polarity}:** pure arithmetic -- internetChecksum folds the wide accumulator until no high bits remain before inverting (ospf/types/checksum.go:99-101), exercised by a carry-producing vector; a fold has no reject path |
+| `RFC1071-1-3` | the 16-bit 1's complement sum is computed over the octets concerned, and the 1's complement of this sum is placed in the checksum field. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L61). **positive:** `unit/verify` [`TestRFC1071PacketChecksumClearedSummedAndComplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L61). **negative:** no negative test. **{single-polarity}:** generate-side shape -- internetChecksum returns the bitwise-NOT of the folded sum (ospf/types/checksum.go:102) and the exact vector 0x1411 fails if the complement is dropped; a generate rule has no reject path |
+| `RFC1071-1-4` | Using the notation [a,b] for the 16-bit integer a*256+b, where a and b are bytes, then the 16-bit 1's complement sum of these bytes is given by one of the following: [A,B] +' [C,D] +' ... +' [Y,Z] [1] [A,B] +' [C,D] +' ... +' [Z,0] [2] where +' indicates 1's complement addition. These cases correspond to an even or odd count of bytes, respectively. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestInternetChecksumEvenLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L16). **positive:** `unit/verify` [`TestInternetChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L97). **positive:** `unit/verify` [`TestRFC1071ChecksumEvenLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/rfc1071_even_test.go#L16). **positive:** `unit/verify` [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L254). **negative:** no negative test. **{single-polarity}:** generate-side shape -- internetSum pads an odd tail with one zero octet for the sum only (ospf/types/checksum.go:146-148) while the transmitted length stays odd, pinned by the odd-length vectors; a generate rule has no reject path |
+| `RFC1071-1-5` | To check a checksum, the 1's complement sum is computed over the same set of octets, including the checksum field. If the result is all 1 bits (-0 in 1's complement arithmetic), the check succeeds. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestRFC1071VerifyAcceptsAllOnesSum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L82). **negative:** `unit/verify` [`TestRFC1071VerifyRefusesSumNotAllOnes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L100) |
+| `RFC1071-1-6` | When the sum has been computed, we "fold" the long sum into 16 bits by adding the 16-bit segments. Each 16-bit addition may produce new end-around carries that must be added. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L62). **positive:** `unit/verify` [`TestRFC1071FoldRepeatsUntilNoCarry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc1071_fold_test.go#L14). **negative:** no negative test. **{single-polarity}:** pure arithmetic -- internetChecksum folds the wide accumulator until no high bits remain before inverting (ospf/types/checksum.go:99-101), exercised by a carry-producing vector; a fold has no reject path |
 | `RFC1071-2-1` | As long as the even/odd assignment of bytes is respected, the sum can be done in any order, and it can be arbitrarily split into groups. (§1) | SHOULD | 1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1071-2-2` | Furthermore, again the byte order does not matter; we could instead sum 32-bit words: [D,C,B,A]+'... or [B,A,D,C]+'... and then swap the bytes of the final 16-bit sum as necessary. (§1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1071-2-3` | In these cases it is possible to update the checksum without scanning the message or datagram. To update the checksum, simply add the differences of the sixteen bit integers that have been changed. (§1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
@@ -133,11 +129,12 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 To generate a checksum, the checksum field itself is cleared, the 16-bit 1's complement sum is computed over the octets concerned, and the 1's complement of this sum is placed in the checksum field. (§1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: to generate, the checksum field is cleared, the 16-bit one's complement sum is computed, and its complement is placed in the field. TestOSPFPacketChecksum asserts only that the field is non-zero and that ze's own VerifyPacketChecksum accepts. The clearing clause is not provable there: the encoded header starts with a zero Checksum, so an encoder that skipped the clear passes. No independent expected value pins the complement.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged c18. Sentence: clear the field, sum, place the complement. TestRFC1071PacketChecksumClearedSummedAndComplemented encodes a Hello through Packet.WriteTo with a stale header Checksum 0xBEEF into a 0xA5-prefilled buffer and asserts the field equals the test's own RFC 1071 checksum (independent 64-bit fold, field cleared, auth excluded, complemented), equals the same packet encoded from a zero Checksum, and that the covered packet then folds to 0xFFFF. An encoder that skipped the clear (header.go WriteTo h.Checksum = 0) would sum 0xBEEF and go red; one that skipped the complement or placed nothing goes red on the independent value. Record breaks PacketChecksum (the sum/complement producer, checksum.go); the clear and the placement live in Packet.WriteTo, which the record tool cannot name because header.go holds three WriteTo, so their discrimination is argued from the assertions, not recorded. Old TestOSPFPacketChecksum (round-trip only) kept as supplementary. {single-polarity: positive} holds: a generate rule has no reject path; corruption detection is RFC1071-1-5.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestOSPFPacketChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L14) | unit/verify | unproven |
+| positive | [`TestRFC1071PacketChecksumClearedSummedAndComplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L60) | unit/verify | revert, verified |
 
 ### [`RFC1071-1-2`](#rfc1071-1-2)
 
@@ -153,43 +150,47 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 the 16-bit 1's complement sum is computed over the octets concerned, and the 1's complement of this sum is placed in the checksum field. (§1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sub-span: the 16-bit one's complement sum is computed and its complement is placed in the checksum field. The complement is pinned by the exact vector 0x1411 in TestInternetChecksumRFC1071Vectors. The placement clause is not ze's in that unit: the test itself writes the value into data[2:4]; the tagged unit calls internetChecksum only.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged c18. Sub-span: compute the 16-bit one's complement sum and place its complement in the checksum field. Placement is now ze's: TestRFC1071PacketChecksumClearedSummedAndComplemented reads back the field Packet.WriteTo wrote and compares it with the complement of the test's independent sum (the 0xFFFF fold of the covered packet pins the complement). The exact vector 0x1411 in TestInternetChecksumRFC1071Vectors still pins the complement in internetChecksum. Record breaks PacketChecksum, observed red. Single-polarity positive valid (no reject path).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| positive | [`TestRFC1071PacketChecksumClearedSummedAndComplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L61) | unit/verify | revert, verified |
 | positive | [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L61) | unit/verify | unproven |
 
 ### [`RFC1071-1-4`](#rfc1071-1-4)
 
 Using the notation [a,b] for the 16-bit integer a*256+b, where a and b are bytes, then the 16-bit 1's complement sum of these bytes is given by one of the following: [A,B] +' [C,D] +' ... +' [Y,Z] [1] [A,B] +' [C,D] +' ... +' [Z,0] [2] where +' indicates 1's complement addition. These cases correspond to an even or odd count of bytes, respectively. (§1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence gives the even-count form [1] and the odd-count form [Z,0] [2]. The odd clause is proven: exact vector 0x97cb in TestInternetChecksumOddLength and the 0xffff fold of an 11-octet echo in TestRFC792ChecksumOddLength both go red on a dropped or low-byte pad. No 1-4-tagged unit asserts the even-count form. The row's old 'do not transmit the pad' is not in RFC 1071 (it is RFC 793 Section 3.1).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Both forms of the RFC 1071 Section 1 sentence are now pinned by exact vectors on both producers. Even count [1]: TestRFC1071ChecksumEvenLength (icmpChecksum) and TestInternetChecksumEvenLength (internetChecksum) answer 0x9753 for [12 34 56 78] and 0xfc96 for [12 34 56 78 9a bc]; a little-endian word, a padded even tail or a missing end-around carry (the 6-octet sum 0x10368) each goes red. Odd count [2] [Z,0]: TestInternetChecksumOddLength pins 0x97cb and TestRFC792ChecksumOddLength folds an 11-octet echo to 0xffff. The {single-polarity: positive} holds: the row defines the sum a generator forms and has no reject path.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L231) | unit/verify | unproven |
+| positive | [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L254) | unit/verify | unproven |
+| positive | [`TestRFC1071ChecksumEvenLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/rfc1071_even_test.go#L16) | unit/verify | revert, verified |
 | positive | [`TestInternetChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L97) | unit/verify | unproven |
+| positive | [`TestInternetChecksumEvenLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L16) | unit/verify | revert, verified |
 
 ### [`RFC1071-1-5`](#rfc1071-1-5)
 
 To check a checksum, the 1's complement sum is computed over the same set of octets, including the checksum field. If the result is all 1 bits (-0 in 1's complement arithmetic), the check succeeds. (§1)
 
-Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. Sentence: to check a checksum, sum over the same octets including the checksum field and succeed on all ones. Both tagged units (TestRFC792ChecksumValid, TestRFC792ChecksumRejectsCorruption) perform the check with the test helper checksumOnesFold, not with ze code. They prove ze's GENERATED checksum is valid (the generate rule, RFC1071-1-1/RFC792-Echo-3), and that the helper detects corruption. No ze verify function (ospf VerifyPacketChecksum, vrrp verifyChecksumSum) is driven under this tag.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged c18 (was wrong: probe units checked a test helper). Sentence: to check, sum the same octets including the checksum field; all ones succeeds. Positive TestRFC1071VerifyAcceptsAllOnesSum places the TEST's independent checksum, proves in setup the covered fold including the field is 0xFFFF, and ze's VerifyPacketChecksum accepts. Negative TestRFC1071VerifyRefusesSumNotAllOnes, from a verifying base, changes only the checksum field (+1), one covered body octet, or zeroes the field; each is setup-checked as not folding to 0xFFFF and each is refused. The field-only cases catch a verifier that left the field out of the sum or compared against nothing. Both polarities recorded red under a VerifyPacketChecksum break. The probe RFC792 units lost their 1-5 tags (D-15/R1): probe has no verify function. Scope: OSPFv2 packet verify (InternetChecksumPairValid); other ze verifiers (vrrp) are not tagged here.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC792ChecksumRejectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L220) | unit/verify | unproven |
-| positive | [`TestRFC792ChecksumValid`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L210) | unit/verify | unproven |
+| negative | [`TestRFC1071VerifyRefusesSumNotAllOnes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L100) | unit/verify | revert, verified |
+| positive | [`TestRFC1071VerifyAcceptsAllOnesSum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc1071_checksum_test.go#L82) | unit/verify | revert, verified |
 
 ### [`RFC1071-1-6`](#rfc1071-1-6)
 
 When the sum has been computed, we "fold" the long sum into 16 bits by adding the 16-bit segments. Each 16-bit addition may produce new end-around carries that must be added. (§1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: fold the long sum into 16 bits; each 16-bit addition may produce new end-around carries that must be added. The vector in TestInternetChecksumRFC1071Vectors overflows once (0x1EBED folds to 0xEBEE with no second carry), so a single fold without repetition still returns 0x1411. The repeated-carry clause has no assertion.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged c18. Sentence: fold the long sum by adding 16-bit segments; each addition may carry again and those carries must be added. TestRFC1071FoldRepeatsUntilNoCarry sums FFFF FFFF 0001 = 0x1FFFF, whose first fold 0x10000 carries again; internetChecksum and InternetChecksumPair must both answer exactly 0xFFFE (a single fold answers 0xFFFF), and internetChecksumValid accepts the data with 0xFFFE appended. Record breaks internetChecksum, observed red. TestInternetChecksumRFC1071Vectors prose narrowed to its one carry (D-15). Single-polarity positive valid: a fold has no reject path.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestInternetChecksumRFC1071Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L62) | unit/verify | unproven |
+| positive | [`TestRFC1071FoldRepeatsUntilNoCarry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc1071_fold_test.go#L14) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 87.5% | 7 of 8 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 8 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 75.0% | 12 of 16 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 8 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 77.8% | 14 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 12.5% | 1 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 5 | of 8 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 16 |
-| Tagged units | 16 |
+| Test tags | 18 |
+| Tagged units | 18 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 12 |
+| Discrimination records | 14 |
 | Summary | `rfc/short/draft-ietf-sidrops-aspa-verification.md` |
 | Requirement shard | `rfc/requirements/draft-ietf-sidrops-aspa-verification.md` |
 | RFC text | `rfc/drafts/draft-ietf-sidrops-aspa-verification.txt` |
@@ -100,29 +101,30 @@ Enrolled: Router-verification requirements follow the cached revision 28. ASPA r
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 7 | one part of the gated population |
-| Annotated instead of tested | 1 | one part of the gated population |
+| Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (7):** [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1`](#draft-ietf-sidrops-aspa-verification-4-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1`](#draft-ietf-sidrops-aspa-verification-5.1-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1`](#draft-ietf-sidrops-aspa-verification-5.4-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2`](#draft-ietf-sidrops-aspa-verification-5.4-2), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1`](#draft-ietf-sidrops-aspa-verification-5.6-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1`](#draft-ietf-sidrops-aspa-verification-6.2-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2`](#draft-ietf-sidrops-aspa-verification-6.2-2)
 
-**Annotated instead of tested (1):** [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2`](#draft-ietf-sidrops-aspa-verification-5.1-2)
+**Annotated (including scoped evidence) (1):** [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2`](#draft-ietf-sidrops-aspa-verification-5.1-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1` | Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures (see Section 5.3, Section 5). (§4) | MUST | 4 | **positive:** `unit/verify` [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L212). **negative:** `unit/verify` [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L213) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1` | Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures (see Section 5.3, Section 5). (§4) | MUST | 4 | **positive:** `unit/verify` [`TestASPAZeroBesideProvidersIsNoWildcard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L28). **positive:** `unit/verify` [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L212). **negative:** `unit/verify` [`TestASPAZeroBesideProvidersIsNoWildcard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L34). **negative:** `unit/verify` [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L213) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2` | If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification. (Section 5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** entrypoint coverage for this newly explicit ordering obligation is unverified; Session.processMessage applies existing checks before semantic UPDATE delivery, but the prior neighbor-AS tests have not been established as ordering proof |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1` | Let the sequence COMPRESSED_AS_PATH {AS(N), AS(N-1),..., AS(2), AS(1)} represent the AS_PATH after removing consecutive duplicate ASNs, where AS(1) is the origin AS, and AS(N) is the most recently added neighbor AS of the receiving/verifying AS. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestASPACompressedUpdatePrependsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L97). **negative:** `unit/verify` [`TestASPACompressedUpdatePreservesHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L149) |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1` | The upstream verification algorithm described here is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L32). **negative:** `unit/verify` [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L33) |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2` | If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid" (Section 5.5; Section 5.6) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAVerifyASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L56). **negative:** `unit/verify` [`TestASPAStateForPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L180) |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L59). **positive:** `unit/verify` [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L183). **negative:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L62). **negative:** `unit/verify` [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L232) |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1` | The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF]. (Section 6.2) | MUST | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L110). **negative:** `unit/verify` [`TestASPAAppliesToIPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L132) |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2` | The procedures MUST NOT be applied to other address families by default (Section 6.2) | MUST NOT | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L111). **negative:** `unit/verify` [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L165) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1` | Let the sequence COMPRESSED_AS_PATH {AS(N), AS(N-1),..., AS(2), AS(1)} represent the AS_PATH after removing consecutive duplicate ASNs, where AS(1) is the origin AS, and AS(N) is the most recently added neighbor AS of the receiving/verifying AS. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestASPACompressedUpdatePrependsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L97). **negative:** `unit/verify` [`TestASPACompressedUpdatePreservesHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L149) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1` | The upstream verification algorithm described here is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L32). **negative:** `unit/verify` [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L33) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2` | If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid" (Section 5.5; Section 5.6) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAVerifyASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L56). **negative:** `unit/verify` [`TestASPAStateForPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L180) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L59). **positive:** `unit/verify` [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L183). **negative:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L62). **negative:** `unit/verify` [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L232) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1` | The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF]. (Section 6.2) | MUST | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L110). **negative:** `unit/verify` [`TestASPAAppliesToIPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L132) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2` | The procedures MUST NOT be applied to other address families by default (Section 6.2) | MUST NOT | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111). **negative:** `unit/verify` [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (Section 5.7) | SHOULD | 5.7 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-3` | When a route is evaluated as Unknown (using ASPA- based AS_PATH verification), it SHOULD be treated at the same preference level as a route evaluated as Valid. (§5.7) | SHOULD | 5.7 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-4` | The specific configuration of a mitigation policy based on AS_PATH verification using ASPA is at the discretion of the network operator. However, the following mitigation policy is RECOMMENDED. (§5.7) | RECOMMENDED | 5.7 | **positive:** no positive test. **negative:** no negative test |
@@ -148,12 +150,14 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures (see Section 5.3, Section 5). (§4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: AS 0 beside other providers in a SPAS changing the verification outcome, either by invalidating a real authorization or by acting as a wildcard. TestASPAZeroDoesNotAuthorizeOrInvalidate asserts SPAS {0,200} verifies Valid (red if AS 0 invalidates) and SPAS {0} alone verifies Invalid (the AS0 ASPA case, red if an AS0-only SPAS is a wildcard). No assertion covers the wildcard case of the quoted sentence: a mixed SPAS {0, 999} for an unlisted provider must still verify Invalid, and an implementation treating a mixed AS 0 as a wildcard stays green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: AS 0 beside other providers changing the verification outcome. TestASPAZeroDoesNotAuthorizeOrInvalidate: {0,200} Valid, {0} alone Invalid. TestASPAZeroBesideProvidersIsNoWildcard: {0,200} = {200} = Valid (AS 0 does not invalidate) and {0,999} = {999} = Invalid for a path whose provider 200 is unlisted (AS 0 is no wildcard).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L213) | unit/verify | revert, verified |
-| positive | [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L212) | unit/verify | revert, verified |
+| negative | [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L213) | unit/verify | revert, verified |
+| negative | [`TestASPAZeroBesideProvidersIsNoWildcard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L34) | unit/verify | revert, verified |
+| positive | [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L212) | unit/verify | revert, verified |
+| positive | [`TestASPAZeroBesideProvidersIsNoWildcard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L28) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2`](#draft-ietf-sidrops-aspa-verification-5.1-2)
 
@@ -171,8 +175,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestASPACompressedUpdatePreservesHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L149) | unit/verify | mutant, verified |
-| positive | [`TestASPACompressedUpdatePrependsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L97) | unit/verify | mutant, verified |
+| negative | [`TestASPACompressedUpdatePreservesHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L149) | unit/verify | mutant, verified |
+| positive | [`TestASPACompressedUpdatePrependsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L97) | unit/verify | mutant, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1`](#draft-ietf-sidrops-aspa-verification-5.4-1)
 
@@ -182,8 +186,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L33) | unit/verify | revert, verified |
-| positive | [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L32) | unit/verify | revert, verified |
+| negative | [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L33) | unit/verify | revert, verified |
+| positive | [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L32) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2`](#draft-ietf-sidrops-aspa-verification-5.4-2)
 
@@ -193,8 +197,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestASPAStateForPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L180) | unit/verify | revert, verified |
-| positive | [`TestASPAVerifyASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L56) | unit/verify | revert, verified |
+| negative | [`TestASPAStateForPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L180) | unit/verify | revert, verified |
+| positive | [`TestASPAVerifyASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L56) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1`](#draft-ietf-sidrops-aspa-verification-5.6-1)
 
@@ -204,10 +208,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L62) | unit/verify | unproven |
-| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L232) | unit/verify | unproven |
-| positive | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L59) | unit/verify | unproven |
-| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L183) | unit/verify | unproven |
+| negative | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L62) | unit/verify | unproven |
+| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L232) | unit/verify | unproven |
+| positive | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L59) | unit/verify | unproven |
+| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L183) | unit/verify | unproven |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1`](#draft-ietf-sidrops-aspa-verification-6.2-1)
 
@@ -217,8 +221,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestASPAAppliesToIPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L132) | unit/verify | revert, verified |
-| positive | [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L110) | unit/verify | revert, verified |
+| negative | [`TestASPAAppliesToIPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L132) | unit/verify | revert, verified |
+| positive | [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L110) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2`](#draft-ietf-sidrops-aspa-verification-6.2-2)
 
@@ -228,8 +232,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L165) | unit/verify | revert, verified |
-| positive | [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L111) | unit/verify | revert, verified |
+| negative | [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165) | unit/verify | revert, verified |
+| positive | [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

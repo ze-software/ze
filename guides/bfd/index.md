@@ -209,7 +209,28 @@ BFD AdminDown does NOT tear the BGP session down, in either mode. RFC 5882
 Section 4.2 says a client "SHOULD NOT take any control protocol action" on
 that transition, because Section 3.2 makes AdminDown say nothing about the
 data path.
+
+Authenticate the BFD session of an EBGP peer. RFC 5882 Section 10.2 says
+"BFD authentication SHOULD be used and is strongly encouraged" for a BFD
+session that advises an EBGP session. The peer's `bfd` container carries no
+key of its own: name a `profile` whose `auth` block configures the
+authentication (see "Authentication" above), and the BFD plugin applies it to
+the peer's session. The neighbor must be configured with the same type, key ID
+and secret. A neighbor with a different secret, or one that sends no
+authentication, never brings the session Up, so a strict-mode peer stays out
+of Established. A peer that names no profile, or a profile with no `auth`
+block, runs its BFD session unauthenticated, which the SHOULD permits. When an
+EBGP peer enables BFD and names a profile with no `auth` block, the commit is
+accepted and Ze logs one warning naming the peer and the profile. When an EBGP
+peer enables BFD and names no profile, the commit is accepted and Ze logs one
+warning naming the peer, with no profile. An IBGP peer, a profile with an
+`auth` block, and a static next-hop's `bfd-profile` draw no warning, because
+the recommendation covers the BFD session of an EBGP peer only.
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles warns for an EBGP peer's unauthenticated or absent profile -->
+<!-- source: internal/component/bfd/config.go — checkClientProfile answers whether the resolved profile authenticates -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, runBFDSubscriber -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — bfdRequestFor carries the profile name, never a key -->
+<!-- source: internal/component/bfd/config.go — resolveProfile, profileConfig.applyTo copies the profile's auth into the request -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — peer connection bfd container -->
 
 ```
@@ -452,11 +473,28 @@ three-way handshake normally.
 ## Session sharing
 
 When multiple clients ask for the same path, the BFD plugin creates one
-underlying session and refcounts subscribers. Timer parameters are chosen
-as the most aggressive (smallest) value across requesters. For example, if
-BGP asks for a 50 ms session and OSPF later asks for a 300 ms session to
-the same peer, they share one 50 ms session; if the BGP subscriber goes
-away first, the session drops to 300 ms via Poll/Final.
+underlying session and refcounts subscribers. The session runs with the
+timers of the request that created it: a later client joins it as it is,
+and its own timers do not change the session. For example, if BGP asks
+for a 50 ms session and OSPF later asks for a 300 ms session to the same
+peer, they share the 50 ms session.
+
+One session carries one authentication configuration. A client whose
+profile resolves to a different authentication (another Auth Type, Key ID
+or secret, or authentication where the session has none, or none where it
+has some) is refused rather than joined: the session keeps the
+authentication it was built with, and the refused client logs the error,
+which names the peer, interface and VRF and says that the authentication
+configurations differ. A BGP peer then runs without BFD (a strict-mode peer
+is held down), a static route's next-hop runs without BFD, and an OSPF
+neighbor runs on its hello and dead timers. Two profiles with the same
+auth block under different names share the session. Give every client of
+one remote system profiles with the same auth block.
+<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck -->
+<!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
+<!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession -->
 
 ## Editing live
 

@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 66.7% | 6 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 38.1% | 8 of 21 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 5 | of 9 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 15 |
-| Tagged units | 15 |
+| Test tags | 21 |
+| Tagged units | 21 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 0 |
+| Discrimination records | 8 |
 | Summary | `rfc/short/rfc7684.md` |
 | Requirement shard | `rfc/requirements/rfc7684.md` |
 | RFC text | `rfc/full/rfc7684.txt` |
@@ -96,28 +90,29 @@ Same OSPF experimental status.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 6 | one part of the gated population |
-| Annotated instead of tested | 3 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (6):** [`RFC7684-5-3`](#rfc7684-5-3), [`RFC7684-2.1-1`](#rfc7684-2.1-1), [`RFC7684-2.1-2`](#rfc7684-2.1-2), [`RFC7684-2.1-3`](#rfc7684-2.1-3), [`RFC7684-3.1-1`](#rfc7684-3.1-1), [`RFC7684-5-1`](#rfc7684-5-1)
 
-**Annotated instead of tested (3):** [`RFC7684-4-1`](#rfc7684-4-1), [`RFC7684-6.5-1`](#rfc7684-6.5-1), [`RFC7684-6.5-2`](#rfc7684-6.5-2)
+**Annotated (including scoped evidence) (3):** [`RFC7684-4-1`](#rfc7684-4-1), [`RFC7684-6.5-1`](#rfc7684-6.5-1), [`RFC7684-6.5-2`](#rfc7684-6.5-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7684-5-3` | Malformed LSAs MUST NOT be stored in the Link State Database (LSDB), acknowledged, or reflooded. (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour. | MUST NOT | 5 | **positive:** `unit/verify` [`TestExtIngressValidCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L198). **negative:** `unit/verify` [`TestExtIngressMalformedDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L135) |
-| `RFC7684-2.1-1` | If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive | MUST | 2.1 | **positive:** `unit/verify` [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L77). **negative:** `unit/verify` [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L66) |
-| `RFC7684-2.1-2` | The flag is preserved when the OSPFv2 Extended Prefix Opaque LSA is propagated between areas. (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix | MUST | 2.1 | **positive:** `unit/verify` [`TestExtPrefixNFlagPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L121). **negative:** `unit/verify` [`TestExtPrefixNFlagNotSetNonHostInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L150) |
-| `RFC7684-2.1-3` | However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external | MUST | 2.1 | **positive:** `unit/verify` [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L167). **negative:** `unit/verify` [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L170) |
-| `RFC7684-3.1-1` | Only one OSPFv2 Extended Link TLV SHALL be advertised in each OSPFv2 Extended Link Opaque LSA (§3.1) -- origination emits one per LSA; decode uses the first and logs extras | SHALL | 3.1 | **positive:** `unit/verify` [`TestExtLinkMirrorsRouterLSALink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_link_origin_test.go#L46). **negative:** `unit/verify` [`TestExtLinkSingleTLVEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L74) |
+| `RFC7684-5-3` | Malformed LSAs MUST NOT be stored in the Link State Database (LSDB), acknowledged, or reflooded. (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour. | MUST NOT | 5 | **positive:** `unit/verify` [`TestExtIngressValidCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L198). **negative:** `unit/verify` [`TestExtIngressMalformedDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L135) |
+| `RFC7684-2.1-1` | If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive | MUST | 2.1 | **positive:** `unit/verify` [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L77). **negative:** `unit/verify` [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L66) |
+| `RFC7684-2.1-2` | The flag is preserved when the OSPFv2 Extended Prefix Opaque LSA is propagated between areas. (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix | MUST | 2.1 | **positive:** `unit/verify` [`TestExtPrefixNFlagPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L121). **positive:** `unit/verify` [`TestRFC7684NFlagOfAnotherRouterPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L64). **negative:** `unit/verify` [`TestExtPrefixNFlagNotSetNonHostInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L150). **negative:** `unit/verify` [`TestRFC7684NFlagNotInventedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L83) |
+| `RFC7684-2.1-3` | However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external | MUST | 2.1 | **positive:** `unit/verify` [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167). **positive:** `unit/verify` [`TestRFC7684EveryPrefixInAnLSAFitsItsScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L63). **negative:** `unit/verify` [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170). **negative:** `unit/verify` [`TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L100) |
+| `RFC7684-3.1-1` | Only one OSPFv2 Extended Link TLV SHALL be advertised in each OSPFv2 Extended Link Opaque LSA (§3.1) -- origination emits one per LSA; decode uses the first and logs extras | SHALL | 3.1 | **positive:** `unit/verify` [`TestExtLinkMirrorsRouterLSALink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_link_origin_test.go#L46). **negative:** `unit/verify` [`TestExtLinkSingleTLVEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L74) |
 | `RFC7684-4-1` | However, future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality. (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665 | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this directive binds downstream application specifications (e.g. RFC 8665 segment routing) that define the sub-TLVs these LSAs carry, not a ze wire behavior; ze originates backward-compatible empty Extended Prefix/Link containers per RFC 5250 (internal/plugins/ospf/ext_prefix.go:72-75, internal/plugins/ospf/ext_link.go:56-59) |
-| `RFC7684-5-1` | Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target | MUST | 5 | **positive:** `unit/verify` [`TestExtLinkTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L25). **positive:** `unit/verify` [`TestExtPrefixTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_prefix_test.go#L28). **negative:** `unit/verify` [`FuzzOSPFExtLinkBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L111). **negative:** `unit/verify` [`FuzzOSPFExtPrefixBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L91). **negative:** `unit/verify` [`TestExtPrefixMalformedCounted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L163) |
+| `RFC7684-5-1` | Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target | MUST | 5 | **positive:** `unit/verify` [`TestExtLinkTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25). **positive:** `unit/verify` [`TestExtPrefixTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28). **positive:** `unit/verify` [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L27). **negative:** `unit/verify` [`FuzzOSPFExtLinkBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111). **negative:** `unit/verify` [`FuzzOSPFExtPrefixBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91). **negative:** `unit/verify` [`TestExtPrefixMalformedCounted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160). **negative:** `unit/verify` [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L30) |
 | `RFC7684-6.5-1` | Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | MUST NOT | 6.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is an IANA registry documentation policy binding RFC authors, not a ze code or wire behavior; ze defines and emits no TLV or sub-TLV type in the 32768-33023 Experimental Use range |
 | `RFC7684-6.5-2` | Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | MUST | 6.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is an IANA allocation policy binding IETF specifications, not a ze code or wire behavior; ze assigns and emits no TLV or sub-TLV type in the 33024-65535 range |
 | `RFC7684-2-1` | If multiple OSPFv2 Extended Prefix Opaque LSAs include the same prefix, the attributes from the Opaque LSA with the lowest Opaque ID SHOULD be used. (§2) -- `extReceiver.applyPrefix` | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -148,45 +143,49 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Malformed LSAs MUST NOT be stored in the Link State Database (LSDB), acknowledged, or reflooded. (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a malformed Extended Prefix or Extended Link LSA stored, acknowledged, or reflooded. TestExtIngressMalformedDiscard drives both opaque types in link, area and AS scope through the router ingress with a TLV overrun, trailing data shorter than a TLV header, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated input, and fails on any LSDB lookup hit (stored) or any send after RetransmitTick (acknowledged or reflooded), so each of the three clauses goes red. TestExtIngressValidCarriage is the positive: valid bodies are stored byte-for-byte, acknowledged and flooded to the expected interfaces.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged after the D-15 body fix in TestExtIngressValidCarriage (unknown-application body ff -> ff 00 00 00, assertions unchanged): a 1-octet Opaque body is no Opaque LSA under RFC 5250 Section 3, so the positive now carries a valid unknown application; it still proves valid extended LSAs and unknown applications are stored byte-for-byte, acked and flooded by scope after a malformed companion. Negative TestExtIngressMalformedDiscard unchanged: TLV overrun, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated cases are 4-octet aligned and reach validateExtLSA; revert record on ext.go validateExtLSA observed red. Its trailing-header case (valid + 1 octet) is now discarded first by the RFC 5250 alignment check, still the outcome this row forbids. Positive revert record on ReceiveUpdate.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtIngressMalformedDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L135) | unit/verify | unproven |
-| positive | [`TestExtIngressValidCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L198) | unit/verify | unproven |
+| negative | [`TestExtIngressMalformedDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L135) | unit/verify | revert, verified |
+| positive | [`TestExtIngressValidCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_receive_test.go#L198) | unit/verify | revert, verified |
 
 ### [`RFC7684-2.1-1`](#rfc7684-2.1-1)
 
 If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry's flags still carry ExtPrefixFlagN, which is what every consumer reads; the positive half fails if N is dropped from a /32 host prefix, so the ignore is confined to the non-host case. Both polarities present.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: unit changed only by the lookupPrefix area argument (types.BackboneArea, the zero AreaID the receive path keys an unset area with); assertions unchanged. Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry's flags still carry ExtPrefixFlagN; the positive half fails if N is dropped from a /32 host prefix. Both polarities present.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L66) | unit/verify | unproven |
-| positive | [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L77) | unit/verify | unproven |
+| negative | [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L66) | unit/verify | unproven |
+| positive | [`TestExtPrefixNFlagIgnoredNonHost`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L77) | unit/verify | unproven |
 
 ### [`RFC7684-2.1-2`](#rfc7684-2.1-2)
 
 The flag is preserved when the OSPFv2 Extended Prefix Opaque LSA is propagated between areas. (§2.1) -- an ABR preserves N on the inter-area advertisement of a host prefix
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an ABR dropping the N-Flag when the Extended Prefix information is propagated into another area. TestExtPrefixNFlagPreservedInterArea proves it only for the ABR's own locally connected host /32 (N set by Ze's own origination): no unit propagates an N-Flag that another router advertised in its intra-area Extended Prefix LSA, which is the propagation the sentence is about. The negative (TestExtPrefixNFlagNotSetNonHostInterArea) asserts a /24 gains no N and carries A, a neighbouring rule (RFC7684-2.1-1 and the A-Flag row), not a violation of preservation.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the D-8 fix. Forbidden: an ABR dropping (or inventing) the N-Flag when Extended Prefix information crosses areas. extRecv now keys received entries by source area (extRecvKey.area; AS scope keys the zero area), and selfPrefixAdverts ORs N into the inter-area TLV when hostFlagOutside finds an area-scope entry for the prefix, in an area other than the summary's target, carrying N (non-host N already cleared on receipt). + TestRFC7684NFlagOfAnotherRouterPreservedInterArea: 2.2.2.2's N /32 received in area 0, this ABR's Type-3 into area 1 carries N (prefix not connected locally, so only the received flag can set it; red before the fix). - TestRFC7684NFlagNotInventedInterArea: no N when the area-0 advertisement lacks it, when N is advertised only in the target area 1, or on a non-host /24. Records on ext.go::hostFlagOutside (+/-) observed red. Older ext_prefix_origin_test tags (own connected host /32) stay supplementary and carry no record. The handoff's suggested 'via that router' condition is not applied: any other-area N advertisement for the same host prefix sets N, which matches 'preserved' for a prefix identifying one router.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtPrefixNFlagNotSetNonHostInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L150) | unit/verify | unproven |
-| positive | [`TestExtPrefixNFlagPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L121) | unit/verify | unproven |
+| negative | [`TestExtPrefixNFlagNotSetNonHostInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L150) | unit/verify | unproven |
+| negative | [`TestRFC7684NFlagNotInventedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L83) | unit/verify | revert, verified |
+| positive | [`TestExtPrefixNFlagPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L121) | unit/verify | unproven |
+| positive | [`TestRFC7684NFlagOfAnotherRouterPreservedInterArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC7684-2.1-3`](#rfc7684-2.1-3)
 
 However, since the Opaque LSA type defines the flooding scope, the LSA flooding scope MUST satisfy the application-specific requirements for all the prefixes included in a single OSPFv2 Extended Prefix Opaque LSA. (§2.1) -- `extPrefixScope`: area for intra/inter, AS for external
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an Extended Prefix Opaque LSA whose flooding scope is narrower than a prefix it carries requires, e.g. an AS-external prefix in an LS Type 10 LSA. TestExtPrefixScopeSelection asserts the per-route-type mapping of extPrefixScope (intra and inter to area, external and NSSA-external to AS), which goes red on a wrong mapping. The clause 'for all the prefixes included in a single' LSA has no assertion: no unit shows an originated LSA never mixes prefixes needing different scopes; it holds today only because origination emits one prefix per LSA, and nothing pins that.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an Extended Prefix Opaque LSA whose flooding scope fails a prefix it carries. + TestRFC7684EveryPrefixInAnLSAFitsItsScope: real self LSAs (stub, two Type-3s, two Type-5s) through extPrefixOnOriginate; every TLV of every decoded body has extPrefixScope(routeType) == the LSA scope, and the counts pin 3 area-scope and 2 AS-scope TLVs (so a mapping that put externals in area scope also fails). - TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA (R1(b)): 10.0.0.0/24 as intra, inter and external never sits in an LSA whose scope fails its role, and all three roles are originated. Records on ext_prefix.go::extPrefixOnOriginate (+/-) observed red; author's overlay forcing area scope on every origination turned both red. TestExtPrefixScopeSelection keeps the per-route-type mapping.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L170) | unit/verify | unproven |
-| positive | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_origin_test.go#L167) | unit/verify | unproven |
+| negative | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L170) | unit/verify | unproven |
+| negative | [`TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L100) | unit/verify | revert, verified |
+| positive | [`TestExtPrefixScopeSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go#L167) | unit/verify | unproven |
+| positive | [`TestRFC7684EveryPrefixInAnLSAFitsItsScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_scope_per_lsa_test.go#L63) | unit/verify | revert, verified |
 
 ### [`RFC7684-3.1-1`](#rfc7684-3.1-1)
 
@@ -196,8 +195,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtLinkSingleTLVEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L74) | unit/verify | unproven |
-| positive | [`TestExtLinkMirrorsRouterLSALink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_link_origin_test.go#L46) | unit/verify | unproven |
+| negative | [`TestExtLinkSingleTLVEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L74) | unit/verify | unproven |
+| positive | [`TestExtLinkMirrorsRouterLSALink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_link_origin_test.go#L46) | unit/verify | unproven |
 
 ### [`RFC7684-4-1`](#rfc7684-4-1)
 
@@ -211,15 +210,17 @@ No test carries RFC7684-4-1, so no unit is bound to it.
 
 Additionally, implementations must assure that malformed TLV and sub- TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a malformed TLV or sub-TLV permutation that goes undetected or crashes the process. TestExtPrefixMalformedCounted asserts a top-level TLV overrun of an Extended Prefix body is counted and stores nothing, and the two decode tests pin that valid bodies decode. Detection of a sub-TLV overrun, and of any malformed Extended Link body, has no 5-1 tagged assertion: FuzzOSPFExtPrefixBody and FuzzOSPFExtLinkBody discard err and assert only no panic, over three seeds each under go test, so a decoder that silently accepted an overrunning sub-TLV stays green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: supplementary unit TestExtPrefixMalformedCounted changed only by the lookupPrefix area argument; the verdict rests unchanged on TestRFC7684MalformedPermutationsDetected (+ valid prefix and link bodies accepted by DecodeExt*LSA and ValidateExtLSABody; - nine single-fault permutations each refused by both paths, panic converted to t.Fatalf). Records on DecodeExtPrefixLSA (+) and decodeExtSubTLVs (-) observed red; older supplementary tags carry no record and are not relied on.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExtPrefixMalformedCounted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_prefix_recv_test.go#L163) | unit/verify | unproven |
-| negative | [`FuzzOSPFExtLinkBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L111) | unit/verify | unproven |
-| negative | [`FuzzOSPFExtPrefixBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/fuzz_test.go#L91) | unit/verify | unproven |
-| positive | [`TestExtLinkTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L25) | unit/verify | unproven |
-| positive | [`TestExtPrefixTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_prefix_test.go#L28) | unit/verify | unproven |
+| negative | [`FuzzOSPFExtLinkBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111) | unit/verify | unproven |
+| negative | [`FuzzOSPFExtPrefixBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91) | unit/verify | unproven |
+| negative | [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L30) | unit/verify | revert, verified |
+| negative | [`TestExtPrefixMalformedCounted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160) | unit/verify | unproven |
+| positive | [`TestExtLinkTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25) | unit/verify | unproven |
+| positive | [`TestExtPrefixTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28) | unit/verify | unproven |
+| positive | [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L27) | unit/verify | revert, verified |
 
 ### [`RFC7684-6.5-1`](#rfc7684-6.5-1)
 

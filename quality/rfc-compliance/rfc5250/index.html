@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5250 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 14 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>84.6%</strong><b>11 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>15.4%</strong><b>2 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>22.2%</strong><b>6 of 27 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>92.9%</strong><b>13 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.1%</strong><b>1 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.1%</strong><b>28 of 43 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 14 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>10</strong><b>of 13 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>15</td>
+<td>16</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>27</td>
+<td>43</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>27</td>
+<td>43</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>10</td>
+<td>11</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>28</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5250.md</code></td>
@@ -265,11 +266,11 @@ Same OSPF experimental status.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>11</strong></td>
+<td><strong>13</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>2</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -280,6 +281,10 @@ Same OSPF experimental status.
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -288,12 +293,12 @@ Same OSPF experimental status.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>14</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (11):</strong> <a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a>, <a href="#rfc5250-3.1-1"><code>RFC5250-3.1-1</code></a>, <a href="#rfc5250-3.1-2"><code>RFC5250-3.1-2</code></a>, <a href="#rfc5250-3.1-3"><code>RFC5250-3.1-3</code></a>, <a href="#rfc5250-3.1-4"><code>RFC5250-3.1-4</code></a>, <a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a>, <a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a>, <a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a>, <a href="#rfc5250-3.2-2"><code>RFC5250-3.2-2</code></a>, <a href="#rfc5250-3.2-3"><code>RFC5250-3.2-3</code></a>, <a href="#rfc5250-3.2-4"><code>RFC5250-3.2-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc5250-3-2"><code>RFC5250-3-2</code></a>, <a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a>, <a href="#rfc5250-3.1-1"><code>RFC5250-3.1-1</code></a>, <a href="#rfc5250-3.1-2"><code>RFC5250-3.1-2</code></a>, <a href="#rfc5250-3.1-3"><code>RFC5250-3.1-3</code></a>, <a href="#rfc5250-3.1-4"><code>RFC5250-3.1-4</code></a>, <a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a>, <a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a>, <a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a>, <a href="#rfc5250-5-3"><code>RFC5250-5-3</code></a>, <a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a>, <a href="#rfc5250-3.2-2"><code>RFC5250-3.2-2</code></a>, <a href="#rfc5250-3.2-3"><code>RFC5250-3.2-3</code></a>, <a href="#rfc5250-3.2-4"><code>RFC5250-3.2-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc5250-3-2"><code>RFC5250-3-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -305,10 +310,13 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/lstype_test.go#L38" title="internal/plugins/ospf/types/lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L73" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/lstype_test.go#L25" title="internal/plugins/ospf/types/lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L88" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc5250_lstype_test.go#L38" title="internal/plugins/ospf/types/rfc5250_lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L73" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go#L68" title="internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go" target="_blank" rel="noopener"><code>TestRFC5250AlignedOpaqueStoredAndFlooded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc5250_lstype_test.go#L25" title="internal/plugins/ospf/types/rfc5250_lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L88" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go#L146" title="internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go" target="_blank" rel="noopener"><code>TestRFC5250DuplicateOpaqueNotReflooded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go#L112" title="internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go" target="_blank" rel="noopener"><code>TestRFC5250UnalignedOpaqueBodyDiscarded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-1">RFC5250-3.1-1</code></td><td colspan="3"><span class="rfc-subject">o If the Opaque LSA is type-9 (the flooding scope is link-local) and the interface that the LSA was received on is not the same as the target interface (e.g., the interface associated with a particular target neighbor), the Opaque LSA MUST be discarded and not acknowledged. (§3.1)</span></td></tr>
@@ -316,8 +324,10 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L116" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L120" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L116" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go#L57" title="internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type9AcknowledgedOnArrivalInterface</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L120" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go#L69" title="internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type9NotAcknowledgedOnOtherInterface</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-2">RFC5250-3.1-2</code></td><td colspan="3"><span class="rfc-subject">If the Opaque LSA is type-10 (the flooding scope is area-local) and the area associated with the Opaque LSA (as identified during origination or from a received LSA&#39;s associated OSPF packet header) is not the same as the area associated with the target interface, the Opaque LSA MUST be discarded and not acknowledged. (§3.1)</span></td></tr>
@@ -325,9 +335,9 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L63" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L203" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L207" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L63" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L203" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L207" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-3">RFC5250-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If the Opaque LSA is type-11 (the LSA is flooded throughout the AS) and the target interface is associated with a stub area or NSSA, the Opaque LSA MUST NOT be flooded out the interface. A type-11 Opaque LSA that is received on an interface associated with a stub area or NSSA MUST be discarded and not acknowledged (the neighboring router has flooded the LSA in error). (§3.1)</span></td></tr>
@@ -335,8 +345,8 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L161" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L152" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L161" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L152" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-4">RFC5250-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Opaque LSAs are only flooded to opaque-capable neighbors. To be more precise, in Section 13.3 of [OSPF], Opaque LSAs MUST be placed on the link-state retransmission lists of opaque-capable neighbors and MUST NOT be placed on the link-state retransmission lists of non-opaque-capable neighbors. (§3.1)</span></td></tr>
@@ -344,8 +354,8 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_flood_test.go#L38" title="internal/plugins/ospf/lsdb/opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_flood_test.go#L42" title="internal/plugins/ospf/lsdb/opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L38" title="internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L42" title="internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3-2">RFC5250-3-2</code></td><td colspan="3"><span class="rfc-subject">The link-state ID of the Opaque LSA is divided into an Opaque type field (the first 8 bits) and a type-specific ID (the remaining 24 bits). (§3)</span></td></tr>
@@ -353,7 +363,7 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/lsa_opaque_test.go#L19" title="internal/plugins/ospf/packet/lsa_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueLinkStateIDSplit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go#L19" title="internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueLinkStateIDSplit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Link State ID split is a pure bit operation (high octet is the Opaque Type, low 24 bits the Opaque ID) with no validation or reject path, so there is no negative behavior to drive</p></td>
 </tr>
@@ -362,8 +372,10 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_opaque_test.go#L74" title="internal/plugins/ospf/neighbor/dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_opaque_test.go#L63" title="internal/plugins/ospf/neighbor/dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloSentWithoutOBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloOBitIgnoredOnReceipt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-5-1">RFC5250-5-1</code></td><td colspan="3"><span class="rfc-subject">(2) When processing a received type-11 Opaque LSA, the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. (§5)</span></td></tr>
@@ -371,8 +383,10 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/opaque_reachability_test.go#L51" title="internal/plugins/ospf/opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/opaque_reachability_test.go#L44" title="internal/plugins/ospf/opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-5-2">RFC5250-5-2</code></td><td colspan="3"><span class="rfc-subject">It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5)</span></td></tr>
@@ -380,17 +394,30 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/opaque_reachability_test.go#L52" title="internal/plugins/ospf/opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> reachability is recomputed from a live SPF seam on every opaque delivery (internal/plugins/ospf/opaque.go:126,243) and never cached, so a now-unreachable originator yields not-usable on the next evaluation; there is no stale-cache code path to drive a negative</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-5-3">RFC5250-5-3</code></td><td colspan="3"><span class="rfc-subject">(1) An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF]. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_originator_test.go#L115" title="internal/plugins/ospf/rfc5250_asbr_originator_test.go" target="_blank" rel="noopener"><code>TestRFC5250TwoRoutersType11OriginatorReachable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go#L59" title="internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11OriginatorAdvertisesASBR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go#L45" title="internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11OriginatorAdvertisesASBR</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-1">RFC5250-3.2-1</code></td><td colspan="3"><span class="rfc-subject">The router MUST list the contents of its entire area link-state database in the neighbor Database summary list. The area link-state database consists of the Router LSAs, Network LSAs, Summary LSAs, type-9 Opaque LSAs, and type-10 Opaque LSAs contained in the area structure, along with AS External and type-11 Opaque LSAs contained in the global structure. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L24" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L58" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go#L111" title="internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsEntireAreaDatabase</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L24" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L58" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go#L124" title="internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-2">RFC5250-3.2-2</code></td><td colspan="3"><span class="rfc-subject">AS External and type-11 Opaque LSAs MUST be omitted from a virtual neighbor&#39;s Database summary list (§3.2)</span></td></tr>
@@ -407,8 +434,8 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L54" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L27" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L54" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L27" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-4">RFC5250-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Type-9 Opaque LSAs MUST be omitted from the Database summary list if the interface associated with the neighbor is not the interface associated with the Opaque LSA (§3.2)</span></td></tr>
@@ -416,8 +443,8 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go#L33" title="internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOwnInterfaceType9</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go#L61" title="internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherInterfaceType9</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go#L33" title="internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOwnInterfaceType9</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go#L61" title="internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherInterfaceType9</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-6">RFC5250-3.1-6</code></td><td colspan="3"><span class="rfc-subject">A neighbor is opaque-capable if and only if it sets the O-bit in the Options field of its Database Description packets; the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1)</span></td></tr>
@@ -449,50 +476,75 @@ Same OSPF experimental status.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a></h3>
 <p>Opaque LSAs are types 9, 10, and 11 link state advertisements. Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned application-specific information field. Standard link-state database flooding mechanisms are used for distribution of Opaque LSAs. The range of topological distribution (i.e., the flooding scope) of an Opaque LSA is identified by its link-state type. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Types 9/10/11 as Opaque and scope-by-type are enforced: lstype_test.go fatals if a standard type IsOpaque or an opaque type is not; TestOpaqueScopeRouting fatals if Type 11 is not AS-wide or a Type 9 is accepted into an area store. The quoted span also states that Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned body and that standard flooding mechanisms distribute them; no tagged unit asserts either.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Every clause both polarities. LS types 9/10/11 as Opaque: lstype_test.go TestLSTypeKnownValues (+ opaque types IsOpaque, - standard types not), revert records on IsOpaque. Scope by LS type: TestOpaqueScopeRouting (+ Type 11 AS-wide, - Type 9 refused an area store), revert records on Install. 32-bit aligned body: TestRFC5250AlignedOpaqueStoredAndFlooded (+ 8-octet body stored, flooded out eth1 at length 28 with body intact, on the retransmission list) and TestRFC5250UnalignedOpaqueBodyDiscarded (- 5-octet body with a valid checksum not stored, acked or flooded; aligned companion in the same update stored), red on the pre-fix ReceiveUpdate (D-8 fixed at lsdb/flooding.go ReceiveUpdate). Standard flooding: the aligned unit plus TestRFC5250DuplicateOpaqueNotReflooded (- the same instance after MinLSArrival is acked, not reflooded), red under an equal-copies-reflooded overlay. Revert records on ReceiveUpdate for all three new units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L88" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go#L146" title="internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go" target="_blank" rel="noopener"><code>TestRFC5250DuplicateOpaqueNotReflooded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/lstype_test.go#L25" title="internal/plugins/ospf/types/lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go#L112" title="internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go" target="_blank" rel="noopener"><code>TestRFC5250UnalignedOpaqueBodyDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L88" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc5250_lstype_test.go#L25" title="internal/plugins/ospf/types/rfc5250_lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L73" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go#L68" title="internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go" target="_blank" rel="noopener"><code>TestRFC5250AlignedOpaqueStoredAndFlooded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/lstype_test.go#L38" title="internal/plugins/ospf/types/lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L73" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc5250_lstype_test.go#L38" title="internal/plugins/ospf/types/rfc5250_lstype_test.go" target="_blank" rel="noopener"><code>TestLSTypeKnownValues</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5250-3.1-1"><code>RFC5250-3.1-1</code></a></h3>
 <p>o If the Opaque LSA is type-9 (the flooding scope is link-local) and the interface that the LSA was received on is not the same as the target interface (e.g., the interface associated with a particular target neighbor), the Opaque LSA MUST be discarded and not acknowledged. (§3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Discard is enforced: TestOpaqueType9WrongInterfaceDiscarded fatals if a Type 9 received on eth0 is found in the eth1 link store, flooded as an LSUpdate out eth1, or queued for retransmission to the eth1 neighbor. The &#34;not acknowledged&#34; clause has no assertion: the send loop checks only s.pkt.LSUpdate, so an LSAck out eth1 passes.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c27). The &#39;not acknowledged&#39; clause is now asserted: lsdb/rfc5250_type9_ack_test.go receives a Type 9 from 2.2.2.2 on eth0 through ReceiveUpdate (eth0, eth1 in area 0, Full neighbors), flushes both interfaces&#39; delayed acks and decodes the sent packets. + TestRFC5250Type9AcknowledgedOnArrivalInterface: an LSAck carrying the header leaves eth0 (same-interface case); - TestRFC5250Type9NotAcknowledgedOnOtherInterface: no LSAck and no LS Update carrying it leaves eth1. Judge replayed overlays on flooding.go ackForReceive: ack queued on eth1 -&gt; + and - red (&#39;acknowledged out eth1&#39;); ack dropped -&gt; only + red. Discard clause: TestOpaqueType9WrongInterfaceDiscarded (not in the eth1 store, not flooded, not retransmit-queued), now with + and - revert records on link_scope.go installLinkLocked. All four records observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L120" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L120" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go#L69" title="internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type9NotAcknowledgedOnOtherInterface</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L116" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L116" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go#L57" title="internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type9AcknowledgedOnArrivalInterface</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -505,17 +557,17 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L207" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L207" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L63" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L63" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L203" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L203" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -530,12 +582,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L152" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L152" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_scope_test.go#L161" title="internal/plugins/ospf/lsdb/opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L161" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -550,12 +602,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_flood_test.go#L42" title="internal/plugins/ospf/lsdb/opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L42" title="internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_flood_test.go#L38" title="internal/plugins/ospf/lsdb/opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L38" title="internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -570,7 +622,7 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/lsa_opaque_test.go#L19" title="internal/plugins/ospf/packet/lsa_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueLinkStateIDSplit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go#L19" title="internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueLinkStateIDSplit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -579,38 +631,58 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a></h3>
 <p>the O-bit SHOULD NOT be set and MUST be ignored when received in packets other than Database Description packets. (§3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The negative in dd_opaque_test.go asserts a neighbor is not opaque-capable after Hellos, but HelloInput carries no Options field and the Hellos carry no O-bit, so no non-DD packet with the O-bit set is ever received: a NAS that read the O-bit from a Hello is not driven. The quoted &#34;SHOULD NOT be set&#34; clause (no O-bit sent in non-DD packets) has no assertion either.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c28). New rfc5250_obit_hello_test.go: real engine, opaque on, p2p eth0, recording transport; a wire Hello from 10.0.0.2 with Options E|O dispatched through eng.dispatch, waits for a sent Hello and a sent DD (both required, so not vacuous). + TestRFC5250HelloSentWithoutOBit (SHOULD NOT be set): every sent Hello has O clear while the DD has O set; - TestRFC5250HelloOBitIgnoredOnReceipt (MUST be ignored): neighbor 10.0.0.2 not OpaqueCapable after the O-bit Hello with no DD from it. Author overlay logs read (c28/o6, o7): Hello built with O -&gt; + red only (&#39;options 0x42&#39;); neighbor Options get O on Hello -&gt; - red only. HelloInput carries no Options, so today the received O-bit is dropped at the engine boundary; the end-to-end negative catches any future path that carries it into the neighbor. HEAD dd_opaque_test units (DD O-bit learned / Hello exchange) stay as supplementary. Revert records on buildHelloPacketLocked and neighbor/table.go hello observed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_opaque_test.go#L63" title="internal/plugins/ospf/neighbor/dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L63" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloOBitIgnoredOnReceipt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go#L74" title="internal/plugins/ospf/neighbor/rfc5250_dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_opaque_test.go#L74" title="internal/plugins/ospf/neighbor/dd_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueBitIgnoredOutsideDD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L77" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloSentWithoutOBit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a></h3>
 <p>(2) When processing a received type-11 Opaque LSA, the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The unit replaces eng.opaqueReachableFn with a stub keyed on router ID and checks deliverOpaque reports Reachable accordingly. The sentence obliges a lookup of the routing table entries for the originating ASBR; the seam is faked, so a predicate that never consulted the routing table (or looked up the router rather than the ASBR entry) stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c12) after the D-8 fix. Section 5 (2): &#39;the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.&#39; Producer: spf/reachability.go ASBRReachable reads the SPF border entries of Kind asbr (intra-area Router-LSA E-bit, interarea.go intraAreaBorderRouters; inter-area Type-4 summaries, interarea.go:157), finite metric and a next hop, the same entries the Type-5 calculation reads (external.go); Computer.ASBRReachable gates on the config generation; opaque.go spfASBRReachable is the only production caller (grep: no other RouterReachable user changed; bgpls_export and nssa keep ReachabilitySnapshot.RouterReachable/RouterReachableAny). TestRFC5250Type11LooksUpOriginatorRoutingEntry over the engine&#39;s own seam: - pending SPF, reached router without the E-bit, unreached 10.0.0.9 all delivered not usable; + the same router re-originated with the E-bit is usable. Judge overlay (go test -overlay) restoring the old RouterReachableAny answer in Computer.ASBRReachable: red at the no-E-bit negative (scratch/judge-ospf-5250mut.log); author&#39;s red at HEAD agrees. Records +/- revert on ASBRReachable observed. The inter-area Type-4 source is not driven by this unit; it feeds the same border slice. opaque_reachability_test.go tags are supplementary (injected predicate). Related defect reported to the main thread: Ze does not set its own E-bit when it originates Type-11 LSAs (lsdb selfIsASBRLocked counts only Type-5/7), against Section 5 (1), so another Ze router now treats those LSAs as unusable.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/opaque_reachability_test.go#L44" title="internal/plugins/ospf/opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L44" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/opaque_reachability_test.go#L51" title="internal/plugins/ospf/opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L65" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L51" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -619,33 +691,78 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a></h3>
 <p>It also MUST discontinue using all Opaque LSAs injected into the network by the same originator whenever it is detected that the originator is unreachable. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: continuing to use Opaque LSAs already delivered from an originator once it becomes unreachable. The tagged positive delivers one LSA from an unreachable and one from a reachable originator; no unit delivers from an originator, flips it unreachable, and asserts its earlier LSAs stop being used, so a consumer holding stale Reachable=true data stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c11). D-8 fixed at the producer: the Extended Prefix receiver cached usable at delivery (extRecvEntry.usable), so a Type-11 entry stayed usable in `show` after its originator became unreachable; the entry now stores scope only and ext_prefix.go::extPrefixUsable (RFC quote above the return) judges it at every read, snapshot deriving it after releasing the receiver lock. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: + two Type-11 LSAs (Opaque IDs 1, 2) from 2.2.2.2 usable while reachable; - the seam flips unreachable, no new LSA, both rows unusable through extOpaqueDecode (the show path). An overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) making extPrefixUsable return true for AS scope turns the negative red (and TestExtPrefixType11UnreachableUnusable). Revert records on extPrefixUsable observed red. The row&#39;s false {single-polarity} annotation (&#39;never cached&#39;) was removed; the quote is unchanged. The TED consumer already judged at read time (te_ted.go usableLocked).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/opaque_reachability_test.go#L52" title="internal/plugins/ospf/opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L51" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_opaque_reachability_test.go#L52" title="internal/plugins/ospf/rfc5250_opaque_reachability_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11UnreachableOriginatorNotUsable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a></h3>
-<p>The router MUST list the contents of its entire area link-state database in the neighbor Database summary list. The area link-state database consists of the Router LSAs, Network LSAs, Summary LSAs, type-9 Opaque LSAs, and type-10 Opaque LSAs contained in the area structure, along with AS External and type-11 Opaque LSAs contained in the global structure. (§3.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The normal-area summary is asserted to list type-10, type-5 and type-11 LSAs (TestRFC5250SummaryListsOpaqueAndGlobalLSAs). The quoted list also names type-9 Opaque LSAs and Router, Network and Summary LSAs, and no tagged unit asserts any of them in the Database summary list; the tagged negative is the stub/NSSA omission of RFC5250-3.2-3.</p>
+<h3><a href="#rfc5250-5-3"><code>RFC5250-5-3</code></a></h3>
+<p>(1) An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF]. (§5)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 (independent judge, ospf c13). Section 5 (1): &#39;An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF].&#39; RFC 2328 Section 12.1.2: the E-bit &#39;should also be set in all AS-external-LSAs&#39;. Producers: lsdb/origination.go selfIsASBRLocked now scans d.asOpaque (self, non-purged); lsdb/opaque_as.go OriginateOpaque ORs OptionE into every Type-11 header. Production refreshes the Router-LSA on every origination tick (instance.go ticker -&gt; originateSelfLSAs -&gt; OriginateFromTopology), so the E-bit follows a Type-11 origination or withdrawal within one tick. lsdb TestRFC5250Type11OriginatorAdvertisesASBR: - Router-LSA E clear with nothing, with Type-10 only, and after the only Type-11 is withdrawn; + Type-11 header Options carries E although the caller passed only O, and Router-LSA E set. Two-router TestRFC5250TwoRoutersType11OriginatorReachable: router A&#39;s own originated Router-LSA installed on engine B, B&#39;s SPF runs, deliverOpaque judges A&#39;s Type-11: unusable before A originates it, usable after (the end-to-end consequence of 5 (1) against the 5 (2) receiver). Judge overlays observed red for the right reason: dropping !e.purged from the asOpaque scan reds the withdrawn negative (&#39;E-bit still set after the only Type-11 opaque LSA was withdrawn&#39;); dropping the OptionE set reds the header assertion (&#39;Options 0x40 lack the E-bit&#39;). Recorded revert breaks on selfIsASBRLocked are panic halts. The Router-LSA is carried by Install, not over the wire: the encode/flood path is not exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L58" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go#L45" title="internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11OriginatorAdvertisesASBR</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L24" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go#L59" title="internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11OriginatorAdvertisesASBR</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_originator_test.go#L115" title="internal/plugins/ospf/rfc5250_asbr_originator_test.go" target="_blank" rel="noopener"><code>TestRFC5250TwoRoutersType11OriginatorReachable</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a></h3>
+<p>The router MUST list the contents of its entire area link-state database in the neighbor Database summary list. The area link-state database consists of the Router LSAs, Network LSAs, Summary LSAs, type-9 Opaque LSAs, and type-10 Opaque LSAs contained in the area structure, along with AS External and type-11 Opaque LSAs contained in the global structure. (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Production path databaseSummaryLocked over a real lsdb.LSDB at ExStart: positive lists all eight named types (Router, Network, Summary 3 and 4, type-9 on its interface, type-10, AS External, type-11); negative shows area 0.0.0.4&#39;s Router and type-10 and eth9&#39;s type-9 absent and the list exactly 8. Judge overlays: dropping link LSAs, Router or Network LSAs turns the positive red; appending another area&#39;s Router LSA turns only the negative red. Records observed red on databaseSummaryLocked; the lsdb units stay as supplementary.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L58" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go#L124" title="internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L24" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go#L111" title="internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsEntireAreaDatabase</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -680,12 +797,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L27" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L27" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go#L54" title="internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L54" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -700,12 +817,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go#L61" title="internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherInterfaceType9</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go#L61" title="internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherInterfaceType9</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go#L33" title="internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOwnInterfaceType9</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go#L33" title="internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOwnInterfaceType9</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -737,10 +854,10 @@ Same OSPF experimental status.
 <td>rfc/extraction/rfc5250.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>12</td>
+<td>13</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>10</td>
+<td>9</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -915,11 +1032,6 @@ Same OSPF experimental status.
 <td>Same reproduced RFC 2328 Section 10.3 paragraph: the MaxAge advertisement goes on the neighbor&#39;s retransmission list, unmodified base text with no opaque content.</td>
 <td>It MUST instead be added to the neighbor&#39;s link-state retransmission list.</td>
 </tr>
-<tr><td><code>5:1</code></td>
-<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
-<td>The obligation named is &#39;the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF]&#39;, which is RFC 2328&#39;s ASBR E-bit rule.</td>
-<td>(1) An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF].</td>
-</tr>
 <tr><td><code>5:3</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Same numbered procedure (2): RFC5250-5-1 states both the routing-table lookup and &#39;if unreachable, do nothing with the LSA&#39;.</td>
@@ -976,7 +1088,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

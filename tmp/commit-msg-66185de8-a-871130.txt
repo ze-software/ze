@@ -1,0 +1,5 @@
+site: republish the generated tree
+
+Regenerated site output: new plugin and command-equivalent reference
+pages, the chaos dashboard image, refreshed data files and llms text,
+and the one-bgp-update-many-peers article withdrawn from the blog.

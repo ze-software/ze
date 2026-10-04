@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 0.0% | 0 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 16.7% | 1 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 1 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 1 | of 6 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 1 |
-| Tagged units | 1 |
+| Test tags | 2 |
+| Tagged units | 2 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc7012.md` |
 | Requirement shard | `rfc/requirements/rfc7012.md` |
 | RFC text | `rfc/full/rfc7012.txt` |
@@ -88,14 +82,15 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 6 | one part of the gated population |
+| Annotated (including scoped evidence) | 6 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (6):** [`RFC7012-2.1-1`](#rfc7012-2.1-1), [`RFC7012-2.1-2`](#rfc7012-2.1-2), [`RFC7012-2.1-3`](#rfc7012-2.1-3), [`RFC7012-2.1-5`](#rfc7012-2.1-5), [`RFC7012-4-1`](#rfc7012-4-1), [`RFC7012-4-2`](#rfc7012-4-2)
+**Annotated (including scoped evidence) (6):** [`RFC7012-2.1-1`](#rfc7012-2.1-1), [`RFC7012-2.1-2`](#rfc7012-2.1-2), [`RFC7012-2.1-3`](#rfc7012-2.1-3), [`RFC7012-2.1-5`](#rfc7012-2.1-5), [`RFC7012-4-1`](#rfc7012-4-1), [`RFC7012-4-2`](#rfc7012-4-2)
 
 ## Requirements
 
@@ -105,7 +100,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC7012-2.1-2` | Enterprise-specific Information Elements MUST have the following property defined: enterpriseId (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs; every field specifier it writes is an IANA IE with the E bit clear (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
 | `RFC7012-2.1-3` | If specifications of enterprise-specific Information Elements are made public and/or if enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise- specific identifier MUST be made globally unique by combining it with an enterprise identifier. (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs and never pairs an identifier with an enterprise number, so it publishes no enterprise-specific identifier to make unique (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
 | `RFC7012-2.1-5` | values for this Information Element outside the range are invalid and MUST NOT be exported. (Section 2.1) | MUST NOT | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** none of the IEs the exporter writes has a Range in the IANA IPFIX registry (elements 1, 2, 4, 7, 8, 10, 11, 12, 14, 16, 17, 27, 28, 85, 86 and 150 to 153, checked against ipfix-information-elements.csv on 2026-09-24; internal/plugins/flowexport/ipfix/ie.go), so no out-of-range value exists to withhold |
-| `RFC7012-4-1` | The values of these identifiers are in the range of 1-32767. Within this range, Information Element identifier values in the sub-range of 1-127 are compatible with field types used by NetFlow version 9 [RFC3954] for historical reasons. In general, IANA will add newly registered Information Elements to the registry, assigning the lowest available Information Element identifier in the range of 128-32767. Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. For enterprise-specific Information Elements, Information Element identifier 0 is also reserved. (Section 4) | MUST NOT | 4 - Information Element Identifiers | **positive:** `unit/verify` [`TestIPFIXFlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/flow_template_test.go#L9). **negative:** no negative test. **{single-polarity}:** ze's static templates reference only non-zero IANA IE IDs and it has no code path that constructs IE identifier 0 to drive a negative test |
+| `RFC7012-4-1` | The values of these identifiers are in the range of 1-32767. Within this range, Information Element identifier values in the sub-range of 1-127 are compatible with field types used by NetFlow version 9 [RFC3954] for historical reasons. In general, IANA will add newly registered Information Elements to the registry, assigning the lowest available Information Element identifier in the range of 128-32767. Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. For enterprise-specific Information Elements, Information Element identifier 0 is also reserved. (Section 4) | MUST NOT | 4 - Information Element Identifiers | **positive:** `unit/verify` [`TestIPFIXFlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7012_flow_template_test.go#L9). **positive:** `unit/verify` [`TestRFC7012EmittedIEIdentifiersInRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/integral_rfc7011_test.go#L104). **negative:** no negative test. **{single-polarity}:** ze's static templates reference only non-zero IANA IE IDs and it has no code path that constructs IE identifier 0 to drive a negative test |
 | `RFC7012-4-2` | Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. (Section 4) | MUST | 4 - Information Element Identifiers | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs, so no enterprise IE ID range applies to its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
 
 ## Gaps and untested MUSTs
@@ -158,11 +153,12 @@ No test carries RFC7012-2.1-5, so no unit is bound to it.
 
 The values of these identifiers are in the range of 1-32767. Within this range, Information Element identifier values in the sub-range of 1-127 are compatible with field types used by NetFlow version 9 [RFC3954] for historical reasons. In general, IANA will add newly registered Information Elements to the registry, assigning the lowest available Information Element identifier in the range of 128-32767. Enterprise-specific Information Element identifiers have the same range of 1-32767, but they are coupled with an additional enterprise identifier. For enterprise-specific Information Elements, Information Element identifier 0 is also reserved. (Section 4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. TestIPFIXFlowTemplate checks the E bit on all 11 fields (so ids stay <= 32767) but pins exact IE ids for only fields 0, 4 and 9. A template that emitted IE id 0 in any other field stays green, so the 'range of 1-32767' lower bound is not asserted for the emitted template. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row. TestRFC7012EmittedIEIdentifiersInRange walks every field specifier of all three emitted templates (counter, IPv4 flow, IPv6 flow) and requires the IE identifier word to be neither 0 nor above 32767, so a template referencing IE 0 in any field goes red (recorded).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPFIXFlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/flow_template_test.go#L9) | unit/verify | unproven |
+| positive | [`TestRFC7012EmittedIEIdentifiersInRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/integral_rfc7011_test.go#L104) | unit/verify | revert, verified |
+| positive | [`TestIPFIXFlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7012_flow_template_test.go#L9) | unit/verify | revert, verified |
 
 ### [`RFC7012-4-2`](#rfc7012-4-2)
 

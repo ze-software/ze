@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>4 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>8 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>13 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>4</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>4</strong><b>of 4 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>8</td>
+<td>13</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>8</td>
+<td>13</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>13</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md</code></td>
@@ -273,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -284,6 +286,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -310,6 +316,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L413" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictConfigChangedUsesConfigSubcode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L58" title="internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go" target="_blank" rel="noopener"><code>TestDraftBFDDisabledConfigChangeReleasesPendingSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L495" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictConfigChangedWithBFDDisabled</code></a></span></div>
 </div></td>
 </tr>
@@ -319,7 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L58" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestBFDSettingsStrictParse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L115" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestBFDStrictCapabilityInSentOpen</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L109" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestBFDSettingsStrictDisabledAdvertisesNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L116" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestBFDStrictCapabilityInSentOpen</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-bgp-bfd-strict-mode-10-1">DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1</code></td><td colspan="3"><span class="rfc-subject">To avoid deadlock when utilizing both BFD hold-down and BFD strict- mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10)</span></td></tr>
@@ -336,7 +345,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L16" title="internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go" target="_blank" rel="noopener"><code>TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L190" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictWithholdsKeepalive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L17" title="internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go" target="_blank" rel="noopener"><code>TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L289" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise</code></a></span></div>
 </div></td>
 </tr>
@@ -351,11 +362,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#draft-ietf-idr-bgp-bfd-strict-mode-4-1"><code>DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1</code></a></h3>
 <p>If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause 1 (MUST NOT occur with BfdEnabled FALSE) is enforced: TestSessionBFDStrictConfigChangedWithBFDDisabled calls raiseBFDStrictConfigChanged on an OpenSent session with BFD.Enabled false and asserts the state stays OpenSent and no message is written; raising Event 35 would take the fsm.go OpenSent arm (crc.Reset, change to Idle, Cease/Other Configuration Change on the wire), so both assertions go red. Clause 2 (the local system triggers a BfdAdminDown instead) has no discriminating assertion: the session has no pending BFD sub-state, where handleBFDEvent treats BfdAdminDown as a no-op, so a producer that raised no event at all, or any other inert event, passes. A case with a pending sub-state (SubStateOpenSentBfdUpPending, where BfdAdminDown advances) is needed to prove the substitution.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Draft Section 4 Event 35: &#34;If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead.&#34; session_bfd_strict.go raiseBFDStrictConfigChanged chooses AdminDown when disabled. All three carriers were read: session_bfd_strict_test.go TestSessionBFDStrictConfigChangedUsesConfigSubcode positively pins enabled Cease/Other Configuration Change and Idle; TestSessionBFDStrictConfigChangedWithBFDDisabled pins no event-side effect outside a pending substate; draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go TestDraftBFDDisabledConfigChangeReleasesPendingSession now checks BOTH pending substates, exact OpenConfirm/Established state, cleared substate and an actual KEEPALIVE. Thus suppressing Event 35 without substituting AdminDown fails rather than satisfying only the first sentence. The enabled/disabled inputs differ in the governing condition, and no unrelated malformed UPDATE confounds the outcome. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L58" title="internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go" target="_blank" rel="noopener"><code>TestDraftBFDDisabledConfigChangeReleasesPendingSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L495" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictConfigChangedWithBFDDisabled</code></a></td>
 <td>unit/verify</td>
@@ -371,7 +387,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-bgp-bfd-strict-mode-6-1"><code>DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1</code></a></h3>
 <p>A BGP speaker which supports capabilities advertisement and has BFD strict-mode enabled MUST include the BFD Strict-Mode Capability in its OPEN message. (§6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a speaker with strict-mode enabled sending an OPEN without capability 74. TestBFDSettingsStrictParse asserts only that parsePeerFromTree puts capability.BFDStrictMode in PeerSettings.Capabilities (peerAdvertisesBFDStrict walks that slice); no tagged assertion reads the OPEN message sendOpen builds, so a sendOpen that dropped or mis-encoded code 74 stays green. Negatives (TestBFDSettingsStrictDisabledAdvertisesNothing) likewise read the settings slice.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a strict-mode speaker sending an OPEN without capability 74. TestBFDStrictCapabilityInSentOpen builds peers from configuration and counts code-74 TLVs in the octets sendOpen writes: exactly one with bfd strict, zero with strict under a disabled bfd block and with a bfd block without strict. Red if sendOpen drops or duplicates 74 or emits it without strict-mode enabled. The settings-level units remain as supporting evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -381,8 +397,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L116" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestBFDStrictCapabilityInSentOpen</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L58" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestBFDSettingsStrictParse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L115" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestBFDStrictCapabilityInSentOpen</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -411,13 +437,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-bgp-bfd-strict-mode-10-2"><code>DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2</code></a></h3>
 <p>That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker. (§10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence is about BFD hold-down procedures. Both tagged units (TestSessionBFDStrictWithholdsKeepalive, TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise) build the session through newStrictSession, which passes a hold-down of 0 to newStrictSessionOn, so no tagged case has a hold-down configured. They prove that a Down BFD session does not stop the connection and OPEN exchange; a hold-down implementation that delayed the TCP connection or OPEN until the interval elapsed would leave every tagged assertion green. TestSessionBFDStrictHoldDownDelaysEstablishment configures 400 ms but is not tagged and asserts the delay, not that the connection is made during it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Draft Section 10: &#34;That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker.&#34; The preceding sentence requires the FSM enabled, while the following paragraph permits Established to wait for hold-down. TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN configures 400 ms, reads the actual local OPEN from an accepted connection, processes the remote OPEN/KEEPALIVE with an unadvanced FakeClock, and distinguishes Down pending from Up running hold-down. session_bfd_strict_test.go TestSessionBFDStrictWithholdsKeepalive and TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise confine the gate to negotiated strict mode. Producers advanceAfterOpen and bfdStrictHolds gate KEEPALIVE/establishment, not the already observed TCP/OPEN exchange. Delaying connection/OPEN until hold-down elapsed or bypassing the hold-down assertion fails. This closes the old zero-hold-down fixture gap without demanding Established prematurely. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L17" title="internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go" target="_blank" rel="noopener"><code>TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L289" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L16" title="internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go" target="_blank" rel="noopener"><code>TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -829,7 +865,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

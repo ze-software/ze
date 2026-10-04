@@ -302,7 +302,9 @@
       "bgp",
       "bgp-rib"
     ],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "bgp-rs"
+    ],
     "source_dir": "internal/component/bgp/plugins/gr",
     "yang_files": [
       "internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang"

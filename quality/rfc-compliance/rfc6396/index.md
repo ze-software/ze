@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 7.7% | 1 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 46.2% | 6 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 15.4% | 2 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 38.5% | 5 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 9 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 72.2% | 13 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,9 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 7.7% | 1 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 7 | of 13 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 7 | of 13 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,6 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -67,10 +69,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 9 |
-| Tagged units | 9 |
+| Test tags | 18 |
+| Tagged units | 18 |
 | Recorded audit verdicts | 7 |
-| Discrimination records | 0 |
+| Discrimination records | 13 |
 | Summary | `rfc/short/rfc6396.md` |
 | Requirement shard | `rfc/requirements/rfc6396.md` |
 | RFC text | `rfc/full/rfc6396.txt` |
@@ -95,33 +97,34 @@ One MUST gap gated in [`rfc/short/rfc6396.md`](https://github.com/ze-software/ze
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 12 | one part of the gated population |
+| Positive and negative tests | 2 | one part of the gated population |
+| Annotated (including scoped evidence) | 11 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (1):** [`RFC6396-4.3.4-1`](#rfc6396-4.3.4-1)
+**Positive and negative tests (2):** [`RFC6396-4.3.1-2`](#rfc6396-4.3.1-2), [`RFC6396-4.3.4-1`](#rfc6396-4.3.4-1)
 
-**Annotated instead of tested (12):** [`RFC6396-4.2-1`](#rfc6396-4.2-1), [`RFC6396-4.2-2`](#rfc6396-4.2-2), [`RFC6396-4.3.1-1`](#rfc6396-4.3.1-1), [`RFC6396-4.3.1-2`](#rfc6396-4.3.1-2), [`RFC6396-4.3.1-3`](#rfc6396-4.3.1-3), [`RFC6396-4.3.4-2`](#rfc6396-4.3.4-2), [`RFC6396-4.4.2-1`](#rfc6396-4.4.2-1), [`RFC6396-4.4.2-2`](#rfc6396-4.4.2-2), [`RFC6396-4.4.3-1`](#rfc6396-4.4.3-1), [`RFC6396-1-1`](#rfc6396-1-1), [`RFC6396-5.1-1`](#rfc6396-5.1-1), [`RFC6396-B.1-1`](#rfc6396-b.1-1)
+**Annotated (including scoped evidence) (11):** [`RFC6396-4.2-1`](#rfc6396-4.2-1), [`RFC6396-4.2-2`](#rfc6396-4.2-2), [`RFC6396-4.3.1-1`](#rfc6396-4.3.1-1), [`RFC6396-4.3.1-3`](#rfc6396-4.3.1-3), [`RFC6396-4.3.4-2`](#rfc6396-4.3.4-2), [`RFC6396-4.4.2-1`](#rfc6396-4.4.2-1), [`RFC6396-4.4.2-2`](#rfc6396-4.4.2-2), [`RFC6396-4.4.3-1`](#rfc6396-4.4.3-1), [`RFC6396-1-1`](#rfc6396-1-1), [`RFC6396-5.1-1`](#rfc6396-5.1-1), [`RFC6396-B.1-1`](#rfc6396-b.1-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC6396-4.2-1` | The AS_PATH attribute MUST only consist of 2-byte AS numbers. (§4.2) | MUST | 4.2 - TABLE_DUMP Type | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's RIB export always emits TABLE_DUMP_V2 (the Section 4.2 mandate) and never operationally writes TABLE_DUMP, so the 2-byte-AS_PATH-in-TABLE_DUMP obligation binds a writer role ze does not play (internal/mrt/encode.go:185 has no production caller) |
-| `RFC6396-4.2-2` | The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field.  The TABLE_DUMP_V2 Type MUST be used in these situations. (§4.2) | MUST | 4.2 - TABLE_DUMP Type | **positive:** `unit/verify` [`TestRibSubtype`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L17). **negative:** no negative test. **{single-polarity}:** ze's RIB dumper unconditionally emits TABLE_DUMP_V2 with AS4 peer entries, so it always satisfies the use-V2 mandate and there is no path that emits TABLE_DUMP to reject (internal/plugins/mrt/dump.go:113, :206) |
-| `RFC6396-4.3.1-1` | The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L162). **negative:** no negative test. **{single-polarity}:** the encoder writes View Name Length as len(viewName) and the producer always passes an empty name, so the length is 0 by construction (internal/mrt/encode.go:48, internal/plugins/mrt/dump.go:199) |
-| `RFC6396-4.3.1-2` | The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167). **negative:** no negative test. **{single-polarity}:** ze's PEER_INDEX_TABLE writer always emits an empty view name, which is trivially valid UTF-8, and no code path produces a non-UTF-8 view name (internal/plugins/mrt/dump.go:199, internal/mrt/encode.go:48-50) |
-| `RFC6396-4.3.1-3` | The RIB entry MRT records MUST immediately follow the PEER_INDEX_TABLE MRT record. (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestDumpV2PeerIndexBeforeFirstRIBEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L213). **negative:** no negative test. **{single-polarity}:** the RIB dump writes the PEER_INDEX_TABLE on the first OnRoute callback, before that route's RIB entry and before any other RIB record, guaranteeing the ordering (internal/plugins/mrt/dump.go:149-152) |
-| `RFC6396-4.3.4-1` | All AS numbers in the AS_PATH attribute MUST be encoded as 4-byte AS numbers. (§4.3.4) | MUST | 4.3.4 - RIB Entries | **positive:** `unit/verify` [`TestDumpV2RIBEntryASPathIs4Byte`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L244). **positive:** `unit/verify` [`TestRFC6396RIBEntryASPathStoredFourByte`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595). **negative:** `unit/verify` [`TestRFC6396RIBEntryASPathFourByteSessionUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623) |
+| `RFC6396-4.2-2` | The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field.  The TABLE_DUMP_V2 Type MUST be used in these situations. (§4.2) | MUST | 4.2 - TABLE_DUMP Type | **positive:** `unit/verify` [`TestRibSubtype`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17). **negative:** no negative test. **{single-polarity}:** ze's RIB dumper unconditionally emits TABLE_DUMP_V2 with AS4 peer entries, so it always satisfies the use-V2 mandate and there is no path that emits TABLE_DUMP to reject (internal/plugins/mrt/dump.go:113, :206) |
+| `RFC6396-4.3.1-1` | The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L165). **negative:** no negative test. **{single-polarity}:** the encoder writes View Name Length as len(viewName) and the producer always passes an empty name, so the length is 0 by construction (internal/mrt/encode.go:48, internal/plugins/mrt/dump.go:199) |
+| `RFC6396-4.3.1-2` | The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L170). **positive:** `unit/verify` [`TestRFC6396DumpProducerEmitsNoViewName`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_view_name_test.go#L18). **positive:** `unit/verify` [`TestRFC6396ViewNameUTF8`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L98). **negative:** `unit/verify` [`TestRFC6396ViewNameUTF8`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L99) |
+| `RFC6396-4.3.1-3` | The RIB entry MRT records MUST immediately follow the PEER_INDEX_TABLE MRT record. (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestDumpV2PeerIndexBeforeFirstRIBEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L213). **negative:** no negative test. **{single-polarity}:** the RIB dump writes the PEER_INDEX_TABLE on the first OnRoute callback, before that route's RIB entry and before any other RIB record, guaranteeing the ordering (internal/plugins/mrt/dump.go:149-152) |
+| `RFC6396-4.3.4-1` | All AS numbers in the AS_PATH attribute MUST be encoded as 4-byte AS numbers. (§4.3.4) | MUST | 4.3.4 - RIB Entries | **positive:** `unit/verify` [`TestDumpV2RIBEntryASPathIs4Byte`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L244). **positive:** `unit/verify` [`TestRFC6396RIBEntryASPathStoredFourByte`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595). **positive:** `unit/verify` [`TestRFC6396TwoByteSessionRouteDumpsFourByteASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99). **negative:** `unit/verify` [`TestRFC6396FourByteSessionRouteDumpsASPathUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115). **negative:** `unit/verify` [`TestRFC6396RIBEntryASPathFourByteSessionUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623) |
 | `RFC6396-4.3.4-2` | There is one exception to the encoding of BGP attributes for the BGP MP_REACH_NLRI attribute (BGP Type Code 14) [RFC4760].  Since the AFI, SAFI, and NLRI information is already encoded in the RIB Entry Header or RIB_GENERIC Entry Header, only the Next Hop Address Length and Next Hop Address fields are included.  The Reserved field is omitted. (§4.3.4) | MUST | 4.3.4 - RIB Entries | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's TABLE_DUMP_V2 RIB writer reconstructs a NEXT_HOP (type 3) attribute and never emits an MP_REACH_NLRI attribute in RIB entries, so the abbreviation obligation never binds ze's producer (internal/component/bgp/plugins/rib/rib_mrt.go:127-153) |
 | `RFC6396-4.4.2-1` | The BGP4MP_MESSAGE Subtype does not support 4-byte AS numbers.  The AS_PATH contained in these messages MUST only consist of 2-byte AS numbers. (§4.4.2) | MUST | 4.4.2 - BGP4MP_MESSAGE Subtype | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's live capture unconditionally emits the AS4 BGP4MP message subtype and never writes the 2-byte BGP4MP_MESSAGE (subtype 1), so the 2-byte-AS_PATH obligation binds a writer variant ze does not produce (internal/plugins/mrt/dump.go:240-250) |
-| `RFC6396-4.4.2-2` | Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2) | MUST | 4.4.2 - BGP4MP_MESSAGE Subtype | **positive:** `unit/verify` [`TestOneBGPMessagePerBGP4MPRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84). **negative:** no negative test. **{single-polarity}:** OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142) |
+| `RFC6396-4.4.2-2` | Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2) | MUST | 4.4.2 - BGP4MP_MESSAGE Subtype | **positive:** `unit/verify` [`TestOneBGPMessagePerBGP4MPRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_component_test.go#L84). **positive:** `unit/verify` [`TestRFC6396WireCaptureIgnoresSemanticSynthesis`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L48). **positive:** `unit/verify` [`TestRFC6396WireMessagesNeverCoalesce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L91). **negative:** no negative test. **{single-polarity}:** OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142) |
 | `RFC6396-4.4.3-1` | The AS_PATH in these messages MUST only consist of 4-byte AS numbers. (§4.4.3) | MUST | 4.4.3 - BGP4MP_MESSAGE_AS4 Subtype | **positive:** no positive test. **negative:** no negative test. **{gap}:** the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session's 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24) |
-| `RFC6396-1-1` | Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet. (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestCommonHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24). **negative:** no negative test. **{single-polarity}:** all MRT encode and decode use binary.BigEndian throughout and round-trip byte-for-byte, with no alternate-endianness path (internal/mrt/encode.go:7, decode.go) |
+| `RFC6396-1-1` | Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet. (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestCommonHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24). **positive:** `unit/verify` [`TestRFC6396NumericFieldsUseExternalNetworkOrder`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L14). **positive:** `unit/verify` [`TestRFC6396RemainingNumericFields`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_remaining_fields_test.go#L13). **negative:** no negative test. **{single-polarity}:** encoders have no alternate-endianness mode to refuse. TestRFC6396NumericFieldsUseExternalNetworkOrder asserts exact external octets for PEER_INDEX_TABLE, RIB and BGP4MP fields and decodes independent literal input; the common-header test separately pins its four numeric fields |
 | `RFC6396-5.1-1` | New Type Codes MUST be allocated starting at 65. (§5.1) | MUST | 5.1 - Type Codes | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes |
 | `RFC6396-B.1-1` | The message string encoding MUST follow the UTF-8 transformation format [RFC3629]. (§B.1) | MUST | B.1 - Deprecated MRT Informational Types | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16) |
 | `RFC6396-4.2-3` | It is RECOMMENDED that new MRT encoding implementations use the TABLE_DUMP_V2 Type (see below) instead of the TABLE_DUMP Type due to limitations in this type. (§4.2) | SHOULD | 4.2 - TABLE_DUMP Type | **positive:** no positive test. **negative:** no negative test |
@@ -168,27 +171,30 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRibSubtype`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L17) | unit/verify | unproven |
+| positive | [`TestRibSubtype`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17) | unit/verify | unproven |
 
 ### [`RFC6396-4.3.1-1`](#rfc6396-4.3.1-1)
 
 The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. (§4.3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an absent view name with a nonzero View Name Length. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName writes a PEER_INDEX_TABLE with an empty view name and asserts binary.BigEndian.Uint16(buf[4:6]) == 0, which goes red on any nonzero length. Single-polarity positive marker on the row: the encoder derives the length from len(viewName), so no absent-name-with-length input exists to reject.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent MRTJudge 2026-10-02, rejudged changed checked-encoder call. RFC6396 section 4.3.1: The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. TestPeerIndexTableEmptyViewName asserts the actual encoded two octets at offset 4 are zero and decoded name empty; errors from the migrated encoder are checked. The production writePeerIndexTable passes an empty string; the additional dump-producer test inspected under 4.3.1-2 pins the entire emitted empty-name PIT body. Single-positive annotation is valid because no independently supplied absent-name length exists. Native record disables WritePeerIndexTable; enforcement rests on the zero-field assertion, not the panic.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L162) | unit/verify | unproven |
+| positive | [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L165) | unit/verify | revert, verified |
 
 ### [`RFC6396-4.3.1-2`](#rfc6396-4.3.1-2)
 
 The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. (§4.3.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a View Name that is not UTF-8. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName only writes the empty name, and its utf8.ValidString assertion cannot go red on that input because the empty string is always valid UTF-8. The unit calls the encoder directly and does not drive the producer (internal/plugins/mrt/dump.go), so a producer or encoder that emitted a non-UTF-8 name would stay green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent MRTJudge 2026-10-02. RFC6396 section 4.3.1: The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. TestRFC6396ViewNameUTF8 positively pins nonempty ASCII and multibyte UTF-8 literal octets and byte length on encode and independent decode; negative inputs isolate illegal leading byte, overlong form, surrogate, out-of-range code point and truncated sequence, requiring encoder error/zero count/untouched buffer and decoder error. Removing either utf8 validation fails the relevant negative assertions. TestRFC6396DumpProducerEmitsNoViewName reaches writeTableDumpV2/writePeerIndexTable and compares exact full PIT body, so invalid production name insertion cannot hide behind the old vacuous empty-string test. Retained empty-name tagged test is supplementary. Native records for both codec polarities and actual producer are present; their panic breaks prove reachability only, while the inspected assertions establish this verdict.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167) | unit/verify | unproven |
+| negative | [`TestRFC6396ViewNameUTF8`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L99) | unit/verify | revert, verified |
+| positive | [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L170) | unit/verify | revert, verified |
+| positive | [`TestRFC6396ViewNameUTF8`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L98) | unit/verify | revert, verified |
+| positive | [`TestRFC6396DumpProducerEmitsNoViewName`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_view_name_test.go#L18) | unit/verify | revert, verified |
 
 ### [`RFC6396-4.3.1-3`](#rfc6396-4.3.1-3)
 
@@ -198,19 +204,21 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestDumpV2PeerIndexBeforeFirstRIBEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L213) | unit/verify | unproven |
+| positive | [`TestDumpV2PeerIndexBeforeFirstRIBEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L213) | unit/verify | unproven |
 
 ### [`RFC6396-4.3.4-1`](#rfc6396-4.3.4-1)
 
 All AS numbers in the AS_PATH attribute MUST be encoded as 4-byte AS numbers. (§4.3.4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a TABLE_DUMP_V2 RIB entry whose AS_PATH carries 2-byte AS numbers (a route from a 2-byte session). internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte proves ingest widens a 2-byte AS_PATH, and ::TestRFC6396RIBEntryASPathFourByteSessionUnchanged proves no double widening. internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte feeds an AS_PATH that is already 4-byte, so it proves only that the writer copies bytes unchanged. No tagged unit drives a 2-byte-session route through the RIB into a written RIB entry. The link between the widened value and the MRT output is claimed in prose only, so an MRT path that read unwidened bytes would stay green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. rib TestRFC6396TwoByteSessionRouteDumpsFourByteASPath drives a 2-byte-session UPDATE (AS_SEQ 65001 65002, 2-octet) through wireu.CollapseAS4Family, the RIB received-UPDATE entry (context stays ASN4=false), dumpRIBForMRT, the internal/mrt RIB writers and DecodeRIBRecord: the entry AS_PATH is 4-octet. Negative TestRFC6396FourByteSessionRouteDumpsASPathUnchanged: a 4-byte session path with AS 200000 is written octet-equal (no second widening, no narrowing). mrt TestDumpV2RIBEntryASPathIs4Byte (claim reworded to what it asserts) proves writeTableDumpV2 keeps a 4-byte path. Records observed red on revert of CollapseAS4Family, reconstructWireAttrs and writeTableDumpV2. Limit: the rib test composes the record with the same internal/mrt writers the MRT plugin calls rather than the plugin itself; the plugin half is the mrt unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC6396FourByteSessionRouteDumpsASPathUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115) | unit/verify | revert, verified |
 | negative | [`TestRFC6396RIBEntryASPathFourByteSessionUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623) | unit/verify | unproven |
+| positive | [`TestRFC6396TwoByteSessionRouteDumpsFourByteASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99) | unit/verify | revert, verified |
 | positive | [`TestRFC6396RIBEntryASPathStoredFourByte`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595) | unit/verify | unproven |
-| positive | [`TestDumpV2RIBEntryASPathIs4Byte`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L244) | unit/verify | unproven |
+| positive | [`TestDumpV2RIBEntryASPathIs4Byte`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L244) | unit/verify | revert, verified |
 
 ### [`RFC6396-4.3.4-2`](#rfc6396-4.3.4-2)
 
@@ -232,11 +240,13 @@ No test carries RFC6396-4.4.2-1, so no unit is bound to it.
 
 Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: more than one BGP message in one BGP4MP message record. internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord makes one OnBGPMessage call and asserts one record whose body equals that message. With a single input message there is nothing to coalesce, so a writer that batched consecutive messages into one record would stay green. A second call is needed before the assertion can fail.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 6396 §4.4.2: "Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype." In the surrounding paragraph the subtype is transparent to the actual message; the earlier paragraph includes marker, length and type. All three current tagged carriers now discriminate original-message boundaries: internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord sends KEEPALIVE/unequal-length UPDATE/KEEPALIVE and demands exactly three byte-identical records; internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis requires exactly one original packet despite two synthetic withdrawals or session reset; TestRFC6396WireMessagesNeverCoalesce requires the two unequal original packets while semantic delivery coalesces. Producers session_wire.go::observeReceivedWire and internal/plugins/mrt/component.go::OnBGPMessage observe/copy the complete original frame, not reconstructed semantic callbacks; internal/mrt/encode.go::WriteBGP4MPMessage writes one frame. Exact counts and bytes would reject merging, splitting, reconstruction or loss. The declared single positive polarity is justified for a producer cardinality invariant; these are not malformed-input rejection claims. This source judgment closes the prior one-call-only proof gap, not the separate AS4-width gap, nor a claim that runtime renewal has run. Post-lint rejudgment 2026-10-04: TestRFC6396WireMessagesNeverCoalesce retains unequal original frames, exact two-element byte equality and one semantic delivery; checked pipe closes cannot weaken those assertions. dispatchObservedWire now borrows an immutable seven-field epoch identity from Peer.runOnce and constructs call-local metadata before applying context ASN and actual transport/local-AS overrides. The changed cardinality carriers use recordSessionWire -> notifyWireMessage directly, not dispatchObservedWire; they must not claim proof of epoch identity. The untagged directional OPEN, migration and collision tests remain separate evidence.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestOneBGPMessagePerBGP4MPRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84) | unit/verify | unproven |
+| positive | [`TestRFC6396WireCaptureIgnoresSemanticSynthesis`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L48) | unit/verify | revert, verified |
+| positive | [`TestRFC6396WireMessagesNeverCoalesce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L91) | unit/verify | revert, verified |
+| positive | [`TestOneBGPMessagePerBGP4MPRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_component_test.go#L84) | unit/verify | revert, verified |
 
 ### [`RFC6396-4.4.3-1`](#rfc6396-4.4.3-1)
 
@@ -250,11 +260,13 @@ No test carries RFC6396-4.4.3-1, so no unit is bound to it.
 
 Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet. (§1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: any multi-octet MRT field written little-endian. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip byte-asserts MSB-first order only for the four common-header fields (Timestamp, Type, Subtype, Length). No tagged assertion covers the PEER_INDEX_TABLE, RIB entry or BGP4MP multi-octet fields (Peer AS, View Name Length, Peer Count, Sequence Number, Entry Count, Originated Time, Interface Index), so a little-endian writer for any of them that round-trips through a matching decoder stays green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent final source rejudgment after formatting. RFC 6396 section 1: "Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet." The following sentence separately preserves routing-message field order; this row is the numeric-order sentence, not an assertion of every encapsulated protocol's semantics. Q1 yes: all three tagged units assert external network order rather than accepting a mutually wrong encoder/decoder roundtrip. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip checks the exact timestamp/type/subtype/length octets before decoding them. internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder independently constructs PIT name-length/count/AS2/AS4, RIB sequence/count/index/time/attribute-length and BGP4MP AS2/AS4/interface/AFI octets, compares writer output, then decodes the literals. internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields independently pins ET microseconds, both FSM state fields and AS widths, RIB_GENERIC sequence/AFI, and TABLE_DUMP view/sequence/time/ASN/attribute-length under both address widths. Q2 yes by source: asymmetric values and exact lengths/bytes/decoded values reject endian reversal, missing fields and offset shifts; formatted multi-line conditionals retain their failures. No runtime execution or renewed discrimination is claimed. Q3 yes for numeric layout: independent expected buffers and structural lengths reach the intended fields. Opaque repeated attribute bytes are not evidence of BGP attribute validity and are not parsed as such by these MRT envelope readers. Q4 yes across the implemented base-RFC numeric envelope fields; the three carriers are complementary, not each whole-scope alone. RFC 8050 Path Identifiers and RFC 6397 geolocation are separately specified extensions. Read internal/mrt/encode.go numeric writers and internal/mrt/decode.go readers: their 16/32-bit numeric operations are big-endian, while address and message octets are copied unchanged. The declared single positive polarity is appropriate to an encoder layout invariant without an alternate-endianness mode to reject. This judgment does not erase the separate RFC6396-4.4.3-1 AS_PATH-width gap.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestCommonHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24) | unit/verify | unproven |
+| positive | [`TestRFC6396RemainingNumericFields`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_remaining_fields_test.go#L13) | unit/verify | revert, verified |
+| positive | [`TestRFC6396NumericFieldsUseExternalNetworkOrder`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L14) | unit/verify | revert, verified |
 
 ### [`RFC6396-5.1-1`](#rfc6396-5.1-1)
 

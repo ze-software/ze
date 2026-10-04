@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>7.7%</strong><b>1 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 4 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>12</td>
+<td>13</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>12</td>
+<td>13</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6286.md</code></td>
@@ -272,7 +278,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -283,6 +289,10 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -297,7 +307,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc6286-2.2-1"><code>RFC6286-2.2-1</code></a>, <a href="#rfc6286-2.2-2"><code>RFC6286-2.2-2</code></a>, <a href="#rfc6286-2.3-1"><code>RFC6286-2.3-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc6286-2.1-1"><code>RFC6286-2.1-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -318,7 +328,8 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>SHOULD</td>
 <td>2.1 - Definition of the BGP Identifier</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6286-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/routerid_unique_test.go#L453" title="internal/component/bgp/reactor/routerid_unique_test.go" target="_blank" rel="noopener"><code>TestRouterIDClaimConcurrentOnlyOneWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_unique_within_as_test.go#L24" title="internal/component/bgp/reactor/rfc6286_unique_within_as_test.go" target="_blank" rel="noopener"><code>TestRFC6286LocalIdentifierUniqueWithinItsAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_routerid_unique_test.go#L453" title="internal/component/bgp/reactor/rfc6286_routerid_unique_test.go" target="_blank" rel="noopener"><code>TestRouterIDClaimConcurrentOnlyOneWins</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the negative case -- ze accepting a duplicate -- is the operator-selected `bgp/session/allow-shared-router-id true` path, which is conformant precisely because the requirement is a lowercase &#34;should&#34;, so there is no violation for a negative test to catch. Enforcement is proven by TestRouterIDClaimConcurrentOnlyOneWins and the TestRouterIDConflict* family; the opt-out by TestValidateOpenAllowSharedRouterID</p></td>
 </tr>
@@ -327,9 +338,9 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>MUST</td>
 <td>2.2 - Open Message Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6286-2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L105" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L105" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L445" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L163" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L163" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
 </div></td>
 </tr>
@@ -338,9 +349,9 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>MUST</td>
 <td>2.2 - Open Message Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6286-2.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L107" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L107" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L449" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L109" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L109" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L451" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
 </div></td>
 </tr>
@@ -349,8 +360,8 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>MUST</td>
 <td>2.3 - Connection Collision Resolution</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6286-2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L606" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L610" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L609" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L613" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -379,15 +390,20 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 </div>
 <h3><a href="#rfc6286-2.1-2"><code>RFC6286-2.1-2</code></a></h3>
 <p>The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. (Section 2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) identifiers within one AS that are not unique, including this speaker&#39;s own identifier shared with a speaker of its AS; (b) TestRouterIDClaimConcurrentOnlyOneWins goes red only when two REMOTE peers of one AS presenting one identifier are both accepted (require.ErrorAs routerIDConflictError, accepted == 1). No tagged assertion covers the local identifier colliding with a speaker of its own AS, so that half of &#39;unique within an AS&#39; stays unproven under this tag (the Section 2.2 internal-peer rejection is tagged to RFC6286-2.2-2 only). Single-polarity marker.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. {single-polarity: positive} valid: lowercase should, the duplicate is the operator&#39;s allow-shared-router-id opt-out. Both halves of &#39;unique within an AS&#39; now covered: remote peers by TestRouterIDClaimConcurrentOnlyOneWins (accepted == 1, routerIDConflictError); this speaker&#39;s own identifier by TestRFC6286LocalIdentifierUniqueWithinItsAS, which presents the local identifier 0x01020301 from an internal peer (AS 65001 both sides) on handleOpen and requires ErrBadBGPIdentifier, NOTIFICATION 2/3 on the wire and no OpenConfirm. Producer read: Open.ValidateBGPIdentifier (internal &amp;&amp; id == localID). Judge break (overlay, open.go: the self check gated on !internal) turned the new unit red, the remote-peer unit green. Revert record on ValidateBGPIdentifier for the new unit; the HEAD unit still carries no record (proof by reading: the exact accepted == 1 assertion).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/routerid_unique_test.go#L453" title="internal/component/bgp/reactor/routerid_unique_test.go" target="_blank" rel="noopener"><code>TestRouterIDClaimConcurrentOnlyOneWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_routerid_unique_test.go#L453" title="internal/component/bgp/reactor/rfc6286_routerid_unique_test.go" target="_blank" rel="noopener"><code>TestRouterIDClaimConcurrentOnlyOneWins</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_unique_within_as_test.go#L24" title="internal/component/bgp/reactor/rfc6286_unique_within_as_test.go" target="_blank" rel="noopener"><code>TestRFC6286LocalIdentifierUniqueWithinItsAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -410,12 +426,12 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L105" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L105" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L163" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L163" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -435,7 +451,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L109" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L109" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -445,7 +461,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L107" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L107" title="internal/component/bgp/reactor/rfc6286_session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -460,12 +476,12 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L610" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L613" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L606" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L609" title="internal/component/bgp/reactor/collision_test.go" target="_blank" rel="noopener"><code>TestDetectCollisionEqualIdentifierPrefersLargerAS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -635,7 +651,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

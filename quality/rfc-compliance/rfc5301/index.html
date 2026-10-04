@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,6 +120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>7 of 7 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
@@ -131,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -157,6 +159,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -265,7 +271,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -276,6 +282,10 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -301,8 +311,8 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5301-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L110" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L166" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L110" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L166" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1133" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkISISDynamicHostname</code></a></span></div>
 </div></td>
 </tr>
@@ -311,8 +321,8 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5301-3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L114" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L125" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L114" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L125" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5301-3-6">RFC5301-3-6</code></td><td colspan="3"><span class="rfc-subject">Value - a string of 1 to 255 bytes (Section 3)</span></td></tr>
@@ -320,8 +330,8 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5301-3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L118" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L162" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L118" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L162" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L100" title="test/isis/isis-hostname-ascii.ci" target="_blank" rel="noopener"><code>isis-hostname-ascii.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1137" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkISISDynamicHostname</code></a></span></div>
 </div></td>
@@ -331,9 +341,9 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5301-3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L149" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/cli/cmd_validate_startup_agreement_test.go#L43" title="internal/component/config/cli/cmd_validate_startup_agreement_test.go" target="_blank" rel="noopener"><code>TestLoadConfigRefusesAnISISHostnameOutside7BitASCII</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L153" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L149" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/cli/rfc5301_cmd_validate_startup_agreement_test.go#L43" title="internal/component/config/cli/rfc5301_cmd_validate_startup_agreement_test.go" target="_blank" rel="noopener"><code>TestLoadConfigRefusesAnISISHostnameOutside7BitASCII</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L153" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L55" title="test/isis/isis-hostname-ascii.ci" target="_blank" rel="noopener"><code>isis-hostname-ascii.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-startup-refused.ci#L16" title="test/isis/isis-hostname-startup-refused.ci" target="_blank" rel="noopener"><code>isis-hostname-startup-refused.ci</code></a></span></div>
 </div></td>
@@ -343,8 +353,8 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>MUST NOT</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5301-3-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L121" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L80" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L121" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L80" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5301-3-9">RFC5301-3-9</code></td><td colspan="3"><span class="rfc-subject">The content of this value is a domain name, see [RFC2181] (Section 3)</span></td></tr>
@@ -352,8 +362,8 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5301-3-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L196" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L201" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L196" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L201" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L73" title="test/isis/isis-hostname-ascii.ci" target="_blank" rel="noopener"><code>isis-hostname-ascii.ci</code></a></span></div>
 </div></td>
 </tr>
@@ -362,8 +372,8 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5301-3-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L260" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameUnicodeRefusedNotConverted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L72" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L260" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameUnicodeRefusedNotConverted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L72" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/isis/isis-hostname-ascii.ci#L56" title="test/isis/isis-hostname-ascii.ci" target="_blank" rel="noopener"><code>isis-hostname-ascii.ci</code></a></span></div>
 </div></td>
 </tr>
@@ -456,7 +466,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L166" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L166" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -466,7 +476,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L110" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L110" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -481,12 +491,12 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L125" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L125" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L114" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L114" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -501,7 +511,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L162" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L162" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameEmptyOmitsTLV</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -511,7 +521,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L118" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L118" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -531,17 +541,17 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L153" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L153" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/cli/cmd_validate_startup_agreement_test.go#L43" title="internal/component/config/cli/cmd_validate_startup_agreement_test.go" target="_blank" rel="noopener"><code>TestLoadConfigRefusesAnISISHostnameOutside7BitASCII</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/cli/rfc5301_cmd_validate_startup_agreement_test.go#L43" title="internal/component/config/cli/rfc5301_cmd_validate_startup_agreement_test.go" target="_blank" rel="noopener"><code>TestLoadConfigRefusesAnISISHostnameOutside7BitASCII</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L149" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L149" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorCharset</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -566,12 +576,12 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L80" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L80" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L121" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L121" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVFraming</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -586,12 +596,12 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L201" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L201" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L196" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L196" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameValidatorLabels</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -611,12 +621,12 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/encode_test.go#L72" title="internal/plugins/isis/lsdb/encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5301_encode_test.go#L72" title="internal/plugins/isis/lsdb/rfc5301_encode_test.go" target="_blank" rel="noopener"><code>TestISISHostnameTLVIsPrintableASCII</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validators_isis_test.go#L260" title="internal/component/config/validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameUnicodeRefusedNotConverted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc5301_validators_isis_test.go#L260" title="internal/component/config/rfc5301_validators_isis_test.go" target="_blank" rel="noopener"><code>TestISISHostnameUnicodeRefusedNotConverted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -791,7 +801,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

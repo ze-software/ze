@@ -2650,7 +2650,7 @@
                                 "type": "address-family"
                               }
                             ],
-                            "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase.",
+                            "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase. In every state the capability names only\nfamilies the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family\nonly when it can preserve it across a restart: a family it cannot store is left out with a\nwarning, and the capability is still sent when none is left.",
                             "kind": "container",
                             "name": "family",
                             "short-help": "Address families Ze names in the Graceful Restart capability.",
@@ -2705,7 +2705,7 @@
                         "source": "config"
                       },
                       {
-                        "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).",
+                        "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).",
                         "kind": "container",
                         "name": "link-local-nexthop",
                         "short-help": "Link-local next-hop capability.",
@@ -3978,7 +3978,7 @@
                             "type": "address-family"
                           }
                         ],
-                        "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase.",
+                        "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase. In every state the capability names only\nfamilies the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family\nonly when it can preserve it across a restart: a family it cannot store is left out with a\nwarning, and the capability is still sent when none is left.",
                         "kind": "container",
                         "name": "family",
                         "short-help": "Address families Ze names in the Graceful Restart capability.",
@@ -4033,7 +4033,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).",
+                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).",
                     "kind": "container",
                     "name": "link-local-nexthop",
                     "short-help": "Link-local next-hop capability.",
@@ -6126,7 +6126,7 @@
                             "type": "address-family"
                           }
                         ],
-                        "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase.",
+                        "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase. In every state the capability names only\nfamilies the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family\nonly when it can preserve it across a restart: a family it cannot store is left out with a\nwarning, and the capability is still sent when none is left.",
                         "kind": "container",
                         "name": "family",
                         "short-help": "Address families Ze names in the Graceful Restart capability.",
@@ -6181,7 +6181,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).",
+                    "description": "The capability advertises that ze accepts IPv6 link-local\nnext-hops in MP_REACH_NLRI (RFC 2545 Section 3).\nRequires session link-local on the peer or its group:\nthe configuration is refused without it, because ze must\nsend its own link-local address once the capability is\nnegotiated (draft-ietf-idr-linklocal-capability Section 4).",
                     "kind": "container",
                     "name": "link-local-nexthop",
                     "short-help": "Link-local next-hop capability.",
@@ -11341,7 +11341,7 @@
             "type": "ip-address"
           },
           {
-            "description": "sFlow agent address, which is the device's own stable IP address. Ze writes it into the sFlow\nv5 datagram header, so a collector identifies the exporter by one address whichever interface\nthe datagram left. Left out, Ze writes 0.0.0.0. A netflow9 or ipfix collector does not read the\nleaf.",
+            "description": "sFlow agent address, which is the device's own stable IP address. Ze writes it into the sFlow\nv5 datagram header, so a collector identifies the exporter by one address whichever interface\nthe datagram left. It is mandatory on an sflow collector, 0.0.0.0 and :: are refused, and all\nsflow collectors must name the same address, because Ze is one sFlow agent. Two spellings\nof one address, such as 2001:db8::1 and 2001:DB8:0::1, are the same address. A netflow9 or ipfix\ncollector does not read the leaf.",
             "kind": "leaf",
             "name": "agent-address",
             "short-help": "sFlow agent address (device's own stable IP, e.g. loopback)",
@@ -11365,7 +11365,7 @@
             "type": "uint32"
           },
           {
-            "description": "Counter polling interval in seconds, 1 to 3600, default 20. Ze sends the interface counters to\nthis collector no more often than this. The counter snapshot is shared between collectors, so a\nshort interval on one collector does not make another one faster.",
+            "description": "Counter polling interval in seconds, 1 to 3600, default 20. The interval is a maximum: Ze sends the\ninterface counters to this collector at least once in each interval. Counter snapshots arrive once\na second, so Ze polls from one second before the interval ends. The counter snapshot is shared\nbetween collectors, so a short interval on one collector does not make another one faster.",
             "kind": "leaf",
             "name": "polling-interval",
             "short-help": "Counter polling interval in seconds",
@@ -11411,7 +11411,7 @@
             "type": "ip-address"
           },
           {
-            "description": "sFlow sub-agent identifier, default 0. Ze writes it into the sFlow v5 datagram header. It\nseparates several sFlow agents that share one agent-address, so a collector can keep their\nsequence numbers apart. A netflow9 or ipfix collector does not read the leaf.",
+            "description": "sFlow sub-agent identifier, default 0. Ze writes it into the sFlow v5 datagram header. It\nseparates several sFlow agents that share one agent-address, so a collector can keep their\nsequence numbers apart. Every sflow collector exports every interface, and sFlow v5 binds each\ndata source to one sub-agent, so all sflow collectors must name the same value: the config is\nrefused otherwise. A netflow9 or ipfix collector does not read the leaf.",
             "kind": "leaf",
             "name": "sub-agent-id",
             "short-help": "sFlow sub-agent identifier",
@@ -19455,10 +19455,10 @@
   "mrt": {
     "children": [
       {
-        "description": "The default is false. When the leaf is true, Ze writes the ADD-PATH subtypes\nof RFC 8050. A BGP4MP record then carries subtype 9, and a\nTABLE_DUMP_V2 dump carries the ADD-PATH RIB subtypes. Ze writes the ADD-PATH subtype whether or not the\nsession negotiated ADD-PATH, so the record declares a path identifier\nthat the message can lack.",
+        "description": "The default is false. When true, TABLE_DUMP_V2 snapshots use\nthe ADD-PATH RIB subtypes of RFC 8050. BGP4MP and BGP4MP_ET\nmessage subtypes always follow the direction-specific negotiated\nADD-PATH state of the UPDATE family, independently of this leaf.",
         "kind": "leaf",
         "name": "add-path",
-        "short-help": "Force add-path subtypes even when not negotiated\nwith the peer.",
+        "short-help": "Use ADD-PATH subtypes for RIB snapshots.",
         "source": "config",
         "type": "boolean"
       },

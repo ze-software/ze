@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 57.1% | 4 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 72.7% | 8 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 79.3% | 23 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,21 +23,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 7 | of 7 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 3 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 42.9% | 3 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 11 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 3 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 27.3% | 3 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 4 | of 7 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -60,17 +54,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | No row in the public ledger |
 | Enrolment | Enrolled |
-| Requirements | 7 |
-| Gated MUST-level | 7 |
+| Requirements | 11 |
+| Gated MUST-level | 11 |
 | Not applicable, so out of scope | 3 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 13 |
-| Tagged units | 13 |
-| Recorded audit verdicts | 4 |
-| Discrimination records | 0 |
+| Test tags | 29 |
+| Tagged units | 29 |
+| Recorded audit verdicts | 8 |
+| Discrimination records | 23 |
 | Summary | `rfc/short/rfc905.md` |
 | Requirement shard | `rfc/requirements/rfc905.md` |
 | RFC text | `rfc/full/rfc905.txt` |
@@ -87,17 +81,18 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 4 | one part of the gated population |
-| Annotated instead of tested | 3 | one part of the gated population |
+| Positive and negative tests | 8 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (4):** [`RFC905-x-1`](#rfc905-x-1), [`RFC905-x-2`](#rfc905-x-2), [`RFC905-x-3`](#rfc905-x-3), [`RFC905-x-4`](#rfc905-x-4)
+**Positive and negative tests (8):** [`RFC905-x-1`](#rfc905-x-1), [`RFC905-x-2`](#rfc905-x-2), [`RFC905-x-3`](#rfc905-x-3), [`RFC905-x-4`](#rfc905-x-4), [`RFC905-B.3.1-1`](#rfc905-b.3.1-1), [`RFC905-B.3.2-1`](#rfc905-b.3.2-1), [`RFC905-B.3.5-1`](#rfc905-b.3.5-1), [`RFC905-B.4.2-1`](#rfc905-b.4.2-1)
 
-**Annotated instead of tested (3):** [`RFC905-6.17.3-1`](#rfc905-6.17.3-1), [`RFC905-6.17.3-2`](#rfc905-6.17.3-2), [`RFC905-13.2.3.1-1`](#rfc905-13.2.3.1-1)
+**Annotated (including scoped evidence) (3):** [`RFC905-6.17.3-1`](#rfc905-6.17.3-1), [`RFC905-6.17.3-2`](#rfc905-6.17.3-2), [`RFC905-13.2.3.1-1`](#rfc905-13.2.3.1-1)
 
 ## Requirements
 
@@ -105,10 +100,14 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 |---|---|---|---|---|
 | `RFC905-6.17.3-1` | The sending transport entity shall transmit TPDUs with the checksum parameter set such that the following formulas are satisfied: SUM(from i=1 to i=L) OF a[i] EQUALS <zero> (module 255) SUM(from i=1 to i=L) OF i*a[i] EQUALS <zero> (module 255) (§6.17.3) | MUST | 6.17.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU generator that sets a transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty) |
 | `RFC905-6.17.3-2` | A transport entity which receives a TPDU for a transport connection for which the use of checksum has been agreed and which does not satisfy the above formulas shall discard the TPDU (§6.17.3) | MUST | 6.17.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU receiver that verifies and discards a transport TPDU (grep for TPDU/TP4/0xC3 across internal/ is empty) |
-| `RFC905-x-1` | Addition is performed in one of the two following modes: a) modulo 255 arithmetic; b) one's complement arithmetic in which if any of the variables has the value minus zero (i.e. 255) it shall be regarded as though it was plus zero (i.e. 0). (§B.2) | MUST | B.2 | **positive:** `unit/verify` [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L69). **positive:** `unit/verify` [`TestISISChecksumModulus`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L131). **negative:** `unit/verify` [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L94) |
-| `RFC905-x-2` | Process each octet sequentially from i = 1 to L by: a) adding the value of the octet to C0; then b) adding the value of C0 to C1. (§B.3) | MUST | B.3 | **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L16). **negative:** `unit/verify` [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L95) |
-| `RFC905-x-3` | Calculate X and Y such that X = -C1 + (L-n).CO Y = C1 - (L-n+1).C0 (§B.3) | MUST | B.3 | **positive:** `unit/verify` [`TestFletcherRFC905Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L27). **positive:** `unit/verify` [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L68). **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L17). **positive:** `unit/verify` [`TestOSPFLSAChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L71). **negative:** `unit/verify` [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L96) |
-| `RFC905-x-4` | If, when all the octets have been processed, either or both of C0 and C1 does not have the value zero, the checksum formulas in 6.17 have not been satisfied. (§B.4) | MUST | B.4 | **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L18). **negative:** `unit/verify` [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L93). **negative:** `unit/verify` [`TestOSPFLSAChecksumExcludesAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L97) |
+| `RFC905-x-1` | Addition is performed in one of the two following modes: a) modulo 255 arithmetic; b) one's complement arithmetic in which if any of the variables has the value minus zero (i.e. 255) it shall be regarded as though it was plus zero (i.e. 0). (§B.2) | MUST | B.2 | **positive:** `unit/verify` [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L69). **positive:** `unit/verify` [`TestISISChecksumModulus`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L128). **positive:** `unit/verify` [`TestRFC905MinusZeroReadAsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L49). **negative:** `unit/verify` [`TestRFC905FaultySenderChecksumRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L84) |
+| `RFC905-x-2` | Process each octet sequentially from i = 1 to L by: a) adding the value of the octet to C0; then b) adding the value of C0 to C1. (§B.3) | MUST | B.3 | **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L16). **negative:** `unit/verify` [`TestRFC905FaultySenderChecksumRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L85) |
+| `RFC905-x-3` | Calculate X and Y such that X = -C1 + (L-n).CO Y = C1 - (L-n+1).C0 (§B.3) | MUST | B.3 | **positive:** `unit/verify` [`TestFletcherGenerateMatchesClosedForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L68). **positive:** `unit/verify` [`TestFletcherRFC905Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L27). **positive:** `unit/verify` [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L68). **positive:** `unit/verify` [`TestISISChecksumMatchesClosedForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L43). **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L17). **positive:** `unit/verify` [`TestOSPFLSAChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L71). **negative:** `unit/verify` [`TestFletcherGenerateRefusesMisplacedXY`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L134). **negative:** `unit/verify` [`TestISISChecksumRefusesMisplacedXY`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L108) |
+| `RFC905-x-4` | If, when all the octets have been processed, either or both of C0 and C1 does not have the value zero, the checksum formulas in 6.17 have not been satisfied. (§B.4) | MUST | B.4 | **positive:** `unit/verify` [`TestFletcherVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L95). **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L18). **positive:** `unit/verify` [`TestISISVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L70). **negative:** `unit/verify` [`TestFletcherVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L94). **negative:** `unit/verify` [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L93). **negative:** `unit/verify` [`TestISISVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L69). **negative:** `unit/verify` [`TestOSPFLSAChecksumExcludesAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L97) |
+| `RFC905-B.3.1-1` | Set up the complete TPDU with the value of the checksum parameter field set to zero. (§B.3.1) | MUST | B.3.1 | **positive:** `unit/verify` [`TestRFC905GeneratorZeroesTheFieldFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L54). **negative:** `unit/verify` [`TestRFC905SenderThatKeptTheFieldRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L85) |
+| `RFC905-B.3.2-1` | Initialize C0 and C1 to zero. (§B.3.2) | MUST | B.3.2 | **positive:** `unit/verify` [`TestRFC905GeneratorStartsFromZeroSums`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L114). **negative:** `unit/verify` [`TestRFC905SenderWithSeededSumsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L138) |
+| `RFC905-B.3.5-1` | Place the values X and Y in octets n and (n + 1) respectively. (§B.3.5) | MUST | B.3.5 | **positive:** `unit/verify` [`TestRFC905LSPPlacesXAtNAndYAtNPlus1`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L194). **negative:** `unit/verify` [`TestRFC905LSPWithSwappedXYRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L223) |
+| `RFC905-B.4.2-1` | Process each octet of the TPDU sequentially from i = 1 to L by: a) adding the value of the octet to C0; then b) adding the value of C0 to C1. (§B.4.2) | MUST | B.4.2 | **positive:** `unit/verify` [`TestRFC905VerifierAcceptsEveryPlacement`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L259). **negative:** `unit/verify` [`TestRFC905VerifierReadsTheFirstAndLastOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L286) |
 | `RFC905-13.2.3.1-1` | Parameter Code: 1100 0011 Parameter Length: 2 Parameter Value: Result of checksum algorithm. This algorithm is specified in 6.17. (§13.2.3.1) | MUST | 13.2.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol code path that encodes the 0xC3 transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty) |
 
 ## Gaps and untested MUSTs
@@ -143,50 +142,102 @@ No test carries RFC905-6.17.3-2, so no unit is bound to it.
 
 Addition is performed in one of the two following modes: a) modulo 255 arithmetic; b) one's complement arithmetic in which if any of the variables has the value minus zero (i.e. 255) it shall be regarded as though it was plus zero (i.e. 0). (§B.2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. B.2 fixes addition modulo 255 (or one's complement with 255 read as 0). A mod-256 generator goes red only in TestISISChecksumFixedVector (isis/packet), which pins high,low = 0x0b,0xed. TestISISChecksumModulus round-trips Checksum through VerifyChecksum, and both share fletcherModulus, so a consistent mod-256 change still verifies. The negative unit TestISISChecksumDetectsCorruption flips single octets, and a mod-256 verifier detects those too, so it does not go red on the forbidden arithmetic. Clause b (255 read as 0) has no assertion that would catch a verifier treating 255 and 0 as distinct.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. B.2: addition modulo 255, or one's complement with 255 read as 0. Positive TestRFC905MinusZeroReadAsZero: VerifyChecksum accepts five 0xFF octets (mod 256, or one's complement keeping 255 distinct, leaves C0 non-zero and goes red) and every seed region where Checksum stored 255 for a computed zero. Negative TestRFC905FaultySenderChecksumRefused/modulo-256: the X,Y closed form solves mod 256 too, so a mod-256 verifier would accept the mod-256 sender's checksum and refuse the compliant one; the test requires the opposite, and its guard (faulty != Checksum's) goes red on a mod-256 Checksum. TestISISChecksumFixedVector pins 0x0b,0xed. The old single-octet-flip negative (not an arithmetic violation) was untagged. Recorded red on VerifyChecksum.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L94) | unit/verify | unproven |
-| positive | [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L69) | unit/verify | unproven |
-| positive | [`TestISISChecksumModulus`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L131) | unit/verify | unproven |
+| negative | [`TestRFC905FaultySenderChecksumRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L84) | unit/verify | revert, verified |
+| positive | [`TestRFC905MinusZeroReadAsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L49) | unit/verify | revert, verified |
+| positive | [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L69) | unit/verify | revert, verified |
+| positive | [`TestISISChecksumModulus`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC905-x-2`](#rfc905-x-2)
 
 Process each octet sequentially from i = 1 to L by: a) adding the value of the octet to C0; then b) adding the value of C0 to C1. (§B.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quote is B.3.3, the running sums C0 += octet, C1 += C0. The positive TestISISChecksumVectors goes red on a wrong generator accumulation, because VerifyChecksum runs its own loop and the round trip fails. The negative TestISISChecksumDetectsCorruption asserts only VerifyChecksum's rejection of corrupted regions, the same assertion as the RFC905-x-4 negative. It feeds no input that violates B.3.3, so it is the x-4 proof wearing a second hat. B.3.1 (zero the field) and B.3.2 (initialise) are split out of the row.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 under R-C1: row text and tagged units unchanged; the Annex B steps around it now carry their own rows (B.3.1-1, B.3.2-1, B.3.5-1, B.4.2-1). B.3.3 order binds the generator: TestISISChecksumVectors round-trips Checksum through VerifyChecksum, a C1-first Checksum goes red; negative TestRFC905FaultySenderChecksumRefused/c1-before-c0 refuses a pair built with the steps swapped. The verification-side sequence is B.4.2-1's.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L95) | unit/verify | unproven |
-| positive | [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L16) | unit/verify | unproven |
+| negative | [`TestRFC905FaultySenderChecksumRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L85) | unit/verify | revert, verified |
+| positive | [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L16) | unit/verify | revert, verified |
 
 ### [`RFC905-x-3`](#rfc905-x-3)
 
 Calculate X and Y such that X = -C1 + (L-n).CO Y = C1 - (L-n+1).C0 (§B.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. B.3.4: X = -C1 + (L-n)C0, Y = C1 - (L-n+1)C0. The positive TestISISChecksumFixedVector pins exact X,Y (0x0b,0xed), TestFletcherRFC905Vectors (ospf/types) pins 0x15ff, and the round trips go red on a wrong formula. The negative TestISISChecksumDetectsCorruption asserts only that VerifyChecksum rejects corrupted regions. It exercises verification, not a violating X,Y, so no negative isolates this rule. B.3.5 (placement at n, n+1) is split out of the row.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 under R-C1: row text and tagged units (IS-IS and OSPF) unchanged. Positive: TestISISChecksumMatchesClosedForm and TestFletcherGenerateMatchesClosedForm compare the producer at every field offset against an independent B.3.4 derivation in L-n notation; fixed vectors pin values. Negative: TestISISChecksumRefusesMisplacedXY and TestFletcherGenerateRefusesMisplacedXY refuse the pair swapped or shifted one octet early. The B.3.5 placement obligation is now its own row, RFC905-B.3.5-1.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L96) | unit/verify | unproven |
-| positive | [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L68) | unit/verify | unproven |
-| positive | [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L17) | unit/verify | unproven |
+| negative | [`TestISISChecksumRefusesMisplacedXY`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L108) | unit/verify | revert, verified |
+| negative | [`TestFletcherGenerateRefusesMisplacedXY`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L134) | unit/verify | revert, verified |
+| positive | [`TestISISChecksumMatchesClosedForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L43) | unit/verify | revert, verified |
+| positive | [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L68) | unit/verify | unproven |
+| positive | [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L17) | unit/verify | unproven |
 | positive | [`TestOSPFLSAChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L71) | unit/verify | unproven |
 | positive | [`TestFletcherRFC905Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L27) | unit/verify | unproven |
+| positive | [`TestFletcherGenerateMatchesClosedForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L68) | unit/verify | revert, verified |
 
 ### [`RFC905-x-4`](#rfc905-x-4)
 
 If, when all the octets have been processed, either or both of C0 and C1 does not have the value zero, the checksum formulas in 6.17 have not been satisfied. (§B.4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. B.4.3: the formulas fail when either or both of C0 and C1 are non-zero. The negatives flip one octet (TestISISChecksumDetectsCorruption, TestOSPFLSAChecksumExcludesAge), and a flip changes C0. A verifier that tested only C0 == 0 therefore passes every tagged unit, and no unit feeds a region where C0 is zero and C1 is not, for example two swapped octets. The 'or C1' clause is unproven.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 under R-C1: row text and tagged units unchanged. TestISISVerifyRequiresBothSumsZero and TestFletcherVerifyRequiresBothSumsZero refuse a region with C0 zero and C1 non-zero and one with C1 zero and C0 non-zero, and accept the generated region; the both-non-zero case stays covered by the single-octet flips of TestISISChecksumDetectsCorruption and TestOSPFLSAChecksumExcludesAge.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L93) | unit/verify | unproven |
+| negative | [`TestISISVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L69) | unit/verify | mutant, verified |
+| negative | [`TestISISChecksumDetectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L93) | unit/verify | revert, verified |
 | negative | [`TestOSPFLSAChecksumExcludesAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L97) | unit/verify | unproven |
-| positive | [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L18) | unit/verify | unproven |
+| negative | [`TestFletcherVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L94) | unit/verify | mutant, verified |
+| positive | [`TestISISVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L70) | unit/verify | revert, verified |
+| positive | [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L18) | unit/verify | unproven |
+| positive | [`TestFletcherVerifyRequiresBothSumsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L95) | unit/verify | revert, verified |
+
+### [`RFC905-B.3.1-1`](#rfc905-b.3.1-1)
+
+Set up the complete TPDU with the value of the checksum parameter field set to zero. (§B.3.1)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC905GeneratorZeroesTheFieldFirst: Checksum over a region whose field holds stale 0x5A,0xC3 returns the same X,Y as over the zeroed region, equal to the independent closed form, and the pair verifies. Negative TestRFC905SenderThatKeptTheFieldRefused: a sender that summed the stale field octets produces a pair (guarded to differ from Checksum's) that VerifyChecksum refuses, while the compliant pair is accepted (receive-side refusal, R1(a)). Records on checksum.go::Checksum and VerifyChecksum, observed red.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC905SenderThatKeptTheFieldRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L85) | unit/verify | revert, verified |
+| positive | [`TestRFC905GeneratorZeroesTheFieldFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L54) | unit/verify | revert, verified |
+
+### [`RFC905-B.3.2-1`](#rfc905-b.3.2-1)
+
+Initialize C0 and C1 to zero. (§B.3.2)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC905GeneratorStartsFromZeroSums: an all-zero 24-octet region yields 0xFF,0xFF at every field offset (sums that start at zero stay zero), and a non-zero region equals the derivation that starts C0 and C1 at zero. Negative TestRFC905SenderWithSeededSumsRefused: pairs from C0 or C1 seeded with 1 (guarded to differ) are refused by VerifyChecksum, the compliant pair accepted. Records observed red.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC905SenderWithSeededSumsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L138) | unit/verify | revert, verified |
+| positive | [`TestRFC905GeneratorStartsFromZeroSums`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L114) | unit/verify | revert, verified |
+
+### [`RFC905-B.3.5-1`](#rfc905-b.3.5-1)
+
+Place the values X and Y in octets n and (n + 1) respectively. (§B.3.5)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC905LSPPlacesXAtNAndYAtNPlus1: LSP.WriteTo stores the independently derived X at octet n and Y at n+1 (X != Y guarded, so a swap cannot pass) and the decoded LSP verifies. Negative TestRFC905LSPWithSwappedXYRefused: the same LSP with the two octets swapped is refused by LSP.VerifyChecksum, the check the flooding path runs, while the unswapped one is accepted. Records on lsp.go::WriteTo and VerifyChecksum, observed red.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC905LSPWithSwappedXYRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L223) | unit/verify | revert, verified |
+| positive | [`TestRFC905LSPPlacesXAtNAndYAtNPlus1`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L194) | unit/verify | revert, verified |
+
+### [`RFC905-B.4.2-1`](#rfc905-b.4.2-1)
+
+Process each octet of the TPDU sequentially from i = 1 to L by: a) adding the value of the octet to C0; then b) adding the value of C0 to C1. (§B.4.2)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC905VerifierAcceptsEveryPlacement: VerifyChecksum accepts correct X,Y at every field offset 0..L-2 of 4, 9, 24 and 41-octet regions, so a verifier with the a)/b) steps out of order or a wrong range refuses some case. Negative TestRFC905VerifierReadsTheFirstAndLastOctet: a region whose first or last octet changed 0->1 is refused, with a guard proving that sums skipping that octet would end at zero, so a receiver not running i = 1 to L accepts it. Records on VerifyChecksum, observed red.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC905VerifierReadsTheFirstAndLastOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L286) | unit/verify | revert, verified |
+| positive | [`TestRFC905VerifierAcceptsEveryPlacement`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L259) | unit/verify | revert, verified |
 
 ### [`RFC905-13.2.3.1-1`](#rfc905-13.2.3.1-1)
 

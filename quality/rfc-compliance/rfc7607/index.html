@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,6 +120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>5 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
@@ -131,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -157,6 +159,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -265,7 +271,7 @@ All 5 MUST-level requirements implemented and extracted, each with a positive an
 <td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -276,6 +282,10 @@ All 5 MUST-level requirements implemented and extracted, each with a positive an
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -345,10 +355,10 @@ All 5 MUST-level requirements implemented and extracted, each with a positive an
 <td>MUST</td>
 <td>2 - Behavior</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7607-2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L48" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L108" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L51" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L110" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L48" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L108" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L51" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L110" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7607-2-5">RFC7607-2-5</code></td><td colspan="3"><span class="rfc-subject">A router MUST NOT initiate a connection claiming to be AS 0 (§2)</span></td></tr>
@@ -356,8 +366,8 @@ All 5 MUST-level requirements implemented and extracted, each with a positive an
 <td>MUST NOT</td>
 <td>2 - Behavior</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7607-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L206" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L209" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L206" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L209" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -522,22 +532,22 @@ All 5 MUST-level requirements implemented and extracted, each with a positive an
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L51" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L51" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L110" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L110" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L48" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L48" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L108" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L108" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -552,12 +562,12 @@ All 5 MUST-level requirements implemented and extracted, each with a positive an
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L209" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L209" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as_test.go#L206" title="internal/component/bgp/reactor/session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L206" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -700,7 +710,7 @@ All 5 MUST-level requirements implemented and extracted, each with a positive an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

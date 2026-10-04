@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7871 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7871: Client Subnet in DNS Queries. 38 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7871: Client Subnet in DNS Queries. 36 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7871 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7871: Client Subnet in DNS Queries. 38 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7871: Client Subnet in DNS Queries. 36 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7871 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7871: Client Subnet in DNS Queries. 38 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7871: Client Subnet in DNS Queries. 36 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.9%</strong><b>3 of 38 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 3 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.6%</strong><b>2 of 36 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>38</strong><b>of 90 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>29</strong><b>of 38 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>76.3%</strong><b>29 of 38 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>36</strong><b>of 88 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>29</strong><b>of 36 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>80.6%</strong><b>29 of 36 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.8%</strong><b>6 of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>3</strong><b>of 38 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>13.9%</strong><b>5 of 36 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 36 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,16 +209,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>90</td>
+<td>88</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>38</td>
+<td>36</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>29</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,10 +230,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>3</td>
+<td>2</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>3</td>
+<td>2</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>3</td>
@@ -250,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Client Subnet in DNS Queries / EDNS0 ECS (RFC 7871): ECS consumer role only. geodns reads the incoming EDNS0 client-subnet ADDRESS for geo source-selection (a MAY) and constructs no ECS option. 3 single-polarity positive (emits no ECS option in any response 7.2.1-7/7.2.2-1, never refuses a 0-address-bit query 7.5-6) + 6 gap (tailors answers from ECS but does not echo the option/indicate support/set SCOPE 7.2.1-5/7.2.2-2/12.1-4/12.1-5, nor FORMERR-reject a malformed option 7.2.1-3/7.2.1-4) + 29 not-applicable (originates/forwards/validates no ECS query, caches nothing by network)</p>
+<p>Enrolled: Client Subnet in DNS Queries / EDNS0 ECS (RFC 7871): ECS consumer role only. geodns reads the incoming EDNS0 client-subnet ADDRESS for geo source-selection (a MAY) and constructs no ECS option. 2 single-polarity positive (emits no ECS option in a response to an ECS-less query 7.2.1-7, never refuses a 0-address-bit query 7.5-6) + 5 gap (tailors answers from ECS but does not echo the option/indicate support/set SCOPE 7.2.1-5/12.1-4/12.1-5, nor FORMERR-reject a malformed option 7.2.1-3/7.2.1-4) + 29 not-applicable (originates/forwards/validates no ECS query, caches nothing by network)</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -262,7 +267,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7871.md" target="_blank" rel="noopener"><code>rfc/short/rfc7871.md</code></a>: GeoDNS uses ECS to tailor answers but includes no ECS option in its responses, so it neither echoes the option, indicates support, nor sets SCOPE (<a href="#rfc7871-7.2.1-5"><code>RFC7871-7.2.1-5</code></a>, 7.2.2-2, 12.1-4, 12.1-5), and it validates no consumed option&#39;s FAMILY nor returns FORMERR for a malformed one (<a href="#rfc7871-7.2.1-3"><code>RFC7871-7.2.1-3</code></a>, 7.2.1-4). The resolver/forwarder origination, ECS-response validation, network-scope caching, and DNSSEC-tailoring MUSTs are not-applicable: ze originates, forwards, and caches no ECS and is a plain stub resolver.
+Five MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7871.md" target="_blank" rel="noopener"><code>rfc/short/rfc7871.md</code></a>: GeoDNS uses ECS to tailor answers but includes no ECS option in its responses, so it neither echoes the option, indicates support, nor sets SCOPE (<a href="#rfc7871-7.2.1-5"><code>RFC7871-7.2.1-5</code></a>, 12.1-4, 12.1-5), and it validates no consumed option&#39;s FAMILY nor returns FORMERR for a malformed one (<a href="#rfc7871-7.2.1-3"><code>RFC7871-7.2.1-3</code></a>, 7.2.1-4). The resolver/forwarder origination, ECS-response validation, network-scope caching, and DNSSEC-tailoring MUSTs are not-applicable: ze originates, forwards, and caches no ECS and is a plain stub resolver.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -274,8 +279,8 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>38</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>36</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -286,6 +291,10 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -294,11 +303,11 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>38</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>36</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (38):</strong> <a href="#rfc7871-6-1"><code>RFC7871-6-1</code></a>, <a href="#rfc7871-6-2"><code>RFC7871-6-2</code></a>, <a href="#rfc7871-7.1.1-2"><code>RFC7871-7.1.1-2</code></a>, <a href="#rfc7871-7.1.1-3"><code>RFC7871-7.1.1-3</code></a>, <a href="#rfc7871-7.1.1-4"><code>RFC7871-7.1.1-4</code></a>, <a href="#rfc7871-7.1.1-7"><code>RFC7871-7.1.1-7</code></a>, <a href="#rfc7871-7.1.2-2"><code>RFC7871-7.1.2-2</code></a>, <a href="#rfc7871-7.1.2-3"><code>RFC7871-7.1.2-3</code></a>, <a href="#rfc7871-7.1.2-5"><code>RFC7871-7.1.2-5</code></a>, <a href="#rfc7871-7.1.3-1"><code>RFC7871-7.1.3-1</code></a>, <a href="#rfc7871-7.1.3-2"><code>RFC7871-7.1.3-2</code></a>, <a href="#rfc7871-7.1.3-3"><code>RFC7871-7.1.3-3</code></a>, <a href="#rfc7871-7.2.1-2"><code>RFC7871-7.2.1-2</code></a>, <a href="#rfc7871-7.2.1-3"><code>RFC7871-7.2.1-3</code></a>, <a href="#rfc7871-7.2.1-4"><code>RFC7871-7.2.1-4</code></a>, <a href="#rfc7871-7.2.1-5"><code>RFC7871-7.2.1-5</code></a>, <a href="#rfc7871-7.2.1-7"><code>RFC7871-7.2.1-7</code></a>, <a href="#rfc7871-7.2.1-8"><code>RFC7871-7.2.1-8</code></a>, <a href="#rfc7871-7.2.1-12"><code>RFC7871-7.2.1-12</code></a>, <a href="#rfc7871-7.2.2-1"><code>RFC7871-7.2.2-1</code></a>, <a href="#rfc7871-7.2.2-2"><code>RFC7871-7.2.2-2</code></a>, <a href="#rfc7871-7.3-3"><code>RFC7871-7.3-3</code></a>, <a href="#rfc7871-7.3-4"><code>RFC7871-7.3-4</code></a>, <a href="#rfc7871-7.3-6"><code>RFC7871-7.3-6</code></a>, <a href="#rfc7871-7.3.1-1"><code>RFC7871-7.3.1-1</code></a>, <a href="#rfc7871-7.3.1-3"><code>RFC7871-7.3.1-3</code></a>, <a href="#rfc7871-7.3.1-4"><code>RFC7871-7.3.1-4</code></a>, <a href="#rfc7871-7.3.2-1"><code>RFC7871-7.3.2-1</code></a>, <a href="#rfc7871-7.3.2-4"><code>RFC7871-7.3.2-4</code></a>, <a href="#rfc7871-7.5-1"><code>RFC7871-7.5-1</code></a>, <a href="#rfc7871-7.5-6"><code>RFC7871-7.5-6</code></a>, <a href="#rfc7871-9-1"><code>RFC7871-9-1</code></a>, <a href="#rfc7871-11.1-2"><code>RFC7871-11.1-2</code></a>, <a href="#rfc7871-11.2-1"><code>RFC7871-11.2-1</code></a>, <a href="#rfc7871-11.3-4"><code>RFC7871-11.3-4</code></a>, <a href="#rfc7871-12.1-3"><code>RFC7871-12.1-3</code></a>, <a href="#rfc7871-12.1-4"><code>RFC7871-12.1-4</code></a>, <a href="#rfc7871-12.1-5"><code>RFC7871-12.1-5</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (36):</strong> <a href="#rfc7871-6-1"><code>RFC7871-6-1</code></a>, <a href="#rfc7871-6-2"><code>RFC7871-6-2</code></a>, <a href="#rfc7871-7.1.1-2"><code>RFC7871-7.1.1-2</code></a>, <a href="#rfc7871-7.1.1-3"><code>RFC7871-7.1.1-3</code></a>, <a href="#rfc7871-7.1.1-4"><code>RFC7871-7.1.1-4</code></a>, <a href="#rfc7871-7.1.1-7"><code>RFC7871-7.1.1-7</code></a>, <a href="#rfc7871-7.1.2-2"><code>RFC7871-7.1.2-2</code></a>, <a href="#rfc7871-7.1.2-3"><code>RFC7871-7.1.2-3</code></a>, <a href="#rfc7871-7.1.2-5"><code>RFC7871-7.1.2-5</code></a>, <a href="#rfc7871-7.1.3-1"><code>RFC7871-7.1.3-1</code></a>, <a href="#rfc7871-7.1.3-2"><code>RFC7871-7.1.3-2</code></a>, <a href="#rfc7871-7.1.3-3"><code>RFC7871-7.1.3-3</code></a>, <a href="#rfc7871-7.2.1-2"><code>RFC7871-7.2.1-2</code></a>, <a href="#rfc7871-7.2.1-3"><code>RFC7871-7.2.1-3</code></a>, <a href="#rfc7871-7.2.1-4"><code>RFC7871-7.2.1-4</code></a>, <a href="#rfc7871-7.2.1-5"><code>RFC7871-7.2.1-5</code></a>, <a href="#rfc7871-7.2.1-7"><code>RFC7871-7.2.1-7</code></a>, <a href="#rfc7871-7.2.1-8"><code>RFC7871-7.2.1-8</code></a>, <a href="#rfc7871-7.2.1-12"><code>RFC7871-7.2.1-12</code></a>, <a href="#rfc7871-7.3-3"><code>RFC7871-7.3-3</code></a>, <a href="#rfc7871-7.3-4"><code>RFC7871-7.3-4</code></a>, <a href="#rfc7871-7.3-6"><code>RFC7871-7.3-6</code></a>, <a href="#rfc7871-7.3.1-1"><code>RFC7871-7.3.1-1</code></a>, <a href="#rfc7871-7.3.1-3"><code>RFC7871-7.3.1-3</code></a>, <a href="#rfc7871-7.3.1-4"><code>RFC7871-7.3.1-4</code></a>, <a href="#rfc7871-7.3.2-1"><code>RFC7871-7.3.2-1</code></a>, <a href="#rfc7871-7.3.2-4"><code>RFC7871-7.3.2-4</code></a>, <a href="#rfc7871-7.5-1"><code>RFC7871-7.5-1</code></a>, <a href="#rfc7871-7.5-6"><code>RFC7871-7.5-6</code></a>, <a href="#rfc7871-9-1"><code>RFC7871-9-1</code></a>, <a href="#rfc7871-11.1-2"><code>RFC7871-11.1-2</code></a>, <a href="#rfc7871-11.2-1"><code>RFC7871-11.2-1</code></a>, <a href="#rfc7871-11.3-4"><code>RFC7871-11.3-4</code></a>, <a href="#rfc7871-12.1-3"><code>RFC7871-12.1-3</code></a>, <a href="#rfc7871-12.1-4"><code>RFC7871-12.1-4</code></a>, <a href="#rfc7871-12.1-5"><code>RFC7871-12.1-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -476,24 +485,6 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> geodns publishes no SCOPE-scoped Tailored Response whose prefixes a downstream cache could order-dependently overlap; its config source prefixes resolve deterministically by longest-prefix at lookup (internal/core/dnsserver/matcher.go:28)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.2-1">RFC7871-7.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response. (§7.2.2)</span></td></tr>
-<tr><td></td>
-<td>MUST NOT</td>
-<td>7.2.2</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7871-7.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L77" title="internal/plugins/geodns/rfc7871_server_test.go" target="_blank" rel="noopener"><code>TestRFC7871_NoECSQueryNoECSResponse</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns includes no ECS option in any response (internal/plugins/geodns/server.go:168), so no negative case exists; internal/plugins/geodns/rfc7871_server_test.go asserts an ECS-less query draws an ECS-less response</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.2-2">RFC7871-7.2.2-2</code></td><td colspan="3"><span class="rfc-subject">If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>7.2.2</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7871-7.2.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> geodns consumes the query&#39;s ECS option to select an answer yet includes no ECS option in its response (internal/plugins/geodns/server.go:168)</p></td>
-</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3-3">RFC7871-7.3-3</code></td><td colspan="3"><span class="rfc-subject">If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don&#39;t match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -580,7 +571,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>MUST NOT</td>
 <td>7.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7871-7.5-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L113" title="internal/plugins/geodns/rfc7871_server_test.go" target="_blank" rel="noopener"><code>TestRFC7871_ZeroAddressBitsNotRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L108" title="internal/plugins/geodns/rfc7871_server_test.go" target="_blank" rel="noopener"><code>TestRFC7871_ZeroAddressBitsNotRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns refuses only when disabled and never on ECS content (internal/plugins/geodns/server.go:236), so a query carrying 0 address bits is answered, not refused; the refuse-for-0-bits case is unreachable and internal/plugins/geodns/rfc7871_server_test.go pins the positive</p></td>
 </tr>
@@ -1196,10 +1187,6 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: geodns publishes no SCOPE-scoped Tailored Response whose prefixes a downstream cache could order-dependently overlap; its config source prefixes resolve deterministically by longest-prefix at lookup (internal/core/dnsserver/matcher.go:28)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.2.2-2"><code>RFC7871-7.2.2-2</code></a> If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2)</td>
-<td>{gap}, no test</td>
-<td>geodns consumes the query&#39;s ECS option to select an answer yet includes no ECS option in its response (internal/plugins/geodns/server.go:168)</td>
-</tr>
 <tr><td><a href="#rfc7871-7.3-3"><code>RFC7871-7.3-3</code></a> If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don&#39;t match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze issues no ECS-bearing query and so validates no ECS response for a FAMILY/SOURCE/ADDRESS mismatch to drop (internal/component/resolve/dns/resolver.go:261)</td>
@@ -1300,7 +1287,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p>No test carries RFC7871-7.1.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.2-3"><code>RFC7871-7.1.2-3</code></a></h3>
 <p>A SOURCE PREFIX-LENGTH value of 0 means that the Recursive Resolver MUST NOT add the client&#39;s address information to its queries. (§7.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. Binds a Recursive Resolver (and, for the dropped Section 7.5 sentence, an Intermediate Nameserver).</p>
 <p>No test carries RFC7871-7.1.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.2-5"><code>RFC7871-7.1.2-5</code></a></h3>
 <p>A Stub Resolver MUST set SCOPE PREFIX-LENGTH to 0. (§7.1.2)</p>
@@ -1336,7 +1323,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p>No test carries RFC7871-7.2.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.2.1-7"><code>RFC7871-7.2.1-7</code></a></h3>
 <p>(Note that the requirement in [RFC6891] to reserve space for the OPT record could mean that the Answer section of the response will be truncated and fall back to TCP indicated accordingly.) If an ECS option was not included in a query, one MUST NOT be included in the response even if the server is providing a Tailored Response -- presumably based on the address from which it received the query. (§7.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: the unit changed only by dropping the retired RFC7871-7.2.2-1 tag and its duplicate assertion; the 7.2.1-7 assertion is unchanged. TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1357,25 +1344,6 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p>Because it can&#39;t be guaranteed that queries for all longer prefix lengths would arrive before one that would be answered by the shorter prefix length, an Authoritative Nameserver MUST NOT overlap prefixes. (§7.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.2.1-12, so no unit is bound to it.</p>
-<h3><a href="#rfc7871-7.2.2-1"><code>RFC7871-7.2.2-1</code></a></h3>
-<p>Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response. (§7.2.2)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. the tag sits on a repeat of the 7.2.1-7 assertion; section 7.2.2 binds an Intermediate Nameserver, which geodns is not, so the tagged unit proves nothing for this row. Section 7.2.2 binds an Intermediate Nameserver (&#39;When an Intermediate Nameserver uses ECS ... the server MUST NOT provide one in its response&#39;); geodns is an Authoritative Nameserver and forwards nothing, so the role is not Ze&#39;s. The tagged assertion in TestRFC7871_NoECSQueryNoECSResponse is a byte-identical repeat of the 7.2.1-7 check, which is where the authoritative obligation is proved.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L77" title="internal/plugins/geodns/rfc7871_server_test.go" target="_blank" rel="noopener"><code>TestRFC7871_NoECSQueryNoECSResponse</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc7871-7.2.2-2"><code>RFC7871-7.2.2-2</code></a></h3>
-<p>If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7871-7.2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3-3"><code>RFC7871-7.3-3</code></a></h3>
 <p>If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don&#39;t match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1420,7 +1388,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L113" title="internal/plugins/geodns/rfc7871_server_test.go" target="_blank" rel="noopener"><code>TestRFC7871_ZeroAddressBitsNotRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L108" title="internal/plugins/geodns/rfc7871_server_test.go" target="_blank" rel="noopener"><code>TestRFC7871_ZeroAddressBitsNotRefused</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1462,10 +1430,10 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>claude</td>
+<td>independent judge, spec-rfc-verdict-fix-services (session 869df689)</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-30</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1480,10 +1448,10 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>rfc/extraction/rfc7871.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>37</td>
+<td>35</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>3</td>
+<td>5</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -1711,6 +1679,16 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <table class="rfc-table">
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
+<tr><td><code>7.2.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>section 7.2.2 binds an Intermediate Nameserver (&#34;When an Intermediate Nameserver uses ECS&#34;), which Ze does not implement: geodns is an Authoritative Nameserver and forwards no query. The authoritative obligation is row RFC7871-7.2.1-7. Row RFC7871-7.2.2-1 is retired (rfc/corrections/rfc7871.md)</td>
+<td>Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response.</td>
+</tr>
+<tr><td><code>7.2.2:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>section 7.2.2 binds an Intermediate Nameserver (&#34;When an Intermediate Nameserver uses ECS&#34;; section 4: &#34;Any nameserver in between the Stub Resolver and the Authoritative Nameserver&#34;), which Ze does not implement: geodns is an Authoritative Nameserver and forwards no query. The authoritative echo obligation is the {gap} row RFC7871-7.2.1-5. Row RFC7871-7.2.2-2 is retired (rfc/corrections/rfc7871.md)</td>
+<td>If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching.</td>
+</tr>
 <tr><td><code>7.5:2</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Restates for any Intermediate Nameserver the obligation section 7.1.2 states for the Recursive Resolver, which this walk maps at 7.1.2:2: &#39;A SOURCE PREFIX-LENGTH value of 0 means that the Recursive Resolver MUST NOT add the client&#39;s address information to its queries.&#39; The sentence cites that section itself (&#39;see Section 7.1.2&#39;), and RFC7871-7.1.2-3 already carries both readings.</td>
@@ -1762,7 +1740,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

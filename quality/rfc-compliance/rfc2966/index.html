@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2966 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2966 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2966 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>5 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>6 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>70.0%</strong><b>14 of 20 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>6</strong><b>of 6 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 6 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,10 +206,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>7</td>
+<td>8</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>5</td>
+<td>6</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>10</td>
+<td>20</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>10</td>
+<td>20</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>5</td>
+<td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>14</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2966.md</code></td>
@@ -250,14 +252,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Domain-wide Prefix Distribution with Two-Level IS-IS (the RFC 2966 up/down bit): five MUST-level requirements after the 2026-09-21 extraction walk, which added RFC2966-3.2-1 (the six-level route preference order of Section 3.2) with no test and no annotation. The other four are over the pure inter-level leak producer LeakPrefixes/leakInto (internal/plugins/isis/spf/leak.go). RFC2966-2-1 (up/down bit set for L2-&gt;L1 prefixes, clear otherwise) both polarities via TestISISLeakOriginationL1L2: an L2-derived prefix leaks DOWN into L1 with up/down=true, an L1-native prefix leaks UP into L2 with up/down=false. RFC2966-2-2 (MUST NOT re-advertise up/down-set L1-learned prefixes back into L2) both polarities via TestISISLeakOriginationL1L2: a prefix already carrying the down bit is skipped (leakInto skips p.UpDown) while a clear-bit L1 prefix is still leaked. RFC2966-2-3 (L1L2 routers never advertise L2-&gt;L1 routes back into L2) both polarities via TestISISLeakFixpoint: a re-originated down-bit prefix is not leaked back up, while the same prefix without the down bit does leak down. RFC2966-x-1 (ignore internal-reachability-with-external-metric-type on receipt) is {not-applicable}: Ze does not decode the old narrow TLV 128/130 (only the wide TLV 135/236), so the internal/external-metric-type conflict never arises. No SHOULD/MAY requirements are gated.</p>
+<p>Enrolled: Domain-wide Prefix Distribution with Two-Level IS-IS (the RFC 2966 up/down bit): five MUST-level requirements after the 2026-09-21 extraction walk, which added RFC2966-3.2-1 (the six-level route preference order of Section 3.2) with no test and no annotation. The other four are over the pure inter-level leak producer LeakPrefixes/leakInto (internal/plugins/isis/spf/leak.go). RFC2966-2-1 (up/down bit set for L2-&gt;L1 prefixes, clear otherwise) both polarities via TestISISLeakOriginationL1L2: an L2-derived prefix leaks DOWN into L1 with up/down=true, an L1-native prefix leaks UP into L2 with up/down=false. RFC2966-2-2 (MUST NOT re-advertise up/down-set L1-learned prefixes back into L2) both polarities via TestISISLeakOriginationL1L2: a prefix already carrying the down bit is skipped (leakInto skips p.UpDown) while a clear-bit L1 prefix is still leaked. RFC2966-2-3 (L1L2 routers never advertise L2-&gt;L1 routes back into L2) both polarities via TestISISLeakFixpoint: a re-originated down-bit prefix is not leaked back up, while the same prefix without the down bit does leak down. RFC2966-x-1 (ignore internal-reachability-with-external-metric-type on receipt) is {not-applicable}: Ze does not decode the old narrow TLV 128/130 (only the wide TLV 135/236), so the internal/external-metric-type conflict never arises. No SHOULD/MAY requirements are gated. On 2026-09-30 the zero half of the §2 sender rule (&#34;The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs.&#34;) was given its own row, RFC2966-2-4, since the RFC2966-2-1 sentence states only the set-to-one half; it is proven on the decoded L2 LSPs of TestISISEngineLeakOrigination and TestRFC2966NarrowLeakUpDownBit, on the decoded L1 and L2 LSPs of TestRFC2966NativePrefixesGoOutWithBitZero (a connected and a redistributed prefix go out with the bit zero beside a down-leaked prefix that carries it) and, negatively, by TestISISLeakOriginationL1L2 (an L1 prefix already carrying the bit never reaches L2).</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Up/down bit retention and redistribution behavior.
 <p><strong>What the ledger says remains:</strong></p>
-Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a>, the Section 3.2 route preference order, was added by the 2026-09-21 extraction walk and carries no test.
+Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a>, the Section 3.2 route preference order, was added by the 2026-09-21 extraction walk; its tests in internal/plugins/isis cover every class member the order lists.
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -265,10 +267,10 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -280,6 +282,10 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -288,11 +294,11 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>5</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc2966-2-1"><code>RFC2966-2-1</code></a>, <a href="#rfc2966-2-2"><code>RFC2966-2-2</code></a>, <a href="#rfc2966-2-3"><code>RFC2966-2-3</code></a>, <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a>, <a href="#rfc2966-x-1"><code>RFC2966-x-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc2966-2-1"><code>RFC2966-2-1</code></a>, <a href="#rfc2966-2-2"><code>RFC2966-2-2</code></a>, <a href="#rfc2966-2-3"><code>RFC2966-2-3</code></a>, <a href="#rfc2966-2-4"><code>RFC2966-2-4</code></a>, <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a>, <a href="#rfc2966-x-1"><code>RFC2966-x-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -304,8 +310,12 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2966-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L259" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L52" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakOriginationL1L2</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L53" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NarrowLeakUpDownBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L271" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L56" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakOriginationL1L2</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L57" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NarrowLeakUpDownBit</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2966-2-2">RFC2966-2-2</code></td><td colspan="3"><span class="rfc-subject">Prefixes with the up/down bit set that are learned via L1 routing, must never be advertised by L1L2 routers back into L2. (§2)</span></td></tr>
@@ -322,8 +332,19 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td>MUST NOT</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2966-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L129" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L133" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L139" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L143" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2966-2-4">RFC2966-2-4</code></td><td colspan="3"><span class="rfc-subject">The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs. (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2966-2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L272" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L60" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NarrowLeakUpDownBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L129" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NativePrefixesGoOutWithBitZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L65" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakOriginationL1L2</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2966-3.2-1">RFC2966-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation. One of the reasons for this is that inter-area routes can only be advertised with a maximum metric of 63. Another reason is that this maximum value of 63 does not mean infinity (e.g. like a hop count of 16 in RIP denotes unreachable). Introducing a value for infinity cost in IS-IS inter-area routes would introduce counting- to-infinity behavior via two or more L1L2 routers, which would have a bad impact on network stability. The order of preference of IP routes in IS-IS is based on a few assumptions. - RFC 1195 defines that routes derived from L1 routing are preferred over routes derived from L2 routing. - The note in RFC 1195 paragraph 3.10.2, item 2c) defines that internal routes with internal metric-type and external prefixes with internal metric-type have the same preference. - RFC 1195 defines that external routes with internal metric-type are preferred over external routes with external metric type. - Routes derived from L2 routing are preferred over L2-&gt;L1 routes derived from L1 routing. Based on these assumptions, this document defines the following route preferences. 1) L1 intra-area routes with internal metric L1 external routes with internal metric 2) L2 intra-area routes with internal metric L2 external routes with internal metric L1-&gt;L2 inter-area routes with internal metric L1-&gt;L2 inter-area external routes with internal metric 3) L2-&gt;L1 inter-area routes with internal metric L2-&gt;L1 inter-area external routes with internal metric 4) L1 external routes with external metric 5) L2 external routes with external metric L1-&gt;L2 inter-area external routes with external metric 6) L2-&gt;L1 inter-area external routes with external metric (§3.2)</span></td></tr>
@@ -331,8 +352,10 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2966-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L187" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966SixPreferenceClasses</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L210" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966ExternalL1DoesNotOverrideDownInternal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L224" title="internal/plugins/isis/rfc1195_selection_test.go" target="_blank" rel="noopener"><code>TestRFC2966EveryClassMemberOutranksNextClass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L186" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966SixPreferenceClasses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L241" title="internal/plugins/isis/rfc1195_selection_test.go" target="_blank" rel="noopener"><code>TestRFC2966EqualClassMembersCompareByMetric</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L209" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966ExternalL1DoesNotOverrideDownInternal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2966-x-1">RFC2966-x-1</code></td><td colspan="3"><span class="rfc-subject">Upon receipt of an IP prefix with this combination, routers must ignore this prefix. (§3.3)</span></td></tr>
@@ -340,8 +363,8 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2966-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L221" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L219" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2966-3.3-1">RFC2966-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Therefore, it is recommended that implementations ignore the up/down bit in L2 LSPs, and accept the prefixes in L2 LSPs regardless whether the up/down bit is set. (§3.3)</span></td></tr>
@@ -373,27 +396,47 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2966-2-1"><code>RFC2966-2-1</code></a></h3>
 <p>L1L2 routers must set this bit to one for prefixes that are derived from L2 routing and are advertised into L1 LSPs. (Section 2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. TestISISLeakOriginationL1L2 asserts hasLeak(leak.IntoL1, l2Derived, true), i.e. the LeakedPrefix.UpDown flag from spf.LeakPrefixes, not the bit in the originated L1 LSP; an encoder that dropped UpDown when writing TLV 128/130 would leave it green. The negative (L1 prefix leaked up with the flag clear) is likewise struct-level. No tagged assertion decodes the L1 LSP.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestISISEngineLeakOrigination, TestRFC2966NarrowLeakUpDownBit and spf TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; bodies byte-identical. Positive: TestRFC2966NarrowLeakUpDownBit requires 0x80 on the default-metric octet of the L2-&gt;L1 internal (TLV 128) and external (TLV 130) narrow leaks in the originated L1 LSP, TestISISEngineLeakOrigination the TLV 135 bit, spf leakInto sets UpDown only for IntoL1. Negative: the L1-derived prefix leaked into L2 goes out with the bit clear on both encodings.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L271" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L57" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NarrowLeakUpDownBit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L56" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakOriginationL1L2</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L259" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L53" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NarrowLeakUpDownBit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L52" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakOriginationL1L2</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2966-2-2"><code>RFC2966-2-2</code></a></h3>
 <p>Prefixes with the up/down bit set that are learned via L1 routing, must never be advertised by L1L2 routers back into L2. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: re-advertising into L2 a prefix learned via L1 with the up/down bit set. TestISISLeakOriginationL1L2 assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -&gt; t.Errorf) goes red if leakInto stops skipping p.UpDown; the negative keeps a clear-bit L1 prefix leaking up (assertion 1), so a blanket drop also goes red. Both polarities in the one unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; body byte-identical. Assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -&gt; t.Errorf) goes red if leakInto stops skipping p.UpDown; assertion 1 keeps a clear-bit L1 prefix leaking up, so a blanket drop also goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -419,34 +462,74 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L133" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L143" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L129" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L139" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a></h3>
-<p>Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation. One of the reasons for this is that inter-area routes can only be advertised with a maximum metric of 63. Another reason is that this maximum value of 63 does not mean infinity (e.g. like a hop count of 16 in RIP denotes unreachable). Introducing a value for infinity cost in IS-IS inter-area routes would introduce counting- to-infinity behavior via two or more L1L2 routers, which would have a bad impact on network stability. The order of preference of IP routes in IS-IS is based on a few assumptions. - RFC 1195 defines that routes derived from L1 routing are preferred over routes derived from L2 routing. - The note in RFC 1195 paragraph 3.10.2, item 2c) defines that internal routes with internal metric-type and external prefixes with internal metric-type have the same preference. - RFC 1195 defines that external routes with internal metric-type are preferred over external routes with external metric type. - Routes derived from L2 routing are preferred over L2-&gt;L1 routes derived from L1 routing. Based on these assumptions, this document defines the following route preferences. 1) L1 intra-area routes with internal metric L1 external routes with internal metric 2) L2 intra-area routes with internal metric L2 external routes with internal metric L1-&gt;L2 inter-area routes with internal metric L1-&gt;L2 inter-area external routes with internal metric 3) L2-&gt;L1 inter-area routes with internal metric L2-&gt;L1 inter-area external routes with internal metric 4) L1 external routes with external metric 5) L2 external routes with external metric L1-&gt;L2 inter-area external routes with external metric 6) L2-&gt;L1 inter-area external routes with external metric (§3.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: selecting a less preferred route class because its metric is lower, for any pair across the six classes. TestRFC2966SixPreferenceClasses checks each adjacent class pair through the SPF engine with one representative per class (L1 internal, L2 internal, L1 down internal, L1 external-metric, L2 external-metric, L1 down external-metric) and TestRFC2966ExternalL1DoesNotOverrideDownInternal the 3-vs-4 pair. The class members the list places at equal preference (L1 external with internal metric in class 1, L2 external and L1-&gt;L2 inter-area routes in class 2, L2-&gt;L1 inter-area external with internal metric in class 3, L1-&gt;L2 inter-area external with external metric in class 5) have no tagged assertion, so a mis-ranked member stays green.</p>
+<h3><a href="#rfc2966-2-4"><code>RFC2966-2-4</code></a></h3>
+<p>The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs. (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the L1 half was added. Positive: TestRFC2966NativePrefixesGoOutWithBitZero runs a started engine, stores a connected prefix (ConnectedPrefixInfos) and a redistributed one (Consumer.InjectRoute) at both levels, down-leaks 10.2/24 into L1, then decodes TLV 135 from the stored L1 AND L2 LSPs: the down-leaked prefix carries the bit, the connected and redistributed prefixes carry it zero in both LSPs, so an originator setting the bit on every L1 entry or on own prefixes goes red (per-prefix, read from the wire). The L2 half stays on TestISISEngineLeakOrigination (TLV 135) and TestRFC2966NarrowLeakUpDownBit (TLV 128 bit 8). Negative: spf TestISISLeakOriginationL1L2 keeps the down-bit alreadyDown out of IntoL2 while the clear-bit L1 prefix leaks up with the bit false. Each cover holds an observed-red revert record (ConnectedPrefixInfos, narrowIPReachEntryBytes, leakedToPrefixInfos, leakInto).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L210" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966ExternalL1DoesNotOverrideDownInternal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L65" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakOriginationL1L2</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L187" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966SixPreferenceClasses</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L272" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L60" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NarrowLeakUpDownBit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc2966_narrow_updown_test.go#L129" title="internal/plugins/isis/rfc2966_narrow_updown_test.go" target="_blank" rel="noopener"><code>TestRFC2966NativePrefixesGoOutWithBitZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a></h3>
+<p>Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation. One of the reasons for this is that inter-area routes can only be advertised with a maximum metric of 63. Another reason is that this maximum value of 63 does not mean infinity (e.g. like a hop count of 16 in RIP denotes unreachable). Introducing a value for infinity cost in IS-IS inter-area routes would introduce counting- to-infinity behavior via two or more L1L2 routers, which would have a bad impact on network stability. The order of preference of IP routes in IS-IS is based on a few assumptions. - RFC 1195 defines that routes derived from L1 routing are preferred over routes derived from L2 routing. - The note in RFC 1195 paragraph 3.10.2, item 2c) defines that internal routes with internal metric-type and external prefixes with internal metric-type have the same preference. - RFC 1195 defines that external routes with internal metric-type are preferred over external routes with external metric type. - Routes derived from L2 routing are preferred over L2-&gt;L1 routes derived from L1 routing. Based on these assumptions, this document defines the following route preferences. 1) L1 intra-area routes with internal metric L1 external routes with internal metric 2) L2 intra-area routes with internal metric L2 external routes with internal metric L1-&gt;L2 inter-area routes with internal metric L1-&gt;L2 inter-area external routes with internal metric 3) L2-&gt;L1 inter-area routes with internal metric L2-&gt;L1 inter-area external routes with internal metric 4) L1 external routes with external metric 5) L2 external routes with external metric L1-&gt;L2 inter-area external routes with external metric 6) L2-&gt;L1 inter-area external routes with external metric (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a less preferred class selected for a lower metric, or two members of one class ranked against each other. TestRFC2966EveryClassMemberOutranksNextClass drives every member of each class the fixture can express (L1 internal and external-with-internal-metric; L2 internal and external-with-internal-metric, which is also the L1-&gt;L2 inter-area member to the receiver; L2-&gt;L1 internal and external-with-internal-metric; L1 external-metric; L2 external-metric; L2-&gt;L1 external-metric) against every member of the next class, preferred one at cost 100/metric 60 against 1/1. TestRFC2966EqualClassMembersCompareByMetric requires the lower metric to win between two members of one class in both orders, so a member ranked apart from its class goes red. Recorded red on preferenceRank and better; the older adjacent-pair tests remain.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L241" title="internal/plugins/isis/rfc1195_selection_test.go" target="_blank" rel="noopener"><code>TestRFC2966EqualClassMembersCompareByMetric</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L209" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966ExternalL1DoesNotOverrideDownInternal</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L224" title="internal/plugins/isis/rfc1195_selection_test.go" target="_blank" rel="noopener"><code>TestRFC2966EveryClassMemberOutranksNextClass</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L186" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966SixPreferenceClasses</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -459,12 +542,12 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L221" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L219" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC2966InvalidInternalExternalMetricExcluded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -496,10 +579,10 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td>rfc/extraction/rfc2966.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>5</td>
+<td>6</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>15</td>
+<td>14</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -645,11 +728,6 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
 <td>RFC 1195&#39;s rule for the bit it reserved, introduced two sentences earlier as &#39;RFC 1195 defines TLVs 128 and 130 to contain IP routes... the default metric, has the high-order bit reserved (bit 8).&#39; RFC 2966 then supersedes it: &#39;This document redefines this high-order bit in the default metric field in TLVs 128 and 130 to be the up/down bit.&#39;</td>
 <td>Routers must set this bit to zero on transmission, and ignore it on receipt.</td>
 </tr>
-<tr><td><code>2:6</code></td>
-<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>The zero half of the same sender rule the previous sentence states: RFC2966-2-1 reads &#39;Set the up/down bit to one for L2-derived prefixes advertised into L1 LSPs, zero otherwise&#39;.</td>
-<td>The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs.</td>
-</tr>
 <tr><td><code>2.1:1</code></td>
 <td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
 <td>The preference rule belongs to RFC 1195, which the same paragraph cites and this document declines to change: &#39;RFC 1195 states this quite clearly in the note in paragraph 3.10.2, item 2c). This document does not alter this rule of preference.&#39;</td>
@@ -736,7 +814,7 @@ Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</co
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

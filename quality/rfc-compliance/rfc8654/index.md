@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 66.7% | 8 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 16.7% | 2 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 75.0% | 9 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 8.3% | 1 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 4.0% | 1 of 25 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 29.4% | 10 of 34 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 8 | of 12 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 25 |
-| Tagged units | 25 |
+| Test tags | 34 |
+| Tagged units | 34 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 1 |
+| Discrimination records | 10 |
 | Summary | `rfc/short/rfc8654.md` |
 | Requirement shard | `rfc/requirements/rfc8654.md` |
 | RFC text | `rfc/full/rfc8654.txt` |
@@ -95,33 +89,34 @@ No tracked gap in current source anchors.
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 8 | one part of the gated population |
-| Annotated instead of tested | 4 | one part of the gated population |
+| Positive and negative tests | 9 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (8):** [`RFC8654-3-1`](#rfc8654-3-1), [`RFC8654-4-1`](#rfc8654-4-1), [`RFC8654-4-2`](#rfc8654-4-2), [`RFC8654-4-3`](#rfc8654-4-3), [`RFC8654-6-1`](#rfc8654-6-1), [`RFC8654-5-1`](#rfc8654-5-1), [`RFC8654-5-2`](#rfc8654-5-2), [`RFC8654-5-4`](#rfc8654-5-4)
+**Positive and negative tests (9):** [`RFC8654-3-1`](#rfc8654-3-1), [`RFC8654-3-3`](#rfc8654-3-3), [`RFC8654-4-1`](#rfc8654-4-1), [`RFC8654-4-2`](#rfc8654-4-2), [`RFC8654-4-3`](#rfc8654-4-3), [`RFC8654-6-1`](#rfc8654-6-1), [`RFC8654-5-1`](#rfc8654-5-1), [`RFC8654-5-2`](#rfc8654-5-2), [`RFC8654-5-4`](#rfc8654-5-4)
 
-**Annotated instead of tested (4):** [`RFC8654-3-2`](#rfc8654-3-2), [`RFC8654-3-3`](#rfc8654-3-3), [`RFC8654-5-3`](#rfc8654-5-3), [`RFC8654-5-5`](#rfc8654-5-5)
+**Annotated (including scoped evidence) (3):** [`RFC8654-3-2`](#rfc8654-3-2), [`RFC8654-5-3`](#rfc8654-5-3), [`RFC8654-5-5`](#rfc8654-5-5)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8654-3-1` | Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124). **negative:** `unit/verify` [`TestRFC7606AttributeLengthConflictTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238) |
-| `RFC8654-3-2` | The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L29). **negative:** no negative test. **{single-polarity}:** the capability-code assignment is a single fixed value, so the only falsifiable check is that CodeExtendedMessage encodes as 6; there is no distinct rejection behavior for a negative case to exercise |
-| `RFC8654-3-3` | The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 and Capability Length 0. (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestCapabilityRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502). **negative:** no negative test. **{single-polarity}:** the capability's value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive |
+| `RFC8654-3-1` | Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124). **positive:** `unit/verify` [`TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L229). **negative:** `unit/verify` [`TestRFC7606AttributeLengthConflictTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238). **negative:** `unit/verify` [`TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L231) |
+| `RFC8654-3-2` | The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L29). **positive:** `unit/verify` [`TestRFC8654ExtendedMessageWireIsCode6Length0`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L26). **negative:** no negative test. **{single-polarity}:** the capability-code assignment is a single fixed value, so the only falsifiable check is that CodeExtendedMessage encodes as 6; there is no distinct rejection behavior for a negative case to exercise |
+| `RFC8654-3-3` | The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 and Capability Length 0. (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestCapabilityRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502). **positive:** `unit/verify` [`TestRFC8654ExtendedMessageWireIsCode6Length0`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L27). **negative:** `unit/verify` [`TestRFC8654ExtendedMessageNonZeroLengthRefused`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L52) |
 | `RFC8654-4-1` | An implementation that advertises the BGP Extended Message Capability MUST be capable of receiving a message with a length up to and including 65,535 octets (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L265). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L256) |
-| `RFC8654-4-2` | Applications generating information that might be encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestBuildUnicast_MaxSize_Fits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1613). **positive:** `unit/verify` [`TestSendPluginRoutesLeavesAFittingGroupWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L366). **positive:** `unit/verify` [`TestSendPluginRoutesTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L394). **positive:** `unit/verify` [`TestSendUpdateWithSplitLeavesAFittingPayloadWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L187). **positive:** `unit/verify` [`TestSendUpdateWithSplitTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L224). **positive:** `unit/verify` [`TestSplitUpdate_VPNChunksFitMaxMessageSize`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_split_test.go#L1416). **negative:** `unit/verify` [`TestBuildUnicast_MaxSize_TooLarge`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1585). **negative:** `unit/verify` [`TestSendPluginRoutesBoundsAnOversizeGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L330). **negative:** `unit/verify` [`TestSendUpdateWithSplitBoundsAnOversizePayload`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L143) |
+| `RFC8654-4-2` | Applications generating information that might be encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestBuildUnicast_MaxSize_Fits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1613). **positive:** `unit/verify` [`TestSendPluginRoutesLeavesAFittingGroupWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L366). **positive:** `unit/verify` [`TestSendPluginRoutesTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L394). **positive:** `unit/verify` [`TestSendUpdateWithSplitLeavesAFittingPayloadWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L187). **positive:** `unit/verify` [`TestSendUpdateWithSplitTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L224). **positive:** `unit/verify` [`TestSplitUpdate_VPNChunksFitMaxMessageSize`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_update_split_test.go#L1416). **negative:** `unit/verify` [`TestBuildUnicast_MaxSize_TooLarge`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1585). **negative:** `unit/verify` [`TestSendPluginRoutesBoundsAnOversizeGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L330). **negative:** `unit/verify` [`TestSendUpdateWithSplitBoundsAnOversizePayload`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L143) |
 | `RFC8654-4-3` | The BGP Extended Message Capability applies to all messages except for OPEN and KEEPALIVE messages. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestMaxMessageLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L321). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L241) |
-| `RFC8654-6-1` | [RFC4271] states "The value of the Length field MUST always be at least 19 and no greater than 4096." This document changes the latter number to 65,535 for all messages except for OPEN and KEEPALIVE messages. Section 6.1 of [RFC4271] specifies raising an error if the length of a message is over 4,096 octets. For all messages except for OPEN and KEEPALIVE messages, if the receiver has advertised the BGP Extended Message Capability, this document raises that limit to 65,535. (§6) | MUST | 6 - Changes to RFC 4271 | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L253). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L248) |
+| `RFC8654-6-1` | [RFC4271] states "The value of the Length field MUST always be at least 19 and no greater than 4096." This document changes the latter number to 65,535 for all messages except for OPEN and KEEPALIVE messages. Section 6.1 of [RFC4271] specifies raising an error if the length of a message is over 4,096 octets. For all messages except for OPEN and KEEPALIVE messages, if the receiver has advertised the BGP Extended Message Capability, this document raises that limit to 65,535. (§6) | MUST | 6 - Changes to RFC 4271 | **positive:** `unit/verify` [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L35). **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L253). **negative:** `unit/verify` [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L38). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L248) |
 | `RFC8654-5-1` | A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5) | MUST NOT | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L267). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L259) |
 | `RFC8654-5-2` | A speaker MUST NOT implement a more liberal policy accepting BGP Extended Messages (§5) | MUST NOT | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L269). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L261) |
 | `RFC8654-5-3` | However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5) | MUST NOT | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap |
-| `RFC8654-5-4` | Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290) |
+| `RFC8654-5-4` | Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298). **negative:** `unit/verify` [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L41). **negative:** `unit/verify` [`TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290) |
 | `RFC8654-5-5` | Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5) | MUST | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation binds the author of a specification that defines a new BGP message type to state its extended-message eligibility; it is not a runtime behavior ze implements |
 | `RFC8654-4-4` | A BGP speaker that is capable of receiving BGP Extended Messages SHOULD advertise the BGP Extended Message Capability to its peers using BGP Capabilities Advertisement [RFC5492]. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 | `RFC8654-4-5` | When propagating that UPDATE onward to a neighbor that has not advertised the BGP Extended Message Capability, the speaker SHOULD try to reduce the outgoing message size by removing attributes eligible under the "attribute discard" approach of [RFC7606]. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
@@ -143,32 +138,37 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: an extended-message peer whose malformed UPDATE resets the session instead of RFC 7606 handling. The tagged units call ValidateUpdateRFC7606 directly with no session and no Extended Message negotiation: the positive asserts a well-formed MP_REACH gets ActionNone, the negative that a COMMUNITY length conflict is treat-as-withdraw. They prove RFC 7606 behaviour in isolation, not that the extended-message session path applies it.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. New unit TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling runs on a live session that negotiated Extended Message (asserted) with UPDATEs over 4096 octets (1100 /24s). Positive: malformed ORIGIN length -> RFC 7606 treat-as-withdraw: no error, Established, no NOTIFICATION, all 1100 routes dispatched as withdrawn with no attributes. Negative: Total Attribute Length overruns the message -> RFC 7606 Section 3 b ("the Error Subcode MUST be set to Malformed Attribute List"): NOTIFICATION 3/1, Idle, nothing dispatched. Observed-red records: + revert enforceRFC7606, - revert rfc7606SessionReset. Replaces the old weak finding that only isolated ValidateUpdateRFC7606 calls were tagged; those stay as supplementary.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC7606AttributeLengthConflictTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238) | unit/verify | unproven |
+| negative | [`TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L231) | unit/verify | revert, verified |
 | positive | [`TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124) | unit/verify | unproven |
+| positive | [`TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L229) | unit/verify | revert, verified |
 
 ### [`RFC8654-3-2`](#rfc8654-3-2)
 
 The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 (§3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: the capability advertised with a code other than 6. The tagged case asserts uint8(CodeExtendedMessage) == 6 only; no tagged assertion reads the code octet an ExtendedMessage capability writes or requires parse of code 6 to yield ExtendedMessage, so a Code() method or parser mapping another value stays green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Code 6 is the whole obligation; row single-polarity positive (a fixed code has no refusal form). TestRFC8654ExtendedMessageWireIsCode6Length0 reads the octet WriteTo puts at a non-zero offset (06), Code()==6, and Parse(06 00) yields *ExtendedMessage: a code drift in WriteTo or in Parse's dispatch goes red. The old TestCapabilityCodeConstants tag (constant only) is supplementary. Judge 2026-09-30.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L29) | unit/verify | unproven |
+| positive | [`TestRFC8654ExtendedMessageWireIsCode6Length0`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC8654-3-3`](#rfc8654-3-3)
 
 The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 and Capability Length 0. (§3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quote carries Code 6 and Length 0. The tagged round-trip case packs ExtendedMessage with WriteTo, parses it and asserts only that the parsed Code() equals the original Code(); nothing asserts packed length 2 or a Cap Len octet of 0, so a non-zero-length encoding that Parse accepts stays green, and the code value 6 is not asserted in this unit.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: WriteTo writes exactly 06 00 with Len 2 and nothing beyond, Parse(06 00) accepted. Negative: TestRFC8654ExtendedMessageNonZeroLengthRefused sends code 6 with length 1 and 4 and requires ErrInvalidLength and no capability. Judge break: parseZeroLengthCapability accepting a non-zero length (len>8 guard) turned the negative red. Single-polarity marker removal is correct: a refusal path exists.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC8654ExtendedMessageNonZeroLengthRefused`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L52) | unit/verify | revert, verified |
 | positive | [`TestCapabilityRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502) | unit/verify | unproven |
+| positive | [`TestRFC8654ExtendedMessageWireIsCode6Length0`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L27) | unit/verify | revert, verified |
 
 ### [`RFC8654-4-1`](#rfc8654-4-1)
 
@@ -192,8 +192,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-
 | negative | [`TestBuildUnicast_MaxSize_TooLarge`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1585) | unit/verify | unproven |
 | negative | [`TestSendPluginRoutesBoundsAnOversizeGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L330) | unit/verify | unproven |
 | negative | [`TestSendUpdateWithSplitBoundsAnOversizePayload`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L143) | unit/verify | unproven |
+| positive | [`TestSplitUpdate_VPNChunksFitMaxMessageSize`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_update_split_test.go#L1416) | unit/verify | revert, verified |
 | positive | [`TestBuildUnicast_MaxSize_Fits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1613) | unit/verify | unproven |
-| positive | [`TestSplitUpdate_VPNChunksFitMaxMessageSize`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_split_test.go#L1416) | unit/verify | revert, verified |
 | positive | [`TestSendPluginRoutesLeavesAFittingGroupWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L366) | unit/verify | unproven |
 | positive | [`TestSendPluginRoutesTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L394) | unit/verify | unproven |
 | positive | [`TestSendUpdateWithSplitLeavesAFittingPayloadWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L187) | unit/verify | unproven |
@@ -214,12 +214,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-
 
 [RFC4271] states "The value of the Length field MUST always be at least 19 and no greater than 4096." This document changes the latter number to 65,535 for all messages except for OPEN and KEEPALIVE messages. Section 6.1 of [RFC4271] specifies raising an error if the length of a message is over 4,096 octets. For all messages except for OPEN and KEEPALIVE messages, if the receiver has advertised the BGP Extended Message Capability, this document raises that limit to 65,535. (§6)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quote carries the lower bound 19 and the upper bound 4096/65535 by type and advertisement. Upper bounds are asserted in TestValidateLengthWithMax (UPDATE/NOTIFICATION/ROUTE-REFRESH 4097 rejected without extended, 65535 accepted with; OPEN capped). No tagged case has a length below 19; the negative tag is KEEPALIVE of 20, the RFC 4271 per-type rule, a neighbouring obligation.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8654LengthBoundsPerTypeAndCapability: per-type floors accepted in both capability states, 0 and 18 refused for every type, 4096 accepted and 4097 refused without the capability, 65535 accepted for UPDATE/NOTIFICATION/ROUTE-REFRESH with it, OPEN 4097/65535 refused with it; every refusal Bad Message Length with the erroneous Length as Data. KEEPALIVE's cap is held by its exact-19 per-type check (HEAD unit).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L248) | unit/verify | unproven |
+| negative | [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L253) | unit/verify | unproven |
+| positive | [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC8654-5-1`](#rfc8654-5-1)
 
@@ -255,11 +257,13 @@ No test carries RFC8654-5-3, so no unit is bound to it.
 
 Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RFC 4271 error handling for a bad length is a NOTIFICATION Message Header Error / Bad Message Length whose Data carries the erroneous Length field, followed by closing the connection. The tagged unit asserts only ErrorCode and ErrorSubcode on the returned error; the Data field and the send-and-close are unasserted, and no session-level test is tagged.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 4271 handling proven end to end: TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling on an established session without Extended Message sends an UPDATE header Length 4097 and requires NOTIFICATION 1/2 with Data 0x1001 on the wire, ReadAndProcess erroring, and the connection closed (EOF). The bounds unit asserts code/subcode/Data; positive on the HEAD TestValidateLengthWithMax.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290) | unit/verify | unproven |
+| negative | [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L41) | unit/verify | revert, verified |
+| negative | [`TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27) | unit/verify | revert, verified |
 | positive | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298) | unit/verify | unproven |
 
 ### [`RFC8654-5-5`](#rfc8654-5-5)

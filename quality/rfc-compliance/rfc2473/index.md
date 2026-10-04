@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 9.1% | 1 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,12 +24,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | MUSTs declared | 11 | of 21 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 11 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 100.0% | 11 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 10 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 90.9% | 10 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,6 +40,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -54,15 +56,15 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Not enrolled (third-party) |
 | Requirements | 21 |
 | Gated MUST-level | 11 |
-| Not applicable, so out of scope | 11 |
+| Not applicable, so out of scope | 10 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 2 |
+| Tagged units | 2 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc2473.md` |
 | Requirement shard | `rfc/requirements/rfc2473.md` |
 | RFC text | `rfc/full/rfc2473.txt` |
@@ -79,22 +81,25 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 11 | one part of the gated population |
+| Positive and negative tests | 1 | one part of the gated population |
+| Annotated (including scoped evidence) | 10 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (11):** [`RFC2473-4.1.1-1`](#rfc2473-4.1.1-1), [`RFC2473-4.1.1-2`](#rfc2473-4.1.1-2), [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3), [`RFC2473-4.1.1-4`](#rfc2473-4.1.1-4), [`RFC2473-4.1.2-1`](#rfc2473-4.1.2-1), [`RFC2473-7.1-1`](#rfc2473-7.1-1), [`RFC2473-7.1-2`](#rfc2473-7.1-2), [`RFC2473-7.1-3`](#rfc2473-7.1-3), [`RFC2473-7.1-4`](#rfc2473-7.1-4), [`RFC2473-7.2-1`](#rfc2473-7.2-1), [`RFC2473-8-1`](#rfc2473-8-1)
+**Positive and negative tests (1):** [`RFC2473-4.1.1-2`](#rfc2473-4.1.1-2)
+
+**Annotated (including scoped evidence) (10):** [`RFC2473-4.1.1-1`](#rfc2473-4.1.1-1), [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3), [`RFC2473-4.1.1-4`](#rfc2473-4.1.1-4), [`RFC2473-4.1.2-1`](#rfc2473-4.1.2-1), [`RFC2473-7.1-1`](#rfc2473-7.1-1), [`RFC2473-7.1-2`](#rfc2473-7.1-2), [`RFC2473-7.1-3`](#rfc2473-7.1-3), [`RFC2473-7.1-4`](#rfc2473-7.1-4), [`RFC2473-7.2-1`](#rfc2473-7.2-1), [`RFC2473-8-1`](#rfc2473-8-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC2473-4.1.1-1` | If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero ("erroneous header field encountered") and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
-| `RFC2473-4.1.1-2` | (c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** decrementing and re-emitting the encapsulation-limit option during encapsulation is a kernel/VPP datapath action; ze supplies only the configured limit via netlink (internal/plugins/iface/netlink/tunnel_linux.go:266) |
+| `RFC2473-4.1.1-2` | (c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the encapsulating option is set to one less than the limit value found in the packet being encapsulated. (§4.1.1) | MUST | 4.1.1 | **positive:** `unit/verify` [`TestRFC2473EncapLimitDecrementedIntoTheOuterHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L188). **negative:** `unit/verify` [`TestRFC2473EncapLimitFromThePacketNotTheConfiguredLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L220) |
 | `RFC2473-4.1.1-3` | If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267 |
 | `RFC2473-4.1.1-4` | Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict "left-to-right" order (§4.1.1) | MUST | 4.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44) |
 | `RFC2473-4.1.2-1` | A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2) | MUST | 4.1.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
@@ -120,7 +125,6 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC2473-4.1.1-1`](#rfc2473-4.1.1-1) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero ("erroneous header field encountered") and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
-| [`RFC2473-4.1.1-2`](#rfc2473-4.1.1-2) (c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: decrementing and re-emitting the encapsulation-limit option during encapsulation is a kernel/VPP datapath action; ze supplies only the configured limit via netlink (internal/plugins/iface/netlink/tunnel_linux.go:266) |
 | [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3) If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267 |
 | [`RFC2473-4.1.1-4`](#rfc2473-4.1.1-4) Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict "left-to-right" order (§4.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44) |
 | [`RFC2473-4.1.2-1`](#rfc2473-4.1.2-1) A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2) | no test | no test carries this requirement id; annotated {not-applicable}: detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44) |
@@ -145,11 +149,14 @@ No test carries RFC2473-4.1.1-1, so no unit is bound to it.
 
 ### [`RFC2473-4.1.1-2`](#rfc2473-4.1.1-2)
 
-(c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. (§4.1.1)
+(c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the encapsulating option is set to one less than the limit value found in the packet being encapsulated. (§4.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2473-4.1.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2473EncapLimitFromThePacketNotTheConfiguredLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L220) | unit/verify | revert, verified |
+| positive | [`TestRFC2473EncapLimitDecrementedIntoTheOuterHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L188) | unit/verify | revert, verified |
 
 ### [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3)
 

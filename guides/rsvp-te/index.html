@@ -125,7 +125,8 @@ lifetime of the state ze created from it (RFC 2205 Section 3.7).</li>
 default 3. State expires when its last refresh is older than the period
 multiplied by this number, which is 90 seconds at the defaults. Expiry releases
 the reserved bandwidth, the MPLS forwarding entry and the label, then sends an
-<code>lsp-down</code> event.</li>
+<code>lsp-down</code> event. A reservation that no RESV refreshed expires the same way,
+while its PATH state stays: a transit then sends a ResvTear upstream.</li>
 <li><code>interface</code> -- per-link <code>max-bandwidth</code> / <code>max-reservable-bandwidth</code> used by
 admission control. <code>address</code> (the local link prefix, e.g. <code>10.0.0.4/30</code>) lets
 admission map an LSP to this interface when more than one is configured: the
@@ -371,7 +372,7 @@ path handles these messages and programs the kernel label through <code>fib-kern
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

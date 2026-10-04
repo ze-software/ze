@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>61.5%</strong><b>16 of 26 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.8%</strong><b>1 of 26 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>4.4%</strong><b>2 of 45 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>47.1%</strong><b>32 of 68 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>30.8%</strong><b>8 of 26 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 26 gated MUSTs judged</b><p>14 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 26 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>45</td>
+<td>68</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>45</td>
+<td>68</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>17</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>2</td>
+<td>32</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4724.md</code></td>
@@ -270,7 +276,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>10</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +287,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -295,7 +305,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (16):</strong> <a href="#rfc4724-3-2"><code>RFC4724-3-2</code></a>, <a href="#rfc4724-3-3"><code>RFC4724-3-3</code></a>, <a href="#rfc4724-3-4"><code>RFC4724-3-4</code></a>, <a href="#rfc4724-4-1"><code>RFC4724-4-1</code></a>, <a href="#rfc4724-4-2"><code>RFC4724-4-2</code></a>, <a href="#rfc4724-4.1-4"><code>RFC4724-4.1-4</code></a>, <a href="#rfc4724-4.1-7"><code>RFC4724-4.1-7</code></a>, <a href="#rfc4724-4.2-3"><code>RFC4724-4.2-3</code></a>, <a href="#rfc4724-4.2-4"><code>RFC4724-4.2-4</code></a>, <a href="#rfc4724-4.2-5"><code>RFC4724-4.2-5</code></a>, <a href="#rfc4724-4.2-6"><code>RFC4724-4.2-6</code></a>, <a href="#rfc4724-4.2-7"><code>RFC4724-4.2-7</code></a>, <a href="#rfc4724-4.2-8"><code>RFC4724-4.2-8</code></a>, <a href="#rfc4724-4.2-9"><code>RFC4724-4.2-9</code></a>, <a href="#rfc4724-4.2-10"><code>RFC4724-4.2-10</code></a>, <a href="#rfc4724-4.2-11"><code>RFC4724-4.2-11</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (10):</strong> <a href="#rfc4724-3-1"><code>RFC4724-3-1</code></a>, <a href="#rfc4724-3-5"><code>RFC4724-3-5</code></a>, <a href="#rfc4724-4.1-1"><code>RFC4724-4.1-1</code></a>, <a href="#rfc4724-4.1-2"><code>RFC4724-4.1-2</code></a>, <a href="#rfc4724-4.1-3"><code>RFC4724-4.1-3</code></a>, <a href="#rfc4724-4.1-5"><code>RFC4724-4.1-5</code></a>, <a href="#rfc4724-4.1-6"><code>RFC4724-4.1-6</code></a>, <a href="#rfc4724-4.1-8"><code>RFC4724-4.1-8</code></a>, <a href="#rfc4724-4.2-1"><code>RFC4724-4.2-1</code></a>, <a href="#rfc4724-4.2-2"><code>RFC4724-4.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (10):</strong> <a href="#rfc4724-3-1"><code>RFC4724-3-1</code></a>, <a href="#rfc4724-3-5"><code>RFC4724-3-5</code></a>, <a href="#rfc4724-4.1-1"><code>RFC4724-4.1-1</code></a>, <a href="#rfc4724-4.1-2"><code>RFC4724-4.1-2</code></a>, <a href="#rfc4724-4.1-3"><code>RFC4724-4.1-3</code></a>, <a href="#rfc4724-4.1-5"><code>RFC4724-4.1-5</code></a>, <a href="#rfc4724-4.1-6"><code>RFC4724-4.1-6</code></a>, <a href="#rfc4724-4.1-8"><code>RFC4724-4.1-8</code></a>, <a href="#rfc4724-4.2-1"><code>RFC4724-4.2-1</code></a>, <a href="#rfc4724-4.2-2"><code>RFC4724-4.2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -317,7 +327,9 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L457" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L53" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedRestartFlags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L468" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L54" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedRestartFlags</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-3">RFC4724-3-3</code></td><td colspan="3"><span class="rfc-subject">The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)</span></td></tr>
@@ -326,7 +338,9 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L463" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L73" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L477" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L74" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-4">RFC4724-3-4</code></td><td colspan="3"><span class="rfc-subject">If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability. (Section 3)</span></td></tr>
@@ -352,13 +366,14 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L16" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L16" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L99" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestInitialSyncEORReachesTheSilentFamilyToo</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L678" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L711" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestInitialSyncMarkerWaitsForNoProcess</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L341" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L419" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestRoutePushingBindingsCountBothRails</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L224" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L224" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L23" title="internal/component/bgp/reactor/rfc4724_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1194" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoFamilyEndOfRIB</code></a></span></div>
 </div></td>
 </tr>
@@ -403,8 +418,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L262" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L497" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L65" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenInsideTheRestartWindowSetsRestartState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L262" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L87" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenOutsideTheRestartWindowClearsRestartState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L500" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-5">RFC4724-4.1-5</code></td><td colspan="3"><span class="rfc-subject">However, it MUST defer route selection for an address family until it either (a) receives the End-of-RIB marker from all its peers (excluding the ones with the &#34;Restart State&#34; bit set in the received capability and excluding the ones that do not advertise the graceful restart capability) or (b) the Selection_Deferral_Timer referred to below has expired. (Section 4.1)</span></td></tr>
@@ -430,8 +447,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L20" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L228" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L20" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go#L42" title="internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L228" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go#L44" title="internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-8">RFC4724-4.1-8</code></td><td colspan="3"><span class="rfc-subject">To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1)</span></td></tr>
@@ -467,10 +486,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L40" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerRouteRetention</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L124" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724RetentionCoversEveryAdvertisedFamily</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L73" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownRetainsAndMarksRoutesStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L123" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724RetentionCoversEveryAdvertisedFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L69" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownRetainsAndMarksRoutesStale</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L297" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerNoGRCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L96" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownWithoutCapabilityRetainsNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L97" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownWithoutCapabilityRetainsNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-4">RFC4724-4.2-4</code></td><td colspan="3"><span class="rfc-subject">To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted. (Section 4.2)</span></td></tr>
@@ -479,7 +498,9 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L272" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRConsecutiveRestartClearsPriorStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go#L35" title="internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go" target="_blank" rel="noopener"><code>TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L286" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRConsecutiveRestartClearsPriorStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go#L46" title="internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go" target="_blank" rel="noopener"><code>TestRFC4724ConsecutiveRestartDeletesBeforeMarking</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-5">RFC4724-4.2-5</code></td><td colspan="3"><span class="rfc-subject">The router MUST NOT differentiate between stale and other routing information during forwarding. (Section 4.2)</span></td></tr>
@@ -487,8 +508,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST NOT</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L840" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L808" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_LLGRStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L839" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4724_stale_forwarding_test.go#L27" title="internal/component/bgp/plugins/rib/rfc4724_stale_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRStaleRouteIsDecidedByItsAttributesAlone</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-6">RFC4724-4.2-6</code></td><td colspan="3"><span class="rfc-subject">In re-establishing the session, the &#34;Restart State&#34; bit in the Graceful Restart Capability of the OPEN message sent by the Receiving Speaker MUST NOT be set unless the Receiving Speaker has restarted. (Section 4.2)</span></td></tr>
@@ -496,8 +517,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST NOT</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L494" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L265" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L86" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenOutsideTheRestartWindowClearsRestartState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L497" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L66" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenInsideTheRestartWindowSetsRestartState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L266" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-7">RFC4724-4.2-7</code></td><td colspan="3"><span class="rfc-subject">If the session does not get re-established within the &#34;Restart Time&#34; that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining. (Section 4.2)</span></td></tr>
@@ -506,7 +529,9 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L65" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerTimerExpiry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L96" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L105" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerReconnectWithFBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L114" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-8">RFC4724-4.2-8</code></td><td colspan="3"><span class="rfc-subject">Once the session is re-established, if the &#34;Forwarding State&#34; bit for a specific address family is not set in the newly received Graceful Restart Capability, or if a specific address family is not included in the newly received Graceful Restart Capability, or if the Graceful Restart Capability is not received in the re-established session at all, then the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is retaining for that address family. (Section 4.2)</span></td></tr>
@@ -515,7 +540,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L143" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerReconnectFBitZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go#L31" title="internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L140" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L102" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerReconnectWithFBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L180" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-9">RFC4724-4.2-9</code></td><td colspan="3"><span class="rfc-subject">The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer. (Section 4.2)</span></td></tr>
@@ -523,9 +551,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L22" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L22" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L104" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestInitialSyncEORReachesTheSilentFamilyToo</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L229" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L229" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L24" title="internal/component/bgp/reactor/rfc4724_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-10">RFC4724-4.2-10</code></td><td colspan="3"><span class="rfc-subject">The Receiving Speaker MUST replace the stale routes by the routing updates received from the peer. (Section 4.2)</span></td></tr>
@@ -533,8 +562,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/stale_test.go#L147" title="internal/component/bgp/plugins/rib/storage/stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertClearsStale</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/stale_test.go#L179" title="internal/component/bgp/plugins/rib/storage/stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertNewDuringStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L147" title="internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertClearsStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L179" title="internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertNewDuringStale</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-11">RFC4724-4.2-11</code></td><td colspan="3"><span class="rfc-subject">Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family. (Section 4.2)</span></td></tr>
@@ -543,7 +572,9 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L185" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerEORPurge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L51" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L314" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerEORForNonGRPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L71" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBLeavesOtherFamiliesStale</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-2-1">RFC4724-2-1</code></td><td colspan="3"><span class="rfc-subject">Although the End-of-RIB marker is specified for the purpose of BGP graceful restart, it is noted that the generation of such a marker upon completion of the initial update would be useful for routing convergence in general, and thus the practice is recommended. (Section 2)</span></td></tr>
@@ -569,8 +600,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MAY</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L96" title="internal/component/bgp/plugins/gr/gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityListsTheFamiliesOfTheSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L123" title="internal/component/bgp/plugins/gr/gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go#L93" title="internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go#L96" title="internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityListsTheFamiliesOfTheSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go#L123" title="internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go#L60" title="internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-12">RFC4724-4.2-12</code></td><td colspan="3"><span class="rfc-subject">In the event that it determines that its peer&#39;s forwarding state is not viable prior to the re-establishment of the session, the speaker MAY delete all the stale routes from the peer that it is retaining. (Section 4.2)</span></td></tr>
@@ -659,7 +692,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc4724-3-2"><code>RFC4724-3-2</code></a></h3>
 <p>The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the sentence carries two obligations: zero on send and ignored on receive. TestGracefulRestartEncodeReservedBits proves only the sender half (WriteTo masks); no tagged unit parses a Restart Flags nibble with reserved bits set and asserts they are ignored (parseGracefulRestart does ignore them)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sender half: TestGracefulRestartEncodeReservedBits (WriteTo masks to R bit and 12-bit time). Receiver half: TestRFC4724ReceiverIgnoresReservedRestartFlags parses the nibble with reserved 0x3 set, R clear and set, and requires the result equal to the clean parse. Judge breaks: R bit read with mask 0x9000, and Restart Time read with mask 0x3FFF, each turned the test red. Only 0x3 used because RFC 8538 assigned the N bit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -669,17 +702,27 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L54" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedRestartFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L457" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L53" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedRestartFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4724-3-3"><code>RFC4724-3-3</code></a></h3>
 <p>The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. same split as 3-2 for the Address Family Flags byte: sender zeroing is proven by TestGracefulRestartEncodeReservedBits, the receiver-ignore half is not tested by any tagged unit</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sender half: TestGracefulRestartEncodeReservedBits (only F bit 0x80 per family). Receiver half: TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags sets all seven reserved bits (0x7F) with F clear and set and requires the parse equal to the clean one. Judge break: ForwardingState read as flags != 0 turned it red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -689,10 +732,20 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L74" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L463" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L73" title="internal/core/bgp/capability/rfc4724_reserved_bits_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -723,18 +776,23 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC4724-3-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4-1"><code>RFC4724-4-1</code></a></h3>
 <p>The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the positives are strong (sendInitialRoutes puts one marker per negotiated family on the wire, including a silent family and a no-MP session). The only negative (TestIsEndOfRIBAnyFamily) tests the EoR detector&#39;s format discrimination, a neighbouring rule, so no tagged unit violates this requirement; TestInitialSyncEORWaitsForPeerUpBarrier&#39;s no-marker-before-barrier assertion could carry it</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positives: sendInitialRoutes puts one End-of-RIB per negotiated family on the wire, including a silent family and a no-MP session. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: while a plugin producing the initial update has not acknowledged peer-up, sendInitialRoutes is observed waiting and nothing is on the wire (EORSent 0); after the acknowledgement exactly the IPv4 unicast marker is written. Red on a marker sent ahead of the initial update or not sent after it. TestIsEndOfRIBAnyFamily is a neighbouring detector rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L224" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L224" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L23" title="internal/component/bgp/reactor/rfc4724_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L16" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L16" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -805,20 +863,30 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC4724-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.1-4"><code>RFC4724-4.1-4</code></a></h3>
 <p>To re-establish the session with its peer, the Restarting Speaker MUST set the &#34;Restart State&#34; bit in the Graceful Restart Capability of the OPEN message. (Section 4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestSetRBitOnCapability proves grmarker.SetRBit sets 0x80; nothing tagged proves the OPEN sent inside the restart window carries it (production gate is restartFlagsFor in reactor/peer_gr_flags.go, not peer.go:574 as the tag says). The negative, TestSetRBitTimeGatePattern, re-implements the window check inside the test and cannot fail if the production gate breaks</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c25 judge). rfc4724_restart_state_test.go builds the OPEN through Session.buildOpen with Peer.getPluginCapabilities wired as peer_run.go wires it, a bgp-gr code 64 value with R clear served by the test-only Reactor.pluginCapabilitySeam (nil in production; with it nil getPluginCapabilities behaves as at HEAD), and parses the sent capability: inside the restart window R is set with Restart Time and the IPv4 unicast tuple unchanged (positive); cold start and passed deadline leave R clear (negative, the bit is not blanket). Overlay probes: SetRBit removed reds only the positive, window forced true reds only the negative. Records: restartFlagsFor revert (+), getPluginCapabilities revert (-). The grmarker units stay as supplementary. Re-judged 2026-10-02 (BGP c26 judge): the grmarker supplementary units&#39; tag prose now states what each body asserts (TestSetRBitOnCapability: SetRBit sets 0x80 and keeps Restart Time 120; TestSetRBitTimeGatePattern: SetRBit edits a copy, the caller&#39;s caps keep R=0) and names the production gate Peer.getPluginCapabilities -&gt; restartFlagsFor (peer_gr_flags.go), proven by the reactor units above; bodies unchanged, read against the prose and found accurate. Both grmarker units carry SetRBit-revert records, observed red. Verdict rests on the reactor units, unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L497" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L500" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L87" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenOutsideTheRestartWindowClearsRestartState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L262" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L262" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L65" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenInsideTheRestartWindowSetsRestartState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -833,20 +901,30 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC4724-4.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.1-7"><code>RFC4724-4.1-7</code></a></h3>
 <p>Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent. (Section 4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestBuildEOR_IPv4Unicast proves only the marker&#39;s encoding, not that it is sent once the initial update completes; the negative tests EoR detection, a neighbouring rule. No tagged unit drives the send</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. New unit TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete drives peer.sendInitialRoutes on an established peer and reads the socket. Positive: empty table -&gt; the wire is exactly the IPv4 unicast EoR (the RFC&#39;s &#34;including the case that there is no routing update to send&#34;); with default-originate -&gt; [UPDATE 0.0.0.0/0, EoR], EORSent 1. Negative: no EoR precedes the route and exactly one follows it (a marker before completion violates &#34;Once the initial update is complete&#34;). Observed-red records +/- (revert peer_initial_sync.go::sendEORFamilies); both polarities share one break, which reddens the unit as a whole rather than the ordering clause alone. Message-level EoR encoding units stay as supplementary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L228" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L228" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go#L44" title="internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L20" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L20" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go#L42" title="internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -865,7 +943,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC4724-4.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.2-3"><code>RFC4724-4.2-3</code></a></h3>
 <p>When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC4724SessionDownRetainsAndMarksRoutesStale asserts the production dispatch of retain-routes and mark-stale with the Restart Time; TestRFC4724RetentionCoversEveryAdvertisedFamily pins the family set to the capability&#39;s; the no-capability negative asserts nothing is dispatched</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4724 §4.2: &#34;When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information.&#34; Source rejudgment of all five tagged carriers: internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention checks activation, TestGRStateManagerNoGRCapability checks its absence; those alone are insufficient. internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownRetainsAndMarksRoutesStale now uses real_rib_test.go::newGRWithRealRIB and asserts received IPv4 retained at stale level 1, with an IPv6 family control retained at level 1 only when advertised; TestRFC4724SessionDownWithoutCapabilityRetainsNothing requires a pre-existing received route to disappear after DOWN without code 64. TestRFC4724RetentionCoversEveryAdvertisedFamily pins exactly IPv4+IPv6 in the state family set and the armed restart timer. Producers: gr.go::handleStateEvent -&gt; gr_state.go::onSessionDownDeferred -&gt; gr.go::retainPeerFamilies, then rib_commands.go::retainRoutes/markStaleCommand and rib.go::handleState. These assertions discriminate removal, missing stale marking and peer-wide overretention, rather than merely inspecting dispatched command text. Three positive tags, two negative tags; advertised versus absent capability/family are separate input cases. Both retention and stale marking clauses are checked at actual RIB storage; this says nothing about restarting-speaker Loc-RIB preservation or collision handling, whose existing gaps remain. No runtime or observed-red renewal was performed by this judge. Post-lint independent source rejudgment: both real-RIB tagged callers now omit only the invariant testPeer argument to received/down; those helpers still put testPeer in the event and verify the UPDATE entered actual received storage. The positive still asserts exact stale level 1, IPv6 retention iff advertised, and deletion of unadvertised IPv6; the no-GR negative requires actual route absence. Re-read all five carriers and handleStateEvent -&gt; retainPeerFamilies/onSessionDownDeferred. newGRWithRealRIB reports mux.Close errors without skipping cancellation, plugin close or worker join. This adds cleanup failure visibility, not an alternative acceptable protocol outcome. Verdict remains enforced; both changed real-RIB tags currently have no discrimination record and owe first native observed-red records, not invented hashes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -876,9 +954,9 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L96" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownWithoutCapabilityRetainsNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L97" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownWithoutCapabilityRetainsNothing</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L40" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerRouteRetention</code></a></td>
@@ -886,21 +964,21 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L124" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724RetentionCoversEveryAdvertisedFamily</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L123" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724RetentionCoversEveryAdvertisedFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L73" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownRetainsAndMarksRoutesStale</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L69" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownRetainsAndMarksRoutesStale</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-4"><code>RFC4724-4.2-4</code></a></h3>
 <p>To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the tagged unit asserts grStateManager&#39;s staleFamilies set is replaced on a second down; the deletion of previously stale routes is the purge-stale dispatch in gr.go, asserted only in TestRFC4724SessionDownRetainsAndMarksRoutesStale, which is tagged 4.2-3 and runs a first restart, not a consecutive one</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4724 §4.2: &#34;To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted.&#34; Read every tagged carrier: internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale compares two-family then one-family state and a first-restart control; state-only evidence is supplemented by internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes and TestRFC4724ConsecutiveRestartDeletesBeforeMarking. Their rfc4724SecondRestart helper drives two actual GR DOWN cycles with the registered RIB engine, verifies both routes stale after the first, reestablishes and refreshes only 198.51.101.0/24, then requires unrefreshed 198.51.100.0/24 gone and refreshed 198.51.101.0/24 retained at stale level 1. gr.go::handleStateEvent purges before retainPeerFamilies and mark-stale; rib_commands.go::purgeStaleCommand removes old stale storage while markStaleCommand marks the new generation. Purging after marking or omitting purge violates different exact assertions. Two positive and two negative tags, including both tags on the state test; the real-RIB functions share one scenario and duplicate the two assertions, so they are not two independent experiments, but the old-stale and refreshed routes are distinct positive/control inputs rather than one assertion with two polarities. Restricted to conventional GR: RFC9494-4.2-7/-9 consecutive LLGR gaps are unchanged. No runtime or observed-red renewal was performed by this judge. Post-lint independent source rejudgment: the tagged assertion functions are unchanged by the argument simplification; their untagged rfc4724SecondRestart and realGRRIB helpers are affected. The helper still stores two routes, drops the session, proves both stale, reestablishes, refreshes only the second, and drops again. Both tagged functions require old-stale deletion and refreshed-route retention at level 1; these are distinct input-route outcomes despite duplicated functions. handleStateEvent still purges before retain/mark. Removed arguments were testPeer constants; the same received and DOWN events reach the registered RIB. Checked mux.Close cannot weaken this result. Preserve enforced and the pre-lint planned renewals for both existing records; no LLGR consecutive-restart claim is made.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -910,28 +988,38 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go#L46" title="internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go" target="_blank" rel="noopener"><code>TestRFC4724ConsecutiveRestartDeletesBeforeMarking</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L272" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRConsecutiveRestartClearsPriorStale</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go#L35" title="internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go" target="_blank" rel="noopener"><code>TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-5"><code>RFC4724-4.2-5</code></a></h3>
 <p>The router MUST NOT differentiate between stale and other routing information during forwarding. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the positive (level-1 stale with higher LOCAL_PREF beats fresh) proves non-differentiation in selection. The negative is an LLGR level-2 route losing, which is RFC 9494 behaviour and does not violate this requirement, so no genuine negative exists</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c25 judge). Positive TestComparePair_GRStaleCompetesNormally: a level-1 stale route with the higher LOCAL_PREF wins. New genuine negative (R1(b)) TestRFC4724GRStaleRouteIsDecidedByItsAttributesAlone drives SelectBest toward both violations in both argument orders: a fresh route with the higher LOCAL_PREF beats the stale one (staleness does not favour) and with all attributes equal the stale route from the lower address wins the tie-break (staleness costs nothing). Overlay probes: favouring level 1 reds only the negative; lowering the depreference threshold to 1 reds the positive and the tie subtest. Record: comparePair revert (-). The old negative tag on TestComparePair_LLGRStale proved RFC 9494 depreference and was removed (D-15). Proof is at the RIB best path the forwarding plane is handed; sysrib and fib-kernel hold no GR-stale distinction.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L808" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_LLGRStale</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4724_stale_forwarding_test.go#L27" title="internal/component/bgp/plugins/rib/rfc4724_stale_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRStaleRouteIsDecidedByItsAttributesAlone</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L840" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L839" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -940,27 +1028,37 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc4724-4.2-6"><code>RFC4724-4.2-6</code></a></h3>
 <p>In re-establishing the session, the &#34;Restart State&#34; bit in the Graceful Restart Capability of the OPEN message sent by the Receiving Speaker MUST NOT be set unless the Receiving Speaker has restarted. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the positive, TestSetRBitTimeGatePattern, re-implements the restart-window condition inside the test and never calls the production gate restartFlagsFor (reactor/peer_gr_flags.go), so it cannot fail if that gate sets R on a cold start. Tag prose cites peer.go:574, stale</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c25 judge). Positive TestRFC4724OpenOutsideTheRestartWindowClearsRestartState: the OPEN built through the production getter on a cold start and after the deadline carries R clear; the overlay probe forcing the window true turns both subtests red. Negative TestRFC4724OpenInsideTheRestartWindowSetsRestartState pins the &#39;unless restarted&#39; exception (R set inside the window), so the positive cannot pass by a getter that never sets R. Records: getPluginCapabilities revert (+), restartFlagsFor revert (-). Same seam and same supplementary grmarker units as RFC4724-4.1-4. Re-judged 2026-10-02 (BGP c26 judge): the grmarker supplementary units&#39; tag prose now states what each body asserts (TestSetRBitOnCapability: SetRBit sets 0x80 and keeps Restart Time 120; TestSetRBitTimeGatePattern: SetRBit edits a copy, the caller&#39;s caps keep R=0) and names the production gate Peer.getPluginCapabilities -&gt; restartFlagsFor (peer_gr_flags.go), proven by the reactor units above; bodies unchanged, read against the prose and found accurate. Both grmarker units carry SetRBit-revert records, observed red. Verdict rests on the reactor units, unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L265" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L266" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L66" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenInsideTheRestartWindowSetsRestartState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L494" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/rfc4724_grmarker_test.go#L497" title="internal/component/bgp/grmarker/rfc4724_grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_restart_state_test.go#L86" title="internal/component/bgp/reactor/rfc4724_restart_state_test.go" target="_blank" rel="noopener"><code>TestRFC4724OpenOutsideTheRestartWindowClearsRestartState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-7"><code>RFC4724-4.2-7</code></a></h3>
 <p>If the session does not get re-established within the &#34;Restart Time&#34; that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestGRStateManagerTimerExpiry installs its own expiry callback and asserts it fires; it cannot see whether the production callback (gp.onTimerExpired) deletes the stale routes</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c24 judge). TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes lets the production timer (Restart Time 1 s) fire into gp.onTimerExpired and asserts release-routes &lt;peer&gt; is dispatched; TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes re-establishes before expiry with F set and asserts nothing is dispatched over the next 2 s (author probe removing restartTimer.Stop() turned only the negative red). Release-routes deleting every retained route is the rib&#39;s rib_commands.go handler, not re-proven here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -970,17 +1068,27 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L114" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L65" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerTimerExpiry</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L96" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-8"><code>RFC4724-4.2-8</code></a></h3>
 <p>Once the session is re-established, if the &#34;Forwarding State&#34; bit for a specific address family is not set in the newly received Graceful Restart Capability, or if a specific address family is not included in the newly received Graceful Restart Capability, or if the Graceful Restart Capability is not received in the re-established session at all, then the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is retaining for that address family. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestGRStateManagerReconnectFBitZero asserts onSessionReestablished returns the F-bit-clear family; the purge-stale dispatch in gr.go is not asserted. The other two triggers (family absent, no GR capability) have tests (ReconnectMissingFamily, ReconnectNoGR) that are not tagged</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c25 judge) after the D-8 fix. Producer read: gr.go forgetGRCapability (deletes peerCaps and peerLLGRCaps, RFC 4724 4.2 and RFC 9494 4.5 quoted) is called from handleOpenEvent and handleStructuredOpen only when the received OPEN has no code 64; an OPEN carrying 64 still stores the new capability, so GR state is not dropped. Opens are subscribed &#39;direction received&#39; and the server filters by direction (events.go PeerScopedProcs), so Ze&#39;s own OPEN never reaches it. peerCaps is read only by gr.go&#39;s two state handlers. All three triggers are now proven at the production dispatch: F clear and family omitted (OPEN through handleEvent) purge exactly that family; capability absent purges both on the JSON path (OPEN with only cap 65) and the structured path (only cap 65, no optional parameters) through a real down/up cycle. Negative: F set for both purges nothing. Judge overlay probe removing the peerCaps delete turned exactly the three absent-capability subtests red. Records: forgetGRCapability revert (both positives), onSessionReestablished revert (negative). Not proven here: the JSON path&#39;s test hex omits the 2-byte capability header that format.JSONEncoder.Open&#39;s fallback includes for code 64; production runs the structured path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -990,28 +1098,48 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L180" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L143" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerReconnectFBitZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go#L31" title="internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L140" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-9"><code>RFC4724-4.2-9</code></a></h3>
 <p>The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the positive TestInitialSyncEORReachesTheSilentFamilyToo proves the send; TestBuildEOR_IPv4Unicast proves encoding only; the negative tests EoR detection, a neighbouring rule</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive TestInitialSyncEORReachesTheSilentFamilyToo proves the marker is sent including for a family with no routes. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: no End-of-RIB before the initial update for IPv4 unicast completes (plugin barrier held, sendInitialRoutes observed waiting, wire empty), then exactly that marker once it does. TestBuildEOR_IPv4Unicast proves encoding only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L229" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L229" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L24" title="internal/component/bgp/reactor/rfc4724_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L22" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L22" title="internal/component/bgp/message/rfc4724_eor_test.go" target="_blank" rel="noopener"><code>TestBuildEOR_IPv4Unicast</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1031,12 +1159,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/stale_test.go#L179" title="internal/component/bgp/plugins/rib/storage/stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertNewDuringStale</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L179" title="internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertNewDuringStale</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/stale_test.go#L147" title="internal/component/bgp/plugins/rib/storage/stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertClearsStale</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L147" title="internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertClearsStale</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1045,7 +1173,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc4724-4.2-11"><code>RFC4724-4.2-11</code></a></h3>
 <p>Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestGRStateManagerEORPurge asserts onEORReceived returns true per family; the removal is the purge-stale dispatch in handleEOREvent (gr.go), which no tagged unit asserts</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c24 judge). The production removal is now asserted: TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes (production callbacks, session-down sequence consumed) sends an IPv4 unicast End-of-RIB and asserts exactly one dispatch, purge-stale &lt;peer&gt; ipv4/unicast, before handleEOREvent returns; TestRFC4724EndOfRIBLeavesOtherFamiliesStale asserts no ipv6 or peer-wide purge and nothing for an End-of-RIB of a family never retained. Judge overlay probe (handleEOREvent purging regardless of onEORReceived) turned only the negative red; the author&#39;s probe (purge-stale without the family) turned both red. Rib side: TestRIBPurgeStaleFamilyCommand. HEAD gr_state_test units stay supplementary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1055,28 +1183,48 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L71" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBLeavesOtherFamiliesStale</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L185" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerEORPurge</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go#L51" title="internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4724-4-4"><code>RFC4724-4-4</code></a></h3>
 <p>A BGP speaker MAY advertise the Graceful Restart Capability for an address family to its peer if it has the ability to preserve its forwarding state for the address family when BGP restarts. (Section 4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the tests prove the configured families are listed with F clear on a cold start, but not the MAY&#39;s condition (the family is listed only when the speaker can preserve its forwarding state for it), so a tuple for a family ze cannot preserve would still pass</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c29 judge), owner rulings 7 and 8(a). parseGRCapValue now lists a family only when nlrisplit.Supported (the RIB plugin, a hard Dependency of bgp-gr resolved by ResolveDependencies at autoload, can store and re-send it). Negative TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores registers ipv4/rib-less (SAFI 241, no splitter, preconditions asserted) and pins 007800010100 for the session list and 0078 (capability still sent, no tuple) for a configured list naming only it, each with the Warn carrying peer and family; HEAD negative ClaimsNoFamilyItDoesNotCarry keeps the uncarried-family refusal. Positives: TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores (ipv4/flow + ipv4/unicast, 00780001850000010100, no Warn) and ListsTheFamiliesOfTheSession (exact two-tuple payload). Four observed-red records (revert parseGRCapValue); author probe inverting the condition reds all four, and the pre-fix run reds only the negative, so the pair discriminates the condition itself.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L123" title="internal/component/bgp/plugins/gr/gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go#L123" title="internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go#L60" title="internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_capability_test.go#L96" title="internal/component/bgp/plugins/gr/gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityListsTheFamiliesOfTheSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go#L96" title="internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityListsTheFamiliesOfTheSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go#L93" title="internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go" target="_blank" rel="noopener"><code>TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1282,7 +1430,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

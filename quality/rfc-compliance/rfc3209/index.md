@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 28.8% | 17 of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 11.9% | 7 of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 68.2% | 30 of 44 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 59 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 87.5% | 49 of 56 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,9 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 55.9% | 33 of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 17 | of 59 gated MUSTs judged | 9 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 17 | of 59 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,6 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -67,10 +69,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 44 |
-| Tagged units | 44 |
+| Test tags | 56 |
+| Tagged units | 56 |
 | Recorded audit verdicts | 17 |
-| Discrimination records | 30 |
+| Discrimination records | 49 |
 | Summary | `rfc/short/rfc3209.md` |
 | Requirement shard | `rfc/requirements/rfc3209.md` |
 | RFC text | `rfc/full/rfc3209.txt` |
@@ -96,35 +98,36 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 17 | one part of the gated population |
-| Annotated instead of tested | 42 | one part of the gated population |
+| Annotated (including scoped evidence) | 42 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **59** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (17):** [`RFC3209-4.2-1`](#rfc3209-4.2-1), [`RFC3209-4.1-1`](#rfc3209-4.1-1), [`RFC3209-4.3.4-1`](#rfc3209-4.3.4-1), [`RFC3209-4.3.4.1-1`](#rfc3209-4.3.4.1-1), [`RFC3209-3-1`](#rfc3209-3-1), [`RFC3209-4.2.1-1`](#rfc3209-4.2.1-1), [`RFC3209-4.2.4-2`](#rfc3209-4.2.4-2), [`RFC3209-4.2.4-3`](#rfc3209-4.2.4-3), [`RFC3209-4.3.3-1`](#rfc3209-4.3.3-1), [`RFC3209-4.4.1-1`](#rfc3209-4.4.1-1), [`RFC3209-4.4.3-1`](#rfc3209-4.4.3-1), [`RFC3209-4.4.3-2`](#rfc3209-4.4.3-2), [`RFC3209-4.4.3-3`](#rfc3209-4.4.3-3), [`RFC3209-4.4.3-4`](#rfc3209-4.4.3-4), [`RFC3209-4.7.3-1`](#rfc3209-4.7.3-1), [`RFC3209-4.7.4-3`](#rfc3209-4.7.4-3), [`RFC3209-6-1`](#rfc3209-6-1)
 
-**Annotated instead of tested (42):** [`RFC3209-4.6.1-1`](#rfc3209-4.6.1-1), [`RFC3209-4.6.2-1`](#rfc3209-4.6.2-1), [`RFC3209-4.6.1-2`](#rfc3209-4.6.1-2), [`RFC3209-2.6-1`](#rfc3209-2.6-1), [`RFC3209-2.6-2`](#rfc3209-2.6-2), [`RFC3209-2.6-3`](#rfc3209-2.6-3), [`RFC3209-2.6-4`](#rfc3209-2.6-4), [`RFC3209-2.6-5`](#rfc3209-2.6-5), [`RFC3209-3-2`](#rfc3209-3-2), [`RFC3209-4.1.1.1-1`](#rfc3209-4.1.1.1-1), [`RFC3209-4.1.1.1-2`](#rfc3209-4.1.1.1-2), [`RFC3209-4.1.1.1-3`](#rfc3209-4.1.1.1-3), [`RFC3209-4.2.2-1`](#rfc3209-4.2.2-1), [`RFC3209-4.2.2-2`](#rfc3209-4.2.2-2), [`RFC3209-4.2.2-3`](#rfc3209-4.2.2-3), [`RFC3209-4.2.3-1`](#rfc3209-4.2.3-1), [`RFC3209-4.2.3-2`](#rfc3209-4.2.3-2), [`RFC3209-4.2.4-1`](#rfc3209-4.2.4-1), [`RFC3209-4.2.4-4`](#rfc3209-4.2.4-4), [`RFC3209-4.2.5-1`](#rfc3209-4.2.5-1), [`RFC3209-4.3.3.1-1`](#rfc3209-4.3.3.1-1), [`RFC3209-4.3.4.2-1`](#rfc3209-4.3.4.2-1), [`RFC3209-4.6.2-2`](#rfc3209-4.6.2-2), [`RFC3209-4.7.4-1`](#rfc3209-4.7.4-1), [`RFC3209-4.7.4-2`](#rfc3209-4.7.4-2), [`RFC3209-5.2.2-1`](#rfc3209-5.2.2-1), [`RFC3209-5.2.2-2`](#rfc3209-5.2.2-2), [`RFC3209-5.2.2-3`](#rfc3209-5.2.2-3), [`RFC3209-5.3-1`](#rfc3209-5.3-1), [`RFC3209-5.3-2`](#rfc3209-5.3-2), [`RFC3209-5.3-3`](#rfc3209-5.3-3), [`RFC3209-5.3-4`](#rfc3209-5.3-4), [`RFC3209-5.3-5`](#rfc3209-5.3-5), [`RFC3209-5.3-6`](#rfc3209-5.3-6), [`RFC3209-5.3-7`](#rfc3209-5.3-7), [`RFC3209-5.3-8`](#rfc3209-5.3-8), [`RFC3209-5.3-9`](#rfc3209-5.3-9), [`RFC3209-5.3-10`](#rfc3209-5.3-10), [`RFC3209-5.3-11`](#rfc3209-5.3-11), [`RFC3209-5.4-1`](#rfc3209-5.4-1), [`RFC3209-5.4-2`](#rfc3209-5.4-2), [`RFC3209-6-2`](#rfc3209-6-2)
+**Annotated (including scoped evidence) (42):** [`RFC3209-4.6.1-1`](#rfc3209-4.6.1-1), [`RFC3209-4.6.2-1`](#rfc3209-4.6.2-1), [`RFC3209-4.6.1-2`](#rfc3209-4.6.1-2), [`RFC3209-2.6-1`](#rfc3209-2.6-1), [`RFC3209-2.6-2`](#rfc3209-2.6-2), [`RFC3209-2.6-3`](#rfc3209-2.6-3), [`RFC3209-2.6-4`](#rfc3209-2.6-4), [`RFC3209-2.6-5`](#rfc3209-2.6-5), [`RFC3209-3-2`](#rfc3209-3-2), [`RFC3209-4.1.1.1-1`](#rfc3209-4.1.1.1-1), [`RFC3209-4.1.1.1-2`](#rfc3209-4.1.1.1-2), [`RFC3209-4.1.1.1-3`](#rfc3209-4.1.1.1-3), [`RFC3209-4.2.2-1`](#rfc3209-4.2.2-1), [`RFC3209-4.2.2-2`](#rfc3209-4.2.2-2), [`RFC3209-4.2.2-3`](#rfc3209-4.2.2-3), [`RFC3209-4.2.3-1`](#rfc3209-4.2.3-1), [`RFC3209-4.2.3-2`](#rfc3209-4.2.3-2), [`RFC3209-4.2.4-1`](#rfc3209-4.2.4-1), [`RFC3209-4.2.4-4`](#rfc3209-4.2.4-4), [`RFC3209-4.2.5-1`](#rfc3209-4.2.5-1), [`RFC3209-4.3.3.1-1`](#rfc3209-4.3.3.1-1), [`RFC3209-4.3.4.2-1`](#rfc3209-4.3.4.2-1), [`RFC3209-4.6.2-2`](#rfc3209-4.6.2-2), [`RFC3209-4.7.4-1`](#rfc3209-4.7.4-1), [`RFC3209-4.7.4-2`](#rfc3209-4.7.4-2), [`RFC3209-5.2.2-1`](#rfc3209-5.2.2-1), [`RFC3209-5.2.2-2`](#rfc3209-5.2.2-2), [`RFC3209-5.2.2-3`](#rfc3209-5.2.2-3), [`RFC3209-5.3-1`](#rfc3209-5.3-1), [`RFC3209-5.3-2`](#rfc3209-5.3-2), [`RFC3209-5.3-3`](#rfc3209-5.3-3), [`RFC3209-5.3-4`](#rfc3209-5.3-4), [`RFC3209-5.3-5`](#rfc3209-5.3-5), [`RFC3209-5.3-6`](#rfc3209-5.3-6), [`RFC3209-5.3-7`](#rfc3209-5.3-7), [`RFC3209-5.3-8`](#rfc3209-5.3-8), [`RFC3209-5.3-9`](#rfc3209-5.3-9), [`RFC3209-5.3-10`](#rfc3209-5.3-10), [`RFC3209-5.3-11`](#rfc3209-5.3-11), [`RFC3209-5.4-1`](#rfc3209-5.4-1), [`RFC3209-5.4-2`](#rfc3209-5.4-2), [`RFC3209-6-2`](#rfc3209-6-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3209-4.6.1-1` | \| IPv4 tunnel end point address \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| MUST be zero \| Tunnel ID \| (§4.6.1.1) | MUST | 4.6.1.1 | **positive:** `unit/verify` [`TestRSVPSessionObjectEncoding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342). **negative:** no negative test. **{single-polarity}:** the encoder writes the SESSION reserved octet as 0 on every SESSION it emits, but the decoder never reads that octet, so a non-zero-reserved reject test is not meaningful (internal/plugins/rsvpte/wire.go:238, :243) |
+| `RFC3209-4.6.1-1` | \| IPv4 tunnel end point address \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| MUST be zero \| Tunnel ID \| (§4.6.1.1) | MUST | 4.6.1.1 | **positive:** `unit/verify` [`TestRFC3209SessionReservedZeroOverDirtyBuffer`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L59). **positive:** `unit/verify` [`TestRSVPSessionObjectEncoding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342). **negative:** no negative test. **{single-polarity}:** the encoder writes the SESSION reserved octet as 0 on every SESSION it emits, but the decoder never reads that octet, so a non-zero-reserved reject test is not meaningful (internal/plugins/rsvpte/wire.go:238, :243) |
 | `RFC3209-4.6.2-1` | Class = SENDER_TEMPLATE, LSP_TUNNEL_IPv4 C-Type = 7 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| IPv4 tunnel sender address \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| MUST be zero \| LSP ID \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ (S4.6.2, Wire Format) | MUST | 4.6.2 | **positive:** `unit/verify` [`TestRSVPSenderTemplateReservedZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L372). **negative:** no negative test. **{single-polarity}:** the encoder zeroes the 2-byte reserved field before LSP ID on every SENDER_TEMPLATE, and decodeSenderTemplate never inspects it (internal/plugins/rsvpte/wire.go:270, :275-276) |
 | `RFC3209-4.6.1-2` | \| IPv6 tunnel end point address \| + + \| (16 bytes) \| + + \| \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| MUST be zero \| Tunnel ID \| (§4.6.1.2) | MUST | 4.6.1.2 | **positive:** `unit/verify` [`TestRSVPSessionObjectEncoding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L341). **negative:** no negative test. **{single-polarity}:** Ze emits no LSP_TUNNEL_IPv6 SESSION (wire.go::encodeSessionIPv4 writes C-Type 7 only), so no output of Ze can carry a non-zero IPv6 reserved field to refuse; the tagged test proves the IPv4 object and the IPv6 codec is scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md |
-| `RFC3209-4.2-1` | To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object. The LABEL_REQUEST object indicates that a label binding for this path is requested and provides an indication of the network layer protocol that is to be carried over this path. (§4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestBuildPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L45). **negative:** `unit/verify` [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L222) |
-| `RFC3209-4.1-1` | The label for a sender MUST immediately follow the FILTER_SPEC for that sender in the Resv message (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L75). **negative:** `unit/verify` [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L463) |
+| `RFC3209-4.2-1` | To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object. The LABEL_REQUEST object indicates that a label binding for this path is requested and provides an indication of the network layer protocol that is to be carried over this path. (§4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestBuildPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L45). **positive:** `unit/verify` [`TestRFC3209IngressPathCarriesLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L46). **negative:** `unit/verify` [`TestRFC3209IngressPathNeverWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L55). **negative:** `unit/verify` [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L222) |
+| `RFC3209-4.1-1` | The label for a sender MUST immediately follow the FILTER_SPEC for that sender in the Resv message (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75). **negative:** `unit/verify` [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L463) |
 | `RFC3209-4.1-2` | Labels MAY be carried in Resv messages (S4.1) | MAY | 4.1 | **positive:** `unit/verify` [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L300). **negative:** `unit/verify` [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L301) |
-| `RFC3209-4.3.4-1` | The node determines whether it is topologically adjacent to the abstract node described by the second subobject. If so, the node selects a particular next hop which is a member of the abstract node. The node then deletes the first subobject and continues processing with section 4.3.4.2. (§4.3.4.1) | MUST | 4.3.4.1 | **positive:** `unit/verify` [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L291). **negative:** `unit/verify` [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L509) |
-| `RFC3209-4.3.4.1-1` | 1) The node receiving the RSVP message MUST first evaluate the first subobject. (S4.3.4.1) | MUST | 4.3.4.1 | **positive:** `unit/verify` [`TestRFC3209TransitEvaluatesFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L123). **negative:** `unit/verify` [`TestRFC3209TransitNoFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L145) |
+| `RFC3209-4.3.4-1` | The node determines whether it is topologically adjacent to the abstract node described by the second subobject. If so, the node selects a particular next hop which is a member of the abstract node. The node then deletes the first subobject and continues processing with section 4.3.4.2. (§4.3.4.1) | MUST | 4.3.4.1 | **positive:** `unit/verify` [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L291). **negative:** `unit/verify` [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L509). **negative:** `unit/verify` [`TestRFC3209TransitNotAdjacentToSecondSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88) |
+| `RFC3209-4.3.4.1-1` | 1) The node receiving the RSVP message MUST first evaluate the first subobject. (S4.3.4.1) | MUST | 4.3.4.1 | **positive:** `unit/verify` [`TestRFC3209TransitEvaluatesFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L123). **negative:** `unit/verify` [`TestRFC3209TransitNoFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L145). **negative:** `unit/verify` [`TestRFC3209TransitRefusesForeignFirstSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L71) |
 | `RFC3209-2.6-1` | an LSR MUST execute the following algorithm (§2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** labeled forwarding at a transit LSR is Linux MPLS (net/mpls/af_mpls.c) on the label routes Ze installs, no Ze code fragments a labeled datagram, and no evidence shows the kernel path running the Section 2.6 algorithm; Ze programs path MTU (internal/plugins/rsvpte/mtu.go) but nothing shows that a layer executes the labeled-datagram forwarding algorithm |
 | `RFC3209-2.6-2` | (a) the datagram MUST be broken into fragments, each of whose size is no greater than M, and (S2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** labeled forwarding at a transit LSR is Linux MPLS (net/mpls/af_mpls.c) on the label routes Ze installs, no Ze code fragments a labeled datagram, and no evidence shows the kernel path running the Section 2.6 algorithm; Ze programs path MTU (internal/plugins/rsvpte/mtu.go) but nothing shows that a layer breaks an oversized fragmentable labeled datagram into fragments no larger than M |
 | `RFC3209-2.6-3` | (b) each fragment MUST be labeled and then forwarded. (S2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** labeled forwarding at a transit LSR is Linux MPLS (net/mpls/af_mpls.c) on the label routes Ze installs, no Ze code fragments a labeled datagram, and no evidence shows the kernel path running the Section 2.6 algorithm; Ze programs path MTU (internal/plugins/rsvpte/mtu.go) but nothing shows that a layer labels and forwards the fragments of an oversized labeled datagram |
 | `RFC3209-2.6-4` | When the size of an IPv4 datagram (without labels) exceeds the value of M, If the DF bit is not set in the IPv4 header, then (a) the datagram MUST be broken into fragments, each of whose size is no greater than M, and (b) each fragment MUST be labeled and then forwarded. If the DF bit is set in the IPv4 header, then (a) the datagram MUST NOT be forwarded (§2.6) | MUST NOT | 2.6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux MPLS forwarding (net/mpls); internal/plugins/rsvpte/fib.go::programSwap installs the label operation and no MTU, so the no-forward decision reads nothing Ze writes |
 | `RFC3209-2.6-5` | When the size of an IPv6 datagram (without labels) exceeds the value of M, (a) the datagram MUST NOT be forwarded (S2.6) | MUST NOT | 2.6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux MPLS forwarding (net/mpls); internal/plugins/rsvpte/fib.go::programSwap installs the label operation and no MTU, so the IPv6 no-forward decision reads nothing Ze writes |
-| `RFC3209-3-1` | In Resv messages they MUST appear after the associated FILTER_SPEC and prior to any subsequent FILTER_SPEC. (S3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC3209LabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L254). **positive:** `unit/verify` [`TestRFC3209ResvLabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L47). **negative:** `unit/verify` [`TestRFC3209ResvNeverCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L58) |
+| `RFC3209-3-1` | In Resv messages they MUST appear after the associated FILTER_SPEC and prior to any subsequent FILTER_SPEC. (S3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC3209LabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L254). **positive:** `unit/verify` [`TestRFC3209ResvLabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L47). **negative:** `unit/verify` [`TestRFC3209ResvNeverCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L58) |
 | `RFC3209-3-2` | The ordering of these objects is not important, so an implementation MUST be prepared to accept objects in any order (S3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L187). **negative:** no negative test. **{single-polarity}:** DecodeMessage reads objects in any order, and no violating input exists for a MUST-accept |
 | `RFC3209-4.1.1.1-1` | If a label range has been specified in the label request, the label MUST be drawn from that range (S4.1.1.1) | MUST | 4.1.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze encodes and decodes no ATM or Frame Relay label range; plan/spec-rsvpte-atm-frame-relay-labels.md |
 | `RFC3209-4.1.1.1-2` | Note that if a node intends to police individual senders to a session, it MUST assign unique labels to those senders. (S4.1.1.1) | MUST | 4.1.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze polices no sender; plan/spec-rsvpte-sender-policing.md |
@@ -135,24 +138,24 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 | `RFC3209-4.2.2-3` | If the VCI is less than 16-bits it MUST be right justified in this field and preceding bits MUST be set to zero. (S4.2.2) | MUST | 4.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze encodes and decodes no ATM or Frame Relay label range; plan/spec-rsvpte-atm-frame-relay-labels.md |
 | `RFC3209-4.2.3-1` | This field is reserved. It MUST be set to zero on transmission and ignored on receipt. (§4.2.3) | MUST | 4.2.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze encodes and decodes no ATM or Frame Relay label range; plan/spec-rsvpte-atm-frame-relay-labels.md |
 | `RFC3209-4.2.3-2` | The DLCI MUST be right justified in this field and unused bits MUST be set to 0. (S4.2.3) | MUST | 4.2.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze encodes and decodes no ATM or Frame Relay label range; plan/spec-rsvpte-atm-frame-relay-labels.md |
-| `RFC3209-4.2.4-1` | A receiver that accepts a LABEL_REQUEST object MUST include a LABEL object in Resv messages pertaining to that Path message (S4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209EgressResvCarriesLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L30). **negative:** no negative test. **{single-polarity}:** the egress always encodes a LABEL in the RESV it answers a LABEL_REQUEST PATH with (handlePathEgress, buildResv), and no input makes it accept the request and omit the label |
-| `RFC3209-4.2.4-2` | If a LABEL_REQUEST object was not present in the Path message, a node MUST NOT include a LABEL object in a Resv message for that Path message's session and PHOP (S4.2.4) | MUST NOT | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209LabelFollowsLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L205). **negative:** `unit/verify` [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L221) |
-| `RFC3209-4.2.4-3` | A node that sends a LABEL_REQUEST object MUST be ready to accept and correctly process a LABEL object in the corresponding Resv messages (S4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209IngressProcessesResvLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L48). **negative:** `unit/verify` [`TestRFC3209IngressRefusesResvWithoutLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L74) |
-| `RFC3209-4.2.4-4` | A node which receives and forwards a Path message each with a LABEL_REQUEST object, MUST copy the L3PID from the received LABEL_REQUEST object to the forwarded LABEL_REQUEST object. (S4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209TransitCopiesL3PID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L106). **negative:** no negative test. **{single-polarity}:** handlePathTransit copies the received LABEL_REQUEST whole into the relayed PATH, so a wrong L3PID never appears and the negative is the same assertion |
+| `RFC3209-4.2.4-1` | A receiver that accepts a LABEL_REQUEST object MUST include a LABEL object in Resv messages pertaining to that Path message (S4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209EgressResvCarriesLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L30). **negative:** no negative test. **{single-polarity}:** the egress always encodes a LABEL in the RESV it answers a LABEL_REQUEST PATH with (handlePathEgress, buildResv), and no input makes it accept the request and omit the label |
+| `RFC3209-4.2.4-2` | If a LABEL_REQUEST object was not present in the Path message, a node MUST NOT include a LABEL object in a Resv message for that Path message's session and PHOP (S4.2.4) | MUST NOT | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209LabelFollowsLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L205). **negative:** `unit/verify` [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L221) |
+| `RFC3209-4.2.4-3` | A node that sends a LABEL_REQUEST object MUST be ready to accept and correctly process a LABEL object in the corresponding Resv messages (S4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209IngressProcessesResvLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L48). **negative:** `unit/verify` [`TestRFC3209IngressRefusesResvWithoutLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L74) |
+| `RFC3209-4.2.4-4` | A node which receives and forwards a Path message each with a LABEL_REQUEST object, MUST copy the L3PID from the received LABEL_REQUEST object to the forwarded LABEL_REQUEST object. (S4.2.4) | MUST | 4.2.4 | **positive:** `unit/verify` [`TestRFC3209TransitCopiesL3PID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L106). **negative:** no negative test. **{single-polarity}:** handlePathTransit copies the received LABEL_REQUEST whole into the relayed PATH, so a wrong L3PID never appears and the negative is the same assertion |
 | `RFC3209-4.2.5-1` | This means that if a router has a neighbor that is known to not be RSVP capable, the router MUST NOT advertise the LABEL_REQUEST object when sending messages that pass through the non-RSVP routers. (S4.2.5) | MUST NOT | 4.2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze holds no RSVP-capability knowledge of a neighbor or a hop; plan/spec-rsvpte-non-rsvp-neighbors.md |
 | `RFC3209-4.3.3-1` | The Length MUST be at least 4, and MUST be a multiple of 4. (S4.3.3) | MUST | 4.3.3 | **positive:** `unit/verify` [`TestRFC3209EROSubobjectLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L70). **negative:** `unit/verify` [`TestRFC3209EROSubobjectLengthShortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L87) |
 | `RFC3209-4.3.3.1-1` | The path between a strict node and its preceding node MUST include only network nodes from the strict node and its preceding abstract node (S4.3.3.1) | MUST | 4.3.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** resolveExplicitPath in internal/plugins/rsvpte/routing.go now checks abstract-node membership and rejects an invalid strict transition. Complete requirement-level proof remains open. |
 | `RFC3209-4.3.4.2-1` | Each subobject in this series MUST denote an abstract node that is a subset of the current abstract node. (S4.3.4.2) | MUST | 4.3.4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** routing.go now performs native next-hop expansion; the former nextHopFromERO absence description is obsolete. Complete proof of this subset requirement remains open. |
 | `RFC3209-4.4.1-1` | The length MUST always be a multiple of 4, and at least 4. (S4.4.1) | MUST | 4.4.1 | **positive:** `unit/verify` [`TestRFC3209RROSubobjectLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L99). **negative:** `unit/verify` [`TestRFC3209RROSubobjectLengthShortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L116) |
-| `RFC3209-4.4.3-1` | The newly added subobject MUST be this router's IP address. (S4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209RRONewSubobjectIsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L13). **negative:** `unit/verify` [`TestRFC3209RRONoSubobjectWithoutOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L24) |
-| `RFC3209-4.4.3-2` | A node MUST NOT push on a Label Record subobject without also pushing on an IPv4 or IPv6 subobject (S4.4.3) | MUST NOT | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209RROLabelRecordFollowsAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L32). **negative:** `unit/verify` [`TestRFC3209RRONoLabelRecordWithoutAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L43) |
-| `RFC3209-4.4.3-3` | If the newly added subobject causes the RRO to be too big to fit in a Path (or Resv) message, the RRO object SHALL be dropped from the message and message processing continues as normal. (S4.4.3) | SHALL | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209RRODroppedWhenTooBig`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L44). **negative:** `unit/verify` [`TestRFC3209RROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L63) |
-| `RFC3209-4.4.3-4` | Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3) | SHALL NOT | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209PathRROWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L285). **negative:** `unit/verify` [`TestRFC3209PathRROForwarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L330) |
+| `RFC3209-4.4.3-1` | The newly added subobject MUST be this router's IP address. (S4.4.3) | MUST | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209EngineRecordsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L117). **positive:** `unit/verify` [`TestRFC3209RRONewSubobjectIsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L13). **negative:** `unit/verify` [`TestRFC3209EngineNeverRecordsNeighborAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L137). **negative:** `unit/verify` [`TestRFC3209RRONoSubobjectWithoutOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L24) |
+| `RFC3209-4.4.3-2` | A node MUST NOT push on a Label Record subobject without also pushing on an IPv4 or IPv6 subobject (S4.4.3) | MUST NOT | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209RROLabelRecordFollowsAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L32). **negative:** `unit/verify` [`TestRFC3209RRONoLabelRecordWithoutAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L43) |
+| `RFC3209-4.4.3-3` | If the newly added subobject causes the RRO to be too big to fit in a Path (or Resv) message, the RRO object SHALL be dropped from the message and message processing continues as normal. (S4.4.3) | SHALL | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209PathRRODroppedWhenTooBig`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L171). **positive:** `unit/verify` [`TestRFC3209RRODroppedWhenTooBig`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L44). **negative:** `unit/verify` [`TestRFC3209PathRROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L183). **negative:** `unit/verify` [`TestRFC3209RROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L63) |
+| `RFC3209-4.4.3-4` | A received Path message without an RRO indicates that the sender node no longer needs route recording.  Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3) | SHALL NOT | 4.4.3 | **positive:** `unit/verify` [`TestRFC3209PathRROWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L285). **negative:** `unit/verify` [`TestRFC3209PathRROForwarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L330) |
 | `RFC3209-4.6.2-2` | 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| \| + + \| IPv6 tunnel sender address \| + + \| (16 bytes) \| + + \| \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| MUST be zero \| LSP ID \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ (S4.6.2) | MUST | 4.6.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze has no IPv6 SESSION or SENDER_TEMPLATE codec; plan/spec-rsvpte-ipv6-lsp-tunnel.md |
 | `RFC3209-4.7.3-1` | The Length MUST always be a multiple of 4 and MUST be at least 8. (S4.7.3) | MUST | 4.7.3 | **positive:** `unit/verify` [`TestRFC3209SessionAttributeLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L127). **negative:** `unit/verify` [`TestRFC3209SessionAttributeLengthShortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L141) |
 | `RFC3209-4.7.4-1` | In order to be validated a link MUST pass the three tests below. (S4.7.4) | MUST | 4.7.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze decodes no affinity mask and validates no link against one; plan/spec-rsvpte-resource-affinities.md |
 | `RFC3209-4.7.4-2` | When a node is choosing links in order to extend a loose node of an ERO, the node MUST validate the resource classes of those links against the resource affinities (S4.7.4) | MUST | 4.7.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze decodes no affinity mask and validates no link against one; plan/spec-rsvpte-resource-affinities.md |
-| `RFC3209-4.7.4-3` | All RSVP routers, whether they support the SESSION_ATTRIBUTE object or not, SHALL forward the object unmodified (S4.7.4) | SHALL | 4.7.4 | **positive:** `unit/verify` [`TestRFC3209SessionAttributeRelayedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L165). **negative:** `unit/verify` [`TestRFC3209SessionAttributeNotInserted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L195) |
+| `RFC3209-4.7.4-3` | All RSVP routers, whether they support the SESSION_ATTRIBUTE object or not, SHALL forward the object unmodified (S4.7.4) | SHALL | 4.7.4 | **positive:** `unit/verify` [`TestRFC3209SessionAttributeRelayedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L165). **negative:** `unit/verify` [`TestRFC3209SessionAttributeNotInserted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L195) |
 | `RFC3209-5.2.2-1` | This value MUST change when the sender is reset, when the node reboots, or when communication is lost to the neighboring node and otherwise remains the same. (S5.2.2) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
 | `RFC3209-5.2.2-2` | This field MUST NOT be set to zero (0). (S5.2.2) | MUST NOT | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
 | `RFC3209-5.2.2-3` | This field MUST be set to zero (0) when no value has ever been seen from the neighbor. (S5.2.2) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
@@ -169,8 +172,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 | `RFC3209-5.3-11` | If a new instance value has not been received from the neighbor, then the node MUST advertise zero in the Dst_instance value field. (S5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
 | `RFC3209-5.4-1` | When the links between neighbors are numbered, then Hellos MUST be run on each link and the previously described mechanisms apply. (S5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
 | `RFC3209-5.4-2` | When the links are unnumbered, link failure detection MUST be provided by some means other than Hellos (S5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
-| `RFC3209-6-1` | When an ingress node with an established path wants to change that path, it forms a new Path message as follows. The existing SESSION object is used. In particular the Tunnel_ID and Extended_Tunnel_ID are unchanged. The ingress node picks a new LSP_ID to form a new SENDER_TEMPLATE. (§4.6.4) | MUST | 4.6.4 | **positive:** `unit/verify` [`TestEngineMakeBeforeBreak`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/reroute_test.go#L41). **negative:** `unit/verify` [`TestSEAdmissionDistinctSessionsDoNotShare`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/admission_se_test.go#L38) |
-| `RFC3209-6-2` | On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node. (§4.6.4) | MUST | 4.6.4 | **positive:** `unit/verify` [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L80). **negative:** no negative test. **{single-polarity}:** every RESV ze originates carries STYLE = Shared Explicit (18) and admission always applies SE sharing semantics; ze never emits a Fixed-Filter style for an LSP tunnel (internal/plugins/rsvpte/engine.go:272, build.go:126, wire.go:680) |
+| `RFC3209-6-1` | When an ingress node with an established path wants to change that path, it forms a new Path message as follows. The existing SESSION object is used. In particular the Tunnel_ID and Extended_Tunnel_ID are unchanged. The ingress node picks a new LSP_ID to form a new SENDER_TEMPLATE. (§4.6.4) | MUST | 4.6.4 | **positive:** `unit/verify` [`TestEngineMakeBeforeBreak`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_reroute_test.go#L41). **positive:** `unit/verify` [`TestRFC3209ReroutePathKeepsSessionNewLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L195). **negative:** `unit/verify` [`TestRFC3209RerouteNeverReusesLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L211). **negative:** `unit/verify` [`TestSEAdmissionDistinctSessionsDoNotShare`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_admission_se_test.go#L38) |
+| `RFC3209-6-2` | On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node. (§4.6.4) | MUST | 4.6.4 | **positive:** `unit/verify` [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L80). **positive:** `unit/verify` [`TestRFC3209EgressResvStyleIsSharedExplicit`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L227). **negative:** no negative test. **{single-polarity}:** every RESV ze originates carries STYLE = Shared Explicit (18) and admission always applies SE sharing semantics; ze never emits a Fixed-Filter style for an LSP tunnel (internal/plugins/rsvpte/engine.go:272, build.go:126, wire.go:680) |
 | `RFC3209-x-2` | If the requested bandwidth is not available a PathErr message is returned with an Error Code of 01, Admission Control Failure, and an Error Value of 0x0002. (§4.7.3) | SHOULD | 4.7.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3209-4.4-1` | The RRO can be present in both RSVP Path and Resv messages. (§4.4) | MAY | 4.4 | **positive:** no positive test. **negative:** no negative test |
 
@@ -222,11 +225,12 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 | IPv4 tunnel end point address | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | Tunnel ID | (§4.6.1.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a SESSION emitted with a non-zero reserved field. TestRSVPSessionObjectEncoding asserts buf[8],buf[9]==0, but over make([]byte,32), a buffer already zero there, so an encodeSessionIPv4 that never writes the reserved octets (and on a pooled buffer ships stale bytes) stays green. Only a stray non-zero write is caught. Prefill the buffer as TestRSVPSenderTemplateReservedZeroOnSend does.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Single-polarity row. TestRFC3209SessionReservedZeroOverDirtyBuffer encodes into a 0xFF-prefilled buffer and asserts the two reserved octets are zero, with the literal header 16/1/7, so an encoder that skipped the reserved write now goes red. Its record breaks encodeObjectHeader (reach), not the reserved write itself; the prefill makes the assertion discriminating.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRSVPSessionObjectEncoding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342) | unit/verify | unproven |
+| positive | [`TestRFC3209SessionReservedZeroOverDirtyBuffer`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L59) | unit/verify | revert, verified |
+| positive | [`TestRSVPSessionObjectEncoding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.6.2-1`](#rfc3209-4.6.2-1)
 
@@ -252,12 +256,14 @@ Audit verdict: wrong (the tests assert something other than what the requirement
 
 To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object. The LABEL_REQUEST object indicates that a label binding for this path is requested and provides an indication of the network layer protocol that is to be carried over this path. (§4.2.4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence obliges the sender: the Path message that establishes an LSP tunnel carries a LABEL_REQUEST naming the L3PID. Positive TestBuildPathRoundTrip asserts HasLabelRequest and LabelRequest==psb.LabelRequest on buildPath output, which goes red if buildPath drops the object or its L3PID. The negative TestRFC3209NoLabelWithoutLabelRequest proves a receiver rule (egress refuses a PATH without LABEL_REQUEST), not the sender obligation, and the row has no single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Sender obligation now driven through the ingress: TestRFC3209IngressPathCarriesLabelRequest (setupTunnel PATH carries LABEL_REQUEST, L3PID 0x0800) and TestRFC3209IngressPathNeverWithoutLabelRequest (originated PATH, two refreshes and the make-before-break PATH all carry it). The older receiver-rule negative TestRFC3209NoLabelWithoutLabelRequest stays tagged and proves a neighbouring rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L222) | unit/verify | mutant, verified |
-| positive | [`TestBuildPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L45) | unit/verify | unproven |
+| negative | [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L222) | unit/verify | mutant, verified |
+| negative | [`TestRFC3209IngressPathNeverWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L55) | unit/verify | revert, verified |
+| positive | [`TestBuildPathRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L45) | unit/verify | revert, verified |
+| positive | [`TestRFC3209IngressPathCarriesLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L46) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.1-1`](#rfc3209-4.1-1)
 
@@ -267,8 +273,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L463) | unit/verify | unproven |
-| positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L75) | unit/verify | unproven |
+| negative | [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L463) | unit/verify | unproven |
+| positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75) | unit/verify | unproven |
 
 ### [`RFC3209-4.1-2`](#rfc3209-4.1-2)
 
@@ -285,23 +291,25 @@ Audit verdict: not audited: no reader has judged these tests
 
 The node determines whether it is topologically adjacent to the abstract node described by the second subobject. If so, the node selects a particular next hop which is a member of the abstract node. The node then deletes the first subobject and continues processing with section 4.3.4.2. (§4.3.4.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Step 4: a node adjacent to the second subobject's abstract node selects a next hop in it and deletes the first subobject. Positive TestEngineTransitForwarding asserts the PATH goes to the egress (dst) and fwd.ERO has length 1 starting at the egress, red if the first subobject is kept or the hop is wrong. The negative TestEngineTransitNoUsableERONextHop uses an ERO with no second subobject, which is step 2 (end of explicit route) and an implicit-route failure, a neighbouring rule; no negative covers step 4.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Closure rejudge 2026-10-02: TestEngineTransitForwarding changed only in its positive claim, which named nextHopFromERO (gone) and now names the current producer, routing.go resolveExplicitPath, which skips the leading local subobjects and, when the next node is in the second abstract node, returns the ERO from that subobject on; the body still asserts the PATH is relayed to the egress with a one-hop ERO beginning at the egress. Positive re-recorded on resolveExplicitPath (observed red). Negatives TestRFC3209TransitNotAdjacentToSecondSubobject (no route to the strict second subobject: no next hop, nothing forwarded, no state, PathErr 24/2) and TestEngineTransitNoUsableERONextHop, both recorded on resolveExplicitPath.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L509) | unit/verify | unproven |
-| positive | [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L291) | unit/verify | unproven |
+| negative | [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L509) | unit/verify | revert, verified |
+| negative | [`TestRFC3209TransitNotAdjacentToSecondSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88) | unit/verify | revert, verified |
+| positive | [`TestEngineTransitForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L291) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.3.4.1-1`](#rfc3209-4.3.4.1-1)
 
 1) The node receiving the RSVP message MUST first evaluate the first subobject. (S4.3.4.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a node that does not evaluate the first subobject, e.g. pops it blindly. Positive TestRFC3209TransitEvaluatesFirstEROSubobject consumes a first subobject naming this node; a blind pop also passes. Negative TestRFC3209TransitNoFirstEROSubobject covers the absent first subobject. No tagged unit sends a first subobject that does NOT name this node (Bad initial subobject), the only input that shows evaluation happened.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). The missing input is now covered: TestRFC3209TransitRefusesForeignFirstSubobject sends a first subobject 10.0.0.77/32 that does not contain this node; the transit forwards nothing, keeps no state, and answers PathErr 24/4 to the previous hop, which a blind pop would fail. Positive TestRFC3209TransitEvaluatesFirstEROSubobject.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209TransitNoFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L145) | unit/verify | mutant, verified |
-| positive | [`TestRFC3209TransitEvaluatesFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L123) | unit/verify | revert, verified |
+| negative | [`TestRFC3209TransitNoFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L145) | unit/verify | mutant, verified |
+| negative | [`TestRFC3209TransitRefusesForeignFirstSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L71) | unit/verify | revert, verified |
+| positive | [`TestRFC3209TransitEvaluatesFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L123) | unit/verify | revert, verified |
 
 ### [`RFC3209-2.6-1`](#rfc3209-2.6-1)
 
@@ -352,8 +360,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC3209ResvNeverCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L58) | unit/verify | revert, verified |
-| positive | [`TestRFC3209LabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L254) | unit/verify | revert, verified |
 | positive | [`TestRFC3209ResvLabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L47) | unit/verify | revert, verified |
+| positive | [`TestRFC3209LabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L254) | unit/verify | revert, verified |
 
 ### [`RFC3209-3-2`](#rfc3209-3-2)
 
@@ -448,7 +456,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC3209EgressResvCarriesLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L30) | unit/verify | revert, verified |
+| positive | [`TestRFC3209EgressResvCarriesLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L30) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.2.4-2`](#rfc3209-4.2.4-2)
 
@@ -458,8 +466,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L221) | unit/verify | mutant, verified |
-| positive | [`TestRFC3209LabelFollowsLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L205) | unit/verify | mutant, verified |
+| negative | [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L221) | unit/verify | mutant, verified |
+| positive | [`TestRFC3209LabelFollowsLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L205) | unit/verify | mutant, verified |
 
 ### [`RFC3209-4.2.4-3`](#rfc3209-4.2.4-3)
 
@@ -469,8 +477,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209IngressRefusesResvWithoutLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L74) | unit/verify | mutant, verified |
-| positive | [`TestRFC3209IngressProcessesResvLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L48) | unit/verify | mutant, verified |
+| negative | [`TestRFC3209IngressRefusesResvWithoutLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L74) | unit/verify | mutant, verified |
+| positive | [`TestRFC3209IngressProcessesResvLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L48) | unit/verify | mutant, verified |
 
 ### [`RFC3209-4.2.4-4`](#rfc3209-4.2.4-4)
 
@@ -480,7 +488,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC3209TransitCopiesL3PID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L106) | unit/verify | revert, verified |
+| positive | [`TestRFC3209TransitCopiesL3PID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L106) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.2.5-1`](#rfc3209-4.2.5-1)
 
@@ -532,12 +540,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Send
 
 The newly added subobject MUST be this router's IP address. (S4.4.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the node adds a subobject that is not its own IP address. TestRFC3209RRONewSubobjectIsOwnAddress passes self into prependRRO and asserts it comes back at the head, which proves the helper, not that the engine passes this router's address; a caller passing the next hop stays green. The negative (invalid address pushes nothing) is a local rule the sentence does not state.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Now proven at the engine, not the helper: TestRFC3209EngineRecordsOwnAddress drives a transit through handlePacket and reads the RRO head of the relayed PATH and the relayed RESV as the router's own 10.0.0.5, rest in order; TestRFC3209EngineNeverRecordsNeighborAddress asserts the head is neither the next hop nor the previous hop.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209RRONoSubobjectWithoutOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L24) | unit/verify | revert, verified |
-| positive | [`TestRFC3209RRONewSubobjectIsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L13) | unit/verify | revert, verified |
+| negative | [`TestRFC3209RRONoSubobjectWithoutOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L24) | unit/verify | revert, verified |
+| negative | [`TestRFC3209EngineNeverRecordsNeighborAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L137) | unit/verify | revert, verified |
+| positive | [`TestRFC3209RRONewSubobjectIsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L13) | unit/verify | revert, verified |
+| positive | [`TestRFC3209EngineRecordsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L117) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.4.3-2`](#rfc3209-4.4.3-2)
 
@@ -547,30 +557,32 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209RRONoLabelRecordWithoutAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L43) | unit/verify | mutant, verified |
-| positive | [`TestRFC3209RROLabelRecordFollowsAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L32) | unit/verify | mutant, verified |
+| negative | [`TestRFC3209RRONoLabelRecordWithoutAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L43) | unit/verify | mutant, verified |
+| positive | [`TestRFC3209RROLabelRecordFollowsAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L32) | unit/verify | mutant, verified |
 
 ### [`RFC3209-4.4.3-3`](#rfc3209-4.4.3-3)
 
 If the newly added subobject causes the RRO to be too big to fit in a Path (or Resv) message, the RRO object SHALL be dropped from the message and message processing continues as normal. (S4.4.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: drop the RRO from a Path or a Resv that it no longer fits, and continue processing. TestRFC3209RRODroppedWhenTooBig and TestRFC3209RROKeptWhenItFits cover the Resv relay only (HasRRO false, LSP up; RRO kept when it fits). No tagged unit covers the Path direction, and 'too big' is modelled by the maxRecordRouteHops cap rather than the message size.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Path direction now covered: TestRFC3209PathRRODroppedWhenTooBig (32 subobjects in, PATH forwarded without RRO, path state installed) and TestRFC3209PathRROKeptWhenItFits (31 in, 32 out headed by this router); the Resv direction was already covered. 'Too big' is realised as maxRecordRouteHops (32), the bound that keeps the RRO inside the fixed encode buffer (wire.go); that threshold is a model choice, not the message size.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209RROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L63) | unit/verify | revert, verified |
-| positive | [`TestRFC3209RRODroppedWhenTooBig`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L44) | unit/verify | revert, verified |
+| negative | [`TestRFC3209RROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L63) | unit/verify | revert, verified |
+| negative | [`TestRFC3209PathRROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L183) | unit/verify | revert, verified |
+| positive | [`TestRFC3209RRODroppedWhenTooBig`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L44) | unit/verify | revert, verified |
+| positive | [`TestRFC3209PathRRODroppedWhenTooBig`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L171) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.4.3-4`](#rfc3209-4.4.3-4)
 
-Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3)
+A received Path message without an RRO indicates that the sender node no longer needs route recording.  Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Resv that carries an RRO after a Path without an RRO. TestRFC3209PathRROWithdrawal, at transit and egress, asserts HasRRO false on the next relayed RESV and on a sendResv refresh. The negative TestRFC3209PathRROForwarded asserts the RRO is still included while the PATH requests it, so an always-drop implementation goes red.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Row widened to the verbatim trigger plus ban; the tests already drive the trigger. TestRFC3209PathRROWithdrawal: after a Path without an RRO, the next relayed RESV and a sendResv refresh carry no RRO, at transit and egress. Negative TestRFC3209PathRROForwarded keeps the RRO while the PATH requests it, so an always-drop implementation goes red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209PathRROForwarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L330) | unit/verify | unproven |
-| positive | [`TestRFC3209PathRROWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L285) | unit/verify | mutant, verified |
+| negative | [`TestRFC3209PathRROForwarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L330) | unit/verify | unproven |
+| positive | [`TestRFC3209PathRROWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L285) | unit/verify | mutant, verified |
 
 ### [`RFC3209-4.6.2-2`](#rfc3209-4.6.2-2)
 
@@ -615,8 +627,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209SessionAttributeNotInserted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L195) | unit/verify | revert, verified |
-| positive | [`TestRFC3209SessionAttributeRelayedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L165) | unit/verify | revert, verified |
+| negative | [`TestRFC3209SessionAttributeNotInserted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L195) | unit/verify | revert, verified |
+| positive | [`TestRFC3209SessionAttributeRelayedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L165) | unit/verify | revert, verified |
 
 ### [`RFC3209-5.2.2-1`](#rfc3209-5.2.2-1)
 
@@ -750,22 +762,25 @@ No test carries RFC3209-5.4-2, so no unit is bound to it.
 
 When an ingress node with an established path wants to change that path, it forms a new Path message as follows. The existing SESSION object is used. In particular the Tunnel_ID and Extended_Tunnel_ID are unchanged. The ingress node picks a new LSP_ID to form a new SENDER_TEMPLATE. (§4.6.4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a reroute PATH whose SESSION changes (Tunnel_ID or Extended_Tunnel_ID) or whose SENDER_TEMPLATE keeps the old LSP_ID. Positive TestEngineMakeBeforeBreak asserts the internal newKey fields and the emitted path.SenderTemplate.LSPID==2, but never the emitted PATH's SESSION object, so a PATH built with a different SESSION than the key stays green. Negative TestSEAdmissionDistinctSessionsDoNotShare proves admission sharing keyed on SESSION, a neighbouring rule.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC3209ReroutePathKeepsSessionNewLSPID reads the emitted make-before-break PATH: SESSION equal to the original and to the PSB, same sender, new LSP_ID. TestRFC3209RerouteNeverReusesLSPID: two successive reroutes give three distinct LSP_IDs under one SESSION.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestSEAdmissionDistinctSessionsDoNotShare`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/admission_se_test.go#L38) | unit/verify | unproven |
-| positive | [`TestEngineMakeBeforeBreak`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/reroute_test.go#L41) | unit/verify | unproven |
+| negative | [`TestSEAdmissionDistinctSessionsDoNotShare`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_admission_se_test.go#L38) | unit/verify | revert, verified |
+| negative | [`TestRFC3209RerouteNeverReusesLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L211) | unit/verify | revert, verified |
+| positive | [`TestEngineMakeBeforeBreak`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_reroute_test.go#L41) | unit/verify | revert, verified |
+| positive | [`TestRFC3209ReroutePathKeepsSessionNewLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L195) | unit/verify | revert, verified |
 
 ### [`RFC3209-6-2`](#rfc3209-6-2)
 
 On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node. (§4.6.4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an egress that answers a PATH with a Resv in a style other than Shared Explicit. The tagged unit TestBuildResvRoundTrip sets rsb.Style=SE itself and asserts buildResv round-trips it; an engine choosing FF on receipt of a PATH stays green. No tagged unit drives an egress receiving a PATH and reads the Resv STYLE.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Single-polarity row, now driven at the engine: TestRFC3209EgressResvStyleIsSharedExplicit has an egress receive a PATH through handlePacket and reads the STYLE of the RESV it sends as the literal 0x12.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L80) | unit/verify | unproven |
+| positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L80) | unit/verify | revert, verified |
+| positive | [`TestRFC3209EgressResvStyleIsSharedExplicit`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L227) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

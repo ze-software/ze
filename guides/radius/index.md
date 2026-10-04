@@ -189,6 +189,13 @@ rejected: the Access-Request stays outstanding and the client retransmits, so a
 forged packet cannot end a login. If the conversation then runs out of retries
 the login fails as an infrastructure error and the chain tries the next backend.
 
+**The EAP header is checked in both directions** (RFC 3579 §2.2). A packet from
+the server whose Length does not fit the octets carried, or an Access-Challenge
+whose EAP packet is not a Request (Code 1), never reaches the peer: the login
+ends as an infrastructure error and the chain tries the next backend. The
+peer's answer is forwarded only when it is a Response (Code 2) carrying the
+Identifier of the server's Request.
+
 An EAP packet longer than 253 octets is split across consecutive EAP-Message
 attributes, and the values of a reply's attributes are concatenated back into
 one packet (§3.1). One RADIUS packet carries exactly one EAP packet.
@@ -345,9 +352,9 @@ proofs runs the same paths against a real FreeRADIUS server at a pinned tag:
 Run them with `./le test integration interop-radius`, or one at a time with
 `RADIUS_INTEROP_SCENARIO=<name>`. They need Docker and no kernel module.
 
-Unit coverage lives in `internal/component/radius/{config,authenticator,aaa,chap,doctor}_test.go`.
+Unit coverage lives in `internal/component/radius/{rfc2865_config,rfc2865_authenticator,aaa,chap,doctor}_test.go`.
 The `auth-method` enum is pinned against the schema by
-`internal/component/config/radius_auth_method_enum_test.go`.
+`internal/component/config/rfc7950_radius_auth_method_enum_test.go`.
 
 For ad-hoc verification, point the daemon at a real RADIUS server and run any
 command via `ze cli -c "show bgp"` -- the daemon log tags the satisfying

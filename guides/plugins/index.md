@@ -969,8 +969,13 @@ accepted for disambiguation or advanced use.
 
 The plugin emits policy intent only. The reactor performs the wire rewrite so
 AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
-to EBGP peers, private-AS removal runs before the normal local-AS prepend.
+to EBGP peers, private-AS removal runs before the normal local-AS prepend. On
+export to an IBGP peer (peer AS equals local AS, or equals the configured
+migration AS, which RFC 7705 Section 4.2 makes internal) the removal is not applied:
+RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to
+an internal peer, so the route leaves with its AS_PATH unchanged.
 
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runEgressPolicyChainASN4 -->
 <!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
@@ -1200,8 +1205,15 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 | Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
+`StartAfter` is separate from either kind of dependency. It orders two plugins
+only when both are already selected and never activates its target. BFD starts
+after `interface` when interface configuration is present, so its logical names
+bind before sessions start; a BFD-only configuration does not load an interface
+backend. Cycles among selected plugins are refused for order-only edges too.
+
 `bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `send bgp <sel> cached <id>` pipeline. See [architecture/api/commands](../../architecture/api/commands/index.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
-<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies, Registration.OptionalDependencies, Registration.StartAfter -->
+<!-- source: internal/component/bfd/register.go -- StartAfter -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
 
 ## Exclusive Roles
@@ -1234,9 +1246,9 @@ A plugin that decides on the peer-up event whether a peer may receive traffic de
 
 ## Session-Ready Report
 
-A plugin whose routes belong to a peer's INITIAL routing update declares `SignalsSessionReady: true` and dispatches `request peer <addr> plugin session ready` once those routes are out. The engine holds that peer's End-of-RIB until the report arrives, so the marker means the initial routing update completed (RFC 4724 Section 4).
+A plugin that reports completion of its peer-up route replay declares `SignalsSessionReady: true` and dispatches `request peer <addr> plugin session ready` once those routes are out. This report does not delay the peer's End-of-RIB marker.
 
-The declaration is voluntary. It says WHEN your routes belong, not what you may send, so a plugin that pushes routes on its own schedule declares nothing and is never waited for, and binding it with `send [ update ]` costs the peer no delay.
+The declaration is voluntary. A plugin that pushes routes on its own schedule need not declare it; binding that plugin with `send [ update ]` alone does not make it a session-ready reporter.
 
 An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares `signals-session-ready` in its Stage-1 `declare-registration` instead, and the engine reads it off the running process. Declaring nothing stays the default there too.
 
@@ -1246,13 +1258,16 @@ Three facts have to hold before a peer names your process in its barrier, and ea
 
 Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working".
 
-**Your report does not hold the peer's End-of-RIB (owner ruling, 2026-09-18).** A process that creates routes counts as a peer when the marker is decided, and Ze does not wait for a peer's marker before sending its own. The marker goes out as soon as the peer has written the routes it owns itself. What your report buys is ORDER during the initial sync: routes you push before it are part of that update, and routes you push after the marker are delivered as ordinary updates, which is what RFC 4724 Section 2 describes. A process that never reports costs its peer nothing.
+**Your report does not hold the peer's End-of-RIB (owner ruling, 2026-09-18).** A process that creates routes counts as a peer when the marker is decided, and Ze does not wait for a peer's marker before sending its own. The marker follows the routes Ze owns, after the separate peer-up registration barrier. Routes a process pushes after the marker are ordinary updates.
+
+Replay ordering is a separate obligation. A reporter whose registration also declares `FencesLiveForwards` holds live forwarding behind its peer-up replay. Once all fence owners report, the engine releases those live forwards. A reporter without that declaration does not hold the forwarding fence, but a fence owner that never reports can leave live forwards held; neither case holds End-of-RIB.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, lowerReplayFence -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- replayFenceOwners -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 
 ## Startup Timing

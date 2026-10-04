@@ -1,0 +1,5 @@
+site: publish the week of 2026-09-21
+
+Regenerated site with the weekly update covering 2026-09-21 to
+2026-09-27: the changes page, feed and homepage card, plus refreshed
+data files and RFC pages.

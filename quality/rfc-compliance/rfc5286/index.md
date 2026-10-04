@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 50.0% | 3 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 40.0% | 4 of 10 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 50.0% | 6 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 33.3% | 2 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 3 | of 6 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 11 |
-| Tagged units | 10 |
+| Test tags | 13 |
+| Tagged units | 12 |
 | Recorded audit verdicts | 3 |
-| Discrimination records | 4 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc5286.md` |
 | Requirement shard | `rfc/requirements/rfc5286.md` |
 | RFC text | `rfc/full/rfc5286.txt` |
@@ -96,16 +97,17 @@ Two MUST gaps gated in [`rfc/short/rfc5286.md`](https://github.com/ze-software/z
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 3 | one part of the gated population |
-| Annotated instead of tested | 3 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (3):** [`RFC5286-x-1`](#rfc5286-x-1), [`RFC5286-x-2`](#rfc5286-x-2), [`RFC5286-x-3`](#rfc5286-x-3)
 
-**Annotated instead of tested (3):** [`RFC5286-x-4`](#rfc5286-x-4), [`RFC5286-x-5`](#rfc5286-x-5), [`RFC5286-x-6`](#rfc5286-x-6)
+**Annotated (including scoped evidence) (3):** [`RFC5286-x-4`](#rfc5286-x-4), [`RFC5286-x-5`](#rfc5286-x-5), [`RFC5286-x-6`](#rfc5286-x-6)
 
 ## Requirements
 
@@ -113,7 +115,7 @@ Two MUST gaps gated in [`rfc/short/rfc5286.md`](https://github.com/ze-software/z
 |---|---|---|---|---|
 | `RFC5286-x-1` | Alternate next hops used by implementations following this specification MUST conform to at least the loop-freeness condition stated above in Inequality 1. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5286LoopFreeInequality1`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L22). **negative:** `unit/verify` [`TestRFC5286LoopFreeInequality1`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L37) |
 | `RFC5286-x-2` | For computing an alternate, a router MUST NOT use an alternate next- hop that is along a link whose cost or reverse cost is LSInfinity (for OSPF) or the maximum cost (for IS-IS) or that has the overload bit set (for IS-IS). (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC5286CostReverseCostGate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L60). **positive:** `unit/verify` [`TestRFC5286CostedOutLinkMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L26). **negative:** `unit/verify` [`TestRFC5286CostReverseCostGate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L66). **negative:** `unit/verify` [`TestRFC5286CostedOutLinkMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L32) |
-| `RFC5286-x-3` | In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59). **positive:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99). **negative:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72). **negative:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114) |
+| `RFC5286-x-3` | In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59). **positive:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99). **positive:** `unit/verify` [`TestRFC5286TransitNeighborFiniteReverseIsAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L70). **negative:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72). **negative:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114). **negative:** `unit/verify` [`TestRFC5286TransitNeighborCostedOutReverseNotAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L85) |
 | `RFC5286-x-4` | Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go); IS-IS has no LFA/backup-next-hop computation code path, so the IS-IS overload-bit exclusion has nothing to apply to |
 | `RFC5286-x-5` | The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze attaches the RFC 5286 alternate to a route's Loc-RIB Path unconditionally in Installer.insert (internal/plugins/ospf/spf/install.go:213-229) with no guard confining it to unicast shortest-path forwarding; an OSPFv3 multicast address-family engine (family.IPv4Multicast / family.IPv6Multicast, internal/plugins/ospf/multiaf.go:102-115) installs through the same NewInstallerFamily path (internal/plugins/ospf/spf_wiring.go:34) and inherits fast-reroute config (internal/plugins/ospf/config.go:709-711), so a multicast-AF route receives the same backup next-hop, which Section 4 confines to shortest-path traffic and Section 6.5 excludes from multicast RPF. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
 | `RFC5286-x-6` | A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze relies on SPF reconvergence to replace a route with a stale alternate (internal/plugins/ospf/spf/install.go:171-195) and the kernel RTNH_F_LINKDOWN flag (internal/plugins/fib/kernel/nexthop_linux.go:113), but implements no explicit RFC 5286 Section 4.1 hold-down timer or termination-condition bounding how long an alternate stays active. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
@@ -182,14 +184,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate. (§3.5)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA-FIX re-read 2026-09-27. Forbidden: N_i as an alternate when every link from S to N_i has reverse cost LSInfinity. Asserted for point-to-point links only: TestRFC5286AllReverseLinksCostedOut and TestRFC5286ReverseCostAllInfinite derive the reverse cost with reverseP2PCost (spf/lfa.go) over parallel P2P links back to S, all 0xffff or none, and require no backup, with one finite link requiring the backup. A neighbour reached over a transit (broadcast) network takes its reverse cost from reverseTransitCost, which no tagged unit drives at 0xffff, so 'all links' is proven for one of the two link kinds lfa.go enumerates. IS-IS computes no LFA in ze, so the row binds OSPF only.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c25). Forbidden: N_i as an alternate when every link from S to N_i has reverse cost LSInfinity. Both link kinds lfa.go enumerates are now driven. Point-to-point: TestRFC5286AllReverseLinksCostedOut and TestRFC5286ReverseCostAllInfinite (reverseP2PCost over parallel links, all 0xffff refused, one finite accepted). Transit: TestRFC5286TransitNeighborCostedOutReverseNotAlternate builds a graph where N's only link back to S is its transit link onto the shared LAN at 0xffff, runs the real neighborLinks enumeration (reverseTransitCost) and selectLFA over its candidates, and requires the candidate's reverse cost 0xffff and no alternate although N is otherwise loop-free (10 < 10+15); TestRFC5286TransitNeighborFiniteReverseIsAlternate is the same graph at 10 and requires N selected. Overlays on reverseTransitCost (return 10, return 0xffff) each redden only the matching new unit (author o2, o3); observed-red records on reverseTransitCost and selectLFA, both polarities. The gate is per candidate link, which never uses N when all links are costed out. IS-IS computes no LFA in ze, so the row binds OSPF only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72) | unit/verify | revert, verified |
 | negative | [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114) | unit/verify | unproven |
+| negative | [`TestRFC5286TransitNeighborCostedOutReverseNotAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L85) | unit/verify | revert, verified |
 | positive | [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59) | unit/verify | revert, verified |
 | positive | [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99) | unit/verify | unproven |
+| positive | [`TestRFC5286TransitNeighborFiniteReverseIsAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L70) | unit/verify | revert, verified |
 
 ### [`RFC5286-x-4`](#rfc5286-x-4)
 

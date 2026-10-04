@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,10 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>7.7%</strong><b>1 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>46.2%</strong><b>6 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>15.4%</strong><b>2 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>38.5%</strong><b>5 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.2%</strong><b>13 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>7.7%</strong><b>1 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 13 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 13 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>9</td>
+<td>18</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>9</td>
+<td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>13</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6396.md</code></td>
@@ -266,11 +272,11 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>1</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>12</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -280,6 +286,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -293,8 +303,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc6396-4.3.4-1"><code>RFC6396-4.3.4-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (12):</strong> <a href="#rfc6396-4.2-1"><code>RFC6396-4.2-1</code></a>, <a href="#rfc6396-4.2-2"><code>RFC6396-4.2-2</code></a>, <a href="#rfc6396-4.3.1-1"><code>RFC6396-4.3.1-1</code></a>, <a href="#rfc6396-4.3.1-2"><code>RFC6396-4.3.1-2</code></a>, <a href="#rfc6396-4.3.1-3"><code>RFC6396-4.3.1-3</code></a>, <a href="#rfc6396-4.3.4-2"><code>RFC6396-4.3.4-2</code></a>, <a href="#rfc6396-4.4.2-1"><code>RFC6396-4.4.2-1</code></a>, <a href="#rfc6396-4.4.2-2"><code>RFC6396-4.4.2-2</code></a>, <a href="#rfc6396-4.4.3-1"><code>RFC6396-4.4.3-1</code></a>, <a href="#rfc6396-1-1"><code>RFC6396-1-1</code></a>, <a href="#rfc6396-5.1-1"><code>RFC6396-5.1-1</code></a>, <a href="#rfc6396-b.1-1"><code>RFC6396-B.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc6396-4.3.1-2"><code>RFC6396-4.3.1-2</code></a>, <a href="#rfc6396-4.3.4-1"><code>RFC6396-4.3.4-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc6396-4.2-1"><code>RFC6396-4.2-1</code></a>, <a href="#rfc6396-4.2-2"><code>RFC6396-4.2-2</code></a>, <a href="#rfc6396-4.3.1-1"><code>RFC6396-4.3.1-1</code></a>, <a href="#rfc6396-4.3.1-3"><code>RFC6396-4.3.1-3</code></a>, <a href="#rfc6396-4.3.4-2"><code>RFC6396-4.3.4-2</code></a>, <a href="#rfc6396-4.4.2-1"><code>RFC6396-4.4.2-1</code></a>, <a href="#rfc6396-4.4.2-2"><code>RFC6396-4.4.2-2</code></a>, <a href="#rfc6396-4.4.3-1"><code>RFC6396-4.4.3-1</code></a>, <a href="#rfc6396-1-1"><code>RFC6396-1-1</code></a>, <a href="#rfc6396-5.1-1"><code>RFC6396-5.1-1</code></a>, <a href="#rfc6396-b.1-1"><code>RFC6396-B.1-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -315,7 +325,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4.2 - TABLE_DUMP Type</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L17" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s RIB dumper unconditionally emits TABLE_DUMP_V2 with AS4 peer entries, so it always satisfies the use-V2 mandate and there is no path that emits TABLE_DUMP to reject (internal/plugins/mrt/dump.go:113, :206)</p></td>
 </tr>
@@ -324,7 +334,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4.3.1 - PEER_INDEX_TABLE Subtype</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L162" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L165" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the encoder writes View Name Length as len(viewName) and the producer always passes an empty name, so the length is 0 by construction (internal/mrt/encode.go:48, internal/plugins/mrt/dump.go:199)</p></td>
 </tr>
@@ -333,16 +343,18 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4.3.1 - PEER_INDEX_TABLE Subtype</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s PEER_INDEX_TABLE writer always emits an empty view name, which is trivially valid UTF-8, and no code path produces a non-UTF-8 view name (internal/plugins/mrt/dump.go:199, internal/mrt/encode.go:48-50)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L170" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_view_name_test.go#L18" title="internal/plugins/mrt/rfc6396_view_name_test.go" target="_blank" rel="noopener"><code>TestRFC6396DumpProducerEmitsNoViewName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L98" title="internal/mrt/rfc6396_wire_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396ViewNameUTF8</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L99" title="internal/mrt/rfc6396_wire_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396ViewNameUTF8</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.1-3">RFC6396-4.3.1-3</code></td><td colspan="3"><span class="rfc-subject">The RIB entry MRT records MUST immediately follow the PEER_INDEX_TABLE MRT record. (§4.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3.1 - PEER_INDEX_TABLE Subtype</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L213" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerIndexBeforeFirstRIBEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L213" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerIndexBeforeFirstRIBEntry</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the RIB dump writes the PEER_INDEX_TABLE on the first OnRoute callback, before that route&#39;s RIB entry and before any other RIB record, guaranteeing the ordering (internal/plugins/mrt/dump.go:149-152)</p></td>
 </tr>
@@ -351,8 +363,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4.3.4 - RIB Entries</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L244" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L244" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396TwoByteSessionRouteDumpsFourByteASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396FourByteSessionRouteDumpsASPathUnchanged</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></span></div>
 </div></td>
 </tr>
@@ -379,7 +393,9 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4.4.2 - BGP4MP_MESSAGE Subtype</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84" title="internal/plugins/mrt/component_test.go" target="_blank" rel="noopener"><code>TestOneBGPMessagePerBGP4MPRecord</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_component_test.go#L84" title="internal/plugins/mrt/rfc6396_component_test.go" target="_blank" rel="noopener"><code>TestOneBGPMessagePerBGP4MPRecord</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L48" title="internal/component/bgp/reactor/rfc6396_wire_capture_test.go" target="_blank" rel="noopener"><code>TestRFC6396WireCaptureIgnoresSemanticSynthesis</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L91" title="internal/component/bgp/reactor/rfc6396_wire_capture_test.go" target="_blank" rel="noopener"><code>TestRFC6396WireMessagesNeverCoalesce</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142)</p></td>
 </tr>
@@ -398,8 +414,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>1 - Introduction</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestCommonHeaderRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L14" title="internal/mrt/rfc6396_wire_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396NumericFieldsUseExternalNetworkOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_remaining_fields_test.go#L13" title="internal/mrt/rfc6396_remaining_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396RemainingNumericFields</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> all MRT encode and decode use binary.BigEndian throughout and round-trip byte-for-byte, with no alternate-endianness path (internal/mrt/encode.go:7, decode.go)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> encoders have no alternate-endianness mode to refuse. TestRFC6396NumericFieldsUseExternalNetworkOrder asserts exact external octets for PEER_INDEX_TABLE, RIB and BGP4MP fields and decodes independent literal input; the common-header test separately pins its four numeric fields</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-5.1-1">RFC6396-5.1-1</code></td><td colspan="3"><span class="rfc-subject">New Type Codes MUST be allocated starting at 65. (§5.1)</span></td></tr>
 <tr><td></td>
@@ -578,7 +596,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L17" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -587,30 +605,45 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </div>
 <h3><a href="#rfc6396-4.3.1-1"><code>RFC6396-4.3.1-1</code></a></h3>
 <p>The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. (§4.3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an absent view name with a nonzero View Name Length. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName writes a PEER_INDEX_TABLE with an empty view name and asserts binary.BigEndian.Uint16(buf[4:6]) == 0, which goes red on any nonzero length. Single-polarity positive marker on the row: the encoder derives the length from len(viewName), so no absent-name-with-length input exists to reject.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent MRTJudge 2026-10-02, rejudged changed checked-encoder call. RFC6396 section 4.3.1: The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. TestPeerIndexTableEmptyViewName asserts the actual encoded two octets at offset 4 are zero and decoded name empty; errors from the migrated encoder are checked. The production writePeerIndexTable passes an empty string; the additional dump-producer test inspected under 4.3.1-2 pins the entire emitted empty-name PIT body. Single-positive annotation is valid because no independently supplied absent-name length exists. Native record disables WritePeerIndexTable; enforcement rests on the zero-field assertion, not the panic.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L162" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L165" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc6396-4.3.1-2"><code>RFC6396-4.3.1-2</code></a></h3>
 <p>The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. (§4.3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a View Name that is not UTF-8. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName only writes the empty name, and its utf8.ValidString assertion cannot go red on that input because the empty string is always valid UTF-8. The unit calls the encoder directly and does not drive the producer (internal/plugins/mrt/dump.go), so a producer or encoder that emitted a non-UTF-8 name would stay green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent MRTJudge 2026-10-02. RFC6396 section 4.3.1: The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. TestRFC6396ViewNameUTF8 positively pins nonempty ASCII and multibyte UTF-8 literal octets and byte length on encode and independent decode; negative inputs isolate illegal leading byte, overlong form, surrogate, out-of-range code point and truncated sequence, requiring encoder error/zero count/untouched buffer and decoder error. Removing either utf8 validation fails the relevant negative assertions. TestRFC6396DumpProducerEmitsNoViewName reaches writeTableDumpV2/writePeerIndexTable and compares exact full PIT body, so invalid production name insertion cannot hide behind the old vacuous empty-string test. Retained empty-name tagged test is supplementary. Native records for both codec polarities and actual producer are present; their panic breaks prove reachability only, while the inspected assertions establish this verdict.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L99" title="internal/mrt/rfc6396_wire_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396ViewNameUTF8</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L170" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L98" title="internal/mrt/rfc6396_wire_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396ViewNameUTF8</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_view_name_test.go#L18" title="internal/plugins/mrt/rfc6396_view_name_test.go" target="_blank" rel="noopener"><code>TestRFC6396DumpProducerEmitsNoViewName</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -623,7 +656,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L213" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerIndexBeforeFirstRIBEntry</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L213" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerIndexBeforeFirstRIBEntry</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -632,15 +665,25 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </div>
 <h3><a href="#rfc6396-4.3.4-1"><code>RFC6396-4.3.4-1</code></a></h3>
 <p>All AS numbers in the AS_PATH attribute MUST be encoded as 4-byte AS numbers. (§4.3.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a TABLE_DUMP_V2 RIB entry whose AS_PATH carries 2-byte AS numbers (a route from a 2-byte session). internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte proves ingest widens a 2-byte AS_PATH, and ::TestRFC6396RIBEntryASPathFourByteSessionUnchanged proves no double widening. internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte feeds an AS_PATH that is already 4-byte, so it proves only that the writer copies bytes unchanged. No tagged unit drives a 2-byte-session route through the RIB into a written RIB entry. The link between the widened value and the MRT output is claimed in prose only, so an MRT path that read unwidened bytes would stay green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. rib TestRFC6396TwoByteSessionRouteDumpsFourByteASPath drives a 2-byte-session UPDATE (AS_SEQ 65001 65002, 2-octet) through wireu.CollapseAS4Family, the RIB received-UPDATE entry (context stays ASN4=false), dumpRIBForMRT, the internal/mrt RIB writers and DecodeRIBRecord: the entry AS_PATH is 4-octet. Negative TestRFC6396FourByteSessionRouteDumpsASPathUnchanged: a 4-byte session path with AS 200000 is written octet-equal (no second widening, no narrowing). mrt TestDumpV2RIBEntryASPathIs4Byte (claim reworded to what it asserts) proves writeTableDumpV2 keeps a 4-byte path. Records observed red on revert of CollapseAS4Family, reconstructWireAttrs and writeTableDumpV2. Limit: the rib test composes the record with the same internal/mrt writers the MRT plugin calls rather than the plugin itself; the plugin half is the mrt unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396FourByteSessionRouteDumpsASPathUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396TwoByteSessionRouteDumpsFourByteASPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></td>
@@ -648,9 +691,9 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L244" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L244" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -665,15 +708,25 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <p>No test carries RFC6396-4.4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6396-4.4.2-2"><code>RFC6396-4.4.2-2</code></a></h3>
 <p>Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: more than one BGP message in one BGP4MP message record. internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord makes one OnBGPMessage call and asserts one record whose body equals that message. With a single input message there is nothing to coalesce, so a writer that batched consecutive messages into one record would stay green. A second call is needed before the assertion can fail.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 6396 §4.4.2: &#34;Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype.&#34; In the surrounding paragraph the subtype is transparent to the actual message; the earlier paragraph includes marker, length and type. All three current tagged carriers now discriminate original-message boundaries: internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord sends KEEPALIVE/unequal-length UPDATE/KEEPALIVE and demands exactly three byte-identical records; internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis requires exactly one original packet despite two synthetic withdrawals or session reset; TestRFC6396WireMessagesNeverCoalesce requires the two unequal original packets while semantic delivery coalesces. Producers session_wire.go::observeReceivedWire and internal/plugins/mrt/component.go::OnBGPMessage observe/copy the complete original frame, not reconstructed semantic callbacks; internal/mrt/encode.go::WriteBGP4MPMessage writes one frame. Exact counts and bytes would reject merging, splitting, reconstruction or loss. The declared single positive polarity is justified for a producer cardinality invariant; these are not malformed-input rejection claims. This source judgment closes the prior one-call-only proof gap, not the separate AS4-width gap, nor a claim that runtime renewal has run. Post-lint rejudgment 2026-10-04: TestRFC6396WireMessagesNeverCoalesce retains unequal original frames, exact two-element byte equality and one semantic delivery; checked pipe closes cannot weaken those assertions. dispatchObservedWire now borrows an immutable seven-field epoch identity from Peer.runOnce and constructs call-local metadata before applying context ASN and actual transport/local-AS overrides. The changed cardinality carriers use recordSessionWire -&gt; notifyWireMessage directly, not dispatchObservedWire; they must not claim proof of epoch identity. The untagged directional OPEN, migration and collision tests remain separate evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84" title="internal/plugins/mrt/component_test.go" target="_blank" rel="noopener"><code>TestOneBGPMessagePerBGP4MPRecord</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L48" title="internal/component/bgp/reactor/rfc6396_wire_capture_test.go" target="_blank" rel="noopener"><code>TestRFC6396WireCaptureIgnoresSemanticSynthesis</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L91" title="internal/component/bgp/reactor/rfc6396_wire_capture_test.go" target="_blank" rel="noopener"><code>TestRFC6396WireMessagesNeverCoalesce</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_component_test.go#L84" title="internal/plugins/mrt/rfc6396_component_test.go" target="_blank" rel="noopener"><code>TestOneBGPMessagePerBGP4MPRecord</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -684,7 +737,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <p>No test carries RFC6396-4.4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6396-1-1"><code>RFC6396-1-1</code></a></h3>
 <p>Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet. (§1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: any multi-octet MRT field written little-endian. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip byte-asserts MSB-first order only for the four common-header fields (Timestamp, Type, Subtype, Length). No tagged assertion covers the PEER_INDEX_TABLE, RIB entry or BGP4MP multi-octet fields (Peer AS, View Name Length, Peer Count, Sequence Number, Entry Count, Originated Time, Interface Index), so a little-endian writer for any of them that round-trips through a matching decoder stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent final source rejudgment after formatting. RFC 6396 section 1: &#34;Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet.&#34; The following sentence separately preserves routing-message field order; this row is the numeric-order sentence, not an assertion of every encapsulated protocol&#39;s semantics. Q1 yes: all three tagged units assert external network order rather than accepting a mutually wrong encoder/decoder roundtrip. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip checks the exact timestamp/type/subtype/length octets before decoding them. internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder independently constructs PIT name-length/count/AS2/AS4, RIB sequence/count/index/time/attribute-length and BGP4MP AS2/AS4/interface/AFI octets, compares writer output, then decodes the literals. internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields independently pins ET microseconds, both FSM state fields and AS widths, RIB_GENERIC sequence/AFI, and TABLE_DUMP view/sequence/time/ASN/attribute-length under both address widths. Q2 yes by source: asymmetric values and exact lengths/bytes/decoded values reject endian reversal, missing fields and offset shifts; formatted multi-line conditionals retain their failures. No runtime execution or renewed discrimination is claimed. Q3 yes for numeric layout: independent expected buffers and structural lengths reach the intended fields. Opaque repeated attribute bytes are not evidence of BGP attribute validity and are not parsed as such by these MRT envelope readers. Q4 yes across the implemented base-RFC numeric envelope fields; the three carriers are complementary, not each whole-scope alone. RFC 8050 Path Identifiers and RFC 6397 geolocation are separately specified extensions. Read internal/mrt/encode.go numeric writers and internal/mrt/decode.go readers: their 16/32-bit numeric operations are big-endian, while address and message octets are copied unchanged. The declared single positive polarity is appropriate to an encoder layout invariant without an alternate-endianness mode to reject. This judgment does not erase the separate RFC6396-4.4.3-1 AS_PATH-width gap.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -693,6 +746,16 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestCommonHeaderRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_remaining_fields_test.go#L13" title="internal/mrt/rfc6396_remaining_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396RemainingNumericFields</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L14" title="internal/mrt/rfc6396_wire_fields_test.go" target="_blank" rel="noopener"><code>TestRFC6396NumericFieldsUseExternalNetworkOrder</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1173,7 +1236,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

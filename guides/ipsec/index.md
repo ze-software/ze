@@ -122,7 +122,7 @@ come up.
 |---|---|
 | IKEv2, RFC 7296 | Full IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, and INFORMATIONAL exchange support |
 | Role | Initiator or responder per peer through `connection-type initiate` or `respond` |
-| Proposals | AES-CBC, AES-GCM 128/256, and ChaCha20-Poly1305; MODP 2048/3072/4096/8192 and ECP 256/384/521 DH groups; SHA-256/384/512 PRFs |
+| Proposals | AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an `esp-group`; DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names `chacha20poly1305` and `3des`, which no build implements, so a proposal naming either is refused at commit |
 | Authentication | Pre-shared key, X.509 certificates, EAP-MSCHAPv2, and EAP-TLS; Ze acts as the EAP authenticator in responder mode |
 | NAT-T, RFC 3948 | Automatic NAT detection, UDP encapsulation on port 4500, and keepalives |
 | DPD | Dead Peer Detection through INFORMATIONAL exchanges with configurable interval and timeout |
@@ -863,14 +863,50 @@ set vpn ipsec unmatched discard
 
 The default is `bypass` because a router's own control plane (BGP, SSH, DNS)
 crosses the IPsec boundary in the clear, and a default of `discard` would stop
-it the moment `vpn ipsec` was configured. With `discard`, write a `bypass`
+it the moment `vpn ipsec` was configured. That default deviates from RFC 4301
+Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
+anything that is otherwise unmatched, and discards it." With `bypass`, the
+final entry passes that traffic instead, so Ze does not meet the SHOULD out of
+the box and the RFC 4301 page lists it as a gap. `set vpn ipsec unmatched
+discard` gives the behavior the section asks for. With `discard`, write a `bypass`
 entry under `policy` for every flow that must still cross in the clear. The IKE
 control-plane bypass at order 100 is installed either way, so the tunnels can
 still be negotiated. The entry is re-asserted on every apply and removed when
 the engine stops.
 
+#### When the entry is not there
+
+A `discard` entry that is not installed would let the kernel pass exactly the
+traffic you asked it to drop, so Ze never reports such a configuration as
+applied:
+
+| Situation | `discard` | `bypass` |
+|---|---|---|
+| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit | Accepted; no entry is installed, and the kernel passes the traffic |
+| No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
+| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
+| Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
+
+The catch-all is installed before the `policy` entries, the peers and the
+cookie threshold of the same configuration, so a refused apply leaves the
+previous entries and threshold in place.
+
+That order has a cost with `discard`. Between the catch-all install and the
+install of your `bypass` entries, traffic those entries are meant to pass
+matches only the catch-all and is dropped. This happens on the first apply,
+and on every reload that adds or changes a `bypass` entry, for the flows that
+entry covers (a changed entry is removed and installed again). An entry the
+reload leaves unchanged stays installed throughout. The window lasts as long as the apply takes to install the `policy`
+entries. When you first turn `discard` on, commit the `bypass` entries while
+`unmatched` is still `bypass`, then set `unmatched discard` in a later commit:
+the entries are then already installed when the catch-all starts dropping. A
+`bypass` entry added or changed once `discard` is in force always crosses the
+window.
+
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
-<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable -->
+<!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
@@ -1171,7 +1207,9 @@ exactly one request id.
 The `child-sa` object of `show vpn ipsec sa` describes the Child SA as installed.
 `esp-encryption` and `esp-integrity` name the proposal the peer accepted: with two
 proposals in the `esp-group` and a peer that accepts only the second, the payload names
-the second. `mode` is `tunnel` or `transport`, `udp-encapsulation` says the SA receives
+the second. If Ze cannot resolve that proposal's transforms, which only a Ze defect
+produces, `esp-integrity` is absent and `esp-transform-error` says why. `mode` is
+`tunnel` or `transport`, `udp-encapsulation` says the SA receives
 ESP inside UDP on port 4500, and `remote-address` is the endpoint the SA was installed
 on, which behind a NAT differs from the configured `remote-address` of the peer. Those
 three, with the transform, are what size an ESP packet on the tunnel.

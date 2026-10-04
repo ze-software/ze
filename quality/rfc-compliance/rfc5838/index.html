@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,10 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25.0%</strong><b>4 of 16 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.5%</strong><b>2 of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>31.2%</strong><b>5 of 16 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6.2%</strong><b>1 of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>64.7%</strong><b>11 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>50.0%</strong><b>8 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 16 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>10</td>
+<td>17</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>10</td>
+<td>17</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5838.md</code></td>
@@ -270,11 +275,11 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>4</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>12</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,6 +289,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -297,8 +306,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc5838-2.3-1"><code>RFC5838-2.3-1</code></a>, <a href="#rfc5838-2.4-1"><code>RFC5838-2.4-1</code></a>, <a href="#rfc5838-2.6-1"><code>RFC5838-2.6-1</code></a>, <a href="#rfc5838-2.8-1"><code>RFC5838-2.8-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (12):</strong> <a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a>, <a href="#rfc5838-2.4-2"><code>RFC5838-2.4-2</code></a>, <a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a>, <a href="#rfc5838-2.6-2"><code>RFC5838-2.6-2</code></a>, <a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a>, <a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a>, <a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a>, <a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a>, <a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a>, <a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a>, <a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a>, <a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc5838-2.3-1"><code>RFC5838-2.3-1</code></a>, <a href="#rfc5838-2.4-1"><code>RFC5838-2.4-1</code></a>, <a href="#rfc5838-2.6-1"><code>RFC5838-2.6-1</code></a>, <a href="#rfc5838-2.6-2"><code>RFC5838-2.6-2</code></a>, <a href="#rfc5838-2.8-1"><code>RFC5838-2.8-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a>, <a href="#rfc5838-2.4-2"><code>RFC5838-2.4-2</code></a>, <a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a>, <a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a>, <a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a>, <a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a>, <a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a>, <a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a>, <a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a>, <a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a>, <a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -319,8 +328,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST NOT</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L283" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L256" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6PrefixToNetipAFWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_afstrategy_v6_test.go#L283" title="internal/plugins/ospf/rfc5838_afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L117" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingExternalPrefixNotInRouteComputation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L93" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L23" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingPrefixNotInRouteComputation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-1">RFC5838-2.4-1</code></td><td colspan="3"><span class="rfc-subject">When an OSPFv3 router participates in an AF (sets the AF-bit in the Options field), it MUST discard Hello packets having the AF- bit clear in the Options field. (§2.4)</span></td></tr>
@@ -328,8 +339,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L156" title="internal/plugins/ospf/rfc5838_multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L155" title="internal/plugins/ospf/rfc5838_multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-2">RFC5838-2.4-2</code></td><td colspan="3"><span class="rfc-subject">The only exception is the Base IPv6 unicast AF, where this check MUST NOT be done (for backward compatibility). (§2.4)</span></td></tr>
@@ -337,7 +348,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST NOT</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L181" title="internal/plugins/ospf/rfc5838_multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise</p></td>
 </tr>
@@ -355,8 +366,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L336" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L337" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L63" title="internal/plugins/ospf/rfc5838_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L51" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L84" title="internal/plugins/ospf/rfc5838_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L71" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.6-2">RFC5838-2.6-2</code></td><td colspan="3"><span class="rfc-subject">the IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be set to zero. (§2.6)</span></td></tr>
@@ -364,9 +377,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L338" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> forwardingAddressForAF at origination_v6_nssa.go:29-31 zero-initialises the 16-byte field and writes only the leading 4 IPv4 octets, so the remaining bits are structurally zero and no non-zero-trailing path exists to reject</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L66" title="internal/plugins/ospf/rfc5838_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L54" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L85" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-1">RFC5838-2.7-1</code></td><td colspan="3"><span class="rfc-subject">For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7)</span></td></tr>
 <tr><td></td>
@@ -428,6 +442,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>2.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointResolvesGlobalAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L143" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838VirtualLinkRequiresLocalGlobalAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointRequiresGlobalAddress</code></a></span></div>
 </div></td>
 </tr>
@@ -609,18 +624,28 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC5838-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.3-1"><code>RFC5838-2.3-1</code></a></h3>
 <p>Prefixes that don&#39;t conform to the AF of an OSPFv3 instance MUST NOT be used in the route computation for that instance. (§2.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a prefix not conforming to the instance AF (e.g. length &gt; 32 under IPv4) used in the route computation. The negative in TestV6PrefixToNetipAFWidth asserts only the converter v6PrefixToNetip returns ok=false for a 64-bit prefix under an IPv4 AF; no tagged unit feeds a non-conforming prefix through v6BuildRoutes and asserts it yields no route, so a route builder that ignored the ok flag keeps both units green. The positive (TestIPv4OverV3BuildRoutes) does go through v6BuildRoutes.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge, continuation 2). All three route-computation inputs on an IPv4-unicast AF now refuse a non-conforming (64-bit) prefix beside a conforming /24 that proves the reader ran: intra-area (TestRFC5838NonConformingPrefixNotInRouteComputation, v6BuildRoutes), inter-area (TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation, v6SummaryReader yields exactly the /24), and AS-External plus NSSA (TestRFC5838NonConformingExternalPrefixNotInRouteComputation, v6ExternalReader accepts the /24, refuses the 64-bit). Revert records on v6PrefixToNetip, v6SummaryReader and v6ExternalReader. Positive TestIPv4OverV3BuildRoutes is exact but carries no record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L256" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6PrefixToNetipAFWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L117" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingExternalPrefixNotInRouteComputation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L93" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L23" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingPrefixNotInRouteComputation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L283" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_afstrategy_v6_test.go#L283" title="internal/plugins/ospf/rfc5838_afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -635,12 +660,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L155" title="internal/plugins/ospf/rfc5838_multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L156" title="internal/plugins/ospf/rfc5838_multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -655,7 +680,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L181" title="internal/plugins/ospf/rfc5838_multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -668,35 +693,55 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC5838-2.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.6-1"><code>RFC5838-2.6-1</code></a></h3>
 <p>For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The MUST binds the originator: the Forwarding Address in AS-external and NSSA LSAs of an IPv4 AF must encode an IPv4 address. TestV6ForwardingAddrAFWidth tests v6ForwardingAddr, the RECEIVE-side renderer, and never encodes an LSA; the producer forwardingAddressForAF (origination_v6_nssa.go) is untested by these tags. The IPv4 multicast AF is not covered either.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge, continuation 2). Both LSA kinds that can carry an FA on an IPv4 AF are now proven both ways. NSSA-LSA origination: TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4 / TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress (records on forwardingAddressForAF). AS-external-LSA: Ze&#39;s redistributed Type-5 (v6OriginateExternalLSA) carries no FA, and the translated Type-5 copies the Type-7 FA; TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4 reads 192.0.2.7 in the translated Type-5 for both IPv4 AFs, TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress feeds a Type-7 with FA 2001:db8:9::2 and finds no translated Type-5. Producer checked: nssa.go translatableForwardingAddressV6 (D-8 fix) gates the copy on the AF with the RFC 5838 s2.6 quote; revert records on it, observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L337" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L84" title="internal/plugins/ospf/rfc5838_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L71" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L336" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L63" title="internal/plugins/ospf/rfc5838_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L51" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5838-2.6-2"><code>RFC5838-2.6-2</code></a></h3>
 <p>the IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be set to zero. (§2.6)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The MUST is that the originator sets the bits after the leading 32 to zero. The tagged unit asserts the receiver renders 192.0.2.7 even when trailing octets are 0xff, i.e. it proves receive-side tolerance of non-zero bits, a neighbouring property; the producer forwardingAddressForAF (origination_v6_nssa.go) is never exercised.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge, continuation 2). The {single-polarity} annotation is gone (the translation path could carry non-zero trailing bits, D-8). Positive: the originated NSSA-LSA and the translated AS-external-LSA each read all 16 FA bytes as 192.0.2.7 plus 96 zero bits, both IPv4 AFs. Negative: TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits feeds a Type-7 with 192.0.2.7 and bit 127 set and finds no translated Type-5, isolated (the same FA without the bit translates in the positive). Revert records on forwardingAddressForAF and translatableForwardingAddressV6.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L338" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L85" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L66" title="internal/plugins/ospf/rfc5838_forwarding_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L54" title="internal/plugins/ospf/rfc5838_translate_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -727,11 +772,16 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>No test carries RFC5838-2.7-11, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.8-1"><code>RFC5838-2.8-1</code></a></h3>
 <p>there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: a virtual link formed without a global IPv6 address. The negative TestV6VirtualEndpointRequiresGlobalAddress covers only the neighbor side (neighbor advertises only fe80::2, resolution fails). No tagged unit removes THIS router&#39;s global address and asserts resolution fails, so v6ResolveVirtualEndpointLocked falling back to a link-local local source keeps both units green (the positive asserts src only when a global exists).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. Positive TestV6VirtualEndpointResolvesGlobalAddress resolves global /128 LA addresses on both ends. Negatives cover both ends: the existing neighbor-side link-local-only case and new TestRFC5838VirtualLinkRequiresLocalGlobalAddress (this router advertises only fe80::1, neighbor global) which fails to resolve. v6ResolveVirtualEndpointLocked requires sok &amp;&amp; dok and v6RouterGlobalAddr refuses non-global addresses; revert record on the resolver.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L143" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838VirtualLinkRequiresLocalGlobalAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointRequiresGlobalAddress</code></a></td>
 <td>unit/verify</td>
@@ -955,7 +1005,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4.3% | 2 of 46 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 46 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 46 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 46 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 2.2% | 1 of 45 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 45 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 45 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 45 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0.0% | 0 of 45 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 25.0% | 1 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,21 +23,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 46 | of 66 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 44 | of 46 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 95.7% | 44 of 46 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 46 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 46 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 45 | of 65 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 44 | of 45 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 97.8% | 44 of 45 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 45 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 45 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 4 | of 46 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 46 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 45 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -60,17 +54,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Not supported |
 | Enrolment | Enrolled |
-| Requirements | 66 |
-| Gated MUST-level | 46 |
+| Requirements | 65 |
+| Gated MUST-level | 45 |
 | Not applicable, so out of scope | 44 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tagged units | 6 |
-| Recorded audit verdicts | 4 |
-| Discrimination records | 0 |
+| Test tags | 4 |
+| Tagged units | 4 |
+| Recorded audit verdicts | 3 |
+| Discrimination records | 1 |
 | Summary | `rfc/short/rfc4577.md` |
 | Requirement shard | `rfc/requirements/rfc4577.md` |
 | RFC text | `rfc/full/rfc4577.txt` |
@@ -95,17 +89,18 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 2 | one part of the gated population |
-| Annotated instead of tested | 44 | one part of the gated population |
+| Positive and negative tests | 1 | one part of the gated population |
+| Annotated (including scoped evidence) | 44 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **46** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **45** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (2):** [`RFC4577-4.2.6-5`](#rfc4577-4.2.6-5), [`RFC4577-6-1`](#rfc4577-6-1)
+**Positive and negative tests (1):** [`RFC4577-6-1`](#rfc4577-6-1)
 
-**Annotated instead of tested (44):** [`RFC4577-4.1.1-1`](#rfc4577-4.1.1-1), [`RFC4577-4.2.1-1`](#rfc4577-4.2.1-1), [`RFC4577-4.2.1-2`](#rfc4577-4.2.1-2), [`RFC4577-4.1.1-2`](#rfc4577-4.1.1-2), [`RFC4577-4.2.4-1`](#rfc4577-4.2.4-1), [`RFC4577-4.2.4-2`](#rfc4577-4.2.4-2), [`RFC4577-4.2.4-3`](#rfc4577-4.2.4-3), [`RFC4577-4.2.4-4`](#rfc4577-4.2.4-4), [`RFC4577-4.2.4-5`](#rfc4577-4.2.4-5), [`RFC4577-4.2.6-1`](#rfc4577-4.2.6-1), [`RFC4577-4.2.6-2`](#rfc4577-4.2.6-2), [`RFC4577-4.2.5.1-1`](#rfc4577-4.2.5.1-1), [`RFC4577-4.2.5.1-2`](#rfc4577-4.2.5.1-2), [`RFC4577-4.2.8.1-1`](#rfc4577-4.2.8.1-1), [`RFC4577-4.2.6-3`](#rfc4577-4.2.6-3), [`RFC4577-4.2.6-4`](#rfc4577-4.2.6-4), [`RFC4577-4.2.5.1-3`](#rfc4577-4.2.5.1-3), [`RFC4577-4.2.5.2-1`](#rfc4577-4.2.5.2-1), [`RFC4577-4.2.5.2-2`](#rfc4577-4.2.5.2-2), [`RFC4577-4.2.5.2-3`](#rfc4577-4.2.5.2-3), [`RFC4577-4.2.5.2-4`](#rfc4577-4.2.5.2-4), [`RFC4577-4.2.5.2-5`](#rfc4577-4.2.5.2-5), [`RFC4577-4.2.5.2-6`](#rfc4577-4.2.5.2-6), [`RFC4577-4.2.5.2-7`](#rfc4577-4.2.5.2-7), [`RFC4577-4.2.8.1-2`](#rfc4577-4.2.8.1-2), [`RFC4577-4.1.4-1`](#rfc4577-4.1.4-1), [`RFC4577-4.2.7.1-1`](#rfc4577-4.2.7.1-1), [`RFC4577-4.2.7.1-2`](#rfc4577-4.2.7.1-2), [`RFC4577-4.2.7.1-3`](#rfc4577-4.2.7.1-3), [`RFC4577-4.2.7.2-1`](#rfc4577-4.2.7.2-1), [`RFC4577-4.2.7.3-1`](#rfc4577-4.2.7.3-1), [`RFC4577-4.2.7.4-1`](#rfc4577-4.2.7.4-1), [`RFC4577-4.2.7.4-2`](#rfc4577-4.2.7.4-2), [`RFC4577-4.2.7.4-3`](#rfc4577-4.2.7.4-3), [`RFC4577-4.1.1-3`](#rfc4577-4.1.1-3), [`RFC4577-4.2.5.2-10`](#rfc4577-4.2.5.2-10), [`RFC4577-4.2.6-13`](#rfc4577-4.2.6-13), [`RFC4577-4.2.6-14`](#rfc4577-4.2.6-14), [`RFC4577-4.2.6-15`](#rfc4577-4.2.6-15), [`RFC4577-4.2.7.1-5`](#rfc4577-4.2.7.1-5), [`RFC4577-4.2.7.3-3`](#rfc4577-4.2.7.3-3), [`RFC4577-4.2.7.3-4`](#rfc4577-4.2.7.3-4), [`RFC4577-4.2.8.1-4`](#rfc4577-4.2.8.1-4), [`RFC4577-4.2.8.1-5`](#rfc4577-4.2.8.1-5)
+**Annotated (including scoped evidence) (44):** [`RFC4577-4.1.1-1`](#rfc4577-4.1.1-1), [`RFC4577-4.2.1-1`](#rfc4577-4.2.1-1), [`RFC4577-4.2.1-2`](#rfc4577-4.2.1-2), [`RFC4577-4.1.1-2`](#rfc4577-4.1.1-2), [`RFC4577-4.2.4-1`](#rfc4577-4.2.4-1), [`RFC4577-4.2.4-2`](#rfc4577-4.2.4-2), [`RFC4577-4.2.4-3`](#rfc4577-4.2.4-3), [`RFC4577-4.2.4-4`](#rfc4577-4.2.4-4), [`RFC4577-4.2.4-5`](#rfc4577-4.2.4-5), [`RFC4577-4.2.6-1`](#rfc4577-4.2.6-1), [`RFC4577-4.2.6-2`](#rfc4577-4.2.6-2), [`RFC4577-4.2.5.1-1`](#rfc4577-4.2.5.1-1), [`RFC4577-4.2.5.1-2`](#rfc4577-4.2.5.1-2), [`RFC4577-4.2.8.1-1`](#rfc4577-4.2.8.1-1), [`RFC4577-4.2.6-3`](#rfc4577-4.2.6-3), [`RFC4577-4.2.6-4`](#rfc4577-4.2.6-4), [`RFC4577-4.2.5.1-3`](#rfc4577-4.2.5.1-3), [`RFC4577-4.2.5.2-1`](#rfc4577-4.2.5.2-1), [`RFC4577-4.2.5.2-2`](#rfc4577-4.2.5.2-2), [`RFC4577-4.2.5.2-3`](#rfc4577-4.2.5.2-3), [`RFC4577-4.2.5.2-4`](#rfc4577-4.2.5.2-4), [`RFC4577-4.2.5.2-5`](#rfc4577-4.2.5.2-5), [`RFC4577-4.2.5.2-6`](#rfc4577-4.2.5.2-6), [`RFC4577-4.2.5.2-7`](#rfc4577-4.2.5.2-7), [`RFC4577-4.2.8.1-2`](#rfc4577-4.2.8.1-2), [`RFC4577-4.1.4-1`](#rfc4577-4.1.4-1), [`RFC4577-4.2.7.1-1`](#rfc4577-4.2.7.1-1), [`RFC4577-4.2.7.1-2`](#rfc4577-4.2.7.1-2), [`RFC4577-4.2.7.1-3`](#rfc4577-4.2.7.1-3), [`RFC4577-4.2.7.2-1`](#rfc4577-4.2.7.2-1), [`RFC4577-4.2.7.3-1`](#rfc4577-4.2.7.3-1), [`RFC4577-4.2.7.4-1`](#rfc4577-4.2.7.4-1), [`RFC4577-4.2.7.4-2`](#rfc4577-4.2.7.4-2), [`RFC4577-4.2.7.4-3`](#rfc4577-4.2.7.4-3), [`RFC4577-4.1.1-3`](#rfc4577-4.1.1-3), [`RFC4577-4.2.5.2-10`](#rfc4577-4.2.5.2-10), [`RFC4577-4.2.6-13`](#rfc4577-4.2.6-13), [`RFC4577-4.2.6-14`](#rfc4577-4.2.6-14), [`RFC4577-4.2.6-15`](#rfc4577-4.2.6-15), [`RFC4577-4.2.7.1-5`](#rfc4577-4.2.7.1-5), [`RFC4577-4.2.7.3-3`](#rfc4577-4.2.7.3-3), [`RFC4577-4.2.7.3-4`](#rfc4577-4.2.7.3-4), [`RFC4577-4.2.8.1-4`](#rfc4577-4.2.8.1-4), [`RFC4577-4.2.8.1-5`](#rfc4577-4.2.8.1-5)
 
 ## Requirements
 
@@ -136,7 +131,6 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 | `RFC4577-4.2.5.2-6` | Each such Type 5 LSA MUST contain an OSPF route tag whose value is that of the VPN Route Tag. (§4.2.5.2) | MUST | 4.2.5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
 | `RFC4577-4.2.5.2-7` | The VPN Route Tag MUST be used to ensure that a Type 5 LSA originated by a PE router is not redistributed through the OSPF area to another PE router. (§4.2.5.2) | MUST | 4.2.5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
 | `RFC4577-4.2.8.1-2` | The VPN Route Tag (see Section 4.2.5.2) MUST be placed in the LSA, unless the use of the VPN Route Tag has been turned off by configuration. (§4.2.8.1) | MUST | 4.2.8.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
-| `RFC4577-4.2.6-5` | Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP. (§4.2.6) | MUST NOT | 4.2.6 | **positive:** `unit/verify` [`TestRFC4577Type3SummaryBecomesRedistributableRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L18). **negative:** `unit/verify` [`TestRFC4577Type4SummaryNotRedistributed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L41) |
 | `RFC4577-4.1.4-1` | If the OSPF domain has any area 0 routers other than the PE routers, then at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router. (§4.1.4, §4.2.3) | MUST | 4.1.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** runtime conformance cannot establish the operator's whole-domain topology; Section 4.1.4 says "at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router". The 2026-09-21 ordinary-role decision does not waive that deployment obligation. interfaceConfig and virtual_link.go provide physical/backbone virtual attachment; docs/guide/ospf.md requires it for a CE deployment |
 | `RFC4577-4.2.7.1-1` | The Sham Link Endpoint Address associated with a VRF MUST be configurable. (§4.2.7.1) | MUST | 4.2.7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says "Sham links are an OPTIONAL feature of this specification"; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links |
 | `RFC4577-4.2.7.1-2` | The Sham Link Endpoint Address MUST be distributed by BGP as a VPN-IPv4 address whose IPv4 address prefix part is 32 bits long. (§4.2.7.1) | MUST | 4.2.7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says "Sham links are an OPTIONAL feature of this specification"; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links |
@@ -146,7 +140,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 | `RFC4577-4.2.7.4-1` | Any other route advertised in an LSA that is transmitted over a sham link MUST also be redistributed (by the PE flooding the LSA over the sham link) into BGP. (§4.2.7.4) | MUST | 4.2.7.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says "Sham links are an OPTIONAL feature of this specification"; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links |
 | `RFC4577-4.2.7.4-2` | However, when forwarding a packet, if the preferred route for that packet has the sham link as its next hop interface, then the packet MUST be forwarded according to the corresponding BGP route. (§4.2.7.4) | MUST | 4.2.7.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says "Sham links are an OPTIONAL feature of this specification"; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links |
 | `RFC4577-4.2.7.4-3` | This same rule applies to any packet whose IP destination address is the remote endpoint address of a sham link. Such packets MUST be forwarded according to the corresponding BGP route. (§4.2.7.4) | MUST | 4.2.7.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says "Sham links are an OPTIONAL feature of this specification"; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links |
-| `RFC4577-6-1` | OSPF "cryptographic authentication" SHOULD be used between a PE and a CE. It MUST be implemented on each PE. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC4577CryptographicAuthImplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L12). **negative:** `unit/verify` [`TestRFC4577CryptographicAuthRejectsForgery`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L34) |
+| `RFC4577-6-1` | OSPF "cryptographic authentication" SHOULD be used between a PE and a CE. It MUST be implemented on each PE. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC4577CryptographicAuthImplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L12). **negative:** `unit/verify` [`TestRFC4577CryptographicAuthRejectsForgery`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L32) |
 | `RFC4577-4.2.4-6` | the default value (if none is configured) SHOULD be NULL (§4.2.4) | SHOULD | 4.2.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
 | `RFC4577-4.2.5.2-8` | If the Autonomous System number of the VPN backbone is two bytes long, the default value SHOULD be an automatically computed tag based on that Autonomous System number (§4.2.5.2) | SHOULD | 4.2.5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
 | `RFC4577-4.2.5.2-9` | If a PE router needs to use OSPF to distribute to a CE router a route that comes from a site outside the CE router's OSPF domain, the PE router SHOULD present itself to the CE router as an Autonomous System Border Router (ASBR) and SHOULD report such routes as AS-external routes. (§4.2.5.2) | SHOULD | 4.2.5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
@@ -155,7 +149,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 | `RFC4577-4.2.6-8` | MED (Multi_EXIT_DISC attribute). By default, this SHOULD be set to the value of the OSPF distance associated with the route, plus 1. (§4.2.6) | SHOULD | 4.2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
 | `RFC4577-4.2.7.3-2` | Sham links SHOULD be treated by OSPF as OSPF Demand Circuits. (§4.2.7.3) | SHOULD | 4.2.7.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says "Sham links are an OPTIONAL feature of this specification"; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links |
 | `RFC4577-4.2.7.4-4` | If a PE determines that the next hop interface for a particular route is a sham link, then the PE SHOULD NOT redistribute that route into BGP as a VPN-IPv4 route. (§4.2.7.4) | SHOULD NOT | 4.2.7.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** optional sham links not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 4.1.3 says "Sham links are an OPTIONAL feature of this specification"; virtual_link.go implements ordinary RFC 2328 virtual links, not VRF-to-VRF sham links |
-| `RFC4577-6-2` | OSPF "cryptographic authentication" SHOULD be used between a PE and a CE. (§6) | SHOULD | 6 | **positive:** `unit/verify` [`TestRFC4577CryptographicAuthImplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L17). **negative:** no negative test. **{single-polarity}:** the negative -- an interface with no key chain sending unauthenticated OSPF packets -- is the state this SHOULD recommends against, not a behavior the implementation must exhibit, so asserting it would pin the unrecommended path instead of the requirement |
+| `RFC4577-6-2` | OSPF "cryptographic authentication" SHOULD be used between a PE and a CE. (§6) | SHOULD | 6 | **positive:** `unit/verify` [`TestRFC4577ConfiguredLinkSendsAuthenticatedHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_link_auth_test.go#L88). **negative:** no negative test. **{single-polarity}:** the negative -- an interface with no key chain sending unauthenticated OSPF packets -- is the state this SHOULD recommends against, not a behavior the implementation must exhibit, so asserting it would pin the unrecommended path instead of the requirement |
 | `RFC4577-4.2.4-7` | If the OSPF instance's Domain Identifier is NULL, the Domain Identifier Extended Communities attribute MAY be omitted when routes from that OSPF instance are distributed by BGP (§4.2.4) | MAY | 4.2.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
 | `RFC4577-4.2.4-8` | alternatively, a value of the Domain Identifier Extended Communities attribute that represents NULL (see Section 4.2.4) MAY be carried with the route. (§4.2.4) | MAY | 4.2.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
 | `RFC4577-4.2.6-9` | The OSPF Domain Identifier Extended Communities attribute. If the OSPF instance that installed the route has a non-NULL primary Domain Identifier, this MUST be present; if that OSPF instance has only a NULL Domain Identifier, it MAY be omitted. (§4.2.6) | MAY | 4.2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says "No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have." Ordinary InjectExternal and parseRedistribute are not VPN import/export producers |
@@ -431,17 +425,6 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC4577-4.2.8.1-2, so no unit is bound to it.
 
-### [`RFC4577-4.2.6-5`](#rfc4577-4.2.6-5)
-
-Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP. (§4.2.6)
-
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a route learned from a type 4 LSA reaching BGP. TestRFC4577Type4SummaryNotRedistributed asserts ComputeInterArea yields no RouteEntry for a Type 4 summary and TestRFC4577Type3SummaryBecomesRedistributableRoute that a Type 3 does. Neither drives the redistribution rail (redistribute/source.go emitDelta) to BGP; the note of the earlier pass itself says that link is structural and not exercised, so a redistribution source that read the LSDB directly would leave both green. Separately, the row binds the PE role the 2026-09-21 owner decision did not select.
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| negative | [`TestRFC4577Type4SummaryNotRedistributed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L41) | unit/verify | unproven |
-| positive | [`TestRFC4577Type3SummaryBecomesRedistributableRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L18) | unit/verify | unproven |
-
 ### [`RFC4577-4.1.4-1`](#rfc4577-4.1.4-1)
 
 If the OSPF domain has any area 0 routers other than the PE routers, then at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router. (§4.1.4, §4.2.3)
@@ -518,22 +501,22 @@ No test carries RFC4577-4.2.7.4-3, so no unit is bound to it.
 
 OSPF "cryptographic authentication" SHOULD be used between a PE and a CE. It MUST be implemented on each PE. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The quote's first sentence, the operator SHOULD, is row 6-2.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge): stale only because the 6-2 tag comment was removed from TestRFC4577CryptographicAuthImplemented; its body and the 6-1 tags are unchanged. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The operator SHOULD is row 6-2.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4577CryptographicAuthRejectsForgery`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L34) | unit/verify | unproven |
+| negative | [`TestRFC4577CryptographicAuthRejectsForgery`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L32) | unit/verify | unproven |
 | positive | [`TestRFC4577CryptographicAuthImplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L12) | unit/verify | unproven |
 
 ### [`RFC4577-6-2`](#rfc4577-6-2)
 
 OSPF "cryptographic authentication" SHOULD be used between a PE and a CE. (§6)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. An operator SHOULD for the PE role the 2026-09-21 owner decision did not select: not-applicable in substance, but the row is tagged, so the verdict stays weak and the tag is reported. The tag claims the configured link authenticates its outgoing Hello, but the test builds and signs the Hello itself (signedHello calls packet.Sign directly); the engine's Hello transmit path is never exercised, so a link that configured a key chain but sent unauthenticated packets would stay green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c11). The prior weakness (the tag sat on a unit that signs the Hello itself) is gone: the tag moved to TestRFC4577ConfiguredLinkSendsAuthenticatedHello +, which parses config text naming key chain ce-link (hmac-sha-256), opens the interfaces over a recording transport and takes the first Hello the engine's own Hello loop sends: AuType 2, Key ID 1, and a separate authStore configured from the same text verifies it. Revert record on auth_wiring.go::signPacket observed red. Row carries {single-polarity: positive} (the negative is the unrecommended state). The 2026-09-21 owner decision on the PE role is unchanged; this proves the link behaviour the SHOULD recommends, which is role-independent.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC4577CryptographicAuthImplemented`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L17) | unit/verify | unproven |
+| positive | [`TestRFC4577ConfiguredLinkSendsAuthenticatedHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_link_auth_test.go#L88) | unit/verify | revert, verified |
 
 ### [`RFC4577-4.1.4-2`](#rfc4577-4.1.4-2)
 
@@ -630,13 +613,13 @@ No test carries RFC4577-4.2.8.1-5, so no unit is bound to it.
 | Field | Value |
 |---|---|
 | Reviewer | claude |
-| Signed off | 2026-09-21 |
+| Signed off | 2026-10-02 |
 | Register | prose |
 | Source | rfc/full/rfc4577.txt |
 | Source fingerprint | 3d9527c9cc48bead |
 | Record | rfc/extraction/rfc4577.json |
-| Mapped sentences | 46 |
-| Declined as scope | 13 |
+| Mapped sentences | 45 |
+| Declined as scope | 14 |
 | Relocated to a spec, which Ze OWES | 0 |
 | Unclassified | 0 |
 
@@ -693,6 +676,7 @@ No test carries RFC4577-4.2.8.1-5, so no unit is bound to it.
 | `4.2.5.2:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | States the REASON for the two obligations above it rather than an obligation of its own: the VPN Route Tag is configured and included 'for backward compatibility with deployed implementations that do not set the DN bit in type 5 LSAs'. What a PE must do is carried by RFC4577-4.2.5.2-1 (configure the tag by default) and RFC4577-4.2.5.2-2 (include it in originated Type 5 LSAs), both mapped by this walk. | The configuration and inclusion of the VPN Route Tag is required for backward compatibility with deployed implementations that do not set the DN bit in type 5 LSAs. |
 | `4.2.5.3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A caution to the network designer, in a section that discusses what happens when a third routing domain is present: 'extreme care must be taken if there is any mutual redistribution of routes'. Care is not a behaviour an implementation performs, and the sentence names no LSA, attribute or decision procedure. The redistribution rules a PE must follow are in 4.2.6 and 4.2.8, whose sites this walk maps. | Therefore, extreme care must be taken if there is any mutual redistribution of routes between the OSPF domain and any third routing domain (i.e., not the VPN backbone). |
 | `4.2.6:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The lead-in clause of the procedure the next sentence states, which this walk maps to RFC4577-4.2.6-13: the PE examines the VRF so that 'For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.' Examining the VRF is how that route set is found; it carries no separate obligation. | Otherwise, the PE must examine the corresponding VRF. |
+| `4.2.6:9` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | the sentence addresses the VPN PE that receives the CE's LSAs into a VRF and creates VPN-IPv4 routes in BGP (Section 4.2.6); the 2026-09-21 owner decision does not select that role and ze fills it nowhere. The role has no producer in this tree: internal/plugins/ospf/redistribute/source.go exports OSPF routes to BGP as plain ipv4/unicast, with no VRF and no VPN-IPv4 route. Row RFC4577-4.2.6-5 retired 2026-10-02 (rfc/corrections/rfc4577.md). | Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP. |
 | `4.2.6:10` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The obligation belongs to [VPN], which is RFC 4364, and the sentence cites it: 'The attributes specified above are in addition to any other attributes that routes must carry in accordance with [VPN].' It adds nothing of its own, and what a VPN-IPv4 route must carry is RFC 4364's to state. | The attributes specified above are in addition to any other attributes that routes must carry in accordance with [VPN]. |
 | `4.2.7.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | States the CONDITION under which sham links are wanted, as the motivation of section 4.2.7.1: if backbone routes are to be preferred to a backdoor link, they must appear intra-area. It is the premise of the sham link feature, which section 4.1.3 makes OPTIONAL, and the obligations that follow it in 4.2.7.1 to 4.2.7.4 are the procedures a PE that offers sham links performs. This walk maps each of those. | If it is desired to have OSPF prefer the routes through the backbone over the routes through the backdoor link, then the routes through the backbone must be appear to be intra-area routes. |
 | `6:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates in the Security Considerations the separation section 4.2.1 requires and this walk maps at 4.2.1:2: 'Each instance of OSPF MUST be associated with a single VRF.' A VPN is carried by its VRF, so one instance per VRF is what keeps the instances of different VPNs independent; the sentence adds the reason ('to prevent inadvertent leaking of routes between VPNs') and no new behaviour. | The OSPF instances for different VPNs must also be independent OSPF instances, to prevent inadvertent leaking of routes between VPNs. |

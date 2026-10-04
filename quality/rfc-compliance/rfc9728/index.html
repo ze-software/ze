@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9728 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 26 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9728 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 26 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9728 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 27 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 26 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>48.1%</strong><b>13 of 27 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.7%</strong><b>1 of 27 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>56.2%</strong><b>18 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>46.2%</strong><b>12 of 26 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.8%</strong><b>1 of 26 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>78.4%</strong><b>29 of 37 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>27</strong><b>of 33 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>13</strong><b>of 27 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>25.9%</strong><b>7 of 27 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>22.2%</strong><b>6 of 27 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>26</strong><b>of 32 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>13</strong><b>of 26 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>26.9%</strong><b>7 of 26 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>23.1%</strong><b>6 of 26 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 27 gated MUSTs judged</b><p>7 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>11</strong><b>of 26 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -204,10 +210,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>33</td>
+<td>32</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>27</td>
+<td>26</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>7</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>32</td>
+<td>37</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>32</td>
+<td>37</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>12</td>
+<td>11</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>18</td>
+<td>29</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9728.md</code></td>
@@ -258,7 +264,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Ze publishes plain JSON protected-resource metadata for its MCP resource server at the <code>oauth-protected-resource</code> well-known URL, answers GET and refuses other methods, keeps the escaped resource path and query in the resource identifier, and sends bearer challenges.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code></a> obliges the party that queries the metadata, a discovery-client role Ze does not fill under the 2026-09-21 scope decision, and its tags prove the publisher rule instead. <a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a>: <code>resourceOriginAndPath</code> trims the resource path&#39;s own trailing slash, which the RFC keeps, and the query-only case is not tested. Response signing and signed metadata are features not offered.
+One row is audited wrong. <a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a>: <code>resourceOriginAndPath</code> trims the resource path&#39;s own trailing slash, which the RFC keeps, so an identifier such as <code>https://host/mcp/</code> is published at a location formed from <code>/mcp</code>; <a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a> and <a href="#rfc9728-3.3-1"><code>RFC9728-3.3-1</code></a> fail for the same input. Response signing and signed metadata are features not offered.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -267,10 +273,10 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>13</strong></td>
+<td><strong>12</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -282,6 +288,10 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -290,12 +300,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>27</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>26</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a>, <a href="#rfc9728-3-3"><code>RFC9728-3-3</code></a>, <a href="#rfc9728-3-4"><code>RFC9728-3-4</code></a>, <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code></a>, <a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a>, <a href="#rfc9728-3.2-3"><code>RFC9728-3.2-3</code></a>, <a href="#rfc9728-3.2-4"><code>RFC9728-3.2-4</code></a>, <a href="#rfc9728-3.3-1"><code>RFC9728-3.3-1</code></a>, <a href="#rfc9728-6-1"><code>RFC9728-6-1</code></a>, <a href="#rfc9728-6-2"><code>RFC9728-6-2</code></a>, <a href="#rfc9728-6-3"><code>RFC9728-6-3</code></a>, <a href="#rfc9728-7.1-1"><code>RFC9728-7.1-1</code></a>, <a href="#rfc9728-7.1-2"><code>RFC9728-7.1-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (14):</strong> <a href="#rfc9728-2-1"><code>RFC9728-2-1</code></a>, <a href="#rfc9728-2-6"><code>RFC9728-2-6</code></a>, <a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a>, <a href="#rfc9728-2-8"><code>RFC9728-2-8</code></a>, <a href="#rfc9728-2.1-1"><code>RFC9728-2.1-1</code></a>, <a href="#rfc9728-2.1-2"><code>RFC9728-2.1-2</code></a>, <a href="#rfc9728-2.2-1"><code>RFC9728-2.2-1</code></a>, <a href="#rfc9728-2.2-2"><code>RFC9728-2.2-2</code></a>, <a href="#rfc9728-3.3-2"><code>RFC9728-3.3-2</code></a>, <a href="#rfc9728-3.3-3"><code>RFC9728-3.3-3</code></a>, <a href="#rfc9728-3.3-4"><code>RFC9728-3.3-4</code></a>, <a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a>, <a href="#rfc9728-7.3-2"><code>RFC9728-7.3-2</code></a>, <a href="#rfc9728-3.2-5"><code>RFC9728-3.2-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (12):</strong> <a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a>, <a href="#rfc9728-3-3"><code>RFC9728-3-3</code></a>, <a href="#rfc9728-3-4"><code>RFC9728-3-4</code></a>, <a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a>, <a href="#rfc9728-3.2-3"><code>RFC9728-3.2-3</code></a>, <a href="#rfc9728-3.2-4"><code>RFC9728-3.2-4</code></a>, <a href="#rfc9728-3.3-1"><code>RFC9728-3.3-1</code></a>, <a href="#rfc9728-6-1"><code>RFC9728-6-1</code></a>, <a href="#rfc9728-6-2"><code>RFC9728-6-2</code></a>, <a href="#rfc9728-6-3"><code>RFC9728-6-3</code></a>, <a href="#rfc9728-7.1-1"><code>RFC9728-7.1-1</code></a>, <a href="#rfc9728-7.1-2"><code>RFC9728-7.1-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (14):</strong> <a href="#rfc9728-2-1"><code>RFC9728-2-1</code></a>, <a href="#rfc9728-2-6"><code>RFC9728-2-6</code></a>, <a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a>, <a href="#rfc9728-2-8"><code>RFC9728-2-8</code></a>, <a href="#rfc9728-2.1-1"><code>RFC9728-2.1-1</code></a>, <a href="#rfc9728-2.1-2"><code>RFC9728-2.1-2</code></a>, <a href="#rfc9728-2.2-1"><code>RFC9728-2.2-1</code></a>, <a href="#rfc9728-2.2-2"><code>RFC9728-2.2-2</code></a>, <a href="#rfc9728-3.3-2"><code>RFC9728-3.3-2</code></a>, <a href="#rfc9728-3.3-3"><code>RFC9728-3.3-3</code></a>, <a href="#rfc9728-3.3-4"><code>RFC9728-3.3-4</code></a>, <a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a>, <a href="#rfc9728-7.3-2"><code>RFC9728-7.3-2</code></a>, <a href="#rfc9728-3.2-5"><code>RFC9728-3.2-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -308,7 +318,7 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L321" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L212" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_oauth_test.go#L212" title="internal/component/mcp/rfc9728_oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resource field is emitted unconditionally by writeResourceMetadata (internal/component/mcp/oauth.go:170-171,184-192), so no input can make it absent and there is no negative to assert</p></td>
 </tr>
@@ -380,8 +390,10 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L87" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L88" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L322" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBeforeQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L87" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L323" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBeforeQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L88" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3-3">RFC9728-3-3</code></td><td colspan="3"><span class="rfc-subject">The well-known URI path suffix used MUST be registered in the &#34;Well-Known URIs&#34; registry (§3)</span></td></tr>
@@ -389,8 +401,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L135" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L136" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L135" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L136" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3-4">RFC9728-3-4</code></td><td colspan="3"><span class="rfc-subject">An OAuth 2.0 application using this specification MUST specify what well-known URI suffix it will use for this purpose (§3)</span></td></tr>
@@ -398,17 +410,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L137" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L138" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.1-2">RFC9728-3.1-2</code></td><td colspan="3"><span class="rfc-subject">A protected resource metadata document MUST be queried using an HTTP GET request at the previously specified URL. (§3.1)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>3.1</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L150" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L151" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L137" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L138" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.1-3">RFC9728-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If the resource identifier value contains a path or query component, any terminating slash (/) following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix between the host component and the path and/or query components. (§3.1)</span></td></tr>
@@ -416,8 +419,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L111" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L112" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L111" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L112" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.2-3">RFC9728-3.2-3</code></td><td colspan="3"><span class="rfc-subject">A successful response MUST use the 200 OK HTTP status code and return a JSON object using the application/json content type that contains a set of metadata parameters as its members that are a subset of the metadata parameters defined in Section 2. (§3.2)</span></td></tr>
@@ -425,8 +428,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L166" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L167" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L169" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L170" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.2-4">RFC9728-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Parameters with zero values MUST be omitted from the response (§3.2)</span></td></tr>
@@ -434,8 +437,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L188" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L189" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L191" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L192" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-1">RFC9728-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The resource value returned MUST be identical to the protected resource&#39;s resource identifier value into which the well-known URI path suffix was inserted to create the URL used to retrieve the metadata. (§3.3)</span></td></tr>
@@ -443,8 +446,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L204" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L205" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L207" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L208" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-2">RFC9728-3.3-2</code></td><td colspan="3"><span class="rfc-subject">The resource value returned MUST be identical to the protected resource&#39;s resource identifier value into which the well-known URI path suffix was inserted to create the URL used to retrieve the metadata. If these values are not identical, the data contained in the response MUST NOT be used. If the protected resource metadata was retrieved from a URL returned by the protected resource via the WWW-Authenticate resource_metadata parameter, then the resource value returned MUST be identical to the URL that the client used to make the request to the resource server. If these values are not identical, the data contained in the response MUST NOT be used. (§3.3)</span></td></tr>
@@ -479,8 +482,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST NOT</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L227" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L228" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L230" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L231" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-2">RFC9728-6-2</code></td><td colspan="3"><span class="rfc-subject">Comparisons between the two strings MUST be performed as a Unicode code-point-to-code-point equality comparison. (§6)</span></td></tr>
@@ -488,8 +491,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L229" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L230" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L232" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L233" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-3">RFC9728-6-3</code></td><td colspan="3"><span class="rfc-subject">Therefore, comparisons between JSON strings and other Unicode strings MUST be performed as specified below: 1. Remove any JSON-applied escaping to produce an array of Unicode code points. (§6, step 1)</span></td></tr>
@@ -497,8 +500,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L48" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapedAudienceMatchesResource</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L69" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapeTextIsNotUnescapedTwice</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_jwt_test.go#L48" title="internal/component/mcp/rfc9728_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapedAudienceMatchesResource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_jwt_test.go#L69" title="internal/component/mcp/rfc9728_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapeTextIsNotUnescapedTwice</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.1-1">RFC9728-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support TLS (§7.1)</span></td></tr>
@@ -506,8 +509,8 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-7.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L124" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L74" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerSupportsTLS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L124" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L74" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerSupportsTLS</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.1-2">RFC9728-7.1-2</code></td><td colspan="3"><span class="rfc-subject">They MUST follow the guidance in [BCP195], which provides recommendations and requirements for improving the security of deployed services that use TLS. (§7.1)</span></td></tr>
@@ -515,8 +518,10 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-7.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L125" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L126" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go#L28" title="cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L125" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go#L29" title="cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L126" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.3-1">RFC9728-7.3-1</code></td><td colspan="3"><span class="rfc-subject">TLS certificate checking MUST be performed by the client as described in [RFC9525] when making a protected resource metadata request. (§7.3)</span></td></tr>
@@ -543,8 +548,9 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L325" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L216" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L373" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728AuthorizationServersAreIssuerIdentifiers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_oauth_test.go#L216" title="internal/component/mcp/rfc9728_oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L374" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728AuthorizationServersAreIssuerIdentifiers</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.2-5">RFC9728-3.2-5</code></td><td colspan="3"><span class="rfc-subject">Additional metadata parameters MAY be defined and used; any metadata parameters that are not understood MUST be ignored. (§3.2)</span></td></tr>
@@ -562,9 +568,10 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L247" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_RejectsMissingBearer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L48" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestOAuth_Authenticate_MissingHeader</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_oauth_test.go#L48" title="internal/component/mcp/rfc9728_oauth_test.go" target="_blank" rel="noopener"><code>TestOAuth_Authenticate_MissingHeader</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L412" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ChallengeNamesMetadataURL</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row is a permission, &#34;This parameter MAY also be used in WWW-Authenticate responses&#34;, so no challenge Ze could send violates it and there is no refusal to assert; the positive proves the parameter carries the whole metadata URL of the configured resource</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.10-1">RFC9728-7.10-1</code></td><td colspan="3"><span class="rfc-subject">Implementations should utilize HTTP caching directives such as Cache-Control with max-age, as defined in [RFC9111], to enable caching of retrieved metadata for appropriate time periods. (§7.10; lowercase &#34;should&#34; in the RFC, which names no value)</span></td></tr>
 <tr><td></td>
@@ -682,7 +689,7 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L212" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_oauth_test.go#L212" title="internal/component/mcp/rfc9728_oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -719,18 +726,28 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <p>No test carries RFC9728-2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a></h3>
 <p>Protected resources supporting metadata MUST make a JSON document containing metadata as specified in Section 2 available at a URL formed by inserting a well-known URI string into the protected resource&#39;s resource identifier between the host component and the path and/or query components, if any. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC9728WellKnownInsertedBetweenHostAndPath proves the path clause: 200 at /.well-known/oauth-protected-resource/mcp, 404 at /mcp/.well-known/... and the bare suffix. The query clause (&#34;path and/or query components&#34;) has no assertion in the tagged unit: an identifier with a query whose document is served without it, or with the query before the suffix, stays green here. Separately, resourceOriginAndPath (streamable_auth.go) TrimRights every trailing slash of the path, so https://mcp.example/mcp/ is published at .../oauth-protected-resource/mcp, not at the RFC-constructed .../mcp/, and no test catches it.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Path clause: TestRFC9728WellKnownInsertedBetweenHostAndPath. Query clause now proven by TestRFC9728WellKnownInsertedBeforeQuery: + https://mcp.example/mcp?tenant=a at /.well-known/oauth-protected-resource/mcp?tenant=a and query-only https://mcp.example?tenant=a at /.well-known/oauth-protected-resource?tenant=a, advertised by resourceMetadataURL, resource equal to the identifier; - query dropped, suffix after path, bare suffix, suffix after query each serve no document. Still weak: resourceOriginAndPath TrimRights the path&#39;s trailing slash, so https://mcp.example/mcp/ is published at .../oauth-protected-resource/mcp, not at the URL formed from the identifier, and no tagged assertion covers that input. Blocked by spec-mcp-protected-resource-metadata-path AC-5 (same defect as RFC9728-3.1-3).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L88" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L323" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBeforeQuery</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L88" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L87" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L322" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBeforeQuery</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L87" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -745,12 +762,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L136" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L136" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L135" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L135" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -765,32 +782,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L138" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L138" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L137" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code></a></h3>
-<p>A protected resource metadata document MUST be queried using an HTTP GET request at the previously specified URL. (§3.1)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence obliges the party that queries the document (&#34;MUST be queried using an HTTP GET request&#34;). TestRFC9728MetadataQueriedWithGET proves the neighbouring publisher rule: Ze answers GET 200 and refuses POST/PUT with 405. Ze fills no metadata-consumer role (the discovery client was excluded 2026-09-21), so no Ze behaviour issues a query and the tags prove a different obligation.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L151" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L150" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L137" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -805,12 +802,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L112" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L112" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L111" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L111" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -825,12 +822,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L167" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L170" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L166" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L169" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -845,12 +842,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L189" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L192" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L188" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L191" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -865,12 +862,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L205" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L208" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L204" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L207" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -897,12 +894,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L228" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L231" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L227" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L230" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -917,12 +914,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L230" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L233" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L229" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L232" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -937,12 +934,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L69" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapeTextIsNotUnescapedTwice</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_jwt_test.go#L69" title="internal/component/mcp/rfc9728_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapeTextIsNotUnescapedTwice</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L48" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapedAudienceMatchesResource</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_jwt_test.go#L48" title="internal/component/mcp/rfc9728_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapedAudienceMatchesResource</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -957,12 +954,12 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L74" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerSupportsTLS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L74" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerSupportsTLS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L124" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L124" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -971,20 +968,30 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 </div>
 <h3><a href="#rfc9728-7.1-2"><code>RFC9728-7.1-2</code></a></h3>
 <p>They MUST follow the guidance in [BCP195], which provides recommendations and requirements for improving the security of deployed services that use TLS. (§7.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC9728MCPServingTLSVersions proves the protocol-version clause of BCP195: TLS 1.2/1.3 reach MCP, TLS 1.0/1.1 do not. The rest of the BCP195 guidance (RFC 9325 cipher-suite rules, e.g. no NULL, RC4 or sub-112-bit suites) has no assertion in a tagged unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Beyond the HEAD version tags: TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites (ze_mcp) probes the listener startMCPServer opens with loadMCPTLSConfig, ECDSA and RSA certs, with the same tlsprobe assertions as RFC7858-8-1: recommended ECDHE AES-128-GCM selected with null compression and renegotiation_info, every forbidden suite alone never selected, DEFLATE alone refused. Records: loadMCPTLSConfig revert both polarities observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L126" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L126" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go#L29" title="cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L125" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_test.go#L125" title="cmd/ze/hub/rfc9728_service_mcp_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go#L28" title="cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -999,20 +1006,30 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <p>No test carries RFC9728-7.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-2-2"><code>RFC9728-2-2</code></a></h3>
 <p>authorization_servers OPTIONAL. JSON array containing a list of OAuth authorization server issuer identifiers, as defined in [RFC8414], for authorization servers that can be used with this protected resource. (§2; the RFC marks the parameter OPTIONAL: &#34;authorization_servers OPTIONAL. JSON array containing a list of OAuth authorization server issuer identifiers&#34;)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive only: oauth_test.go and oauth_e2e_test.go assert authorization_servers is a JSON array holding the configured issuer. No negative tag and no single-polarity marker, so a non-array or non-issuer value is not shown refused by a tagged negative.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. [MAY] parameter definition. TestRFC9728AuthorizationServersAreIssuerIdentifiers + authorization_servers decodes as a JSON array of strings holding exactly the validated issuer, https with no query and no fragment; - http, ?tenant=a and #frag authorization-server values are refused by NewStreamable so no document lists them. The refusals are overdetermined: asMetadataURL/oauthHTTPSURL refuse first, and the fetch&#39;s issuer match or transport would also refuse, so the negative proves the published property rather than which guard holds it. The oauth_test.go and oauth_e2e_test.go positives keep their tags.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L374" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728AuthorizationServersAreIssuerIdentifiers</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L325" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L216" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L373" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728AuthorizationServersAreIssuerIdentifiers</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_oauth_test.go#L216" title="internal/component/mcp/rfc9728_oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1023,7 +1040,7 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <p>No test carries RFC9728-3.2-5, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-5.1-1"><code>RFC9728-5.1-1</code></a></h3>
 <p>This specification introduces a new parameter in the WWW-Authenticate HTTP response header field to indicate the protected resource metadata URL: resource_metadata: The URL of the protected resource metadata. The response below is an example of a WWW-Authenticate header that includes the resource identifier. HTTP/1.1 401 Unauthorized WWW-Authenticate: Bearer resource_metadata= &#34;https://resource.example.com/.well-known/oauth-protected-resource&#34; The HTTP status code in the example response above is defined by [RFC6750]. This parameter MAY also be used in WWW-Authenticate responses using authorization schemes other than &#34;Bearer&#34; [RFC6750], such as the DPoP scheme defined by [RFC9449]. (§5.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive only: oauth_test.go TestOAuth_Authenticate_MissingHeader and oauth_e2e_test.go check the 401 WWW-Authenticate contains resource_metadata=&#34;https://mcp.example/ (a prefix, not the full metadata URL). No negative tag and no single-polarity marker; the non-Bearer-scheme permission is not exercised.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. [MAY] permission row with {single-polarity: positive}, which holds: no challenge Ze sends can violate a permission. TestRFC9728ChallengeNamesMetadataURL asserts the 401 WWW-Authenticate is Bearer with resource_metadata EXACTLY https://mcp.example/.well-known/oauth-protected-resource/api for a metadata resource that differs from the audience, and a GET there returns that resource&#39;s document, so a prefix, the audience-derived URL, or a missing parameter goes red. The oauth_test.go and oauth_e2e_test.go prefix-only positives keep their tags.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1031,12 +1048,17 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L247" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_RejectsMissingBearer</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L48" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestOAuth_Authenticate_MissingHeader</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_metadata_test.go#L412" title="internal/component/mcp/rfc9728_metadata_test.go" target="_blank" rel="noopener"><code>TestRFC9728ChallengeNamesMetadataURL</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc9728_oauth_test.go#L48" title="internal/component/mcp/rfc9728_oauth_test.go" target="_blank" rel="noopener"><code>TestOAuth_Authenticate_MissingHeader</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1048,10 +1070,10 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>Main integration; independent source-mapping review: OAuthMappingReview</td>
+<td>Main integration; independent source-mapping review: OAuthMappingReview; 2026-09-29 section 3.1 re-walk: services verdict-fix author (spec-rfc-verdict-fix-services), for independent re-judge</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-22</td>
+<td>2026-09-29</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1066,10 +1088,10 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <td>rfc/extraction/rfc9728.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>26</td>
+<td>25</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>1</td>
+<td>2</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -1333,6 +1355,11 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
 <table class="rfc-table">
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
+<tr><td><code>3.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the protected-resource metadata client, the party that queries the document, which Ze does not implement: Thomas&#39;s 2026-09-21 scope decision excludes protected-resource discovery clients. Ze publishes the document (internal/component/mcp/oauth.go::writeResourceMetadata, served by internal/component/mcp/streamable.go::ServeHTTP) and never requests another resource&#39;s metadata; internal/component/mcp/as_metadata.go::fetchASMetadata queries RFC 8414 authorization server metadata, a different document. No layer acts as this client on Ze&#39;s behalf. The row RFC9728-3.1-2 was retired 2026-09-29 (rfc/corrections/rfc9728.md).</td>
+<td>A protected resource metadata document MUST be queried using an HTTP GET request at the previously specified URL.</td>
+</tr>
 <tr><td><code>3.3:4</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Section 3.3 repeats: If these values are not identical, the data contained in the response MUST NOT be used. The first occurrence follows the well-known URL identity check and maps directly at 3.3:2; this occurrence follows discovery through WWW-Authenticate. RFC9728-3.3-2 now explicitly includes both contexts, so the duplicate target records the obligation of this sentence as well.</td>
@@ -1374,7 +1401,7 @@ Two rows are audited wrong. <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code><
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

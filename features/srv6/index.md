@@ -11,9 +11,11 @@
 <!-- rfc: rfc/short/rfc9252.md -- SRv6 overlay services -->
 
 Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252),
-extracts SRv6 SIDs, validates them, and programs ingress encapsulation into the
-FIB. Static route configuration and `update text` can also advertise an explicit
-Service SID. Ze does not allocate local SIDs or install egress endpoint behaviors.
+extracts SRv6 SIDs, validates them, and programs Linux ingress encapsulation.
+The VPP backend does not yet install the SR policy required for its steering
+request. Static route configuration and `update text` can also advertise an
+explicit Service SID. Ze does not allocate local SIDs or install egress endpoint
+behaviors.
 
 | Feature | Description |
 |---------|-------------|
@@ -21,14 +23,14 @@ Service SID. Ze does not allocate local SIDs or install egress endpoint behavior
 | L3/L2 Service TLVs | Types 5 (L3 Service) and 6 (L2 Service) per RFC 9252 Section 3.1 |
 | SID extraction | First SRv6 SID Information Sub-TLV (type 1) within the Service TLV |
 | Transposition | SID Structure Sub-Sub-TLV reconstructs full SID from NLRI label bits (VPN/EVPN) |
-| Path ineligibility | Route with SRv6 TLVs but no valid SID excluded from best-path selection |
+| Path ineligibility | Partial: excludes paths with no extractable SID, but invalid SID Structure parameters can still pass best-path admission |
 | SID resolvability | SRv6 SID must have a covering route in Loc-RIB before FIB installation |
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
 | EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
-| Propagation | PrefixSID preserved on zero-copy forward; stripped when the next-hop changes, and stripped at the SR domain boundary |
+| Propagation | Label-Index Reserved and Flags are cleared on every transmission, including relay. Originator SRGB and unknown TLVs remain byte-identical. A next-hop change removes only the SRv6 Service TLVs (types 5 and 6), with the whole attribute leaving if no TLV remains; the SR domain boundary strips it whole |
 | Linux FIB | SEG6 lwtunnel encap via netlink |
-| VPP FIB | SR steering policy via GoVPP `sr_steering_add_del` |
+| VPP FIB | Incomplete: `sr_steering_add_del` is issued, but the required SR policy and local binding SID are not installed |
 
 ## Configuration
 
@@ -59,9 +61,11 @@ part of the same SR domain, and leave both unset on every other EBGP neighbor.
 Set neither on an IBGP peer: the section governs propagation to other ASes, so
 it does not reach a peer in this one.
 
-No additional configuration is needed for IBGP sessions or for FIB programming.
-When an SRv6 SID is present on a best-path route and the SID is resolvable,
-the FIB backend programs the encapsulation automatically.
+No additional configuration is needed for IBGP sessions or for Linux FIB
+programming. When an SRv6 SID is present on a best-path route and the SID is
+resolvable, the Linux backend programs the encapsulation automatically. VPP
+steering alone does not provide that encapsulation; its policy-installation
+defect remains open.
 
 ### Explicit Service SID advertisement
 
@@ -129,10 +133,10 @@ RFC 7606 validator: checks TLV structure, rejects malformed
 EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
   |
   v
-RIB best-path: IsSRv6Ineligible() excludes routes with broken SRv6 TLVs
+RIB best-path: isSRv6Ineligible() excludes SRv6 paths with no extractable SID
   |
   v
-Best-path emission: lookupSRv6SIDForBest() extracts SID from OtherAttrs
+Best-path emission: storedPathSRv6SID() extracts SID from the winner's OtherAttrs
   |  For VPN/EVPN: applies transposition (label bits -> SID function)
   |
   v
@@ -153,12 +157,20 @@ Route selected for a destination peer
   |
   v
 prefixSIDAllowedTo(isIBGP, propagate-srv6-prefix-sid)
-  |  true  -> attr 40 goes out unchanged
+  |  true  -> attr 40 is retained, with Label-Index transmit fields cleared
   |  false -> attr 40 is removed for this peer alone
   v
 Forward rails:     applyFactsPrefixSID records an attribute suppression
 Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 ```
+
+The final session writers clear the Label-Index Reserved octet and both Flags
+octets in their private outgoing buffer after export policy (RFC 8669 Section
+3.1). This applies to forwarded routes as well as originated routes, without an
+extra buffer or a change to the borrowed received UPDATE. The Section 3.2
+unchanged-propagation rule applies specifically to Originator SRGB: its bytes
+are never normalized on relay.
+<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
 
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 
@@ -228,7 +240,8 @@ the VPP dispatch logic.
 | Unknown TLVs preserved on propagation | 3 | Implemented (opaque forwarding) |
 | EBGP: discard unless configured to accept | 4 | Implemented (`accept-srv6-prefix-sid`) |
 | Propagation to other ASes explicitly configured | 8 | Implemented (`propagate-srv6-prefix-sid`): every rail that writes an UPDATE asks |
-| Malformed attribute: attribute-discard | 6 | Implemented (RFC 7606 validator) |
+| Malformed attribute: attribute-discard | 6 | Partial: a TLV overrunning the attribute and trailing octets are discarded; a TLV length outside its type's constraint and an empty attribute are not refused yet (`plan/immediate/spec-bgp-prefix-sid-rfc-defects.md`, D1) |
+| Repeated single-occurrence TLV: all but the first discarded | 6 | Implemented: Label-Index, SRv6 L3 and L2 Service TLVs, at ingest, so neither the RIB nor any relay sees the repeat |
 
 ### RFC 9252 (SRv6 Overlay Services)
 
@@ -242,10 +255,13 @@ the VPP dispatch logic.
 | Transposition reconstruction | 3.2.1 | Implemented (VPN/EVPN) |
 | LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Implemented (errata 7817) |
 | NH unchanged: preserve TLVs | 3.3 | Implemented (zero-copy forward) |
-| NH changed: strip PrefixSID | 3.3 | Implemented (AttrModSuppress) |
-| Malformed Service TLV: treat-as-withdraw | 3.4 | Implemented |
-| Path ineligibility (no valid SID) | 5 | Implemented |
+| NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented (the Service TLVs leave because Ze allocates no local SRv6 SID; the Prefix-SID handler rewrites the attribute per route) |
+| Malformed Service TLV: treat-as-withdraw | 7 | Partial: a Service TLV overrunning the attribute gets attribute-discard instead (spec D2) |
+| Path ineligibility (no valid SID) | 7 | Partial: invalid SID Structure parameters and transposition widths can still pass best-path admission (spec D3, D4) |
 | SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
+
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- isSRv6Ineligible, srv6SIDFromResult -->
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SID, parseSIDStructure -->
 
 ## Limitations
 
@@ -256,7 +272,8 @@ the VPP dispatch logic.
 
 - **No local SID allocation or endpoint installation.** Ze can advertise an
   explicitly configured SID but does not provision its egress behavior. When
-  re-advertising with a changed next-hop, PrefixSID is stripped.
+  re-advertising with a changed next-hop, the SRv6 Service TLVs are removed
+  rather than rebuilt with a local SID; the rest of the PrefixSID is kept.
 - **No SRv6 capability negotiation.** PrefixSID is optional-transitive, so it
   propagates without negotiation. Ze does not signal SRv6 support via capabilities.
 - **No SRv6 policy.** Ze programs single-SID encapsulation. SRv6 segment lists

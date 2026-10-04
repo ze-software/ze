@@ -376,8 +376,11 @@ Section 5.3) on shutdown and on the commit that turns <code>loc-rib</code> off. 
 Section 5.2 requires that OPEN and its capabilities: "This is a fabricated BGP
 OPEN message. Capabilities MUST include the 4-octet ASN and all necessary
 capabilities to represent the Loc-RIB Route Monitoring messages." Ze
-advertises the 4-octet ASN capability and one address-family capability per
-family the dump delivers, and nothing else</li>
+advertises the 4-octet ASN capability, one address-family capability per
+family the dump delivers, and the Extended Next Hop capability (RFC 8950) for
+IPv4 unicast with an IPv6 next hop, and nothing else. The last one is there
+because an IPv4 best path learned with an IPv6 next hop travels in
+MP_REACH_NLRI with AFI 1, which a collector decodes only under that capability</li>
 <li>Reads that ASN and that router-id from <code>bgp session asn local</code> and <code>bgp router-id</code>, and from nowhere else. Both leaves are required, so a configured
 ze always knows its own identity, and it knows it before any BGP peer comes
 up. That is the case RFC 9069 Section 1.1 exists to serve, a Loc-RIB monitored
@@ -699,7 +702,7 @@ forbids a RIB back-door for the full attribute set.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

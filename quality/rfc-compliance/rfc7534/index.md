@@ -13,8 +13,10 @@ what Ze has
 | Tested both ways | 66.7% | 2 of 3 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 33.3% | 1 of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 3 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 5 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 85.7% | 6 of 7 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 3 | of 3 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,15 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 3 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 3 | of 3 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +41,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 5 |
-| Tagged units | 5 |
+| Test tags | 7 |
+| Tagged units | 7 |
 | Recorded audit verdicts | 3 |
-| Discrimination records | 0 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc7534.md` |
 | Requirement shard | `rfc/requirements/rfc7534.md` |
 | RFC text | `rfc/full/rfc7534.txt` |
@@ -96,23 +91,24 @@ No tracked gap in current source anchors.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the gated population |
-| Annotated instead of tested | 1 | one part of the gated population |
+| Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **3** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC7534-3.5-1`](#rfc7534-3.5-1), [`RFC7534-3.5-2`](#rfc7534-3.5-2)
 
-**Annotated instead of tested (1):** [`RFC7534-3.5-3`](#rfc7534-3.5-3)
+**Annotated (including scoped evidence) (1):** [`RFC7534-3.5-3`](#rfc7534-3.5-3)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7534-3.5-1` | Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85). **negative:** `unit/verify` [`TestZoneAnswer_OutOfZoneRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169) |
-| `RFC7534-3.5-2` | There should be no other resource records included in this zone. (§3.5, db.dd-empty) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88). **negative:** `unit/verify` [`TestSOA_RFCMandatedParameters`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293) |
+| `RFC7534-3.5-1` | Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L28). **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85). **negative:** `unit/verify` [`TestZoneAnswer_OutOfZoneRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169) |
+| `RFC7534-3.5-2` | There should be no other resource records included in this zone. (§3.5, db.dd-empty) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L35). **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88). **negative:** `unit/verify` [`TestSOA_RFCMandatedParameters`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293) |
 | `RFC7534-3.5-3` | Records that relate to RFC 1918-numbered resources within the ; site hosting this AS112 node should not be hosted on this ; nameserver. (§3.5) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L247). **negative:** no negative test. **{single-polarity}:** ze's AS112 nameserver serves only empty SOA/NS Direct-Delegation zones (internal/plugins/as112/zones.go), which hold their records at the apex and nothing below it, so every RFC 1918 reverse name draws a name error and no RFC 1918 record is ever hosted -- there is no "RFC 1918 record is hosted" case to assert as a negative. The positive (an RFC 1918 reverse PTR yields NXDOMAIN, with no PTR anywhere in the reply) is proven in TestZoneAnswer_ResponseCodeByNamePosition |
 | `RFC7534-3.3-1` | The chosen platform should include either support for cloned loopback interfaces or the capability to bind multiple addresses to a single loopback interface. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
 | `RFC7534-3.3-2` | A host that is configured to act as an AS112 anycast node should be dedicated to that purpose and should not be used to simultaneously provide other services. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
@@ -140,23 +136,25 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: each node is configured to answer authoritatively for its nominated zones. Forbidden behaviour (a): a nominated zone answered without authority (AA clear) or not answered from zone data; (b) answering for a zone not nominated. Clause (b) is enforced: TestZoneAnswer_OutOfZoneRefused asserts REFUSED, reply.Authoritative false and empty sections for example.com. Clause (a) is not: TestZoneAnswer_ReverseZoneNoData calls answerQuestions directly and asserts NOERROR plus the zone SOA in Authority, but never reads the AA bit (AA is set by the handler, not answerQuestions), so a handler that stopped setting AA for served zones stays green. Only 10.in-addr.arpa. is probed of the nominated set.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive now covers every served Direct-Delegation zone (>=20 probed) through the real handler: SOA at the apex is AA, NOERROR, the zone's own SOA. Negative TestZoneAnswer_OutOfZoneRefused: a name outside every served zone draws REFUSED with AA clear. Records: answerQuestions revert, positive (author) and negative (judge) observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestZoneAnswer_OutOfZoneRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169) | unit/verify | unproven |
-| positive | [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85) | unit/verify | unproven |
+| negative | [`TestZoneAnswer_OutOfZoneRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169) | unit/verify | revert, verified |
+| positive | [`TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L28) | unit/verify | revert, verified |
+| positive | [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85) | unit/verify | revert, verified |
 
 ### [`RFC7534-3.5-2`](#rfc7534-3.5-2)
 
 There should be no other resource records included in this zone. (§3.5, db.dd-empty)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: no resource records beyond SOA and NS in a Direct-Delegation zone. Forbidden behaviour: the zone answering any other record type. TestZoneAnswer_ReverseZoneNoData asserts empty Answer only for a PTR query at 10.in-addr.arpa.; TestSOA_RFCMandatedParameters (negative) asserts the SOA parameters and exactly two NS. answerQuestions holds an explicit TXT branch (isHostnameZone) that answers TXT for some zones; no tagged unit queries TXT (or A, AAAA, ANY) at a Direct-Delegation apex, so a broken isHostnameZone that hosts TXT in 10.in-addr.arpa. stays green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: at every Direct-Delegation apex, A/AAAA/TXT/PTR/MX/CNAME/ANY return nothing but SOA/NS in any section, closing the PTR-only finding. Negative TestSOA_RFCMandatedParameters bounds the rule (the zone does carry SOA and NS) rather than violating it; the prohibition itself is proven by the positive across all zones and types. Records: answerQuestions (+, author) and buildSOA (-, judge) reverts observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestSOA_RFCMandatedParameters`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293) | unit/verify | unproven |
-| positive | [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88) | unit/verify | unproven |
+| negative | [`TestSOA_RFCMandatedParameters`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293) | unit/verify | revert, verified |
+| positive | [`TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L35) | unit/verify | revert, verified |
+| positive | [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88) | unit/verify | revert, verified |
 
 ### [`RFC7534-3.5-3`](#rfc7534-3.5-3)
 

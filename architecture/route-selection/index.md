@@ -65,13 +65,18 @@ immutable interface snapshot captured at connection setup and replaced on
 interface address events. It performs no kernel lookup per UPDATE.
 
 A semantic failure withdraws the legacy announcements while preserving explicit
-withdrawals and MP routes in the same UPDATE. It is logged without a NOTIFICATION
-or session reset. iBGP and multihop eBGP still reject the speaker's own addresses,
+withdrawals and MP routes in the same UPDATE. It sends no NOTIFICATION and does
+not reset the session. Each failure writes one WARN record from the session
+logger, `route ignored: semantically incorrect NEXT_HOP`, naming the peer and the
+NEXT_HOP, so the default log level (WARN) shows it. Ze has no log rate limiter, so a
+peer that keeps sending such routes produces one record per UPDATE. The RFC 7606
+diagnostics line with the update's hex dump (`event=invalid-next-hop`) is written
+only at Debug. iBGP and multihop eBGP still reject the speaker's own addresses,
 but do not apply the one-hop common-subnet condition. A sender at a loopback
 address, or at an address this host holds, runs on the receiving host. It is zero
 IP hops away, so the common-subnet condition does not apply to it either.
 
-<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop, withdrawLegacyAnnouncements -->
+<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop, logIgnoredNextHopRoute, withdrawLegacyAnnouncements -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- refreshPeerLinkScopes -->
 
 ### RPKI Validation
@@ -108,13 +113,22 @@ decides.
 | — | `aigp` | A path carrying AIGP beats one without it; then the lowest received AIGP plus interior distance wins | 7311 | After LOCAL_PREF, before AS_PATH; unsigned sums saturate |
 | 11 | `lost-as-path-length` | Shortest AS_PATH wins | 4271 | AS_SET counts as 1 |
 | 12 | `lost-origin` | Lowest ORIGIN wins (IGP=0 < EGP=1 < INCOMPLETE=2) | 4271 | |
-| 13 | `lost-med` | Lowest MED wins (same neighbor AS only) | 4271 | Compared only when first AS matches. Section 9.1.2.2 (c) gives a route that carries no MULTI_EXIT_DISC the lowest possible value, 0, so an absent attribute wins this step |
+| 13 | `lost-med` | Lowest MED wins (same neighbor AS only) | 4271 | Compared only when the neighbor AS matches. The neighbor AS is the leftmost AS of the AS_PATH; an IBGP-learned route with an empty AS_PATH was originated inside the local AS, so its neighbor AS is the local AS and two such routes compare MED. A path that begins with an AS_SET has no leftmost AS (the set is unordered, `firstASInPath`), so an IBGP aggregate led by one also takes the local AS, as Section 9.1.2.2 (c) says. An EBGP route with no leftmost AS (empty or AS_SET-led), or a route whose session class is unknown, compares no MED (`neighborAS`, `bestpath.go`). Section 9.1.2.2 (c) gives a route that carries no MULTI_EXIT_DISC the lowest possible value, 0, so an absent attribute wins this step |
 | 14 | `lost-ebgp-over-ibgp` | eBGP preferred over iBGP | 4271 | eBGP = PeerASN != LocalASN |
 | 15 | `lost-igp-cost` | Lowest resolved interior distance to next-hop | 4271/7311 | Recursive BGP hops contribute received AIGP, not MED; unavailable distance is distinct from zero |
 | 16 | `lost-router-id` | Lowest Router ID / ORIGINATOR_ID wins | 4271/4456 | Numeric IP comparison |
 | 17 | `lost-cluster-list-length` | Shortest CLUSTER_LIST wins | 4456 | Section 9 inserts this between RFC 4271 steps f) and g). Counted in CLUSTER_IDs; an absent attribute counts zero. Unconditional |
-| 18 | `lost-peer-address` | Lowest peer IP address wins (final tiebreak) | 4271 | Numeric IP comparison |
+| 18 | `lost-peer-address` | Lowest peer IP address wins | 4271 | Numeric IP comparison |
+| 19 | `lost-path-id` | Lowest received ADD-PATH path identifier wins (final tiebreak) | Ze | Not RFC text: RFC 7911 gives the identifier no rank. It orders two paths of one session that tie on every step above, so the elected path does not depend on storage order |
 <!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
+
+Under ADD-PATH (RFC 7911) every path a session holds for a CIDR prefix is a
+candidate of the one selection for that prefix: RFC 8277 Section 3.1 makes two
+paths of one session, under different path identifiers, comparable. The RIB
+elects one best per prefix across every peer and every path, and the
+best-change names the winning path by its path id
+(`gatherPrefixCandidatesLocked`, `rib_commands.go`).
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked -->
 
 ### Candidate Extraction
 
@@ -254,6 +268,7 @@ it fails.
 | 16 | `lost-router-id` | Selection | 4271/4456 |
 | 17 | `lost-cluster-list-length` | Selection | 4456 |
 | 18 | `lost-peer-address` | Selection | 4271 |
+| 19 | `lost-path-id` | Selection | Ze |
 
 ## Implementation Notes
 

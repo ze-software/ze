@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 4.3% | 1 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,12 +24,12 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 23 | of 47 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 23 | of 23 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 100.0% | 23 of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 22 | of 23 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 95.7% | 22 of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,6 +40,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -54,15 +56,15 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 47 |
 | Gated MUST-level | 23 |
-| Not applicable, so out of scope | 23 |
+| Not applicable, so out of scope | 22 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 2 |
+| Tagged units | 2 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc4213.md` |
 | Requirement shard | `rfc/requirements/rfc4213.md` |
 | RFC text | `rfc/full/rfc4213.txt` |
@@ -79,15 +81,18 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 23 | one part of the gated population |
+| Positive and negative tests | 1 | one part of the gated population |
+| Annotated (including scoped evidence) | 22 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **23** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (23):** [`RFC4213-2.2-1`](#rfc4213-2.2-1), [`RFC4213-2.2-2`](#rfc4213-2.2-2), [`RFC4213-3.2-1`](#rfc4213-3.2-1), [`RFC4213-3.2-2`](#rfc4213-3.2-2), [`RFC4213-3.2.1-1`](#rfc4213-3.2.1-1), [`RFC4213-3.2.1-2`](#rfc4213-3.2.1-2), [`RFC4213-3.2.1-3`](#rfc4213-3.2.1-3), [`RFC4213-3.2.1-4`](#rfc4213-3.2.1-4), [`RFC4213-3.2-3`](#rfc4213-3.2-3), [`RFC4213-3.6-1`](#rfc4213-3.6-1), [`RFC4213-3.6-2`](#rfc4213-3.6-2), [`RFC4213-3.6-3`](#rfc4213-3.6-3), [`RFC4213-3.6-4`](#rfc4213-3.6-4), [`RFC4213-3.6-5`](#rfc4213-3.6-5), [`RFC4213-3.6-6`](#rfc4213-3.6-6), [`RFC4213-3.6-7`](#rfc4213-3.6-7), [`RFC4213-3.7-1`](#rfc4213-3.7-1), [`RFC4213-3.8-1`](#rfc4213-3.8-1), [`RFC4213-3.8-2`](#rfc4213-3.8-2), [`RFC4213-5-1`](#rfc4213-5-1), [`RFC4213-5-2`](#rfc4213-5-2), [`RFC4213-5-3`](#rfc4213-5-3), [`RFC4213-5-4`](#rfc4213-5-4)
+**Positive and negative tests (1):** [`RFC4213-3.6-1`](#rfc4213-3.6-1)
+
+**Annotated (including scoped evidence) (22):** [`RFC4213-2.2-1`](#rfc4213-2.2-1), [`RFC4213-2.2-2`](#rfc4213-2.2-2), [`RFC4213-3.2-1`](#rfc4213-3.2-1), [`RFC4213-3.2-2`](#rfc4213-3.2-2), [`RFC4213-3.2.1-1`](#rfc4213-3.2.1-1), [`RFC4213-3.2.1-2`](#rfc4213-3.2.1-2), [`RFC4213-3.2.1-3`](#rfc4213-3.2.1-3), [`RFC4213-3.2.1-4`](#rfc4213-3.2.1-4), [`RFC4213-3.2-3`](#rfc4213-3.2-3), [`RFC4213-3.6-2`](#rfc4213-3.6-2), [`RFC4213-3.6-3`](#rfc4213-3.6-3), [`RFC4213-3.6-4`](#rfc4213-3.6-4), [`RFC4213-3.6-5`](#rfc4213-3.6-5), [`RFC4213-3.6-6`](#rfc4213-3.6-6), [`RFC4213-3.6-7`](#rfc4213-3.6-7), [`RFC4213-3.7-1`](#rfc4213-3.7-1), [`RFC4213-3.8-1`](#rfc4213-3.8-1), [`RFC4213-3.8-2`](#rfc4213-3.8-2), [`RFC4213-5-1`](#rfc4213-5-1), [`RFC4213-5-2`](#rfc4213-5-2), [`RFC4213-5-3`](#rfc4213-5-3), [`RFC4213-5-4`](#rfc4213-5-4)
 
 ## Requirements
 
@@ -102,7 +107,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC4213-3.2.1-3` | This memo also includes requirements (see Section 3.6) for the amount of IPv4 reassembly and IPv6 MRU that MUST be supported by all the decapsulators. (§3.2.1) | MUST | 3.2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns IPv4 reassembly and the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly/MRU obligation has no ze code path |
 | `RFC4213-3.2.1-4` | When using the static tunnel MTU, the Don't Fragment bit MUST NOT be set in the encapsulating IPv4 header. (§3.2.1) | MUST NOT | 3.2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41; the PMtuDisc flag is set at tunnel_linux.go:234-238 but the DF bit on the wire is written by the kernel sit datapath). VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). ze runs no per-packet encapsulation code path, so this outer-header DF obligation has no ze code path |
 | `RFC4213-3.2-3` | the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2) | MUST NOT | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path |
-| `RFC4213-3.6-1` | The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath performs the per-packet outer-source verification against that configured remote; ze runs no per-packet decapsulation code path, so this decapsulation source-verification obligation has no ze code path |
+| `RFC4213-3.6-1` | The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). This check also applies to packets that are delivered to transport protocols on the decapsulator. This is done by verifying that the source address is the IPv4 address of the encapsulator, as configured on the decapsulator. (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC4213SitDecapsulatesFromTheConfiguredRemote`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L324). **negative:** `unit/verify` [`TestRFC4213SitRefusesAnUnverifiedSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L354) |
 | `RFC4213-3.6-2` | Packets for which the IPv4 source address does not match MUST be discarded (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards packets whose outer IPv4 source does not match; ze runs no per-packet decapsulation code path, so this discard obligation has no ze code path |
 | `RFC4213-3.6-3` | The decapsulator MUST be capable of having, on the tunnel interfaces, an IPv6 MRU of at least the maximum of 1500 bytes and the largest (IPv6) interface MTU on the decapsulator. (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this MRU obligation has no ze code path |
 | `RFC4213-3.6-4` | The decapsulator MUST be capable of reassembling an IPv4 packet that is (after the reassembly) the maximum of 1500 bytes and the largest (IPv4) interface MTU on the decapsulator. (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns IPv4 reassembly on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly obligation has no ze code path |
@@ -154,7 +159,6 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | [`RFC4213-3.2.1-3`](#rfc4213-3.2.1-3) This memo also includes requirements (see Section 3.6) for the amount of IPv4 reassembly and IPv6 MRU that MUST be supported by all the decapsulators. (§3.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns IPv4 reassembly and the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly/MRU obligation has no ze code path |
 | [`RFC4213-3.2.1-4`](#rfc4213-3.2.1-4) When using the static tunnel MTU, the Don't Fragment bit MUST NOT be set in the encapsulating IPv4 header. (§3.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41; the PMtuDisc flag is set at tunnel_linux.go:234-238 but the DF bit on the wire is written by the kernel sit datapath). VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). ze runs no per-packet encapsulation code path, so this outer-header DF obligation has no ze code path |
 | [`RFC4213-3.2-3`](#rfc4213-3.2-3) the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path |
-| [`RFC4213-3.6-1`](#rfc4213-3.6-1) The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). (§3.6) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath performs the per-packet outer-source verification against that configured remote; ze runs no per-packet decapsulation code path, so this decapsulation source-verification obligation has no ze code path |
 | [`RFC4213-3.6-2`](#rfc4213-3.6-2) Packets for which the IPv4 source address does not match MUST be discarded (§3.6) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards packets whose outer IPv4 source does not match; ze runs no per-packet decapsulation code path, so this discard obligation has no ze code path |
 | [`RFC4213-3.6-3`](#rfc4213-3.6-3) The decapsulator MUST be capable of having, on the tunnel interfaces, an IPv6 MRU of at least the maximum of 1500 bytes and the largest (IPv6) interface MTU on the decapsulator. (§3.6) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this MRU obligation has no ze code path |
 | [`RFC4213-3.6-4`](#rfc4213-3.6-4) The decapsulator MUST be capable of reassembling an IPv4 packet that is (after the reassembly) the maximum of 1500 bytes and the largest (IPv4) interface MTU on the decapsulator. (§3.6) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns IPv4 reassembly on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly obligation has no ze code path |
@@ -247,11 +251,14 @@ No test carries RFC4213-3.2-3, so no unit is bound to it.
 
 ### [`RFC4213-3.6-1`](#rfc4213-3.6-1)
 
-The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). (§3.6)
+The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). This check also applies to packets that are delivered to transport protocols on the decapsulator. This is done by verifying that the source address is the IPv4 address of the encapsulator, as configured on the decapsulator. (§3.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4213-3.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4213SitRefusesAnUnverifiedSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L354) | unit/verify | revert, verified |
+| positive | [`TestRFC4213SitDecapsulatesFromTheConfiguredRemote`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go#L324) | unit/verify | revert, verified |
 
 ### [`RFC4213-3.6-2`](#rfc4213-3.6-2)
 

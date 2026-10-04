@@ -185,6 +185,14 @@ transit ASNs; Ze suggests them and never applies them on its own.</p>
 <p>Two properties are worth knowing before you write policy around this.</p>
 <p><strong>The check reads the received route, so an egress policy that strips these values does not restore advertisement.</strong> The value ze reads is the one the route arrived with. Removing <code>NO_EXPORT</code> in an export chain changes the bytes on the wire. It does not change what the peer asked for, and RFC 1997 states the prohibition as a MUST NOT. FRR and BIRD apply the route-map first, so a strip there does restore advertisement. Ze diverges from both, deliberately: an operator policy cannot grant what the RFC refuses. If a route must leave the AS, ask the peer to stop tagging it.</p>
 <p><strong>Withdrawals are not affected.</strong> All three clauses forbid ADVERTISING the route. One UPDATE can carry withdrawn routes and an announcement together. A peer refused the announcement still receives the withdrawals, so it never keeps a prefix ze can no longer take back.</p>
+<p>A refused announcement produces a withdrawal of its destinations as well. The
+forwarding rails do not retain a per-destination advertised inventory, so they
+cannot prove that the peer never held an earlier generation. Withdrawing it
+prevents a newly restricted route from remaining usable. This is not an
+advertisement: wire assertions must distinguish reachable NLRI from Withdrawn
+Routes and MP_UNREACH_NLRI, rather than reject a prefix anywhere in an UPDATE.</p>
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <p>Each suppression increments <code>ze_bgp_wellknown_community_suppressed_total</code> with the community as its label. Nothing else reports it: there is no per-route log line and no configuration switch, because a switch here would be a switch to violate the RFC.</p>
 <!-- source: internal/component/bgp/wireu/wellknown.go — ScanWellKnown, WellKnown.AllowsEgressTo -->
 <!-- source: internal/component/bgp/reactor/forward_wellknown.go — wellKnownAllowsEgress -->
@@ -413,7 +421,7 @@ ze cli -c "show bgp peer transit-b rib"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

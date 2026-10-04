@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3748 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 60 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 60 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 60 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>81.7%</strong><b>49 of 60 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.3%</strong><b>5 of 60 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>49.6%</strong><b>58 of 117 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>84.7%</strong><b>50 of 59 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.1%</strong><b>3 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>82.5%</strong><b>127 of 154 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>60</strong><b>of 64 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 60 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>10.0%</strong><b>6 of 60 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>59</strong><b>of 63 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 59 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>10.2%</strong><b>6 of 59 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>37</strong><b>of 60 gated MUSTs judged</b><p>23 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 60 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>64</td>
+<td>63</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>60</td>
+<td>59</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>6</td>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>117</td>
+<td>154</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>117</td>
+<td>154</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>37</td>
+<td>36</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>58</td>
+<td>127</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3748.md</code></td>
@@ -269,11 +270,11 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>49</strong></td>
+<td><strong>50</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>11</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>9</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,6 +285,10 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -292,12 +297,12 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>60</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>59</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (49):</strong> <a href="#rfc3748-4-1"><code>RFC3748-4-1</code></a>, <a href="#rfc3748-4-2"><code>RFC3748-4-2</code></a>, <a href="#rfc3748-2-2"><code>RFC3748-2-2</code></a>, <a href="#rfc3748-2.1-1"><code>RFC3748-2.1-1</code></a>, <a href="#rfc3748-2.1-2"><code>RFC3748-2.1-2</code></a>, <a href="#rfc3748-2.1-3"><code>RFC3748-2.1-3</code></a>, <a href="#rfc3748-4.2-2"><code>RFC3748-4.2-2</code></a>, <a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a>, <a href="#rfc3748-4-4"><code>RFC3748-4-4</code></a>, <a href="#rfc3748-4.1-3"><code>RFC3748-4.1-3</code></a>, <a href="#rfc3748-4.1-4"><code>RFC3748-4.1-4</code></a>, <a href="#rfc3748-4.1-5"><code>RFC3748-4.1-5</code></a>, <a href="#rfc3748-4.2-5"><code>RFC3748-4.2-5</code></a>, <a href="#rfc3748-4.2-6"><code>RFC3748-4.2-6</code></a>, <a href="#rfc3748-4-5"><code>RFC3748-4-5</code></a>, <a href="#rfc3748-4.2-7"><code>RFC3748-4.2-7</code></a>, <a href="#rfc3748-4.2-8"><code>RFC3748-4.2-8</code></a>, <a href="#rfc3748-4.2-9"><code>RFC3748-4.2-9</code></a>, <a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a>, <a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a>, <a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a>, <a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a>, <a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a>, <a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a>, <a href="#rfc3748-4.1-10"><code>RFC3748-4.1-10</code></a>, <a href="#rfc3748-4.1-11"><code>RFC3748-4.1-11</code></a>, <a href="#rfc3748-2.1-4"><code>RFC3748-2.1-4</code></a>, <a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a>, <a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a>, <a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a>, <a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a>, <a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a>, <a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a>, <a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a>, <a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a>, <a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a>, <a href="#rfc3748-5-1"><code>RFC3748-5-1</code></a>, <a href="#rfc3748-5-2"><code>RFC3748-5-2</code></a>, <a href="#rfc3748-5.2-1"><code>RFC3748-5.2-1</code></a>, <a href="#rfc3748-5.2-2"><code>RFC3748-5.2-2</code></a>, <a href="#rfc3748-5.3.1-1"><code>RFC3748-5.3.1-1</code></a>, <a href="#rfc3748-5.3.1-2"><code>RFC3748-5.3.1-2</code></a>, <a href="#rfc3748-5.3.1-3"><code>RFC3748-5.3.1-3</code></a>, <a href="#rfc3748-5.3.1-4"><code>RFC3748-5.3.1-4</code></a>, <a href="#rfc3748-5.4-1"><code>RFC3748-5.4-1</code></a>, <a href="#rfc3748-5.4-2"><code>RFC3748-5.4-2</code></a>, <a href="#rfc3748-5.1-2"><code>RFC3748-5.1-2</code></a>, <a href="#rfc3748-7.5-1"><code>RFC3748-7.5-1</code></a>, <a href="#rfc3748-7.10-4"><code>RFC3748-7.10-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (11):</strong> <a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a>, <a href="#rfc3748-4.1-1"><code>RFC3748-4.1-1</code></a>, <a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a>, <a href="#rfc3748-4.2-1"><code>RFC3748-4.2-1</code></a>, <a href="#rfc3748-4.2-4"><code>RFC3748-4.2-4</code></a>, <a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a>, <a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a>, <a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a>, <a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a>, <a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a>, <a href="#rfc3748-7.10-1"><code>RFC3748-7.10-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (50):</strong> <a href="#rfc3748-4-1"><code>RFC3748-4-1</code></a>, <a href="#rfc3748-4-2"><code>RFC3748-4-2</code></a>, <a href="#rfc3748-2-2"><code>RFC3748-2-2</code></a>, <a href="#rfc3748-2.1-1"><code>RFC3748-2.1-1</code></a>, <a href="#rfc3748-2.1-2"><code>RFC3748-2.1-2</code></a>, <a href="#rfc3748-2.1-3"><code>RFC3748-2.1-3</code></a>, <a href="#rfc3748-4.1-1"><code>RFC3748-4.1-1</code></a>, <a href="#rfc3748-4.2-2"><code>RFC3748-4.2-2</code></a>, <a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a>, <a href="#rfc3748-4-4"><code>RFC3748-4-4</code></a>, <a href="#rfc3748-4.1-3"><code>RFC3748-4.1-3</code></a>, <a href="#rfc3748-4.1-4"><code>RFC3748-4.1-4</code></a>, <a href="#rfc3748-4.1-5"><code>RFC3748-4.1-5</code></a>, <a href="#rfc3748-4.2-5"><code>RFC3748-4.2-5</code></a>, <a href="#rfc3748-4.2-6"><code>RFC3748-4.2-6</code></a>, <a href="#rfc3748-4-5"><code>RFC3748-4-5</code></a>, <a href="#rfc3748-4.2-7"><code>RFC3748-4.2-7</code></a>, <a href="#rfc3748-4.2-8"><code>RFC3748-4.2-8</code></a>, <a href="#rfc3748-4.2-9"><code>RFC3748-4.2-9</code></a>, <a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a>, <a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a>, <a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a>, <a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a>, <a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a>, <a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a>, <a href="#rfc3748-4.1-10"><code>RFC3748-4.1-10</code></a>, <a href="#rfc3748-4.1-11"><code>RFC3748-4.1-11</code></a>, <a href="#rfc3748-2.1-4"><code>RFC3748-2.1-4</code></a>, <a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a>, <a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a>, <a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a>, <a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a>, <a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a>, <a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a>, <a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a>, <a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a>, <a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a>, <a href="#rfc3748-5-1"><code>RFC3748-5-1</code></a>, <a href="#rfc3748-5-2"><code>RFC3748-5-2</code></a>, <a href="#rfc3748-5.2-1"><code>RFC3748-5.2-1</code></a>, <a href="#rfc3748-5.2-2"><code>RFC3748-5.2-2</code></a>, <a href="#rfc3748-5.3.1-1"><code>RFC3748-5.3.1-1</code></a>, <a href="#rfc3748-5.3.1-2"><code>RFC3748-5.3.1-2</code></a>, <a href="#rfc3748-5.3.1-3"><code>RFC3748-5.3.1-3</code></a>, <a href="#rfc3748-5.3.1-4"><code>RFC3748-5.3.1-4</code></a>, <a href="#rfc3748-5.4-1"><code>RFC3748-5.4-1</code></a>, <a href="#rfc3748-5.4-2"><code>RFC3748-5.4-2</code></a>, <a href="#rfc3748-5.1-2"><code>RFC3748-5.1-2</code></a>, <a href="#rfc3748-7.5-1"><code>RFC3748-7.5-1</code></a>, <a href="#rfc3748-7.10-4"><code>RFC3748-7.10-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (9):</strong> <a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a>, <a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a>, <a href="#rfc3748-4.2-1"><code>RFC3748-4.2-1</code></a>, <a href="#rfc3748-4.2-4"><code>RFC3748-4.2-4</code></a>, <a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a>, <a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a>, <a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a>, <a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a>, <a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -309,8 +314,12 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L113" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L73" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PacketLengthDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L160" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAnOverlongEAPLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L112" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L80" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PacketLengthDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L159" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAnOverlongEAPLength</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4-2">RFC3748-4-2</code></td><td colspan="3"><span class="rfc-subject">The Length field is two octets and indicates the length, in octets, of the EAP packet including the Code, Identifier, Length, and Data fields. (§4)</span></td></tr>
@@ -318,7 +327,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L357" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthCountsTheWholePacket</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L89" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MinimumPacketLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L375" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthCountsTheWholePacket</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L99" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MinimumPacketLength</code></a></span></div>
 </div></td>
 </tr>
@@ -327,7 +338,8 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L167" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorLockStep</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L168" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorLockStep</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L123" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNewRequestBeforeAValidResponse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the authenticator Session emits one packet per call -- Begin returns a single Request (internal/core/eap/eap.go:164) and each Process returns a single *Packet (eap.go:176), so a new Request cannot precede its Response and no path leaves two outstanding, giving no negative case</p></td>
 </tr>
@@ -336,8 +348,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L208" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorRequiresValidResponse</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L220" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorRequiresValidResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L209" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorRequiresValidResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L128" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNewRequestBeforeAValidResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L109" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNewRequestBeforeAValidResponse</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-2.1-1">RFC3748-2.1-1</code></td><td colspan="3"><span class="rfc-subject">the peer and authenticator MUST utilize only one authentication method (Type 4 or greater) within an EAP conversation (§2.1)</span></td></tr>
@@ -345,8 +358,10 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L235" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L242" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L238" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L238" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748ThePeerKeepsToOneMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L245" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L229" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748ThePeerKeepsToOneMethod</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-2.1-2">RFC3748-2.1-2</code></td><td colspan="3"><span class="rfc-subject">However, the peer and authenticator MUST utilize only one authentication method (Type 4 or greater) within an EAP conversation, after which the authenticator MUST send a Success or Failure packet. (§2.1)</span></td></tr>
@@ -354,8 +369,10 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L267" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L277" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L270" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L195" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodThenTheResult</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L280" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L210" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodThenTheResult</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-2.1-3">RFC3748-2.1-3</code></td><td colspan="3"><span class="rfc-subject">A peer MUST NOT send a Nak (legacy or expanded) in reply to a Request after an initial non-Nak Response has been sent. (§2.1)</span></td></tr>
@@ -372,9 +389,10 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L289" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerHasNoRetransmitTimer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the EAP peer (PeerSession.Process, internal/core/eap/peer.go:97) is a synchronous request-driven transform with no timer -- it emits a Response only when handed a Request and never self-retransmits; lower-layer retransmission is IKEv2&#39;s (internal/component/ike/engine/fsm.go:138), so there is no forbidden self-timer to test negatively</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L292" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerHasNoRetransmitTimer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_peer_timer_test.go#L29" title="internal/core/eap/rfc3748_peer_timer_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerNeverRetransmitsOnATimer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L201" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersNoInvalidRequest</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-2">RFC3748-4.1-2</code></td><td colspan="3"><span class="rfc-subject">If a peer receives a valid duplicate Request for which it has already sent a Response, it MUST resend its original Response without reprocessing the Request. (S4.1)</span></td></tr>
 <tr><td></td>
@@ -390,7 +408,7 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L140" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureNotRetransmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L141" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureNotRetransmitted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the authenticator Session emits Success or Failure once and then enters a terminal state where Process returns nil (internal/core/eap/eap.go:186), so the EAP layer never retransmits them; there is no negative case</p></td>
 </tr>
@@ -399,8 +417,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L332" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessAndFailureCarryNoData</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L110" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureFormat</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L130" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureFormat</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L341" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessAndFailureCarryNoData</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-4">RFC3748-4.2-4</code></td><td colspan="3"><span class="rfc-subject">The Identifier field MUST match the Identifier field of the Response packet that it is sent in response to. (S4.2)</span></td></tr>
@@ -460,24 +479,17 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/core/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/core/eap/peer.go), and that Nak carries no Vendor-Id</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-1">RFC3748-7.10-1</code></td><td colspan="3"><span class="rfc-subject">In order to provide keying material for use in a subsequently negotiated ciphersuite, an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets. (S7.10)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>7.10</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L324" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSKSize</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the MSK is the compile-time fixed [64]byte returned by DeriveMSK (internal/core/eap/mschapv2.go) and by the first half of the 128-octet Key_Material exportEAPTLSKeys takes (internal/core/eap/eap_tls.go), so the 64-octet floor cannot be undershot and has no negative case</p></td>
-</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-2">RFC3748-7.10-2</code></td><td colspan="3"><span class="rfc-subject">an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets. (§7.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L109" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSExportsASixtyFourOctetEMSK</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L90" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L178" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoEMSKWithoutACompletedExport</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L152" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L92" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L91" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L327" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSKSize</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L193" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoEMSKWithoutACompletedExport</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L154" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4-4">RFC3748-4-4</code></td><td colspan="3"><span class="rfc-subject">Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored upon reception. (S4, S4.1)</span></td></tr>
@@ -486,7 +498,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L393" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PaddingPastLengthIsNotData</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L414" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PaddingPastLengthIsNotData</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-3">RFC3748-4.1-3</code></td><td colspan="3"><span class="rfc-subject">The Identifier field MUST be the same if a Request packet is retransmitted due to a timeout while waiting for a Response. Any new (non-retransmission) Requests MUST modify the Identifier field. (§4.1)</span></td></tr>
@@ -494,6 +508,7 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L98" title="internal/component/ike/engine/rfc7296_eap_retransmit_test.go" target="_blank" rel="noopener"><code>TestEapRtxResponderReplaysCachedResponseMidEAP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L136" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></span></div>
 </div></td>
@@ -521,7 +536,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L286" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAConversationItRefuses</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L250" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L315" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAConversationItRefuses</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></span></div>
 </div></td>
 </tr>
@@ -557,7 +574,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L258" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L270" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet</code></a></span></div>
 </div></td>
 </tr>
@@ -586,6 +605,8 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L292" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L181" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L281" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheAuthenticatorSendsNoNotificationRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L303" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748ANotificationRequestCarriesNothingToTheMethod</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L330" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L214" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></span></div>
 </div></td>
@@ -639,12 +660,13 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L203" title="internal/core/eap/rfc3748_identifier_test.go" target="_blank" rel="noopener"><code>TestAuthenticatorProcessesAResponseAnsweringTheOutstandingRequest</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-11">RFC3748-4.1-11</code></td><td colspan="3"><span class="rfc-subject">The Type field of a Response MUST either match that of the Request, or correspond to a legacy or Expanded Nak (see Section 5.3) indicating that a Request Type is unacceptable to the peer. A peer MUST NOT send a Nak (legacy or expanded) in response to a Request, after an initial non-Nak Response has been sent. An EAP server receiving a Response not meeting these requirements MUST silently discard it. (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-11">RFC3748-4.1-11</code></td><td colspan="3"><span class="rfc-subject">An EAP server receiving a Response not meeting these requirements MUST silently discard it. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L297" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestAuthenticatorDiscardsAResponseOfAnotherType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L169" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorDiscardsANakAfterTheInitialNonNakResponse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L324" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestAuthenticatorProcessesAResponseOfTheMethodType</code></a></span></div>
 </div></td>
 </tr>
@@ -654,7 +676,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L347" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestPeerDiscardsARequestOfAnotherType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L147" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L387" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestPeerProcessesARequestOfTheMethodType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L165" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-15">RFC3748-4.2-15</code></td><td colspan="3"><span class="rfc-subject">the peer MUST terminate the conversation and indicate failure to the lower layer. The peer MUST silently discard Success packets and MAY silently discard Failure packets. (§4.2)</span></td></tr>
@@ -680,6 +704,7 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L238" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerConcludesFailureWithoutTheFailurePacket</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L284" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerOutlivesALostTerminalPacket</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L255" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerOutlivesALostTerminalPacket</code></a></span></div>
 </div></td>
@@ -725,10 +750,12 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L231" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L205" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L269" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKIsNeverHandedOutward</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L243" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L159" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSExportsASixtyFourOctetEMSK</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L96" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L246" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L207" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L284" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKIsNeverHandedOutward</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L245" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-7">RFC3748-7.10-7</code></td><td colspan="3"><span class="rfc-subject">Since EAP does not provide for explicit key lifetime negotiation, EAP peers, authenticators, and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party. (§7.10)</span></td></tr>
@@ -754,8 +781,8 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L316" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerSupportsTypesOneToFour</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L387" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerRefusesATypeOutsideOneToFour</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L320" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerSupportsTypesOneToFour</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L391" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerRefusesATypeOutsideOneToFour</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5.2-1">RFC3748-5.2-1</code></td><td colspan="3"><span class="rfc-subject">The peer MUST respond to a Notification Request with a Notification Response unless the EAP authentication method specification prohibits the use of Notification messages. (S5.2)</span></td></tr>
@@ -818,8 +845,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-5.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L431" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L117" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeRequestDrawsAResponse</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L206" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeRequeryDrawsNoResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L454" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5.4-2">RFC3748-5.4-2</code></td><td colspan="3"><span class="rfc-subject">EAP peer and EAP server implementations MUST support the MD5- Challenge mechanism. (S5.4)</span></td></tr>
@@ -827,8 +855,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-5.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L237" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeSupportedByBothRoles</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L278" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeIsTheConfiguredMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L472" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeServerRefusesAWrongValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L239" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeSupportedByBothRoles</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L490" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeServerRefusesAWrongValue</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5.1-2">RFC3748-5.1-2</code></td><td colspan="3"><span class="rfc-subject">The Identity Response field MUST NOT be null terminated (S5.1)</span></td></tr>
@@ -846,7 +875,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>7.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L571" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheServerValidatesThePeersMIC</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L581" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheServerValidatesThePeersMIC</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-4">RFC3748-7.10-4</code></td><td colspan="3"><span class="rfc-subject">EAP Methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP Server. (S7.10)</span></td></tr>
@@ -855,7 +886,9 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L595" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L608" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5.1-1">RFC3748-5.1-1</code></td><td colspan="3"><span class="rfc-subject">EAP Methods SHOULD include a method-specific mechanism for obtaining the identity, so that they do not have to rely on the Identity Response. Identity Requests and Responses are sent in cleartext, so an attacker may snoop on the identity, or even modify or spoof identity exchanges. (§5.1)</span></td></tr>
@@ -935,115 +968,175 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3748-4-1"><code>RFC3748-4-1</code></a></h3>
 <p>A message with the Length field set to a value larger than the number of received octets MUST be silently discarded. (S4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: a Length larger than the received octets; the message MUST be silently discarded. TestRFC3748PacketLengthDiscard asserts only DecodePacket returns an error on a 5-octet packet declaring 12. Silence is not asserted: nothing shows the caller that receives the decode error sends nothing and keeps the conversation, so a caller answering with EAP-Failure or ending the SA stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clauses: a Length larger than the received octets; the message MUST be silently discarded. Both roles are driven through the engine&#39;s real entry points with an IKE layer that is valid (checksum verifies, generic header states the true length), so the one fault is the EAP Length. Authenticator (TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength, handleResponderInbound): the overlong EAP Response leaves StateEAPInProgress and writes no datagram (rtxExpectSilence), then the real round-2 request at the same Message ID is processed and answered. Peer (TestRFC3748PeerDiscardsAnOverlongEAPLength, handleInbound): an overlong EAP Request on the first IKE_AUTH response and on round 2 leaves state, NextMsgID and LastSentMsg unchanged, then the real message is processed. Producer: wire/payload_eap.go returns ErrEAPLengthExceedsData, engine/eap_auth.go::eapMessageDiscarded, the three callers return before any state change. Both tests went red on the pre-fix code (StateDead). The four records are panic breaks of eapMessageDiscarded (reach only); the targeted discrimination is the pre-fix red. core/eap TestRFC3748PacketLengthDiscard still covers only the decode error.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L112" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L159" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAnOverlongEAPLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L80" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PacketLengthDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L113" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L160" title="internal/component/ike/engine/rfc3748_eap_length_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAnOverlongEAPLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L73" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PacketLengthDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-4-2"><code>RFC3748-4-2</code></a></h3>
 <p>The Length field is two octets and indicates the length, in octets, of the EAP packet including the Code, Identifier, Length, and Data fields. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause: the Length field counts Code, Identifier, Length and Data. Asserted: a Success encodes to 4 octets and decodes; 3-octet input and a declared Length of 3 are refused. No assertion reads the Length field Ze encodes, and no decode case distinguishes a Length that counts the header from one that counts Data only, so an encoder writing len(Data) into Length on a Request with Data stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: a Request with Type and 3 data octets encodes to 8 octets with Length 8, and decodes back. Negative: the same packet with Length 4 (Data only) or 3 (Type-Data only) is refused by DecodePacket; a decoder reading Length as data length would accept both, so the pair discriminates the header-inclusive reading.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L375" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthCountsTheWholePacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L99" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MinimumPacketLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L357" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthCountsTheWholePacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L89" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MinimumPacketLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a></h3>
 <p>EAP is a &#39;lock step&#39; protocol, so that other than the initial Request, a new Request cannot be sent prior to receiving a valid Response. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC3748AuthenticatorLockStep counts outstanding Requests in a local variable it increments and decrements itself, so its checks cannot fail; it proves only that each authenticator call returns one packet, which the *Packet return type already guarantees.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row marker). TestRFC3748NoNewRequestBeforeAValidResponse: after Responses with another Identifier and another Type drew nil, only the peer&#39;s valid Response draws the next packet, under a new Identifier, and its replay draws nil (eap.go Session.Process Identifier check). The legacy TestRFC3748AuthenticatorLockStep tag still cannot fail on its own; the verdict rests on the new unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L167" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorLockStep</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L123" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNewRequestBeforeAValidResponse</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L168" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorLockStep</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-2-2"><code>RFC3748-2-2</code></a></h3>
 <p>other than the initial Request, a new Request cannot be sent prior to receiving a valid Response. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC3748AuthenticatorRequiresValidResponse: the negative arm feeds a Code-1 packet and asserts an EAP-Failure, which the RFC does not ask for; the case the sentence is about, an INVALID Response (wrong Identifier or Type) drawing no new Request, is not under this id.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: the valid Response to the outstanding Challenge draws one next packet with a new Identifier; a replay draws nil. Negative: while the Challenge is outstanding a Response with Identifier+1 and a Response of Type 13 each draw nil (Session.Process Identifier check, handleMethod Type check), isolated as two separate inputs. The old Code-1-draws-Failure arm is no longer tagged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L220" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorRequiresValidResponse</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L109" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNewRequestBeforeAValidResponse</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L208" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorRequiresValidResponse</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L128" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoNewRequestBeforeAValidResponse</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L209" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorRequiresValidResponse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-2.1-1"><code>RFC3748-2.1-1</code></a></h3>
 <p>the peer and authenticator MUST utilize only one authentication method (Type 4 or greater) within an EAP conversation (§2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: peer uses one method; authenticator uses one method. Authenticator clause: TestRFC3748OneMethodPerConversation feeds a Type-13 Response once MS-CHAPv2 is active and fails on out != nil or auth.Succeeded(). Peer clause: no assertion in this unit shows the peer refusing to run a second method (that behaviour is tagged under RFC3748-2.1-4 only), so a peer that switched methods stays green here.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Authenticator clause: TestRFC3748OneMethodPerConversation (a Type-13 Response once MS-CHAPv2 is active draws nil, no success; unproven, no record). Peer clause: TestRFC3748ThePeerKeepsToOneMethod: an EAP-TLS Request to a peer mid-MS-CHAPv2 is discarded (no Response, no Err), and the same peer then acks the MS-CHAPv2 Success with Type 26 and concludes. Records are whole-body panics of handleRequest, so Q2 for the discard is answered by reading, not by the record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L242" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L229" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748ThePeerKeepsToOneMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L245" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L235" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L238" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748ThePeerKeepsToOneMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L238" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodPerConversation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-2.1-2"><code>RFC3748-2.1-2</code></a></h3>
 <p>However, the peer and authenticator MUST utilize only one authentication method (Type 4 or greater) within an EAP conversation, after which the authenticator MUST send a Success or Failure packet. (§2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: one method per conversation; the authenticator then sends Success or Failure. The second is asserted (TestRFC3748MethodCompletionSendsResult: last.Code != CodeSuccess on a good password, fail.Code != CodeFailure and Succeeded() on a bad one). The one-method clause of the quoted span has no assertion in this unit: it is tagged under RFC3748-2.1-1.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both clauses: every method Request of a full MS-CHAPv2 flight carries Type 26 (wantOneMethodRequests) and the flight ends in EAP-Success; the wrong-password flight also stays on Type 26 and ends in EAP-Failure with Succeeded false; after either result a Type-4 Response draws nil. Positive and negative are distinct inputs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L277" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L210" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodThenTheResult</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L280" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L267" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L195" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748OneMethodThenTheResult</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L270" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MethodCompletionSendsResult</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1070,15 +1163,25 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-4.1-1"><code>RFC3748-4.1-1</code></a></h3>
 <p>Responses MUST only be sent in reply to a valid Request and never be retransmitted on a timer. (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC3748PeerHasNoRetransmitTimer asserts only that the peer answers each Request (responses &gt; 0). Neither clause can fail it: no case hands the peer an invalid Request to show no Response is sent, and the no-timer clause rests on the synchronous API, not an assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. &#39;Only in reply to a valid Request&#39;: TestRFC3748PeerAnswersNoInvalidRequest (a Request of another method mid-method and a method Request after Success each discarded, a valid Request answered). &#39;Never retransmitted on a timer&#39;: TestRFC3748PeerNeverRetransmitsOnATimer walks PeerSession for a time.Timer, time.Ticker or chan time.Time (none), checks Process is the only method returning *Packet or PeerResult, and shows an answered peer handed an early EAP-Success returns no Response and marks it Discarded. PeerSession has no transport, so Process is its only send path. Limit: the reflection does not look for a func-typed send callback; adding one would also add a send path the method-set check misses. All units recorded.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L289" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerHasNoRetransmitTimer</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L201" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersNoInvalidRequest</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_peer_timer_test.go#L29" title="internal/core/eap/rfc3748_peer_timer_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerNeverRetransmitsOnATimer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L292" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerHasNoRetransmitTimer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1095,7 +1198,7 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L140" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureNotRetransmitted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L141" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureNotRetransmitted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1104,20 +1207,25 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-4.2-2"><code>RFC3748-4.2-2</code></a></h3>
 <p>Success and Failure packets MUST NOT contain additional data. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC3748SuccessFailureFormat positive proves Success/Failure encode to 4 octets with no Type; the negative arm refuses a 4-octet Request, a neighbouring rule (Requests carry a Type). No case under this id hands Encode a Success carrying Type-Data and asserts it is dropped.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: Encode of a Success and of a Failure carrying Type 26 and Type-Data yields exactly code,id,00,04. Negative: a received Success/Failure whose Length covers 3 data octets is delivered with Type 0 and nil Type-Data (DecodePacket). The sender obligation is fully proven by the exact 4-octet encode; the neighbouring Request-needs-Type arm is untagged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L130" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureFormat</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L341" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessAndFailureCarryNoData</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L332" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessAndFailureCarryNoData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L110" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFailureFormat</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1172,35 +1280,20 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <p>An implementation that supports the Expanded attribute MUST treat EAP Types that are less than 256 equivalently, whether they appear as a single octet or as the 32-bit Vendor-Type within an Expanded Type where Vendor-Id is 0. (§5.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3748-5.7-1, so no unit is bound to it.</p>
-<h3><a href="#rfc3748-7.10-1"><code>RFC3748-7.10-1</code></a></h3>
-<p>In order to provide keying material for use in a subsequently negotiated ciphersuite, an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets. (S7.10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: MSK of at least 64 octets; EMSK of at least 64 octets. TestRFC3748MSKSize checks len(MSK)==64 (fixed by the [64]byte type) and not all-zero, so an MSK with only its first octets derived stays green. The EMSK clause of the quote has no assertion here (tagged under RFC3748-7.10-2, which quotes the same sentence).</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L324" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSKSize</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
 <h3><a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a></h3>
 <p>an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets. (§7.10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: MSK of at least 64 octets; EMSK of at least 64 octets. EMSK: len != 64, all-zero, ends differing, and the exact TLS export octets 64-127 or the HKDF expansion are asserted for EAP-TLS and MS-CHAPv2. MSK: only emsk != MSK and all-zero on refusal are asserted, so an MSK with a short derived prefix stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Unchanged judgement after a comment-only edit to TestRFC3748EAPTLSExportsASixtyFourOctetEMSK (new 7.10-6 tag): MSK and EMSK values, not sizes, on both methods; EMSK is export octets 64-127 (EAP-TLS) or the HKDF expansion (MS-CHAPv2), equal on both ends; negatives show no EMSK without a completed export or successful exchange. All units recorded.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L178" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoEMSKWithoutACompletedExport</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L193" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoEMSKWithoutACompletedExport</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L152" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L154" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1210,7 +1303,17 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L90" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L92" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L91" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L327" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSKSize</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1219,27 +1322,37 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-4-4"><code>RFC3748-4-4</code></a></h3>
 <p>Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored upon reception. (S4, S4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: padding beyond Length reaching the packet or refusing it. TestRFC3748LengthBoundsTypeData fails on a decode error or TypeData != &#34;abc&#34; for a packet with 3 trailing octets. Both tags sit on the same padded input and the same assertions (the negative is a second check of the positive&#39;s result), so there is one test, not a pair, and the row carries no {single-polarity} marker.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: an Identity Response with 3 octets past Length decodes with Type-Data &#39;user&#39;, and Session.Process records identity &#39;user&#39; and draws the method Request. Negative: the same octets with Length raised to cover them are delivered as &#39;userXYZ&#39;, so the positive reads the Length field, not the buffer. Distinct inputs, unlike the legacy TestRFC3748LengthBoundsTypeData pair.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L414" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PaddingPastLengthIsNotData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L393" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PaddingPastLengthIsNotData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748LengthBoundsTypeData</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-4.1-3"><code>RFC3748-4.1-3</code></a></h3>
 <p>The Identifier field MUST be the same if a Request packet is retransmitted due to a timeout while waiting for a Response. Any new (non-retransmission) Requests MUST modify the Identifier field. (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC3748NewRequestChangesIdentifier proves every new Request changes the Identifier; the first clause of the quoted span, a retransmitted Request keeps the same Identifier, has no case under this id.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 2 (new Requests modify the Identifier): TestRFC3748NewRequestChangesIdentifier, each Request differs from the one before and no Identifier repeats in the exchange. Clause 1 (a retransmitted Request keeps the Identifier): Ze runs no EAP-layer retransmission timer (IKEv2 carries EAP and the IKE initiator retransmits), so the retransmission path is the replay of the cached IKE_AUTH response; TestEapRtxResponderReplaysCachedResponseMidEAP asserts the EAP Request re-sent on a retransmitted IKE_AUTH is byte-identical to the first, so its Identifier is unchanged, while a rebuild cannot match (fresh CBC IV). Record: revert responder.go::replayCachedResponse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1247,12 +1360,17 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L98" title="internal/component/ike/engine/rfc7296_eap_retransmit_test.go" target="_blank" rel="noopener"><code>TestEapRtxResponderReplaysCachedResponseMidEAP</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L136" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NewRequestChangesIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1299,20 +1417,30 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-4.2-5"><code>RFC3748-4.2-5</code></a></h3>
 <p>On the peer, once the method completes unsuccessfully (that is, either the authenticator sends a failure result indication, or the peer decides that it does not want to continue the conversation, possibly after sending a failure result indication), the peer MUST terminate the conversation and indicate failure to the lower layer. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: on unsuccessful completion, triggered either by the authenticator&#39;s failure result indication or by the peer deciding not to continue, the peer terminates and indicates failure. Asserted only for an authenticator-refused exchange (peerFinal.Err not ErrEAPFailure or Done fails). The peer-decides trigger (for example a bad Authenticator Response) has no assertion in this unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both triggers: authenticator failure indication on TestRFC3748PeerEndsAnUnsuccessfulConversation (unproven legacy); peer-decides trigger on TestRFC3748PeerEndsAConversationItRefuses: a wrong Authenticator Response gives Err, no ack, a following EAP-Success concludes nothing with zero MSK and Succeeded false (peer.go handleMSCHAPv2Success sets peerStateFailed, Process discards). Negative: the matching value is acked and concludes.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L315" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAConversationItRefuses</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L286" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAConversationItRefuses</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L250" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerEndsAnUnsuccessfulConversation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1379,13 +1507,23 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-4.2-8"><code>RFC3748-4.2-8</code></a></h3>
 <p>A peer EAP implementation receiving a Success or Failure packet where sending one is not explicitly permitted MUST silently discard it. (S4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: an unpermitted Success is discarded; an unpermitted Failure is discarded. Only Success is asserted (mid-MS-CHAPv2 Success fails eapdWantDiscarded and Succeeded(); the permitted Success later concludes). No unit hands the peer an unpermitted Failure, so a peer that ended the session on it stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both halves. Success: TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet. Failure: TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted: after both success indications an EAP-Failure is discarded (no Err, no Response) and the following EAP-Success still concludes; mid-method, where Failure is permitted, the same packet yields ErrEAPFailure and is not discarded (peer.go Process CodeFailure arm).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L270" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L258" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1439,7 +1577,7 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a></h3>
 <p>Given these considerations, the Success, Failure, Nak Response(s), and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods. (S2.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: Success, Failure, Nak Response, Notification Request, Notification Response carry no data for other methods. Asserted: a Nak Response is never handed to the method (len(rec.seen)/len(tap.seen) != 0 fails), Success/Failure encode to 4 octets (len(wire) != 4 fails), the peer&#39;s Notification Response has empty Type-Data. The Notification Request clause has no assertion (the authenticator emits none, and no {single-polarity} or scope marker says so). The two tagged functions are near-duplicates.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. All four message kinds asserted at the receiver and the composer: a Nak Response carrying a desired-Type list ends the exchange with EAP-Failure and reaches no method (recording/tap method sees nothing), Success and Failure encode to their four octets, the peer&#39;s Notification Response carries zero octets of Type-Data, ze&#39;s authenticator sends no Notification Request, and an injected Notification carrying MS-CHAPv2 result bytes does not advance the method. A live Response of the method Type reaches the method with its Type-Data (control arm), so the silence is not a dead method layer. Every unit now carries an observed-red record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1447,22 +1585,32 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L330" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L214" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L303" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748ANotificationRequestCarriesNothingToTheMethod</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L292" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L181" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L281" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheAuthenticatorSendsNoNotificationRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1588,8 +1736,8 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </table>
 </div>
 <h3><a href="#rfc3748-4.1-11"><code>RFC3748-4.1-11</code></a></h3>
-<p>The Type field of a Response MUST either match that of the Request, or correspond to a legacy or Expanded Nak (see Section 5.3) indicating that a Request Type is unacceptable to the peer. A peer MUST NOT send a Nak (legacy or expanded) in response to a Request, after an initial non-Nak Response has been sent. An EAP server receiving a Response not meeting these requirements MUST silently discard it. (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: Response Type matches or is a Nak; a peer MUST NOT Nak after an initial non-Nak Response. The tagged units assert the authenticator discarding a Response of another Type (TestAuthenticatorDiscardsAResponseOfAnotherType) and processing one of the method Type. The quoted Type rule binds the Response sender, and the Nak-after-non-Nak clause has no assertion under this id (proved under RFC3748-2.1-3).</p>
+<p>An EAP server receiving a Response not meeting these requirements MUST silently discard it. (§4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both &#39;these requirements&#39; asserted at the authenticator: a Response of another Type draws nil and does not complete the exchange (exact nil, Succeeded false), a Nak after the initial non-Nak Response is discarded and the method still concludes; the method-Type control Response is processed to EAP-Success, so the discard is the Type check, not a refusal of every Response. All three units carry observed-red records.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1597,27 +1745,42 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L324" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestAuthenticatorProcessesAResponseOfTheMethodType</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L297" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestAuthenticatorDiscardsAResponseOfAnotherType</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L169" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748AuthenticatorDiscardsANakAfterTheInitialNonNakResponse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-2.1-4"><code>RFC3748-2.1-4</code></a></h3>
 <p>Once a peer has sent a Response of the same Type as the initial Request, an authenticator MUST NOT send a Request of a different Type prior to completion of the final round of a given method (with the exception of a Notification-Request) and MUST NOT send a Request for an additional method of any Type after completion of the initial authentication method; a peer receiving such Requests MUST treat them as invalid, and silently discard them. (§2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: the authenticator MUST NOT send a Request of a different Type before the final round; MUST NOT send a Request for an additional method; a peer receiving such Requests MUST silently discard them. Only the peer clause is asserted (TestPeerDiscardsARequestOfAnotherType fails on !res.Discarded, res.Err, res.Response for a Type-13 Request after MS-CHAPv2; TestPeerProcessesARequestOfTheMethodType fails if a method-Type Request is discarded). Neither authenticator MUST NOT has an assertion: an eap.Session that emitted a Request of another Type mid-method stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Authenticator MUST NOTs: every Request of a completed MS-CHAPv2 flight is Type 26 and a Type-13 Response after EAP-Success draws nil (no additional method); mid-method a Type-13 Response draws nil and the MS-CHAPv2 method continues with a Type-26 Request. Peer clause: TestPeerDiscardsARequestOfAnotherType (record); TestAuthenticatorProcessesAResponseOfTheMethodType is an unproven control. Ze&#39;s authenticator holds one configured method, so the mid-method provocation is the reachable violation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L165" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L387" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestPeerProcessesARequestOfTheMethodType</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L147" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L347" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestPeerDiscardsARequestOfAnotherType</code></a></td>
@@ -1669,13 +1832,18 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a></h3>
 <p>Because the Success and Failure packets are not acknowledged, they are not retransmitted by the authenticator, and may be potentially lost. A peer MUST allow for this circumstance as described in this note. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: Success and Failure may be lost; the peer MUST allow for this. Asserted for a lost Success only: the peer does not conclude before it, discards stray packets without ending the session, and concludes on the late Success. A lost Failure has no case, so a peer that could not survive a missing EAP-Failure stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both halves of the note. Lost Success: the peer does not conclude before it, discards strays, concludes on the late Success. Lost Failure (TestRFC3748PeerConcludesFailureWithoutTheFailurePacket): after the MS-CHAPv2 failure indication is acknowledged and the EAP-Failure is dropped, a forged EAP-Success or a stray Request ends with ErrEAPFailure, not Done, no MSK, no Response; the producer parks pendingErr in handleMSCHAPv2Failure, and without it the forged Success would be silently discarded and the test fails. Every tagged unit carries a record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L255" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerOutlivesALostTerminalPacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L238" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerConcludesFailureWithoutTheFailurePacket</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1769,28 +1937,38 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a></h3>
 <p>The EMSK is reserved for future use and MUST remain on the EAP peer and EAP server where it is derived; it MUST NOT be transported to, or shared with, additional parties, or used to derive any other keys. (S7.10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. rfc3748_emsk_test.go and rfc3748_mschapv2_emsk_test.go prove the EMSK is held by both ends, erased on Close, and absent from both MSKs and every wire packet. The last clause, &#39;or used to derive any other keys&#39;, is unproven: an MSK derived by hashing the EMSK would pass the byte search.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. EAP-TLS side now closed: TestRFC3748EAPTLSExportsASixtyFourOctetEMSK asserts the MSK equals export octets 0-63 exactly, TLS 1.2 and 1.3, so an MSK hashed from or mixed with the EMSK fails; MS-CHAPv2 MSK asserted octet by octet from the MPPE MasterKey alone. Remain-on-both-ends: the EMSK is held on both ends and appears in no outward value or wire octet (negatives on both methods). All units recorded.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L269" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKIsNeverHandedOutward</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L284" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKIsNeverHandedOutward</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L243" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L245" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L231" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L159" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSExportsASixtyFourOctetEMSK</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L205" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L246" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L207" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L96" title="internal/core/eap/rfc3748_remaining_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1845,12 +2023,12 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L387" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerRefusesATypeOutsideOneToFour</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L391" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerRefusesATypeOutsideOneToFour</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L316" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerSupportsTypesOneToFour</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L320" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerSupportsTypesOneToFour</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1984,13 +2162,18 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-5.4-1"><code>RFC3748-5.4-1</code></a></h3>
 <p>The Request contains a &#34;challenge&#34; message to the peer. A Response MUST be sent in reply to the Request. (§5.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive: an MD5-Challenge Request draws a Type-4 Response with the Request Identifier and the independently computed MD5 value. The negative tag (Identity Requery discarded) exercises the Section 2.1 rule, a neighbouring one, and the row carries no {single-polarity} marker, so the pair is incomplete.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: the peer answers ze&#39;s MD5-Challenge Request with a Type-4 Response carrying the Request&#39;s Identifier and the MD5 value computed outside the package. Negative: a Type-4 Request carrying no challenge (Value-Size 0, or no Type-Data) violates the row&#39;s first sentence and draws no Response and an error. The Identity Requery tag was removed; its orphan record is the stale entry rfc check reports.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L206" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeRequeryDrawsNoResponse</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L454" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L431" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2004,18 +2187,23 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-5.4-2"><code>RFC3748-5.4-2</code></a></h3>
 <p>EAP peer and EAP server implementations MUST support the MD5- Challenge mechanism. (S5.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: EAP peer and EAP server implementations MUST support MD5-Challenge. Positive TestRFC3748MD5ChallengeSupportedByBothRoles goes red if either role cannot run Type 4 (res.Response nil, no CodeSuccess, peer not Done). The negative TestRFC3748MD5ChallengeIsTheConfiguredMethod proves a neighbouring rule (Type 4 is only answered when configured), not a violation of the support obligation, and the row carries no single-polarity marker, so the pair is incomplete.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: ze&#39;s peer and ze&#39;s server run Type 4 to EAP-Success and peer Done (two units). Negative: a peer holding another secret draws EAP-Failure and Succeeded false, so a server that accepts any Type-4 Response (no real support of the mechanism) goes red. The configured-method Nak unit is no longer tagged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L278" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeIsTheConfiguredMethod</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L490" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeServerRefusesAWrongValue</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L237" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeSupportedByBothRoles</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L472" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeServerRefusesAWrongValue</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L239" title="internal/core/eap/rfc3748_md5challenge_test.go" target="_blank" rel="noopener"><code>TestRFC3748MD5ChallengeSupportedByBothRoles</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2044,40 +2232,60 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 </div>
 <h3><a href="#rfc3748-7.5-1"><code>RFC3748-7.5-1</code></a></h3>
 <p>If a per- packet MIC is employed within an EAP method, then peers, authentication servers, and authenticators not operating in pass- through mode MUST validate the MIC. (S7.5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: peers, authentication servers and authenticators not in pass-through MUST validate a per-packet MIC. Negative runTamperedEAPTLS corrupts only authenticator-to-peer Requests, so only the peer clause goes red (the peer-concluded Fatal). No unit tampers a peer Response, so the authentication-server clause has no assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Peer clause: TestRFC3748EAPTLSValidatesItsPerPacketMIC. Server clause: TestRFC3748TheServerValidatesThePeersMIC: a clean flight ends in EAP-Success; one octet changed in the peer&#39;s second record-bearing Response (the TLS 1.3 encrypted client flight, so the octet sits under the AEAD tag) never draws EAP-Success. Ze&#39;s authenticator is the authentication server, no pass-through mode exists.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L581" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheServerValidatesThePeersMIC</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L571" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheServerValidatesThePeersMIC</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSValidatesItsPerPacketMIC</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3748-7.10-4"><code>RFC3748-7.10-4</code></a></h3>
 <p>EAP Methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP Server. (S7.10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: key-deriving methods MUST provide mutual authentication. Peer-authenticates-server is proven: an untrusted server cert must not let the peer conclude or derive an MSK. Server-authenticates-peer is only shown by len(serverState().PeerCertificates)&gt;0 on a trusted exchange; no unit presents an unverifiable client certificate and asserts the server refuses. EAP-MSCHAPv2, also key-deriving in ze (eap_mschapv2.go derives an MSK), is not covered.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both directions for both key-deriving methods. EAP-TLS: peer refuses an untrusted server (legacy walk unit); the new unit shows the server refuses an untrusted client certificate with no EAP-Success and zero MSK. MS-CHAPv2: mutual success with an MSK; wrong NT-Response gives EAP-Failure and zero authenticator MSK; wrong Authenticator Response gives peer Err and zero peer MSK. The negative record&#39;s red lands in the positive half (driveClauseFlight also calls handleMSCHAPv2Success); Q2 for each negative assertion answered by reading.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L608" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L595" title="internal/core/eap/rfc3748_clause_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505" title="internal/core/eap/rfc3748_walk_test.go" target="_blank" rel="noopener"><code>TestRFC3748KeyDerivingMethodAuthenticatesBothEnds</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2762,7 +2970,7 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -241,6 +241,11 @@ declares either: the directory is the package the plugin's engine function was
 compiled in, and the file list is the directory holding the module the
 registration carries. The public plugin catalog publishes both.</p>
 <!-- source: internal/le/repo/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
+<p>The inventory keeps startup ordering separate from dependencies. Its JSON uses
+<code>start-after</code> (omitted when empty), and its plugin table labels the same metadata
+<strong>Start after</strong>. These names only constrain startup when both plugins are
+selected; they never activate another plugin. BFD starts after <code>interface</code> when
+both are selected, but selecting BFD alone does not load <code>interface</code>.</p>
 <h2 id="design-principle">Design Principle</h2>
 <p>The self-documenting property emerges from the registration architecture:</p>
 <ul>
@@ -290,7 +295,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

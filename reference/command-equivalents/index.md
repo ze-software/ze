@@ -1,6 +1,6 @@
 # Command Equivalents
 
-471 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+473 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -189,6 +189,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request bgp adj-rib-in reject-routes` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-reject-routes/) |
 | `request bgp adj-rib-in replay` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-replay/) |
 | `request bgp adj-rib-in revalidate` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-revalidate/) |
+| `request bgp rib attach-community` | Daemon | - | - | - | - | [details](request-bgp-rib-attach-community/) |
+| `request bgp rib delete-with-community` | Daemon | - | - | - | - | [details](request-bgp-rib-delete-with-community/) |
 | `request bgp rib fastpath` | Daemon | - | - | - | - | [details](request-bgp-rib-fastpath/) |
 | `request bgp rib inject` | Daemon | - | - | - | - | [details](request-bgp-rib-inject/) |
 | `request bgp rib mark-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-mark-stale/) |

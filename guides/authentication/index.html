@@ -280,11 +280,12 @@ check existed still commits. Each surface says it where the operator is looking:
 </table>
 <pre><code>$ ze config set ze.conf system authentication user alice plaintext-password "secret"
 warning: system.authentication.user.alice.password: weak password (shorter than 8 characters)
-set system authentication user alice plaintext-password secret
+set system authentication user alice plaintext-password /* SECRET-DATA */
 </code></pre>
 <p>The warning names the leaf and the rule the password failed. It never carries
-the password, so it is safe in a log an operator can read.</p>
-<!-- source: internal/component/config/password_strength.go -- PasswordWeakness, PasswordMinLength -->
+the password, so it is safe in a log an operator can read. The <code>set</code> line that
+follows masks the value too, because <code>plaintext-password</code> is a sensitive leaf.</p>
+<!-- source: internal/component/config/password_strength.go -- PasswordWeakness, PasswordMinLength; internal/component/config/cli/cmd_set.go -- DisplayValueAtPath -->
 <!-- source: internal/component/config/password_hash.go -- HashedPassword, PasswordWeaknessWarnings -->
 <!-- test: test/parse/password-weakness-warning.ci -- weak warns and sets, strong is silent -->
 <h3 id="passwords-in-a-config-file">Passwords in a config file</h3>
@@ -753,7 +754,7 @@ and continues.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

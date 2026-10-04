@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 54.5% | 6 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 27.3% | 3 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 13.6% | 3 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 69.0% | 29 of 42 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,9 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 9.1% | 1 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 9 | of 11 gated MUSTs judged | 6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 9 | of 11 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,6 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -67,10 +69,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 2 |
-| Test tags | 22 |
-| Tagged units | 22 |
+| Test tags | 42 |
+| Tagged units | 42 |
 | Recorded audit verdicts | 9 |
-| Discrimination records | 3 |
+| Discrimination records | 29 |
 | Summary | `rfc/short/rfc3948.md` |
 | Requirement shard | `rfc/requirements/rfc3948.md` |
 | RFC text | `rfc/full/rfc3948.txt` |
@@ -96,16 +98,17 @@ Section 5.1 tunnel mode conflict (`RFC3948-5.1-1`) is a gap. Ze assigns no inner
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 6 | one part of the gated population |
-| Annotated instead of tested | 5 | one part of the gated population |
+| Annotated (including scoped evidence) | 5 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 2 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (6):** [`RFC3948-2.1-1`](#rfc3948-2.1-1), [`RFC3948-3.1.2-1`](#rfc3948-3.1.2-1), [`RFC3948-3.1.2-2`](#rfc3948-3.1.2-2), [`RFC3948-1-1`](#rfc3948-1-1), [`RFC3948-4-3`](#rfc3948-4-3), [`RFC3948-5.2-1`](#rfc3948-5.2-1)
 
-**Annotated instead of tested (5):** [`RFC3948-2.1-2`](#rfc3948-2.1-2), [`RFC3948-2.1-4`](#rfc3948-2.1-4), [`RFC3948-2.3-2`](#rfc3948-2.3-2), [`RFC3948-3.1.1-1`](#rfc3948-3.1.1-1), [`RFC3948-5.1-1`](#rfc3948-5.1-1)
+**Annotated (including scoped evidence) (5):** [`RFC3948-2.1-2`](#rfc3948-2.1-2), [`RFC3948-2.1-4`](#rfc3948-2.1-4), [`RFC3948-2.3-2`](#rfc3948-2.3-2), [`RFC3948-3.1.1-1`](#rfc3948-3.1.1-1), [`RFC3948-5.1-1`](#rfc3948-5.1-1)
 
 **Evidence that runs nightly only (2):** [`RFC3948-3.1.2-1`](#rfc3948-3.1.2-1), [`RFC3948-3.1.2-2`](#rfc3948-3.1.2-2)
 
@@ -113,20 +116,20 @@ Section 5.1 tunnel mode conflict (`RFC3948-5.1-1`) is a gap. Ze assigns no inner
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3948-2.1-1` | The SPI field in the ESP header MUST NOT be a zero value. (S2.1) | MUST NOT | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L247). **negative:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L261) |
-| `RFC3948-2.1-2` | the Source Port and Destination Port MUST be the same as that used by IKE traffic (S2.1) | MUST | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** `unit/verify` [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L280). **negative:** no negative test. **{single-polarity}:** the Child SA install unconditionally sets both UDP-encap ports to the fixed IKE NAT-T port 4500 (internal/component/ike/engine/child.go:237-238,265-266); no ze code path produces a non-4500 encap port, so there is no mismatched-port case to reject |
+| `RFC3948-2.1-1` | The SPI field in the ESP header MUST NOT be a zero value. (S2.1) | MUST NOT | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** `unit/verify` [`TestChildRekeyRequestUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L302). **positive:** `unit/verify` [`TestChildRekeyResponseUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L358). **positive:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L253). **positive:** `unit/verify` [`TestRFC3948GeneratedESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L28). **positive:** `unit/verify` [`TestRFC3948OutboundESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L72). **positive:** `unit/verify` [`TestResponderUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L212). **negative:** `unit/verify` [`TestChildRekeyRequestRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L276). **negative:** `unit/verify` [`TestChildRekeyResponseRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L330). **negative:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L267). **negative:** `unit/verify` [`TestRFC3948GeneratedESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L29). **negative:** `unit/verify` [`TestRFC3948OutboundESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L73). **negative:** `unit/verify` [`TestResponderRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L190) |
+| `RFC3948-2.1-2` | the Source Port and Destination Port MUST be the same as that used by IKE traffic (S2.1) | MUST | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** `unit/verify` [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L286). **negative:** no negative test. **{single-polarity}:** the Child SA install unconditionally sets both UDP-encap ports to the fixed IKE NAT-T port 4500 (internal/component/ike/engine/child.go:237-238,265-266); no ze code path produces a non-4500 encap port, so there is no mismatched-port case to reject |
 | `RFC3948-3.1.2-1` | Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer's real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don't need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2) | MUST | 3.1.2 - Transport Mode Decapsulation NAT Procedure | **positive:** `interop/nightly` [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1316). **negative:** `interop/nightly` [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1355). **nightly-only:** every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path |
 | `RFC3948-3.1.2-2` | Tunnel mode TCP checksums MUST be verified (S3.1.2) | MUST | 3.1.2 - Transport Mode Decapsulation NAT Procedure | **positive:** `interop/nightly` [`checkNATTTunnelInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1352). **negative:** `interop/nightly` [`checkNATTTransportInnerChecksum`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1319). **nightly-only:** every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path |
 | `RFC3948-2.1-4` | receivers MUST NOT depend on the UDP checksum being a zero value (S2.1) | MUST NOT | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze reads IKE/ESP demux from the OS UDP socket (internal/component/ike/engine/register.go:421) and never inspects the UDP checksum, so no ze code path can depend on it; ESP-in-UDP checksum handling is the kernel's |
-| `RFC3948-4-1` | A peer SHOULD send a NAT-keepalive packet if a need for it is detected according to [RFC3947] and if no other packet to the peer has been sent in M seconds. (S4) | SHOULD | 4 - NAT Keepalive Procedure | **positive:** `unit/verify` [`TestKeepaliveDefaultInterval`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L62). **positive:** `unit/verify` [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L13). **negative:** no negative test. **{single-polarity}:** the keepalive interval is a fixed conservative 20s constant (internal/component/ike/transport/keepalive.go:13), well under a typical NAT UDP binding lifetime; there is no dynamic binding-timeout query to drive a negative |
-| `RFC3948-1-1` | IPsec tunnel mode clients MUST support tunnel mode (S1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestChildSAInstallsInDataplane`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L187). **positive:** `unit/verify` [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L460). **negative:** `unit/verify` [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L501) |
-| `RFC3948-2.3-2` | The sender MUST use a one-octet-long payload with the value 0xFF. (S2.3) | MUST | 2.3 - NAT-Keepalive Packet Format | **positive:** `unit/verify` [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L16). **negative:** no negative test. **{single-polarity}:** the keepalive payload is a fixed one-octet constant (internal/component/ike/transport/keepalive.go:14,48) that no input can vary, so there is no non-conforming sender case to drive |
-| `RFC3948-4-3` | Reception of NAT-keepalive packets MUST NOT be used to detect whether a connection is live (S4) | MUST NOT | 4 - NAT Keepalive Procedure | **positive:** `unit/verify` [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L657). **negative:** `unit/verify` [`TestNATKeepaliveIsNeverDeliveredToASession`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L80). **negative:** `unit/verify` [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L666) |
-| `RFC3948-3.1.1-1` | Depending on local policy, one of the following MUST be done: 1. If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy. 2. If an address has been assigned for the remote peer, check that the source IP address used in the inner packet is the assigned IP address. 3. NAT is performed for the packet, making it suitable for transport in the local network. (S3.1.1) | MUST | 3.1.1 - Tunnel Mode Decapsulation NAT Procedure | **positive:** `unit/verify` [`TestChildInboundPolicyDefinesTheValidInnerSourceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_source_policy_test.go#L28). **positive:** `unit/verify` [`TestChildSAInboundPolicyUsesNegotiatedTS`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L415). **negative:** no negative test. **{single-polarity}:** ze takes the first option by installing the inbound policy with the negotiated remote traffic selector as its source selector (childPolicyParams, internal/component/ike/engine/child.go), and the drop of a mismatched inner packet is the kernel's, so ze holds no rejecting branch |
+| `RFC3948-4-1` | A peer SHOULD send a NAT-keepalive packet if a need for it is detected according to [RFC3947] and if no other packet to the peer has been sent in M seconds. (S4) | SHOULD | 4 - NAT Keepalive Procedure | **positive:** `unit/verify` [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L13). **positive:** `unit/verify` [`TestRFC3948KeepaliveIdleWindowNeverExceedsM`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_window_test.go#L13). **positive:** `unit/verify` [`TestRFC3948KeepaliveStartsWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L76). **positive:** `unit/verify` [`TestRFC3948MobikeKeepaliveWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L120). **negative:** `unit/verify` [`TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L137). **negative:** `unit/verify` [`TestRFC3948NoKeepaliveWithoutDetectedNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L99). **negative:** `unit/verify` [`TestRFC3948UnsetKeepaliveIntervalFallsBackToM`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_window_test.go#L68) |
+| `RFC3948-1-1` | IPsec tunnel mode clients MUST support tunnel mode (S1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestChildSAInstallsInDataplane`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L193). **positive:** `unit/verify` [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L466). **negative:** `unit/verify` [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L507) |
+| `RFC3948-2.3-2` | The sender MUST use a one-octet-long payload with the value 0xFF. (S2.3) | MUST | 2.3 - NAT-Keepalive Packet Format | **positive:** `unit/verify` [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L16). **negative:** no negative test. **{single-polarity}:** the keepalive payload is a fixed one-octet constant (internal/component/ike/transport/keepalive.go:14,48) that no input can vary, so there is no non-conforming sender case to drive |
+| `RFC3948-4-3` | Reception of NAT-keepalive packets MUST NOT be used to detect whether a connection is live (S4) | MUST NOT | 4 - NAT Keepalive Procedure | **positive:** `unit/verify` [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L659). **negative:** `unit/verify` [`TestNATKeepaliveIsNeverDeliveredToASession`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L80). **negative:** `unit/verify` [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L668) |
+| `RFC3948-3.1.1-1` | Depending on local policy, one of the following MUST be done: 1. If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy. 2. If an address has been assigned for the remote peer, check that the source IP address used in the inner packet is the assigned IP address. 3. NAT is performed for the packet, making it suitable for transport in the local network. (S3.1.1) | MUST | 3.1.1 - Tunnel Mode Decapsulation NAT Procedure | **positive:** `unit/verify` [`TestChildInboundPolicyDefinesTheValidInnerSourceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_source_policy_test.go#L28). **positive:** `unit/verify` [`TestChildSAInboundPolicyUsesNegotiatedTS`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L421). **negative:** no negative test. **{single-polarity}:** ze takes the first option by installing the inbound policy with the negotiated remote traffic selector as its source selector (childPolicyParams, internal/component/ike/engine/child.go), and the drop of a mismatched inner packet is the kernel's, so ze holds no rejecting branch |
 | `RFC3948-5.1-1` | Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy's server. Implementors MUST devise ways of preventing this from occurring. (S5.1) | MUST | 5.1 - Tunnel Mode Conflict | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze devises no such way, because it assigns no inner address at all. The section's RECOMMENDED remedy is to give each remote peer a locally unique address, and the allocator for it exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and refuses on exhaustion with ErrPoolExhausted, yet its only callers are pool_test.go and pool_release_test.go. reloadPool (internal/component/ike/engine/apply.go) builds the pool from the remote-access config and stores it in ikeEngineState.pool, which no code reads, so no lease ever reaches a peer. No engine code constructs a wire.PayloadCP either, so ze sends no CFG_REPLY and a client keeps whatever inner address it chose for itself. Two peers behind one NAT that both chose 10.1.2.3 would therefore present the gateway with the ambiguity the section names, and ze holds nothing that prevents it. Closing this is plan/immediate/spec-ike-virtual-ip-assignment.md |
-| `RFC3948-5.2-1` | Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means. (S5.2) | MUST | 5.2 - Transport Mode Conflict | **positive:** `unit/verify` [`TestPolicyOwnerSeparatesDistinctSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/policy_owner_test.go#L263). **negative:** `unit/verify` [`TestPolicyOwnerRefusesASecondPeerOnOneSelector`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/policy_owner_test.go#L40) |
+| `RFC3948-5.2-1` | Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means. (S5.2) | MUST | 5.2 - Transport Mode Conflict | **positive:** `unit/verify` [`TestPolicyOwnerSeparatesDistinctSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_policy_owner_test.go#L262). **positive:** `unit/verify` [`TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_transport_conflict_test.go#L142). **positive:** `unit/verify` [`TestRFC3948TransportDisjointConnectionsAreAdmitted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_transport_conflict_test.go#L104). **negative:** `unit/verify` [`TestPolicyOwnerRefusesASecondPeerOnOneSelector`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_policy_owner_test.go#L40). **negative:** `unit/verify` [`TestRFC3948TransportConflictingConnectionIsDisallowed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_transport_conflict_test.go#L55) |
 | `RFC3948-2.1-5` | the IPv4 UDP Checksum SHOULD be transmitted as a zero value (S2.1) | SHOULD | 2.1 - UDP-Encapsulated ESP Header Format | **positive:** no positive test. **negative:** no negative test |
-| `RFC3948-2.3-1` | The receiver SHOULD ignore a received NAT-keepalive packet. (S2.3) | SHOULD | 2.3 - NAT-Keepalive Packet Format | **positive:** `unit/verify` [`TestIsNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L122). **negative:** `unit/verify` [`TestIsNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128) |
+| `RFC3948-2.3-1` | The receiver SHOULD ignore a received NAT-keepalive packet. (S2.3) | SHOULD | 2.3 - NAT-Keepalive Packet Format | **positive:** `unit/verify` [`TestIsNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L122). **positive:** `unit/verify` [`TestRFC3948KeepaliveAheadOfIKEIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_receive_test.go#L45). **negative:** `unit/verify` [`TestIsNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128). **negative:** `unit/verify` [`TestRFC3948KeepaliveIsNotHandedOn`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_receive_test.go#L72) |
 | `RFC3948-3.1.2-3` | If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. This SHOULD only be done for transport mode, and if the packet is integrity protected. (S3.1.2) | MAY | 3.1.2 - Transport Mode Decapsulation NAT Procedure | **positive:** no positive test. **negative:** no negative test |
 | `RFC3948-4-2` | M is a locally configurable parameter with a default value of 20 seconds. (S4) | MAY | 4 - NAT Keepalive Procedure | **positive:** no positive test. **negative:** no negative test |
 
@@ -145,12 +148,22 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The SPI field in the ESP header MUST NOT be a zero value. (S2.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an ESP SA whose SPI is 0. TestGenerateESPSPI asserts spi != 0 over 100 calls to generateESPSPI, and both tags sit on that one assertion (two hats). The assertion cannot observe the loss of the producer's guard: with the retry loop in child.go removed, a random 32-bit draw is 0 with probability 2^-32 per call, so the test stays green. No unit injects a zero draw into the generator.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Every path that sets an SPI Ze puts in an ESP header is covered both ways. Own SPI: TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded, sixth returned after exactly 6 reads). Peer SPI Ze sends on: initiator IKE_AUTH (TestRFC3948OutboundESPSPIIsNeverZero, SAr2 SPI 0 not established, no ESP state), responder SAi2 (TestResponderRefusesPeerSPIZero / TestResponderUsesPeerSPI), rekey request (TestChildRekeyRequestRefusesPeerSPIZero / UsesPeerSPI) and rekey response (TestChildRekeyResponseRefusesPeerSPIZero / UsesPeerSPI): SPI 0 refused with no Child SA and no ESP state, 0x0a0b0c0d installed as the outbound SPI. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L261) | unit/verify | unproven |
-| positive | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L247) | unit/verify | unproven |
+| negative | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L267) | unit/verify | revert, verified |
+| negative | [`TestRFC3948GeneratedESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L29) | unit/verify | revert, verified |
+| negative | [`TestRFC3948OutboundESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L73) | unit/verify | revert, verified |
+| negative | [`TestChildRekeyRequestRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L276) | unit/verify | revert, verified |
+| negative | [`TestChildRekeyResponseRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L330) | unit/verify | revert, verified |
+| negative | [`TestResponderRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L190) | unit/verify | revert, verified |
+| positive | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L253) | unit/verify | revert, verified |
+| positive | [`TestRFC3948GeneratedESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L28) | unit/verify | revert, verified |
+| positive | [`TestRFC3948OutboundESPSPIIsNeverZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L72) | unit/verify | revert, verified |
+| positive | [`TestChildRekeyRequestUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L302) | unit/verify | revert, verified |
+| positive | [`TestChildRekeyResponseUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L358) | unit/verify | revert, verified |
+| positive | [`TestResponderUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L212) | unit/verify | revert, verified |
 
 ### [`RFC3948-2.1-2`](#rfc3948-2.1-2)
 
@@ -160,7 +173,7 @@ Audit verdict: wrong (the tests assert something other than what the requirement
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L280) | unit/verify | unproven |
+| positive | [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L286) | unit/verify | unproven |
 
 ### [`RFC3948-3.1.2-1`](#rfc3948-3.1.2-1)
 
@@ -196,12 +209,17 @@ No test carries RFC3948-2.1-4, so no unit is bound to it.
 
 A peer SHOULD send a NAT-keepalive packet if a need for it is detected according to [RFC3947] and if no other packet to the peer has been sent in M seconds. (S4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: not sending a NAT-keepalive when a need is detected (NAT behind this end) and nothing else was sent to the peer for M seconds. TestNATKeepalive proves Keepalive.Run emits a keepalive on its timer and TestKeepaliveDefaultInterval proves the default interval is positive and <= 20s. Neither clause of the condition is asserted: no unit shows keepalives start only when the RFC 3947 need is detected, and none shows the M-second window is measured from the last packet sent to the peer rather than a free-running ticker.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Closure rejudge 2026-10-02: the tag on transport TestKeepaliveDefaultInterval was removed (it asserts only the DefaultKeepaliveInterval constant and could never carry a record); its comment now says so and names TestRFC3948UnsetKeepaliveIntervalFallsBackToM, which closes the rewording the 2026-09-30 note left owed. Need clause unchanged: the non-MOBIKE gate startNATKeepalive held by TestRFC3948KeepaliveStartsWhenNATDetected (+) and TestRFC3948NoKeepaliveWithoutDetectedNAT (-), the MOBIKE gate serviceMobike by TestRFC3948MobikeKeepaliveWhenNATDetected (+) and TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT (-); each reads the peer socket. M-second clause held by TestRFC3948KeepaliveIdleWindowNeverExceedsM (+, on Run), TestRFC3948UnsetKeepaliveIntervalFallsBackToM (-, on NewKeepalive) and TestNATKeepalive (+, on Run). All seven carry observed-red records.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestKeepaliveDefaultInterval`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L62) | unit/verify | unproven |
-| positive | [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L13) | unit/verify | unproven |
+| negative | [`TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L137) | unit/verify | revert, verified |
+| negative | [`TestRFC3948NoKeepaliveWithoutDetectedNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L99) | unit/verify | revert, verified |
+| negative | [`TestRFC3948UnsetKeepaliveIntervalFallsBackToM`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_window_test.go#L68) | unit/verify | revert, verified |
+| positive | [`TestRFC3948KeepaliveStartsWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestRFC3948MobikeKeepaliveWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L120) | unit/verify | revert, verified |
+| positive | [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L13) | unit/verify | revert, verified |
+| positive | [`TestRFC3948KeepaliveIdleWindowNeverExceedsM`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_window_test.go#L13) | unit/verify | revert, verified |
 
 ### [`RFC3948-1-1`](#rfc3948-1-1)
 
@@ -211,9 +229,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L501) | unit/verify | unproven |
-| positive | [`TestChildSAInstallsInDataplane`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L187) | unit/verify | unproven |
-| positive | [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L460) | unit/verify | unproven |
+| negative | [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L507) | unit/verify | unproven |
+| positive | [`TestChildSAInstallsInDataplane`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L193) | unit/verify | unproven |
+| positive | [`TestTunnelModeIsTheChildSADefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L466) | unit/verify | unproven |
 
 ### [`RFC3948-2.3-2`](#rfc3948-2.3-2)
 
@@ -223,7 +241,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L16) | unit/verify | unproven |
+| positive | [`TestNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L16) | unit/verify | unproven |
 
 ### [`RFC3948-4-3`](#rfc3948-4-3)
 
@@ -233,9 +251,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L666) | unit/verify | unproven |
-| negative | [`TestNATKeepaliveIsNeverDeliveredToASession`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/keepalive_test.go#L80) | unit/verify | unproven |
-| positive | [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L657) | unit/verify | unproven |
+| negative | [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L668) | unit/verify | unproven |
+| negative | [`TestNATKeepaliveIsNeverDeliveredToASession`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L80) | unit/verify | unproven |
+| positive | [`TestNATKeepaliveReachesNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L659) | unit/verify | unproven |
 
 ### [`RFC3948-3.1.1-1`](#rfc3948-3.1.1-1)
 
@@ -245,7 +263,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestChildSAInboundPolicyUsesNegotiatedTS`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L415) | unit/verify | unproven |
+| positive | [`TestChildSAInboundPolicyUsesNegotiatedTS`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L421) | unit/verify | unproven |
 | positive | [`TestChildInboundPolicyDefinesTheValidInnerSourceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_source_policy_test.go#L28) | unit/verify | revert, verified |
 
 ### [`RFC3948-5.1-1`](#rfc3948-5.1-1)
@@ -260,23 +278,28 @@ No test carries RFC3948-5.1-1, so no unit is bound to it.
 
 Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means. (S5.2)
 
-Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. Forbidden behaviour: two transport-mode clients behind one NAT whose traffic descriptions overlap both admitted with nothing deciding which SA carries the traffic. TestPolicyOwnerRefusesASecondPeerOnOneSelector refuses only a second claim on an identical selector (0.0.0.0/0 tunnel, same fields), which is the XFRM policy-identity rule, a neighbouring one. TestPolicyOwnerSeparatesDistinctSelectors (positive) asserts that overlapping descriptions ARE admitted: Dst 192.0.2.0/24 against 0.0.0.0/0, and a port-500 or port-4500 selector against an any-port one, all overlap, so its tag prose ('do NOT overlap') is false and the unit pins the non-compliant behaviour. Transport mode is never exercised.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Ze disallows the conflicting connection (policyOwners.claim, dataplane/policy_owner.go): a transport-mode claim is refused when a DIFFERENT owner holds a transport-mode selector that overlaps it (same dir/if_id, overlapping prefixes, protocol any-or-equal, masked ports agreeing). Owner is the configured peer name and a peer holds one live IKE SA (a second client on one peer config replaces the first), so two concurrent clients behind one NAT are two owners. Negative TestRFC3948TransportConflictingConnectionIsDisallowed: second client's overlapping transport claim (any vs tcp/80, tcp/80 vs any, inbound tcp-any vs tcp/80) at one NAT address refused with TransportSelectorConflictError naming both, no record kept; red at HEAD by reading (identical-key check only). Positive TestRFC3948TransportDisjointConnectionsAreAdmitted: disjoint descriptions (tcp/80 vs tcp/443, tcp vs udp) admitted, same client's overlap admitted. Supplementary: TestPolicyOwnerRefusesASecondPeerOnOneSelector (identical selector refused) and TestPolicyOwnerSeparatesDistinctSelectors (tunnel-mode identity bounded by selector), prose now narrowed to what they assert. Pass 2: TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted admits clients at a different NAT address with overlapping descriptions both directions; judge forced prefixesOverlap to true (go test -overlay) and both subtests went red. Tunnel mode not being compared is not exercised and is not the obligation. Records are whole-body panic breaks of claim.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPolicyOwnerRefusesASecondPeerOnOneSelector`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/policy_owner_test.go#L40) | unit/verify | unproven |
-| positive | [`TestPolicyOwnerSeparatesDistinctSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/policy_owner_test.go#L263) | unit/verify | unproven |
+| negative | [`TestPolicyOwnerRefusesASecondPeerOnOneSelector`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_policy_owner_test.go#L40) | unit/verify | revert, verified |
+| negative | [`TestRFC3948TransportConflictingConnectionIsDisallowed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_transport_conflict_test.go#L55) | unit/verify | revert, verified |
+| positive | [`TestPolicyOwnerSeparatesDistinctSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_policy_owner_test.go#L262) | unit/verify | revert, verified |
+| positive | [`TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_transport_conflict_test.go#L142) | unit/verify | revert, verified |
+| positive | [`TestRFC3948TransportDisjointConnectionsAreAdmitted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_transport_conflict_test.go#L104) | unit/verify | revert, verified |
 
 ### [`RFC3948-2.3-1`](#rfc3948-2.3-1)
 
 The receiver SHOULD ignore a received NAT-keepalive packet. (S2.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The tagged unit TestIsNATKeepalive proves only classification: IsNATKeepalive answers true for the single byte 0xFF and false for 0xFF 0x00 and 0x00. The obligation is that the receiver ignores the keepalive; the ignoring is the 'continue' in the receive loop of internal/component/ike/engine/register.go, and no tagged unit goes red if that loop processes a keepalive instead of dropping it.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-30 (transport judge). Producer: UDPTransport.Run (transport/udp.go) drops every datagram shorter than the 28-octet IKE header, so a one-octet 0xFF keepalive never reaches Recv; the engine's IsNATKeepalive continue in dispatchNATTInbound is a second layer the transport makes unreachable and is not separately proven. Positive TestRFC3948KeepaliveAheadOfIKEIsIgnored: keepalive then an IKE datagram on one NAT-T socket, the first delivered packet is the IKE datagram byte for byte (ignored and the receive path unaffected). Negative TestRFC3948KeepaliveIsNotHandedOn: a lone keepalive never reaches Recv in 200ms (the non-compliant receiver hands it on). Removing the n<28 floor would turn both red (the keepalive is delivered first / at all); both carry observed-red revert records on udp.go::Run. TestIsNATKeepalive (+/-) proves the classification only and is supplementary.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestIsNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128) | unit/verify | revert, verified |
+| negative | [`TestRFC3948KeepaliveIsNotHandedOn`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_receive_test.go#L72) | unit/verify | revert, verified |
 | positive | [`TestIsNATKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L122) | unit/verify | revert, verified |
+| positive | [`TestRFC3948KeepaliveAheadOfIKEIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_receive_test.go#L45) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

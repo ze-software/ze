@@ -13,6 +13,7 @@ what Ze has
 | Tested both ways | 100.0% | 1 of 1 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 1 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 1 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 1 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 1 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 1 | of 1 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
@@ -29,7 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 1 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 1 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 1 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 1 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -40,6 +41,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -81,9 +83,10 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **1** | every gated MUST falls in exactly one bucket above |
@@ -94,7 +97,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6549-2-1` | Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded. (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go`: `h.InstanceID != instanceID` discard, before any handler; one engine per Instance ID in `internal/plugins/ospf/multi_instance.go`; spec-ospf-ext-12 | MUST | 2 | **positive:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L454). **negative:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L467) |
+| `RFC6549-2-1` | Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded. (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go`: `h.InstanceID != instanceID` discard, before any handler; one engine per Instance ID in `internal/plugins/ospf/multi_instance.go`; spec-ospf-ext-12 | MUST | 2 | **positive:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6549_instance_test.go#L469). **negative:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6549_instance_test.go#L482) |
 | `RFC6549-6-1` | Consequently, it is recommended that implementations that implement this specification and the OSPF MIB also implement SNMP Notification filtering as specified in Section 6 of [RFC3413]. (§6) -- N/A: Ze has no OSPF SNMP MIB surface, so there is nothing to filter; recorded as a Known Limitation | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6549-5-1` | OSPFv2 routers not supporting this specification should only support the default instance (§5) -- Ze at Instance ID 0 is bit-for-bit compatible with base OSPFv2: `internal/plugins/ospf/packet/header.go`, `TestHeaderInstanceZeroUnchanged` | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6549-3-1` | The OSPFv2 Interface Instance ID has a default value of 0. Setting it to a non-zero value may be accomplished through configuration. (§3) -- the per-interface `instance-id` leaf-list in `internal/plugins/ospf/yang/ze-ospf-conf.yang`; spec-ospf-ext-12 | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -115,8 +118,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L467) | unit/verify | unproven |
-| positive | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L454) | unit/verify | unproven |
+| negative | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6549_instance_test.go#L482) | unit/verify | unproven |
+| positive | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc6549_instance_test.go#L469) | unit/verify | unproven |
 
 ## Extraction sign-off
 

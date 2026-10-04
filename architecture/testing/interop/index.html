@@ -439,6 +439,25 @@ names which FRR daemons run and what each one is started with, so a scenario
 needing a <code>bgpd</code> module (<code>-M bmp</code> for one that drives Ze's BMP receiver) carries
 its own copy instead of adding the module to every scenario in the suite. Without
 one, the shared <code>test/interop/daemons</code> is mounted.</p>
+<p>It may also carry an <code>frr-image</code> file holding one image reference. Its FRR
+containers then start from that release instead of the suite's FRR (and
+<code>FRR_IMAGE</code> does not replace it), and the suite pulls each pinned release once.
+A scenario needs this when the behavior under test exists only in a later FRR:
+<code>bgp-linklocal-only-multihop-withdraw-frr</code> pins FRR 10.4.1, the first release
+here that negotiates the Link-Local Next Hop capability (77), because without it
+a different gate withholds the route and the scenario cannot go red. A file
+naming no image, or two, is an error.</p>
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
+<!-- source: internal/le/interoplab/bgp/run.go -- pinnedFRRImages -->
+<p><code>bgp-linklocal-only-multihop-withdraw-frr</code> exercises the off-connected-subnet
+gate on one lab network: FRR's session address is on its loopback (10.255.0.3),
+outside every subnet Ze is attached to, and the checker gives Ze a host route
+via FRR's adjacent interface. There is no intervening router. This proves the
+gate and FRR's received withdrawal, not a physically multihop path.
+<code>test/plugin/linklocal-only-multihop-withdraw.ci</code> supplies the separate routed
+IPv6-hop proof through a transit namespace. Ze's link scope reads the interface
+table, not the configured BGP TTL.</p>
+<!-- source: internal/le/interoplab/bgp/check_linklocal_multihop.go -- checkLinkLocalOnlyMultihopWithdraw -->
 <p>A BMP scenario with no <code>pmbmpd.conf</code> starts <code>le test interop-bgp bmp-collector</code>. Announcement and
 observer process plugins use <code>le test interop-bgp process &lt;scenario&gt; &lt;plugin&gt;</code>.
 These personalities are compiled into <code>le</code>; no interpreter or source mount
@@ -927,7 +946,21 @@ pmacct to print the configured Peer AS, the configured Peer BGP ID, the <code>gl
 VRF/Table Name TLV and reason code 6 on the Peer Down; <code>bmp-locrib-receiver-frr</code>
 turns the direction around, so FRR's <code>bmpd</code> drives Ze's BMP receiver and
 <code>show bmp peers</code> must report the third party's Loc-RIB peer and its address
-family), PATHS-LIMIT,
+family; <code>bgp-addpath-best-path-pmacct</code> has the raw injector announce one prefix
+under two ADD-PATH identifiers, MED 10 then MED 50, and requires pmacct's reading
+of the Loc-RIB stream to carry the MED 10 best and never the MED 50 path, told
+apart by their AS_PATHs since Ze's Loc-RIB Route Monitoring carries no MED, because
+Ze advertises no best path to a BGP peer and the Loc-RIB feed is where a foreign
+implementation can observe its election), an RFC 8277 labelled withdrawal
+(<code>bgp-labeled-withdraw-compatibility-frr</code> has the raw injector announce 10.10.0.0/24 under
+label 100 and 10.11.0.0/24 under label 101 in ipv4/mpls-label, then withdraw 10.10.0.0/24 alone
+with the Compatibility value 0x800000 in the label field. FRR, fed through bgp-rs, must hold both
+routes, then lose 10.10.0.0/24 with exactly one logged withdrawal while the injector session stays
+Established. The checker then stops the injector, FRR must lose 10.11.0.0/24 through bgp-rs's
+peer-down withdrawals, and its log must still hold one withdrawal of 10.10.0.0/24. bgp-rs relays
+the withdrawal's bytes unchanged, so FRR losing the route alone cannot tell whether Ze read it:
+Ze's reading decides what bgp-rs keeps in its route inventory, and a misread withdrawal leaves
+10.10.0.0/24 there to be withdrawn a second time at peer down), PATHS-LIMIT,
 max-prefix cease, a reload of the global router-id (<code>bgp-reload-global-router-id</code>
 starts Ze with 10.255.0.1, reloads it to 10.255.0.2, and requires BIRD, a static
 peer, and FRR, which Ze adds after the reload with <code>create bgp peer</code>, each to
@@ -937,6 +970,9 @@ ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop coun
 what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak
 (<code>bgp-path-asn-leak-frr</code> gives FRR two prefixes that differ only in their AS_PATH, and requires
 ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
+next-hop self under <code>local ip auto</code> (<code>bgp-nexthop-self-local-auto-frr</code> configures no local
+address toward FRR, and requires FRR to hold both ze's own route and a route relayed from a raw
+injector with NEXT_HOP 172.30.0.2, ze's connected endpoint, never the injector's 172.30.0.9),
 ADD-PATH re-advertisement (<code>bgp-addpath-readvertise-collision-frr</code>
 proves a receiver keeps two paths whose sources both chose one Path Identifier, and
 <code>bgp-addpath-rail-agreement-speaker</code> proves the live forward and the peer-up replay emit the same
@@ -945,6 +981,9 @@ bytes for one path), the RFC 6793 mixed-width relay
 AS_TRANS and whose AS4_PATH carries the real four-octet AS number, and requires FRR to report that
 AS number and never 23456; <code>as-path-prepend-two-octet-peer</code> turns the direction around, so ze's own
 non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), the
+RFC 8669 Section 6 repeated Prefix-SID TLV (<code>bgp-prefix-sid-duplicate-tlv-frr</code> gives ze an SRv6
+L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and requires FRR, whose own
+parser refuses a repeated type-5 TLV, to hold the route with the first SID only), the
 Software Version capability (<code>frr-software-version</code> holds two sessions to one FRR: peer <code>legacy</code>
 sends the length-prefixed form over IPv4 and must reach Established with FRR showing ze's version,
 while peer <code>draft</code> sends the draft's bare form over IPv6 and must be refused, with ze recording
@@ -993,7 +1032,7 @@ deferred DSCP marking, withdrawal, and excess-rate drops. It requires
 <code>CAP_SYS_ADMIN</code>, <code>CAP_NET_ADMIN</code>, and nftables kernel support. A capability skip
 is not packet-forwarding evidence.</p>
 <!-- source: internal/le/interoplab/bgp/checkers.go -- bgp-flowspec-sctp-gobgp -->
-<!-- source: internal/plugins/flowspec-firewall/selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
+<!-- source: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
 <table>
 <thead>
 <tr>
@@ -1481,7 +1520,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

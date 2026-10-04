@@ -13,6 +13,7 @@ what Ze has
 | Tested both ways | 4.5% | 1 of 22 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 9.1% | 2 of 22 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 22 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 22 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Proven by a recorded break | 0.0% | 0 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -35,7 +36,7 @@ what Ze owes
 |---|---:|---|---|
 | No test at all | 27.3% | 6 of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,6 +47,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -95,16 +97,17 @@ Six MUST gaps annotated in [`rfc/short/rfc9256.md`](https://github.com/ze-softwa
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 21 | one part of the gated population |
+| Annotated (including scoped evidence) | 21 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **22** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC9256-2.6-3`](#rfc9256-2.6-3)
 
-**Annotated instead of tested (21):** [`RFC9256-2.1-1`](#rfc9256-2.1-1), [`RFC9256-2.1-2`](#rfc9256-2.1-2), [`RFC9256-2.1-3`](#rfc9256-2.1-3), [`RFC9256-2.2-1`](#rfc9256-2.2-1), [`RFC9256-2.2-2`](#rfc9256-2.2-2), [`RFC9256-2.2-3`](#rfc9256-2.2-3), [`RFC9256-2.4-1`](#rfc9256-2.4-1), [`RFC9256-2.4-2`](#rfc9256-2.4-2), [`RFC9256-2.6-1`](#rfc9256-2.6-1), [`RFC9256-2.9-1`](#rfc9256-2.9-1), [`RFC9256-2.11-1`](#rfc9256-2.11-1), [`RFC9256-4-6`](#rfc9256-4-6), [`RFC9256-5.1-2`](#rfc9256-5.1-2), [`RFC9256-5.1-4`](#rfc9256-5.1-4), [`RFC9256-5.1-5`](#rfc9256-5.1-5), [`RFC9256-5.2-1`](#rfc9256-5.2-1), [`RFC9256-6.1-3`](#rfc9256-6.1-3), [`RFC9256-6.2-4`](#rfc9256-6.2-4), [`RFC9256-6.2.3-3`](#rfc9256-6.2.3-3), [`RFC9256-6.2.3-4`](#rfc9256-6.2.3-4), [`RFC9256-7-1`](#rfc9256-7-1)
+**Annotated (including scoped evidence) (21):** [`RFC9256-2.1-1`](#rfc9256-2.1-1), [`RFC9256-2.1-2`](#rfc9256-2.1-2), [`RFC9256-2.1-3`](#rfc9256-2.1-3), [`RFC9256-2.2-1`](#rfc9256-2.2-1), [`RFC9256-2.2-2`](#rfc9256-2.2-2), [`RFC9256-2.2-3`](#rfc9256-2.2-3), [`RFC9256-2.4-1`](#rfc9256-2.4-1), [`RFC9256-2.4-2`](#rfc9256-2.4-2), [`RFC9256-2.6-1`](#rfc9256-2.6-1), [`RFC9256-2.9-1`](#rfc9256-2.9-1), [`RFC9256-2.11-1`](#rfc9256-2.11-1), [`RFC9256-4-6`](#rfc9256-4-6), [`RFC9256-5.1-2`](#rfc9256-5.1-2), [`RFC9256-5.1-4`](#rfc9256-5.1-4), [`RFC9256-5.1-5`](#rfc9256-5.1-5), [`RFC9256-5.2-1`](#rfc9256-5.2-1), [`RFC9256-6.1-3`](#rfc9256-6.1-3), [`RFC9256-6.2-4`](#rfc9256-6.2-4), [`RFC9256-6.2.3-3`](#rfc9256-6.2.3-3), [`RFC9256-6.2.3-4`](#rfc9256-6.2.3-4), [`RFC9256-7-1`](#rfc9256-7-1)
 
 ## Requirements
 

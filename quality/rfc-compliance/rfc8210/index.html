@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8210 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 60 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8210 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 60 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8210 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 60 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>41.7%</strong><b>25 of 60 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.3%</strong><b>5 of 60 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>5.1%</strong><b>3 of 59 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>40.7%</strong><b>24 of 59 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.5%</strong><b>5 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.3%</strong><b>25 of 75 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>60</strong><b>of 84 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>25</strong><b>of 60 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>41.7%</strong><b>25 of 60 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>59</strong><b>of 86 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>25</strong><b>of 59 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>42.4%</strong><b>25 of 59 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>8.3%</strong><b>5 of 60 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>30</strong><b>of 60 gated MUSTs judged</b><p>10 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>8.5%</strong><b>5 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 60 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,10 +209,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>84</td>
+<td>86</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>60</td>
+<td>59</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>25</td>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>61</td>
+<td>80</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>59</td>
+<td>75</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>30</td>
+<td>32</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>3</td>
+<td>25</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8210.md</code></td>
@@ -270,10 +275,10 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>25</strong></td>
+<td><strong>24</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>35</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -285,6 +290,10 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -293,12 +302,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>60</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>59</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (25):</strong> <a href="#rfc8210-5-1"><code>RFC8210-5-1</code></a>, <a href="#rfc8210-5.1-1"><code>RFC8210-5.1-1</code></a>, <a href="#rfc8210-5.1-2"><code>RFC8210-5.1-2</code></a>, <a href="#rfc8210-5.11-1"><code>RFC8210-5.11-1</code></a>, <a href="#rfc8210-6-2"><code>RFC8210-6-2</code></a>, <a href="#rfc8210-7-3"><code>RFC8210-7-3</code></a>, <a href="#rfc8210-5.2-1"><code>RFC8210-5.2-1</code></a>, <a href="#rfc8210-4-1"><code>RFC8210-4-1</code></a>, <a href="#rfc8210-8.3-1"><code>RFC8210-8.3-1</code></a>, <a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a>, <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a>, <a href="#rfc8210-9.2-1"><code>RFC8210-9.2-1</code></a>, <a href="#rfc8210-9.2-2"><code>RFC8210-9.2-2</code></a>, <a href="#rfc8210-9.2-4"><code>RFC8210-9.2-4</code></a>, <a href="#rfc8210-9.2-5"><code>RFC8210-9.2-5</code></a>, <a href="#rfc8210-10-1"><code>RFC8210-10-1</code></a>, <a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a>, <a href="#rfc8210-7-8"><code>RFC8210-7-8</code></a>, <a href="#rfc8210-9.2-8"><code>RFC8210-9.2-8</code></a>, <a href="#rfc8210-10-2"><code>RFC8210-10-2</code></a>, <a href="#rfc8210-9.2-10"><code>RFC8210-9.2-10</code></a>, <a href="#rfc8210-8.4-1"><code>RFC8210-8.4-1</code></a>, <a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a>, <a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a>, <a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (35):</strong> <a href="#rfc8210-5.1-3"><code>RFC8210-5.1-3</code></a>, <a href="#rfc8210-5.1-4"><code>RFC8210-5.1-4</code></a>, <a href="#rfc8210-5.1-5"><code>RFC8210-5.1-5</code></a>, <a href="#rfc8210-5.3-1"><code>RFC8210-5.3-1</code></a>, <a href="#rfc8210-5.3-2"><code>RFC8210-5.3-2</code></a>, <a href="#rfc8210-5.5-1"><code>RFC8210-5.5-1</code></a>, <a href="#rfc8210-5.6-1"><code>RFC8210-5.6-1</code></a>, <a href="#rfc8210-5.10-1"><code>RFC8210-5.10-1</code></a>, <a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a>, <a href="#rfc8210-5.8-1"><code>RFC8210-5.8-1</code></a>, <a href="#rfc8210-5.11-2"><code>RFC8210-5.11-2</code></a>, <a href="#rfc8210-5.11-3"><code>RFC8210-5.11-3</code></a>, <a href="#rfc8210-5.11-4"><code>RFC8210-5.11-4</code></a>, <a href="#rfc8210-6-1"><code>RFC8210-6-1</code></a>, <a href="#rfc8210-7-1"><code>RFC8210-7-1</code></a>, <a href="#rfc8210-7-2"><code>RFC8210-7-2</code></a>, <a href="#rfc8210-7-4"><code>RFC8210-7-4</code></a>, <a href="#rfc8210-8.1-1"><code>RFC8210-8.1-1</code></a>, <a href="#rfc8210-8.2-1"><code>RFC8210-8.2-1</code></a>, <a href="#rfc8210-9-1"><code>RFC8210-9-1</code></a>, <a href="#rfc8210-9-2"><code>RFC8210-9-2</code></a>, <a href="#rfc8210-9.1-1"><code>RFC8210-9.1-1</code></a>, <a href="#rfc8210-9.1-2"><code>RFC8210-9.1-2</code></a>, <a href="#rfc8210-9.2-3"><code>RFC8210-9.2-3</code></a>, <a href="#rfc8210-9.2-6"><code>RFC8210-9.2-6</code></a>, <a href="#rfc8210-9.3-1"><code>RFC8210-9.3-1</code></a>, <a href="#rfc8210-9.4-1"><code>RFC8210-9.4-1</code></a>, <a href="#rfc8210-4-2"><code>RFC8210-4-2</code></a>, <a href="#rfc8210-4-3"><code>RFC8210-4-3</code></a>, <a href="#rfc8210-9.3-2"><code>RFC8210-9.3-2</code></a>, <a href="#rfc8210-9.4-2"><code>RFC8210-9.4-2</code></a>, <a href="#rfc8210-9.4-3"><code>RFC8210-9.4-3</code></a>, <a href="#rfc8210-9.2-9"><code>RFC8210-9.2-9</code></a>, <a href="#rfc8210-8.1-2"><code>RFC8210-8.1-2</code></a>, <a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (24):</strong> <a href="#rfc8210-5-1"><code>RFC8210-5-1</code></a>, <a href="#rfc8210-5.1-1"><code>RFC8210-5.1-1</code></a>, <a href="#rfc8210-5.1-2"><code>RFC8210-5.1-2</code></a>, <a href="#rfc8210-5.11-1"><code>RFC8210-5.11-1</code></a>, <a href="#rfc8210-6-2"><code>RFC8210-6-2</code></a>, <a href="#rfc8210-7-3"><code>RFC8210-7-3</code></a>, <a href="#rfc8210-5.2-1"><code>RFC8210-5.2-1</code></a>, <a href="#rfc8210-4-1"><code>RFC8210-4-1</code></a>, <a href="#rfc8210-8.3-1"><code>RFC8210-8.3-1</code></a>, <a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a>, <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a>, <a href="#rfc8210-9.2-1"><code>RFC8210-9.2-1</code></a>, <a href="#rfc8210-9.2-2"><code>RFC8210-9.2-2</code></a>, <a href="#rfc8210-9.2-4"><code>RFC8210-9.2-4</code></a>, <a href="#rfc8210-9.2-5"><code>RFC8210-9.2-5</code></a>, <a href="#rfc8210-10-1"><code>RFC8210-10-1</code></a>, <a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a>, <a href="#rfc8210-9.2-8"><code>RFC8210-9.2-8</code></a>, <a href="#rfc8210-10-2"><code>RFC8210-10-2</code></a>, <a href="#rfc8210-9.2-10"><code>RFC8210-9.2-10</code></a>, <a href="#rfc8210-8.4-1"><code>RFC8210-8.4-1</code></a>, <a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a>, <a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a>, <a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (35):</strong> <a href="#rfc8210-5.1-3"><code>RFC8210-5.1-3</code></a>, <a href="#rfc8210-5.1-4"><code>RFC8210-5.1-4</code></a>, <a href="#rfc8210-5.1-5"><code>RFC8210-5.1-5</code></a>, <a href="#rfc8210-5.3-1"><code>RFC8210-5.3-1</code></a>, <a href="#rfc8210-5.3-2"><code>RFC8210-5.3-2</code></a>, <a href="#rfc8210-5.5-1"><code>RFC8210-5.5-1</code></a>, <a href="#rfc8210-5.6-1"><code>RFC8210-5.6-1</code></a>, <a href="#rfc8210-5.10-1"><code>RFC8210-5.10-1</code></a>, <a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a>, <a href="#rfc8210-5.8-1"><code>RFC8210-5.8-1</code></a>, <a href="#rfc8210-5.11-2"><code>RFC8210-5.11-2</code></a>, <a href="#rfc8210-5.11-3"><code>RFC8210-5.11-3</code></a>, <a href="#rfc8210-5.11-4"><code>RFC8210-5.11-4</code></a>, <a href="#rfc8210-6-1"><code>RFC8210-6-1</code></a>, <a href="#rfc8210-7-1"><code>RFC8210-7-1</code></a>, <a href="#rfc8210-7-2"><code>RFC8210-7-2</code></a>, <a href="#rfc8210-7-4"><code>RFC8210-7-4</code></a>, <a href="#rfc8210-8.1-1"><code>RFC8210-8.1-1</code></a>, <a href="#rfc8210-8.2-1"><code>RFC8210-8.2-1</code></a>, <a href="#rfc8210-9-1"><code>RFC8210-9-1</code></a>, <a href="#rfc8210-9-2"><code>RFC8210-9-2</code></a>, <a href="#rfc8210-9.1-1"><code>RFC8210-9.1-1</code></a>, <a href="#rfc8210-9.1-2"><code>RFC8210-9.1-2</code></a>, <a href="#rfc8210-9.2-3"><code>RFC8210-9.2-3</code></a>, <a href="#rfc8210-9.2-6"><code>RFC8210-9.2-6</code></a>, <a href="#rfc8210-9.3-1"><code>RFC8210-9.3-1</code></a>, <a href="#rfc8210-9.4-1"><code>RFC8210-9.4-1</code></a>, <a href="#rfc8210-4-2"><code>RFC8210-4-2</code></a>, <a href="#rfc8210-4-3"><code>RFC8210-4-3</code></a>, <a href="#rfc8210-9.3-2"><code>RFC8210-9.3-2</code></a>, <a href="#rfc8210-9.4-2"><code>RFC8210-9.4-2</code></a>, <a href="#rfc8210-9.4-3"><code>RFC8210-9.4-3</code></a>, <a href="#rfc8210-9.2-9"><code>RFC8210-9.2-9</code></a>, <a href="#rfc8210-8.1-2"><code>RFC8210-8.1-2</code></a>, <a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -310,9 +319,11 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L471" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L80" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestReservedPrefixFieldsPreserveValidation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L19" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteResetQuery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L55" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestWriteResetQueryZeroesReservedOverGarbage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L494" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L39" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteSerialQuery</code></a></span></div>
 </div></td>
 </tr>
@@ -475,9 +486,9 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST NOT</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_expire_test.go#L13" title="internal/component/bgp/plugins/rpki/rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_expire_test.go#L14" title="internal/component/bgp/plugins/rpki/rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_expire_test.go#L93" title="internal/component/bgp/plugins/rpki/rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRSerialDeltaCannotRenewAnElapsedLease</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L13" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L14" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L93" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRSerialDeltaCannotRenewAnElapsedLease</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-7-1">RFC8210-7-1</code></td><td colspan="3"><span class="rfc-subject">A router MUST start each transport connection by issuing either a Reset Query or a Serial Query. (§7)</span></td></tr>
@@ -485,7 +496,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L513" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L509" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> connectAndSync writes a Reset Query or a Serial Query as the first bytes of every connection (internal/component/bgp/plugins/rpki/rtr_session.go:165-176) before entering readLoop, and no received input can make the router open a connection without a query, so there is no negative case</p></td>
 </tr>
@@ -504,7 +515,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-7-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L226" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc8210_version_test.go#L23" title="internal/component/bgp/plugins/rpki/rtr_rfc8210_version_test.go" target="_blank" rel="noopener"><code>TestRFC8210V1CacheResponseIsNotTerminated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go#L23" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go" target="_blank" rel="noopener"><code>TestRFC8210V1CacheResponseIsNotTerminated</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-5.2-1">RFC8210-5.2-1</code></td><td colspan="3"><span class="rfc-subject">If the router receives a Serial Notify PDU during the initial startup period where the router and cache are still negotiating to agree on a protocol version, the router MUST simply ignore the Serial Notify PDU, even if the Serial Notify PDU is for an unexpected protocol version. (§5.2, §7)</span></td></tr>
@@ -512,8 +523,10 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-5.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L263" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRStartupSerialNotifyOfAnyVersionIsIgnored</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L424" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L450" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L290" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRStartupSerialNotifyOfAnyVersionIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L448" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-7-4">RFC8210-7-4</code></td><td colspan="3"><span class="rfc-subject">If either party receives a PDU for a different Protocol Version once the above negotiation completes, that party MUST drop the session (§7)</span></td></tr>
@@ -530,8 +543,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L31" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L32" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L31" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L32" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-8.1-1">RFC8210-8.1-1</code></td><td colspan="3"><span class="rfc-subject">To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query periodically. (§8.1, §8.2)</span></td></tr>
@@ -539,7 +552,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>8.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-8.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_poll_test.go#L25" title="internal/component/bgp/plugins/rpki/rtr_poll_test.go" target="_blank" rel="noopener"><code>TestRunPollsOnRefreshAfterSuccessRetryAfterFailure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go#L25" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go" target="_blank" rel="noopener"><code>TestRunPollsOnRefreshAfterSuccessRetryAfterFailure</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> this is a periodic sender obligation. cacheGroup.Run selects the cache-supplied refresh interval after success and retry interval after failure; TestRunPollsOnRefreshAfterSuccessRetryAfterFailure observes actual Reset and Serial Queries rather than timer fields</p></td>
 </tr>
@@ -549,7 +562,9 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>8.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-8.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L304" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L324" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L320" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L337" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-12-1">RFC8210-12-1</code></td><td colspan="3"><span class="rfc-subject">Errors which are considered fatal MUST cause the session to be dropped. (§12)</span></td></tr>
@@ -558,7 +573,9 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-12-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L83" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestHandlePDUVersionDowngrade</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L143" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRFatalErrorReportDropsTheSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L211" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestIsFatalError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L172" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRFatalErrorReportDropsTheSession</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-8.2-1">RFC8210-8.2-1</code></td><td colspan="3"><span class="rfc-subject">The cache MUST rate-limit Serial Notifies to no more frequently than one per minute. (§8.2)</span></td></tr>
@@ -576,6 +593,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L88" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L25" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Ze offers unprotected TCP with explicit trusted-network true and defaults that transport to port 323 (internal/component/bgp/plugins/rpki/rpki_config.go; internal/component/bgp/plugins/rpki/rtr_session.go)</p></td>
 </tr>
@@ -593,8 +611,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L34" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L182" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSNoPlaintextFallback</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L34" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L182" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSNoPlaintextFallback</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.1-1">RFC8210-9.1-1</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH transport MUST accept RSA authentication (§9.1)</span></td></tr>
@@ -620,8 +638,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L35" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L136" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L35" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L136" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-2">RFC8210-9.2-2</code></td><td colspan="3"><span class="rfc-subject">Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (§9.2)</span></td></tr>
@@ -629,8 +647,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L36" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L137" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L36" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L137" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-3">RFC8210-9.2-3</code></td><td colspan="3"><span class="rfc-subject">when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (§9.2)</span></td></tr>
@@ -647,8 +665,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L37" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L94" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L37" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L94" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-5">RFC8210-9.2-5</code></td><td colspan="3"><span class="rfc-subject">rpki-rtr implementations which use TLS MUST NOT use Common Name (CN-ID) identifiers (§9.2)</span></td></tr>
@@ -656,8 +674,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST NOT</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L38" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L95" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L38" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L95" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-6">RFC8210-9.2-6</code></td><td colspan="3"><span class="rfc-subject">the DNS-ID identifier type MUST be present in rpki-rtr server certificates. (§9.2)</span></td></tr>
@@ -692,7 +710,9 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST NOT</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L560" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRValidationIgnoresWhichCacheSupplied</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L154" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L563" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRValidationIgnoresWhichCacheSupplied</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L162" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></span></div>
 </div></td>
 </tr>
@@ -813,6 +833,24 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-6-6">RFC8210-6-6</code></td><td colspan="3"><span class="rfc-subject">If the router has never issued a successful query against a particular cache, it SHOULD retry periodically using the default Retry Interval, above. (§6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-6-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L688" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L695" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-12">RFC8210-9.2-12</code></td><td colspan="3"><span class="rfc-subject">when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities and SHOULD reject the connection if none of the iPAddress identities match the connection. (§9.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side TLS obligation -- ze runs no RTR TLS server (it dials out, internal/component/bgp/plugins/rpki/rtr_session.go), so it rejects no connecting client; the MUST check before the SHOULD is RFC8210-9.2-3</p></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-7">RFC8210-9.2-7</code></td><td colspan="3"><span class="rfc-subject">DNS names in rpki-rtr server certificates SHOULD NOT contain the wildcard character &#34;*&#34;. (§9.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
@@ -858,6 +896,15 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.1-5">RFC8210-9.1-5</code></td><td colspan="3"><span class="rfc-subject">host authentication MAY be supported. Implementations MAY support password authentication. (§9.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> SSH-transport option -- the RTR client implements TCP and TLS, not SSH (internal/component/bgp/plugins/rpki/rtr_session.go)</p></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9-6">RFC8210-9-6</code></td><td colspan="3"><span class="rfc-subject">Caches and routers MAY use Secure Shell version 2 (SSHv2) transport [RFC4252] using the normal SSH port. For an example, see Section 9.1. o Caches and routers MAY use TCP MD5 transport [RFC2385] using the rpki-rtr port. Note that TCP MD5 has been obsoleted by TCP-AO [RFC5925]. o Caches and routers MAY use TCP over IPsec transport [RFC4301] using the rpki-rtr port. o Caches and routers MAY use Transport Layer Security (TLS) transport [RFC5246] using port rpki-rtr-tls (324); see Section 14. (§9)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
@@ -874,15 +921,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-7-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L224" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L225" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-7-8">RFC8210-7-8</code></td><td colspan="3"><span class="rfc-subject">The router MUST ignore any Serial Notify PDUs it might receive from the cache during this initial startup period, regardless of the Protocol Version field in the Serial Notify PDU. (§7)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>7</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-7-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L427" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L454" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L204" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownVersionErrorReportIsNotAnswered</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-8">RFC8210-9.2-8</code></td><td colspan="3"><span class="rfc-subject">o The client router MUST set its &#34;reference identifier&#34; to the DNS name of the rpki-rtr cache. (§9.2)</span></td></tr>
@@ -890,8 +929,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L221" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSDNSAddressIsTheReference</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L97" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L221" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSDNSAddressIsTheReference</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L97" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-10-2">RFC8210-10-2</code></td><td colspan="3"><span class="rfc-subject">A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data. (§10)</span></td></tr>
@@ -899,8 +938,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-10-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L125" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L126" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L125" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L126" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.3-2">RFC8210-9.3-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (§9.3)</span></td></tr>
@@ -944,8 +983,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST NOT</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L39" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L96" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L39" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L96" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-8.1-2">RFC8210-8.1-2</code></td><td colspan="3"><span class="rfc-subject">When a transport connection is first established, the router MUST send either a Reset Query or a Serial Query. (§8.1)</span></td></tr>
@@ -953,7 +992,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>8.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-8.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L516" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L512" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the first bytes connectAndSync writes on a freshly established transport are a Reset Query when the serial is 0 and a Serial Query otherwise (internal/component/bgp/plugins/rpki/rtr_session.go:165-176); no received input can produce a connection that carries no opening query, so there is no negative case</p></td>
 </tr>
@@ -980,8 +1019,10 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L33" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L93" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L33" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L27" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L93" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L62" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-8.1-3">RFC8210-8.1-3</code></td><td colspan="3"><span class="rfc-subject">In all other cases, the router lacks the necessary data for fast resynchronization and therefore MUST fall back to a Reset Query. (§8.1)</span></td></tr>
@@ -989,8 +1030,10 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>MUST</td>
 <td>8.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-8.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/resync_rfc8210_test.go#L67" title="internal/component/bgp/plugins/rpki/resync_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/resync_rfc8210_test.go#L81" title="internal/component/bgp/plugins/rpki/resync_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_resync_test.go#L67" title="internal/component/bgp/plugins/rpki/rfc8210_resync_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L386" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRResetQueryWithoutFastResyncData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_resync_test.go#L81" title="internal/component/bgp/plugins/rpki/rfc8210_resync_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L448" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRResetQueryWithoutFastResyncData</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-11">RFC8210-9.2-11</code></td><td colspan="3"><span class="rfc-subject">o Support for the DNS-ID identifier type (that is, the dNSName identity in the subjectAltName extension) is REQUIRED in rpki-rtr server and client implementations which use TLS. (§9.2)</span></td></tr>
@@ -998,8 +1041,8 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>REQUIRED</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-11">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L32" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L92" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L32" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L92" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-7-9">RFC8210-7-9</code></td><td colspan="3"><span class="rfc-subject">unless the PDU containing the unexpected Protocol Version was itself an Error Report PDU, the party dropping the session SHOULD send an Error Report with an error code of 8 (&#34;Unexpected Protocol Version&#34;). (§7)</span></td></tr>
@@ -1202,7 +1245,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8210-5-1"><code>RFC8210-5-1</code></a></h3>
 <p>Reserved fields (marked &#34;zero&#34; in PDU diagrams) MUST be zero on transmission and MUST be ignored on receipt. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Transmit clause proven: TestWriteResetQueryZeroesReservedOverGarbage asserts octets 2-3 of the Reset Query zero over a 0xFF buffer (the only reserved field in a PDU ze writes). Receipt clause proven only for the IPv4 and IPv6 Prefix PDUs (TestReservedPrefixFieldsPreserveValidation, dirty header and octet-11 bytes still authorize). The Cache Reset PDU&#39;s reserved octets 2-3 are never sent nonzero by any tagged unit (TestCacheResetTriggersResetQuery uses a zeroed buffer), so a handlePDU that refused a Cache Reset with nonzero reserved octets stays green</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Transmit clause: TestWriteResetQueryZeroesReservedOverGarbage. Receipt clause: IPv4/IPv6 Prefix reserved fields (existing units) and now the Cache Reset&#39;s reserved octets 2-3: TestRTRReservedOctetsIgnoredOnReceipt sends 0xFFFF there over TCP and the sync still ends with errRtrCacheResetReceivedWillDo and serial 0. Negative: 0xFFFF in octets 2-3 of a Cache Response is adopted as its Session ID, so the positive is not a receiver that ignores octets 2-3 everywhere. Router Key is skipped whole; no other received v1 PDU carries a reserved field.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1211,6 +1254,11 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L39" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteSerialQuery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L494" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L80" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestReservedPrefixFieldsPreserveValidation</code></a></td>
@@ -1226,6 +1274,11 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L19" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteResetQuery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L471" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1370,17 +1423,17 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_expire_test.go#L14" title="internal/component/bgp/plugins/rpki/rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L14" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_expire_test.go#L93" title="internal/component/bgp/plugins/rpki/rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRSerialDeltaCannotRenewAnElapsedLease</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L93" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRSerialDeltaCannotRenewAnElapsedLease</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_expire_test.go#L13" title="internal/component/bgp/plugins/rpki/rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L13" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go" target="_blank" rel="noopener"><code>TestRTRDataExpiryAndRenewal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1395,7 +1448,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L513" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L509" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1414,7 +1467,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc8210_version_test.go#L23" title="internal/component/bgp/plugins/rpki/rtr_rfc8210_version_test.go" target="_blank" rel="noopener"><code>TestRFC8210V1CacheResponseIsNotTerminated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go#L23" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go" target="_blank" rel="noopener"><code>TestRFC8210V1CacheResponseIsNotTerminated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1428,20 +1481,30 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 </div>
 <h3><a href="#rfc8210-5.2-1"><code>RFC8210-5.2-1</code></a></h3>
 <p>If the router receives a Serial Notify PDU during the initial startup period where the router and cache are still negotiating to agree on a protocol version, the router MUST simply ignore the Serial Notify PDU, even if the Serial Notify PDU is for an unexpected protocol version. (§5.2, §7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a startup Serial Notify erroring the session or being adopted, including one for an unexpected protocol version. TestSerialNotifyIgnoredDuringStartup asserts no error, done=false, serial/sessionID/state/version untouched, and the negative that a Cache Response in the same window is acted on; but its notify carries rtrVersionMax, the expected version. The clause &#39;even if the Serial Notify PDU is for an unexpected protocol version&#39; has no assertion: removing the Serial Notify exemption from handlePDU&#39;s version check leaves both subtests green (same gap as RFC8210-7-8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a startup Serial Notify erroring the session or being adopted, including one of unexpected version. TestRTRStartupSerialNotifyOfAnyVersionIsIgnored over net.Pipe: a v99 Serial Notify (Session ID 0xBEEF, serial 999) before the Cache Response draws no byte (EOF), readLoop returns nil, and the session ends with the Cache Response&#39;s Session ID 7 and the EOD serial 5; negative: a v99 Cache Response in the same window fails with errRtrUnsupportedProtocol and an Error Report code 4, so the exemption is Serial Notify&#39;s alone. Removing the Serial Notify exemption from handlePDU&#39;s version check reds the positive. TestSerialNotifyIgnoredDuringStartup keeps the same-version pair.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L450" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L290" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRStartupSerialNotifyOfAnyVersionIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L448" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L263" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRStartupSerialNotifyOfAnyVersionIsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L424" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1458,12 +1521,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L32" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L32" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L31" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L31" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1478,7 +1541,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_poll_test.go#L25" title="internal/component/bgp/plugins/rpki/rtr_poll_test.go" target="_blank" rel="noopener"><code>TestRunPollsOnRefreshAfterSuccessRetryAfterFailure</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go#L25" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go" target="_blank" rel="noopener"><code>TestRunPollsOnRefreshAfterSuccessRetryAfterFailure</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1487,27 +1550,37 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 </div>
 <h3><a href="#rfc8210-8.3-1"><code>RFC8210-8.3-1</code></a></h3>
 <p>Regardless of how this state arose, the cache replies with a Cache Reset to tell the router that it cannot honor the request. When a router receives this, the router SHOULD attempt to connect to any more-preferred caches in its cache list. If there are no more-preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (§8.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: after a Cache Reset with no more-preferred cache, not issuing a Reset Query or not taking a whole new load. The tagged units in TestCacheResetTriggersResetQuery call handlePDU directly and assert only that s.serial becomes 0 and the sync ends with errRtrCacheResetReceivedWillDo; no tagged unit observes the Reset Query on the wire or the replacement of the old set by a full load, and the &#39;no more-preferred caches&#39; condition is not built (single session, no cache group). The tag prose says ze runs every configured cache in parallel, which the preference-ordered cacheGroup (rtr_preference_test.go) contradicts. The widened quote adds the SHOULD sentence as context for the condition; this row judges only its MUST.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judges the MUST only. TestRTRCacheResetReloadsTheWholeSet runs a one-session cacheGroup (no more-preferred cache) against a scripted cache: wire sequence Reset, Serial, Reset after the Cache Reset, the new load&#39;s VRP validates Valid and the old one NotFound (replaced, not merged). Negative: the same Serial Query answered with data keeps Serial Queries and merges the delta (old VRP still Valid). TestCacheResetTriggersResetQuery prose corrected to the single-session state it asserts.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L337" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L320" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L324" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L304" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a></h3>
 <p>Errors which are considered fatal MUST cause the session to be dropped. (§12)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. positive drives a fatal Error Report 4 to TCP closure; negative only calls isFatalError(errNoDataAvail) and never shows a non-fatal error keeps the session, so a session that dropped on every error still passes</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: keeping the session after a fatal Error Report. TestRTRFatalErrorReportDropsTheSession drives codes 0,1,3,5,6,7,8 over TCP: each fails syncOnce and the cache&#39;s Read returns io.EOF (red if the router keeps reading). Negative: a fatal code 0 followed by a full load on the same connection publishes nothing (VRP NotFound, Synced false), red for a router that logs and continues. Code 4 is dispatched by handlePDU&#39;s downgrade branch, which also closes the transport; its EOF is asserted under TestRTRUnknownVersionErrorReportIsNotAnswered (code 4) and the downgrade tests, not in this unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1516,6 +1589,16 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L211" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestIsFatalError</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L172" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRFatalErrorReportDropsTheSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L143" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRFatalErrorReportDropsTheSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L83" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestHandlePDUVersionDowngrade</code></a></td>
@@ -1531,7 +1614,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <p>No test carries RFC8210-8.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8210-9-1"><code>RFC8210-9-1</code></a></h3>
 <p>Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 14. (§9)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the only tagged unit asserts the parsed default port is 323; no tagged unit drives an unprotected TCP RTR session from config</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row annotation). TestRTRUnprotectedTCPFromConfig parses a trusted-network cache-server with no port to 323, starts the plugin&#39;s sessions from that entry (port moved to the listener, 323 being privileged), the cache reads a clear-text v2 Reset Query, the plugin syncs, and the served VRP validates Valid.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1540,6 +1623,11 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L88" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L25" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1556,12 +1644,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L182" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSNoPlaintextFallback</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L182" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSNoPlaintextFallback</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L34" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L34" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1584,12 +1672,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L136" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L136" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L35" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L35" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1604,12 +1692,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L137" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L137" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnusableClientIdentity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L36" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L36" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1628,12 +1716,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L94" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L94" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L37" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L37" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1648,12 +1736,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L95" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L95" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L38" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L38" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1674,7 +1762,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <p>No test carries RFC8210-9.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8210-10-1"><code>RFC8210-10-1</code></a></h3>
 <p>If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation of BGP announcements. (§10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. two ApplyDelta batches on one ROACache stand in for two caches; no two sessions are driven, and the negative (origin mismatch is Invalid) violates RFC 6811 origin validation, not source distinction</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Ze holds one cache&#39;s set at a time (the group holder&#39;s End of Data replaces it), so the reachable form of the rule is that validation is blind to which configured cache supplied the data. TestRTRValidationIgnoresWhichCacheSupplied starts the plugin&#39;s sessions twice, VRP served by the preferred cache then by the standby (preferred refused): the Valid/Invalid/NotFound triple is identical, and the Invalid and NotFound members are asserted, so a source that weighted, marked or wildcarded data goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1684,10 +1772,20 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L563" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRValidationIgnoresWhichCacheSupplied</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L154" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L560" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRValidationIgnoresWhichCacheSupplied</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1700,13 +1798,46 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <p>Note that the Serial Number comparison used to determine &#34;since the given Serial Number&#34; MUST take wrap-around into account; see [RFC1982]. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8210-4-3, so no unit is bound to it.</p>
-<h3><a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a></h3>
-<p>If either party receives a PDU containing an unrecognized Protocol Version (neither 0 nor 1) during this negotiation, it MUST either downgrade to a known version or terminate the connection, with an Error Report PDU unless the received PDU is itself an Error Report PDU. (§7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: accepting a PDU with an unrecognized version, or terminating silently, or answering an unknown-version Error Report with an Error Report. TestRTRUnknownNegotiationVersion asserts versions 0 and 99 yield errRtrUnsupportedProtocol, an Error Report PDU with code 4 (got.report[1], got.report[2:4]) and EOF, and version 2 completes. The exception clause &#39;unless the received PDU is itself an Error Report PDU&#39; has no assertion in the tagged unit (it is asserted only in TestRTRErrorReportIsNotAnswered, which carries RFC8210-5.11-1, not this id).</p>
+<h3><a href="#rfc8210-6-6"><code>RFC8210-6-6</code></a></h3>
+<p>If the router has never issued a successful query against a particular cache, it SHOULD retry periodically using the default Retry Interval, above. (§6)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess: a cacheGroup whose only cache refuses every connection returns 600s (rtrIntervalRetryDefault) from poll; negative: after one successful sync whose EOD sets Retry 30, a failed poll waits 30s, so the default governs only before the first success. Run repeats poll, which is the periodic retry.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L695" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L688" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8210-9.2-12"><code>RFC8210-9.2-12</code></a></h3>
+<p>when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities and SHOULD reject the connection if none of the iPAddress identities match the connection. (§9.2)</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. cache-side TLS obligation</p>
+<p>No test carries RFC8210-9.2-12, so no unit is bound to it.</p>
+<h3><a href="#rfc8210-9.1-5"><code>RFC8210-9.1-5</code></a></h3>
+<p>host authentication MAY be supported. Implementations MAY support password authentication. (§9.1)</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. SSH-transport option</p>
+<p>No test carries RFC8210-9.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a></h3>
+<p>If either party receives a PDU containing an unrecognized Protocol Version (neither 0 nor 1) during this negotiation, it MUST either downgrade to a known version or terminate the connection, with an Error Report PDU unless the received PDU is itself an Error Report PDU. (§7)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting an unrecognized-version PDU, terminating without a report, or answering an unknown-version Error Report. TestRTRUnknownNegotiationVersion: v99 PDU yields errRtrUnsupportedProtocol plus Error Report code 4 then EOF; v2 completes. New negative TestRTRUnknownVersionErrorReportIsNotAnswered: a v99 Error Report with code 0 and code 4 fails the sync and the cache&#39;s io.ReadFull of one byte ends in io.EOF, so any reply byte goes red (the exception clause, guarded by handlePDU&#39;s Error Report exemption and readLoop&#39;s hdr.Type != pduErrorRpt).</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L204" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownVersionErrorReportIsNotAnswered</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L225" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></td>
 <td>unit/verify</td>
@@ -1714,26 +1845,6 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L224" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc8210-7-8"><code>RFC8210-7-8</code></a></h3>
-<p>The router MUST ignore any Serial Notify PDUs it might receive from the cache during this initial startup period, regardless of the Protocol Version field in the Serial Notify PDU. (§7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a startup Serial Notify erroring the session or adopting its serial/Session ID, for ANY Protocol Version in the notify. TestSerialNotifyIgnoredDuringStartup asserts no error, done=false, serial and sessionID unchanged, but only for a notify at rtrVersionMax, called on handlePDU directly. The clause &#39;regardless of the Protocol Version field&#39; is unasserted: deleting the hdr.Type != pduSerialNotify exemption from the version check in handlePDU (rtr_session.go) leaves both subtests green.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L454" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L427" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1748,12 +1859,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L97" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L97" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L221" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSDNSAddressIsTheReference</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L221" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSDNSAddressIsTheReference</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1768,12 +1879,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L126" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L126" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_preference_test.go#L125" title="internal/component/bgp/plugins/rpki/rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L125" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1804,12 +1915,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L96" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L96" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L39" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L39" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1824,7 +1935,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L516" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L512" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestFirstPDUOnConnectionIsAQuery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1857,38 +1968,58 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <p>No test carries RFC8210-2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a></h3>
 <p>A Relying Party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: using a cache with no trust relationship or over an untrusted channel. TLS path is asserted: TestRTRTLSRejectsUnauthenticatedCaches &#39;untrusted issuer&#39; and &#39;no client authentication&#39; are refused (assertRTRTLSRefused), TestRTRTLSAuthenticatedCache succeeds with the named CA. The unprotected-TCP path, where the trusted channel is the operator&#39;s trusted-network declaration, has no assertion in a tagged unit: the refusal of a cache with neither tls nor trusted-network is in TestRTRTLSConfigRejectsUnsafeTransport, which does not carry this id.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TLS path: TestRTRTLSRejectsUnauthenticatedCaches / TestRTRTLSAuthenticatedCache. Unprotected-TCP path: TestRTRUnprotectedTCPFromConfig syncs and uses data from a cache declared trusted-network; negative: cache-server {} and trusted-network false are refused by parseRPKIConfig, the only difference from the accepted entry being the declaration, so no session over an undeclared channel can start.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L93" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L93" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L62" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L33" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L33" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L27" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a></h3>
 <p>In all other cases, the router lacks the necessary data for fast resynchronization and therefore MUST fall back to a Reset Query. (§8.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a Serial Query when the router lacks the data for fast resynchronization, i.e. data expired, a different cache, or no remembered Session ID. TestRFC8210ResetQueryFallback asserts only the Cache Reset case (buf[1] == pduResetQuery) and the held-serial negative. The expired-data case (rtr_expire.go clears serial), the cache-switch case (startFullSync) and the version-downgrade case have no assertion in the tagged unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRTRResetQueryWithoutFastResyncData records the first query on the wire in each lacking-data case: no remembered session, expired lease (serial 42 held), cache switch (standby holds serial 42 over a current lease, so only startFullSync forces the Reset), and version downgrade (v2 Serial answered with code 4 at v1, retried as v1 Reset). Negative: same cache with a current lease opens with a Serial Query carrying Session ID 7 and serial 42. Each case isolated from the others.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/resync_rfc8210_test.go#L81" title="internal/component/bgp/plugins/rpki/resync_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_resync_test.go#L81" title="internal/component/bgp/plugins/rpki/rfc8210_resync_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L448" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRResetQueryWithoutFastResyncData</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/resync_rfc8210_test.go#L67" title="internal/component/bgp/plugins/rpki/resync_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_resync_test.go#L67" title="internal/component/bgp/plugins/rpki/rfc8210_resync_test.go" target="_blank" rel="noopener"><code>TestRFC8210ResetQueryFallback</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L386" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRResetQueryWithoutFastResyncData</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1903,12 +2034,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L92" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L92" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSRejectsUnauthenticatedCaches</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_tls_test.go#L32" title="internal/component/bgp/plugins/rpki/rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L32" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go" target="_blank" rel="noopener"><code>TestRTRTLSAuthenticatedCache</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1925,7 +2056,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-28</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1940,10 +2071,10 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <td>rfc/extraction/rfc8210.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>56</td>
+<td>55</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -2201,9 +2332,14 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <table class="rfc-table">
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
+<tr><td><code>7:5</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>restates the Section 5.2 obligation mapped at site 5.2:1: a router ignores a Serial Notify received during the initial startup period, even one for an unexpected protocol version</td>
+<td>The router MUST ignore any Serial Notify PDUs it might receive from the cache during this initial startup period, regardless of the Protocol Version field in the Serial Notify PDU.</td>
+</tr>
 <tr><td><code>7:6</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>restates the ignore-Serial-Notify-before-negotiation obligation already mapped at site 7:5, adding only the backwards-compatibility reason</td>
+<td>restates the ignore-Serial-Notify-before-negotiation obligation mapped at site 5.2:1, adding only the backwards-compatibility reason</td>
 <td>Routers, however, MUST handle such notifications (by ignoring them) for backwards compatibility with caches serving protocol version 0.</td>
 </tr>
 <tr><td><code>8.2:2</code></td>
@@ -2257,7 +2393,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>6 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>5.9%</strong><b>1 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>40.7%</strong><b>11 of 27 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 6 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 6 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>27</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>27</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>11</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2918.md</code></td>
@@ -268,7 +270,7 @@ No tracked gap in current source anchors.
 <td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -279,6 +281,10 @@ No tracked gap in current source anchors.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -305,6 +311,7 @@ No tracked gap in current source anchors.
 <td>2 - Route Refresh Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2918-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L685" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityWriteTo</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L90" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshCapabilityOctetsInSentOpen</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L183" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></span></div>
 </div></td>
 </tr>
@@ -344,6 +351,8 @@ No tracked gap in current source anchors.
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2918-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L544" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_NonNegotiatedFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L40" title="internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L41" title="internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2417" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></span></div>
 </div></td>
 </tr>
@@ -352,8 +361,14 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2918-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L995" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1069" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1003" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918ConfigStaticRetainedForRefresh</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L33" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRefreshSentFeedbackRetainsReplayOrigin</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1076" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L82" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshDoesNotSendToDownPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L70" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10" title="test/plugin/refresh-config-static.ci" target="_blank" rel="noopener"><code>refresh-config-static.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2918-4-4">RFC2918-4-4</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that is willing to receive the ROUTE-REFRESH message from its peer should advertise the Route Refresh Capability to the peer using BGP Capabilities advertisement [BGP-CAP]. (§4)</span></td></tr>
@@ -398,6 +413,7 @@ No tracked gap in current source anchors.
 <td>3 - Route-REFRESH Message</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2918-3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L112" title="internal/component/bgp/reactor/rfc2918_reserved_field_test.go" target="_blank" rel="noopener"><code>TestRFC2918ReservedOctetIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_b_test.go#L24" title="internal/component/bgp/reactor/rfc2918_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC2918SentRequestReservedOctetIsZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L188" title="internal/component/bgp/reactor/rfc2918_reserved_field_test.go" target="_blank" rel="noopener"><code>TestRFC2918ReservedOctetDoesNotExemptTheMessage</code></a></span></div>
 </div></td>
 </tr>
@@ -412,7 +428,7 @@ No tracked gap in current source anchors.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2918-2-1"><code>RFC2918-2-1</code></a></h3>
 <p>This capability is advertised using the Capability code 2 and Capability length 0. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestCapabilityWriteTo (capability_test.go) only checks WriteTo writes Len() bytes and that Parse returns the same c.Code(); both sides come from RouteRefresh itself, so a Code() of 3 or a Len() carrying a payload stays green. No assertion names the literal code 2 or the zero length on the emitted bytes. The negative TestOpenRejectsMalformedKnownCapability proves receive-side refusal of length 1, a neighbouring check.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestRFC2918RouteRefreshCapabilityOctetsInSentOpen walks the octets sendOpen writes and asserts exactly one TLV with code 2 and an empty value, and none when not configured; red on another code, a payload, or a duplicate. Negative TestOpenRejectsMalformedKnownCapability: a received code 2 with length 1 (a violation of this definition by the peer) is refused with OPEN Message Error before negotiation. TestCapabilityWriteTo remains a self-consistency check only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -421,6 +437,11 @@ No tracked gap in current source anchors.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L183" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L90" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshCapabilityOctetsInSentOpen</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L685" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityWriteTo</code></a></td>
@@ -507,15 +528,25 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc2918-4-2"><code>RFC2918-4-2</code></a></h3>
 <p>If a BGP speaker receives from its peer a ROUTE-REFRESH message with the &lt;AFI, SAFI&gt; that the speaker didn&#39;t advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message. (S4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: acting on a ROUTE-REFRESH for an &lt;AFI, SAFI&gt; the speaker did not advertise. The positive TestHandleRouteRefresh_NonNegotiatedFamily asserts only NoError; it installs no callback, so a receiver that delivered the request onward or re-advertised would stay green. The negative TestRouteRefreshValidLengthDelivered proves an advertised family is delivered. Also: handleRouteRefresh keys on the negotiated family set, the RFC on what the speaker advertised.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: acting on a ROUTE-REFRESH for an &lt;AFI, SAFI&gt; the speaker did not advertise. D-8 fix: Session.screenRouteRefresh now applies the family rule on the read path before onMessageReceived, for both call sites. TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored drives ReadAndProcess on an Established session that advertised IPv4/unicast only: positive, an IPv6/unicast refresh reaches no onMessageReceived consumer, draws no bytes on the unbuffered pipe and leaves the session Established; negative, an IPv4/unicast refresh is delivered exactly once with its body unchanged. Observed-red revert records on routeRefreshFamilyUnadvertised for both polarities. The check keys on the negotiated set, a subset of what the speaker advertised, so every unadvertised family is ignored; it additionally ignores a family advertised but not negotiated, which RFC 4760 already forbids acting on. The older positive TestHandleRouteRefresh_NonNegotiatedFamily (NoError only) adds nothing on its own.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L41" title="internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2417" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L40" title="internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L544" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_NonNegotiatedFamily</code></a></td>
@@ -527,19 +558,49 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc2918-4-3"><code>RFC2918-4-3</code></a></h3>
 <p>Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy. (S4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: not re-advertising the Adj-RIB-Out of the requested &lt;AFI, SAFI&gt;, or re-advertising another family. TestHandleRefresh_InternalState asserts both IPv4 routes are sent with meta replay and the IPv6 route is not, red on either. The negative TestHandleRefresh_PeerNotUp installs no updateHook and asserts only that peerUp stays false, so a send to a down peer stays green; and no tagged unit exercises the outbound route filtering policy clause.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Read all of RFC 2918 Section 4, including the advertised-family precondition: &#39;Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy.&#39; Read all seven tagged carriers, including both policy polarities. rib_test.go::TestHandleRefresh_InternalState seeds two IPv4 routes plus an IPv6 control, requests IPv4, parses every emitted command with the production update parser, and asserts exactly the two requested routes plus replay metadata. It also checks both markers and retained families; its separate marker capture does not itself prove ordering. rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh ingests a real sent UPDATE through handleSentStructured, invokes handleRefreshStructured, parses its replay, and checks the exact prefix and packed attributes. It also distinguishes refresh ownership feedback from an ordinary replacement. The same file&#39;s TestRFC2918RefreshDoesNotSendToDownPeer observes both output hooks and forbids routes and markers. The older rib_test.go::TestHandleRefresh_PeerNotUp remains weak by itself: it asserts only peerUp remains false and cannot detect a send. Its weakness is not used as negative evidence. reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy supplies an established peer and negotiated IPv4 family, sends the same Replay batch with policy accept then reject, and asserts one policy call plus new wire bytes for acceptance, then a second policy call and byte-identical wire for rejection. These are two distinct assertions, not one wearing both polarities; current export rejection is the meaningful negative of the policy clause. TestRefreshSentFeedbackRetainsReplayOrigin checks [true,false] sent-event metadata for immediate and queued refresh, followed by an ordinary announcement; it observes feedback rather than decoding socket bytes. test/plugin/refresh-config-static.ci supplies the independent full-stack proof boundary: exact initial UPDATE, live ROUTE-REFRESH, then exact BoRR, identical configured UPDATE, and EoRR. Producers read: rib.go::handleRefresh and rib_structured.go::handleRefreshStructured select the peer/family inventory through ribout_entry.go::collectRibOutRoutes; sendRoutes applies replay metadata to FormatAnnounceCommand output; handleSentStructured retains configured advertisements and ignores replay ownership feedback; reactor_api_batch.go::AnnounceNLRIBatch and announceBatchToPeers, peer_initial_sync.go::sendInitialRoutes, session_write.go::sendUpdateCounted/writeUpdateGated and egress_inject_filter.go::exportFilterForBody carry replay through current egress policy. Together the tests discriminate omitted replay, wrong-family replay, configured-route omission, ownership loss and bypassed current policy, covering the whole sentence rather than storage-only state. This is a source-based semantic rejudgment, not a claim of new execution. Parent&#39;s observed gate reports stale positive records for TestRFC2918ConfigStaticRetainedForRefresh against handleSentStructured, TestHandleRefresh_InternalState against sendRoutes, and refresh-config-static.ci against handleSentStructured; native renewals are owed after the ADD-PATH changes. The down-peer and reactor replay/policy records are not reported stale for this row in that gate, and unrelated reactor records must not be refreshed on this judgment. No tests, mutations, builds, stamping, resealing or checks were run here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1069" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L82" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshDoesNotSendToDownPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1076" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L995" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L70" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></td>
 <td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918ConfigStaticRetainedForRefresh</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1003" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L33" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRefreshSentFeedbackRetainsReplayOrigin</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10" title="test/plugin/refresh-config-static.ci" target="_blank" rel="noopener"><code>refresh-config-static.ci</code></a></td>
+<td>functional/verify</td>
 <td>revert, verified</td>
 </tr>
 </tbody>
@@ -547,7 +608,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc2918-3-4"><code>RFC2918-3-4</code></a></h3>
 <p>Should be set to 0 by the sender and ignored by the receiver. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a sender setting the Reserved octet non-zero, or a receiver acting on it. Receiver clause: TestRFC2918ReservedOctetIgnoredOnReceive asserts, for octets 0x00/0x01/0x02/0xAA/0xFF, one onMessageReceived and one onRefreshRecv, Established state and no NOTIFICATION, red if a non-zero octet is refused; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. Sender clause of the quoted sentence (&#39;Should be set to 0 by the sender&#39;): no tagged unit of this row asserts the sent octet is 0 (TestRouteRefreshPack asserts body[2] == 0 but is tagged RFC2918-3-2 only).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a sender writing a non-zero Reserved octet, or a receiver acting on it. Sender: TestRFC2918SentRequestReservedOctetIsZero reads the four body octets written by both request producers (sendRouteRefresh, SoftClearPeer) and asserts exactly 00 01 00 01. Receiver: TestRFC2918ReservedOctetIgnoredOnReceive asserts delivery, Established and no NOTIFICATION for octets 00/01/02/AA/FF; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. The sender half is single-polarity by nature (no violating input exists for an emitter).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -556,6 +617,11 @@ No tracked gap in current source anchors.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L188" title="internal/component/bgp/reactor/rfc2918_reserved_field_test.go" target="_blank" rel="noopener"><code>TestRFC2918ReservedOctetDoesNotExemptTheMessage</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_b_test.go#L24" title="internal/component/bgp/reactor/rfc2918_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC2918SentRequestReservedOctetIsZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reserved_field_test.go#L112" title="internal/component/bgp/reactor/rfc2918_reserved_field_test.go" target="_blank" rel="noopener"><code>TestRFC2918ReservedOctetIgnoredOnReceive</code></a></td>
@@ -728,7 +794,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

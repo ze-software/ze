@@ -5,7 +5,14 @@
         <link>https://ze-software.net/project/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 21 Sep 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 28 Sep 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Week of 2026-09-28</title>
+            <link>https://ze-software.net/project/changes/2026-09-28/</link>
+            <guid isPermaLink="true">https://ze-software.net/project/changes/2026-09-28/</guid>
+            <pubDate>Mon, 28 Sep 2026 00:00:00 +0000</pubDate>
+            <description>A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section. The release queue closed the week at 213 required work items and 221 nice-to-have, against 191 and 219 at the start. 24 items joined and none left. Eleven of the required additions are defects found this week, and seven more split the RFC fix work by area. The rest are update authenticity, an SRv6 forwarding path and two tooling items. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</description>
+        </item>
         <item>
             <title>Week of 2026-09-21</title>
             <link>https://ze-software.net/project/changes/2026-09-21/</link>

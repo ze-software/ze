@@ -2187,7 +2187,7 @@ leaves the pipe.</p>
 <td><code>as-path-prepend</code></td>
 <td>uint8</td>
 <td>1-32</td>
-<td>Prepend local AS N times</td>
+<td>Prepend local AS N times. In an export filter it is not applied toward an internal peer (peer AS equals local AS, or the configured migration AS, RFC 7705 Section 4.2): RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to one, so the route leaves with its AS_PATH unchanged and the rest of the filter's answer still applies</td>
 </tr>
 </tbody>
 </table>
@@ -2294,7 +2294,15 @@ on a link whose connected route no plugin inserted is on-link all the same.</p>
     }
 }
 </code></pre>
+<p>A configured route is sent only when the session negotiated its address
+family. A route whose family the peer did not advertise, an <code>ipv6/mpls-vpn</code>
+route to a peer without the AFI 2 / SAFI 128 Multiprotocol capability for
+example, is not sent on that session, and Ze logs a warning naming the peer,
+the prefix and the family (RFC 4659 Section 3.4, RFC 4760). A VPN route also
+needs at least one <code>label</code>: config load refuses one without.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
+<!-- source: internal/component/bgp/reactor/peer_static_wire.go -- negotiatedStaticRoutes, the negotiated-family filter -->
+<!-- source: internal/component/bgp/config/peers.go -- patchStaticRoutes, a VPN route requires at least one label -->
 <h2 id="mpls">MPLS</h2>
 <p>Enable MPLS label processing on an interface (Linux LSR). This sets
 <code>net.mpls.conf.&lt;iface&gt;.input=1</code>; the global label-table size is set via
@@ -2507,7 +2515,8 @@ carries a transform for it, so the same refusal applies.</p>
 RFC 7296 Section 3.3.3 makes mandatory. An ESP proposal requires <code>hash</code> beside a non-AEAD
 cipher and refuses it beside an AEAD cipher, because an AEAD cipher carries its own
 integrity.
-DH groups: 1-31 (14 = MODP-2048 recommended minimum).
+DH groups: the schema accepts 1-31, and Ze implements 14 (MODP-2048), 19 (ECP-256) and
+20 (ECP-384); a proposal naming any other group is refused at commit.
 Authentication modes: <code>pre-shared-secret</code> (with a <code>$9$</code>-encoded key), <code>x509</code> (PKI store
 references), <code>eap-tls</code>, <code>eap-mschapv2</code>, or <code>eap-md5</code>. RFC 7296 Section 2.16 discourages
 <code>eap-md5</code>, which establishes no shared key, and the daemon warns once when a configuration
@@ -5178,7 +5187,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 70.0% | 7 of 10 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 20.0% | 2 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 10 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 5.6% | 1 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 20.0% | 4 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 10.0% | 1 of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 7 | of 10 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,17 +61,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 18 |
-| Tagged units | 18 |
+| Test tags | 20 |
+| Tagged units | 20 |
 | Recorded audit verdicts | 7 |
-| Discrimination records | 1 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc8671.md` |
 | Requirement shard | `rfc/requirements/rfc8671.md` |
 | RFC text | `rfc/full/rfc8671.txt` |
 
 ## Enrolment
 
-Enrolled: Support for Adj-RIB-Out in BMP: three MUSTs over the BMP Per-Peer Header (internal/component/bgp/plugins/bmp). RFC8671-x-1 (O flag is bit 4) both polarities: PeerFlagO == 1<<4 and a flags byte with bit 4 set decodes as Adj-RIB-Out while bit 3 does not (TestRFC8671OFlagBit4). RFC8671-x-2 (when O=1 the L flag is also set) both polarities: the sent direction sets O and L (TestPeerHeaderFromEventAdjRIBOut), the received direction sets neither (TestPeerHeaderFromEventAdjRIBIn). RFC8671-x-3 (Adj-RIB-Out Peer Up carries the same OPENs as Adj-RIB-In) is {single-polarity: positive}: ze sources both OPENs from the per-peer openCache (bmp.go:757-772) independent of the O flag, proven round-tripping in TestBMPPeerUpRoundTrip. Ledger row unchanged (no gap).
+Enrolled: Support for Adj-RIB-Out in BMP: three MUSTs over the BMP Per-Peer Header (internal/component/bgp/plugins/bmp). RFC8671-x-1 (O flag is bit 4) both polarities: PeerFlagO == 1<<4 and a flags byte with bit 4 set decodes as Adj-RIB-Out while bit 3 does not (TestRFC8671OFlagBit4). RFC8671-x-2 (when O=1 the L flag is also set) both polarities: the sent direction sets O and L (TestPeerHeaderFromEventAdjRIBOut), the received direction sets neither (TestPeerHeaderFromEventAdjRIBIn). RFC8671-x-3 (Adj-RIB-Out Peer Up carries the same OPENs as Adj-RIB-In) is {single-polarity: positive}: ze sources both OPENs from the per-peer openCache (cacheOpenPDU, recordPeerUp in bmp_events.go) independent of the O flag, proven round-tripping in TestBMPPeerUpRoundTrip. Ledger row unchanged (no gap).
 
 ## What the public ledger says
 
@@ -96,16 +90,17 @@ No MUST is a gap. [`RFC8671-6.2-1`](#rfc8671-6.2-1), the O flag zero on a Statis
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 7 | one part of the gated population |
-| Annotated instead of tested | 3 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **10** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (7):** [`RFC8671-x-1`](#rfc8671-x-1), [`RFC8671-x-2`](#rfc8671-x-2), [`RFC8671-4-1`](#rfc8671-4-1), [`RFC8671-5.1-1`](#rfc8671-5.1-1), [`RFC8671-6.1-1`](#rfc8671-6.1-1), [`RFC8671-6.3.1-1`](#rfc8671-6.3.1-1), [`RFC8671-7.2-1`](#rfc8671-7.2-1)
 
-**Annotated instead of tested (3):** [`RFC8671-x-3`](#rfc8671-x-3), [`RFC8671-5.2-1`](#rfc8671-5.2-1), [`RFC8671-6.2-1`](#rfc8671-6.2-1)
+**Annotated (including scoped evidence) (3):** [`RFC8671-x-3`](#rfc8671-x-3), [`RFC8671-5.2-1`](#rfc8671-5.2-1), [`RFC8671-6.2-1`](#rfc8671-6.2-1)
 
 ## Requirements
 
@@ -113,7 +108,7 @@ No MUST is a gap. [`RFC8671-6.2-1`](#rfc8671-6.2-1), the O flag zero on a Statis
 |---|---|---|---|---|
 | `RFC8671-x-1` | The per-peer header has the same structure and flags as defined in Section 4.2 of [RFC7854] with the addition of the O flag as shown here: 0 1 2 3 4 5 6 7 +-+-+-+-+-+-+-+-+ \|V\|L\|A\|O\| Resv \| +-+-+-+-+-+-+-+-+ *  The O flag indicates Adj-RIB-In if set to 0 and Adj-RIB-Out if set to 1. (§4) | MUST | 4 - Per-Peer Header | **positive:** `unit/verify` [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219). **negative:** `unit/verify` [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222) |
 | `RFC8671-x-2` | The L flag MUST be set to 1 to indicate post-policy. (§5.1) | MUST | 5.1 - Post-policy | **positive:** `unit/verify` [`TestPeerHeaderFromEventAdjRIBOut`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L57). **negative:** `unit/verify` [`TestPeerHeaderFromEventAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L80) |
-| `RFC8671-x-3` | Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3) | MUST | 6.3 - Peer Up and Down Notifications | **positive:** `unit/verify` [`TestBMPPeerUpRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/msg_test.go#L104). **negative:** no negative test. **{single-polarity}:** ze builds every Peer Up from the peer's cached sent and received OPEN messages (internal/component/bgp/plugins/bmp/bmp.go:757-772, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no "different OPENs for Adj-RIB-Out" case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip |
+| `RFC8671-x-3` | Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3) | MUST | 6.3 - Peer Up and Down Notifications | **positive:** `unit/verify` [`TestBMPPeerUpRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_msg_test.go#L104). **positive:** `unit/verify` [`TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L356). **positive:** `unit/verify` [`TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L409). **negative:** no negative test. **{single-polarity}:** ze builds every Peer Up from the peer's cached sent and received OPEN messages (cacheOpenPDU and recordPeerUp in internal/component/bgp/plugins/bmp/bmp_events.go, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no "different OPENs for Adj-RIB-Out" case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip, and the independence through the producer in TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB, which primes one collector per route-monitoring policy (pre-policy, post-policy, all) over the same Established peer and finds the same Peer Up on each. The Peer Down half is proven in TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB, which drives the same down event through a plugin per policy and finds the same Peer Down, header, reason and data, on each |
 | `RFC8671-x-5` | Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies. (§5.2) | MAY | 5.2 - Pre-policy | **positive:** no positive test. **negative:** no negative test |
 | `RFC8671-4-1` | The existing flags are defined in Section 4.2 of [RFC7854], and the remaining bits are reserved for future use.  They MUST be transmitted as 0, and their values MUST be ignored on receipt. (§4) | MUST | 4 - Per-Peer Header | **positive:** `unit/verify` [`TestRFC8671ReservedPeerFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66). **negative:** `unit/verify` [`TestRFC8671ReservedPeerFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108) |
 | `RFC8671-5.1-1` | Post-policy Adj-RIB-Out MUST convey to the BMP receiver what is actually transmitted to the peer (§5.1) | MUST | 5.1 - Post-policy | **positive:** `unit/verify` [`TestRFC8671PostPolicyConveysTransmittedBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164). **negative:** `unit/verify` [`TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L229). **negative:** `unit/verify` [`TestRFC8671PostPolicyConveysUnknownAttributeUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194) |
@@ -159,11 +154,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 
 Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27 against §6.3 (Peer Up/Down state independent of which RIBs are monitored). Forbidden: a Peer Up whose content or presence depends on Adj-RIB-In vs Adj-RIB-Out monitoring. The only tagged unit, TestBMPPeerUpRoundTrip, round-trips a hand-built PeerUp through writePeerUp/DecodeMsg; it never drives the producer (bmp.go openCache path) nor compares Peer Ups under different monitoring, so the independence is asserted by the marker prose, not by a test.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (second). Both halves of 'Peer Up and Down Notifications ... independent of whether ... Adj-RIB-In, Adj-RIB-Out, or both' go through the producer under pre-policy, post-policy and all: rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical per-peer header, both OPENs, transport fields; primeSender break observed red) and ::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB (identical header, reason, data; handleSenderState break observed red). msg_test.go::TestBMPPeerUpRoundTrip: stale line cite replaced by recordPeerUp (bmp_events.go), body unchanged; codec round trip now carries a writePeerUp record observed red. {single-polarity: positive} holds.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestBMPPeerUpRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/msg_test.go#L104) | unit/verify | unproven |
+| positive | [`TestBMPPeerUpRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_msg_test.go#L104) | unit/verify | revert, verified |
+| positive | [`TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L356) | unit/verify | revert, verified |
+| positive | [`TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L409) | unit/verify | revert, verified |
 
 ### [`RFC8671-4-1`](#rfc8671-4-1)
 

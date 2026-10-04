@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 40.0% | 2 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 5 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 50.0% | 4 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 2 | of 5 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 4 |
-| Tagged units | 4 |
+| Test tags | 8 |
+| Tagged units | 8 |
 | Recorded audit verdicts | 2 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc4360.md` |
 | Requirement shard | `rfc/requirements/rfc4360.md` |
 | RFC text | `rfc/full/rfc4360.txt` |
@@ -96,16 +90,17 @@ No tracked gap in current source anchors.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the gated population |
-| Annotated instead of tested | 3 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **5** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC4360-2-1`](#rfc4360-2-1), [`RFC4360-x-1`](#rfc4360-x-1)
 
-**Annotated instead of tested (3):** [`RFC4360-6-1`](#rfc4360-6-1), [`RFC4360-7-1`](#rfc4360-7-1), [`RFC4360-7-2`](#rfc4360-7-2)
+**Annotated (including scoped evidence) (3):** [`RFC4360-6-1`](#rfc4360-6-1), [`RFC4360-7-1`](#rfc4360-7-1), [`RFC4360-7-2`](#rfc4360-7-2)
 
 ## Requirements
 
@@ -114,8 +109,8 @@ No tracked gap in current source anchors.
 | `RFC4360-6-1` | The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6) | MUST NOT | 6 - Operations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop |
 | `RFC4360-7-1` | The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them |
 | `RFC4360-7-2` | The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** same as 7-1 -- an IANA type-allocation rule on the registry, not implementation behavior; ze does not allocate Extended Community type codes |
-| `RFC4360-2-1` | Two extended communities are declared equal only when all 8 octets of the community are equal. (§2) | MUST | 2 - BGP Extended Communities Attribute | **positive:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L297). **negative:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L299) |
-| `RFC4360-x-1` | The attribute consists of a set of "extended communities". All routes with the Extended Communities attribute belong to the communities listed in the attribute. Each Extended Community is encoded as an 8-octet quantity (§2) | MUST | 2 - BGP Extended Communities Attribute | **positive:** `unit/verify` [`TestExtendedCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L277). **negative:** `unit/verify` [`TestExtendedCommunitiesParseRejectsBadLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L287) |
+| `RFC4360-2-1` | Two extended communities are declared equal only when all 8 octets of the community are equal. (§2) | MUST | 2 - BGP Extended Communities Attribute | **positive:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L297). **positive:** `unit/verify` [`TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_equality_test.go#L22). **negative:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L299). **negative:** `unit/verify` [`TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_equality_test.go#L23) |
+| `RFC4360-x-1` | The attribute consists of a set of "extended communities". All routes with the Extended Communities attribute belong to the communities listed in the attribute. Each Extended Community is encoded as an 8-octet quantity (§2) | MUST | 2 - BGP Extended Communities Attribute | **positive:** `unit/verify` [`TestExtendedCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L277). **positive:** `unit/verify` [`TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4360_length_test.go#L20). **negative:** `unit/verify` [`TestExtendedCommunitiesParseRejectsBadLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L287). **negative:** `unit/verify` [`TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4360_length_test.go#L21) |
 | `RFC4360-6-2` | If a route has a non-transitivity extended community, then before advertising the route across the Autonomous System boundary the community SHOULD be removed from the route. (§6) | SHOULD | 6 - Operations | **positive:** no positive test. **negative:** no negative test |
 | `RFC4360-6-3` | However, the community SHOULD NOT be removed when advertising the route across the BGP Confederation boundary. (§6) | SHOULD NOT | 6 - Operations | **positive:** no positive test. **negative:** no negative test |
 | `RFC4360-6-4` | A BGP speaker receiving a route that doesn't have the Extended Communities attribute MAY append this attribute to the route when propagating it to its peers. (§6) | MAY | 6 - Operations | **positive:** no positive test. **negative:** no negative test |
@@ -161,23 +156,27 @@ No test carries RFC4360-7-2, so no unit is bound to it.
 
 Two extended communities are declared equal only when all 8 octets of the community are equal. (§2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: declaring two extended communities equal when any of the 8 octets differs (for example comparing only the Type and Sub-Type, or the first 6 octets). TestExtendedCommunityEquality asserts a == b for identical arrays and a != c when the last octet differs, but it applies Go's == to the [8]byte type directly and calls no Ze function. The Ze comparators that decide equality (internal/component/bgp/plugins/rib/rib_replay.go::extCommunitiesEqual, and any community filter match) are never exercised, so a comparator rewritten to compare a[i][:6] stays green. The unit only goes red if the ExtendedCommunity type itself stops being an 8-octet array.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. Rib TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets drives extCommunitiesEqual (rib_replay.go), the comparator that decides whether a replayed route's communities changed: + an octet-equal copy is equal; - flipping any one of the 8 octets makes it unequal. ExtendedCommunity is [8]byte, so equality elsewhere is whole-value by type; filter plugins match by policy, not equality, and are not driven.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_equality_test.go#L23) | unit/verify | revert, verified |
 | negative | [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L299) | unit/verify | unproven |
+| positive | [`TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_equality_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L297) | unit/verify | unproven |
 
 ### [`RFC4360-x-1`](#rfc4360-x-1)
 
 The attribute consists of a set of "extended communities". All routes with the Extended Communities attribute belong to the communities listed in the attribute. Each Extended Community is encoded as an 8-octet quantity (§2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: accepting an Extended Communities attribute whose value is not a whole number of 8-octet communities, truncating the remainder. TestExtendedCommunitiesParseRejectsBadLength drives only a 6-octet value and requires ErrInvalidLength; TestExtendedCommunitiesParse drives 8 octets and requires one community. A mutation of ParseExtendedCommunities from len(data)%8 != 0 to len(data) < 8 keeps both units green while a 12-octet value then parses as one community and silently drops 4 octets. A negative with a length above 8 that is not a multiple of 8 (12 or 20) is missing.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities over ParseExtendedCommunities, the registered parser: + 8 and 16 octets yield one and two communities holding the exact octets in order; - 12 and 20 octets are refused with ErrInvalidLength, not truncated.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestExtendedCommunitiesParseRejectsBadLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L287) | unit/verify | unproven |
+| negative | [`TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4360_length_test.go#L21) | unit/verify | revert, verified |
 | positive | [`TestExtendedCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L277) | unit/verify | unproven |
+| positive | [`TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4360_length_test.go#L20) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

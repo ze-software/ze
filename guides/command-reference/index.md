@@ -37,6 +37,19 @@ error rather than reading empty. A file literally named `-` is addressed as
 on-disk revision history that a pipe does not have.
 <!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
 
+MRT analysis (`le mrt show`, `density`, and content filters) derives mixed-family
+ADD-PATH decoding from both actual directional OPEN messages in the same input.
+Missing or ambiguous negotiation is an explicit decoding error, not a successful
+partial count or filter nonmatch. Input files never inherit another file's
+session context. Replay, inject and serve do not negotiate ADD-PATH; they refuse
+Path-Identifier-bearing or ambiguous UPDATEs before writing them. Empty EOR
+messages remain safe to replay even under an ADD-PATH MRT subtype.
+An empty MP family still counts when deciding whether a mixed UPDATE needs
+both OPENs. BGP4MP replay also refuses trailing bytes beyond the declared BGP
+length and structurally truncated attributes, even with complete OPEN context.
+<!-- source: internal/mrt/context.go — SessionContexts, BGPMessage.updateContext -->
+<!-- source: internal/analyze/replay_context.go — checkReplayUpdate -->
+
 ## Shell Commands
 
 Run directly from the terminal. No daemon required (except `ze signal`, `ze status`,
@@ -315,6 +328,11 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.
 | `-n` | Output only NLRI bytes |
 | `--no-header` | Exclude BGP header |
 | `--asn4` | 4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --> |
+
+An IPv4 unicast route needs an IPv4 `next-hop`. `encode` refuses any other
+next hop, and exits 1 with an error that names the requirement, rather than
+print an UPDATE whose NLRI has no NEXT_HOP attribute.
+<!-- source: internal/component/bgp/message/update_build.go -- checkInlineNextHop -->
 
 ### ze show warnings / ze show errors
 
@@ -2639,7 +2657,7 @@ The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`)
 
 Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.
 
-Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express).
+Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
 
 `text-before` and `text-after` name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: `origin`, `med`, `local-preference`,

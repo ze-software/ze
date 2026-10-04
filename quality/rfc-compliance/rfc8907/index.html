@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,11 +117,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>78.6%</strong><b>44 of 56 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.1%</strong><b>4 of 56 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.4%</strong><b>45 of 56 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.4%</strong><b>3 of 56 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>37.5%</strong><b>45 of 120 tagged units, 0 escaped and 11 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>69.3%</strong><b>106 of 153 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>10.7%</strong><b>6 of 56 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>48</strong><b>of 56 gated MUSTs judged</b><p>18 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 56 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 56 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>120</td>
+<td>153</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>120</td>
+<td>153</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>48</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>56</td>
+<td>106</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8907.md</code></td>
@@ -274,11 +275,11 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>44</strong></td>
+<td><strong>45</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>12</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -288,6 +289,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -301,8 +306,8 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (44):</strong> <a href="#rfc8907-4-1"><code>RFC8907-4-1</code></a>, <a href="#rfc8907-4-2"><code>RFC8907-4-2</code></a>, <a href="#rfc8907-4.6-1"><code>RFC8907-4.6-1</code></a>, <a href="#rfc8907-7-1"><code>RFC8907-7-1</code></a>, <a href="#rfc8907-7-2"><code>RFC8907-7-2</code></a>, <a href="#rfc8907-10-2"><code>RFC8907-10-2</code></a>, <a href="#rfc8907-10.5.2-1"><code>RFC8907-10.5.2-1</code></a>, <a href="#rfc8907-6-1"><code>RFC8907-6-1</code></a>, <a href="#rfc8907-3.7-1"><code>RFC8907-3.7-1</code></a>, <a href="#rfc8907-3.7-2"><code>RFC8907-3.7-2</code></a>, <a href="#rfc8907-4.1-1"><code>RFC8907-4.1-1</code></a>, <a href="#rfc8907-4.1-2"><code>RFC8907-4.1-2</code></a>, <a href="#rfc8907-4.1-3"><code>RFC8907-4.1-3</code></a>, <a href="#rfc8907-4.3-1"><code>RFC8907-4.3-1</code></a>, <a href="#rfc8907-4.3-2"><code>RFC8907-4.3-2</code></a>, <a href="#rfc8907-4.3-3"><code>RFC8907-4.3-3</code></a>, <a href="#rfc8907-4.4-1"><code>RFC8907-4.4-1</code></a>, <a href="#rfc8907-4.4-2"><code>RFC8907-4.4-2</code></a>, <a href="#rfc8907-4.4-3"><code>RFC8907-4.4-3</code></a>, <a href="#rfc8907-5.1-1"><code>RFC8907-5.1-1</code></a>, <a href="#rfc8907-5.4.2.2-1"><code>RFC8907-5.4.2.2-1</code></a>, <a href="#rfc8907-5.4.2.2-2"><code>RFC8907-5.4.2.2-2</code></a>, <a href="#rfc8907-5.4.2.6-2"><code>RFC8907-5.4.2.6-2</code></a>, <a href="#rfc8907-5.4.3-1"><code>RFC8907-5.4.3-1</code></a>, <a href="#rfc8907-6.1-1"><code>RFC8907-6.1-1</code></a>, <a href="#rfc8907-6.1-2"><code>RFC8907-6.1-2</code></a>, <a href="#rfc8907-6.2-1"><code>RFC8907-6.2-1</code></a>, <a href="#rfc8907-6.2-2"><code>RFC8907-6.2-2</code></a>, <a href="#rfc8907-6.2-3"><code>RFC8907-6.2-3</code></a>, <a href="#rfc8907-7.2-1"><code>RFC8907-7.2-1</code></a>, <a href="#rfc8907-8-1"><code>RFC8907-8-1</code></a>, <a href="#rfc8907-8.1-1"><code>RFC8907-8.1-1</code></a>, <a href="#rfc8907-8.1-2"><code>RFC8907-8.1-2</code></a>, <a href="#rfc8907-8.2-1"><code>RFC8907-8.2-1</code></a>, <a href="#rfc8907-8.2-2"><code>RFC8907-8.2-2</code></a>, <a href="#rfc8907-8.3-1"><code>RFC8907-8.3-1</code></a>, <a href="#rfc8907-8.3-2"><code>RFC8907-8.3-2</code></a>, <a href="#rfc8907-8.3-3"><code>RFC8907-8.3-3</code></a>, <a href="#rfc8907-8.3-4"><code>RFC8907-8.3-4</code></a>, <a href="#rfc8907-8.3-5"><code>RFC8907-8.3-5</code></a>, <a href="#rfc8907-10.5.1-1"><code>RFC8907-10.5.1-1</code></a>, <a href="#rfc8907-10.5.1-2"><code>RFC8907-10.5.1-2</code></a>, <a href="#rfc8907-10.5.4-1"><code>RFC8907-10.5.4-1</code></a>, <a href="#rfc8907-x-2"><code>RFC8907-x-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (12):</strong> <a href="#rfc8907-4-3"><code>RFC8907-4-3</code></a>, <a href="#rfc8907-4-4"><code>RFC8907-4-4</code></a>, <a href="#rfc8907-4-5"><code>RFC8907-4-5</code></a>, <a href="#rfc8907-5-1"><code>RFC8907-5-1</code></a>, <a href="#rfc8907-10-1"><code>RFC8907-10-1</code></a>, <a href="#rfc8907-5.4-1"><code>RFC8907-5.4-1</code></a>, <a href="#rfc8907-5.4-2"><code>RFC8907-5.4-2</code></a>, <a href="#rfc8907-5.4.2.3-1"><code>RFC8907-5.4.2.3-1</code></a>, <a href="#rfc8907-5.4.2.4-1"><code>RFC8907-5.4.2.4-1</code></a>, <a href="#rfc8907-5.4.2.5-1"><code>RFC8907-5.4.2.5-1</code></a>, <a href="#rfc8907-5.4.2.6-1"><code>RFC8907-5.4.2.6-1</code></a>, <a href="#rfc8907-4.6-2"><code>RFC8907-4.6-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (45):</strong> <a href="#rfc8907-4-1"><code>RFC8907-4-1</code></a>, <a href="#rfc8907-4-2"><code>RFC8907-4-2</code></a>, <a href="#rfc8907-4-4"><code>RFC8907-4-4</code></a>, <a href="#rfc8907-4.6-1"><code>RFC8907-4.6-1</code></a>, <a href="#rfc8907-7-1"><code>RFC8907-7-1</code></a>, <a href="#rfc8907-7-2"><code>RFC8907-7-2</code></a>, <a href="#rfc8907-10-2"><code>RFC8907-10-2</code></a>, <a href="#rfc8907-10.5.2-1"><code>RFC8907-10.5.2-1</code></a>, <a href="#rfc8907-6-1"><code>RFC8907-6-1</code></a>, <a href="#rfc8907-3.7-1"><code>RFC8907-3.7-1</code></a>, <a href="#rfc8907-3.7-2"><code>RFC8907-3.7-2</code></a>, <a href="#rfc8907-4.1-1"><code>RFC8907-4.1-1</code></a>, <a href="#rfc8907-4.1-2"><code>RFC8907-4.1-2</code></a>, <a href="#rfc8907-4.1-3"><code>RFC8907-4.1-3</code></a>, <a href="#rfc8907-4.3-1"><code>RFC8907-4.3-1</code></a>, <a href="#rfc8907-4.3-2"><code>RFC8907-4.3-2</code></a>, <a href="#rfc8907-4.3-3"><code>RFC8907-4.3-3</code></a>, <a href="#rfc8907-4.4-1"><code>RFC8907-4.4-1</code></a>, <a href="#rfc8907-4.4-2"><code>RFC8907-4.4-2</code></a>, <a href="#rfc8907-4.4-3"><code>RFC8907-4.4-3</code></a>, <a href="#rfc8907-5.1-1"><code>RFC8907-5.1-1</code></a>, <a href="#rfc8907-5.4.2.2-1"><code>RFC8907-5.4.2.2-1</code></a>, <a href="#rfc8907-5.4.2.2-2"><code>RFC8907-5.4.2.2-2</code></a>, <a href="#rfc8907-5.4.2.6-2"><code>RFC8907-5.4.2.6-2</code></a>, <a href="#rfc8907-5.4.3-1"><code>RFC8907-5.4.3-1</code></a>, <a href="#rfc8907-6.1-1"><code>RFC8907-6.1-1</code></a>, <a href="#rfc8907-6.1-2"><code>RFC8907-6.1-2</code></a>, <a href="#rfc8907-6.2-1"><code>RFC8907-6.2-1</code></a>, <a href="#rfc8907-6.2-2"><code>RFC8907-6.2-2</code></a>, <a href="#rfc8907-6.2-3"><code>RFC8907-6.2-3</code></a>, <a href="#rfc8907-7.2-1"><code>RFC8907-7.2-1</code></a>, <a href="#rfc8907-8-1"><code>RFC8907-8-1</code></a>, <a href="#rfc8907-8.1-1"><code>RFC8907-8.1-1</code></a>, <a href="#rfc8907-8.1-2"><code>RFC8907-8.1-2</code></a>, <a href="#rfc8907-8.2-1"><code>RFC8907-8.2-1</code></a>, <a href="#rfc8907-8.2-2"><code>RFC8907-8.2-2</code></a>, <a href="#rfc8907-8.3-1"><code>RFC8907-8.3-1</code></a>, <a href="#rfc8907-8.3-2"><code>RFC8907-8.3-2</code></a>, <a href="#rfc8907-8.3-3"><code>RFC8907-8.3-3</code></a>, <a href="#rfc8907-8.3-4"><code>RFC8907-8.3-4</code></a>, <a href="#rfc8907-8.3-5"><code>RFC8907-8.3-5</code></a>, <a href="#rfc8907-10.5.1-1"><code>RFC8907-10.5.1-1</code></a>, <a href="#rfc8907-10.5.1-2"><code>RFC8907-10.5.1-2</code></a>, <a href="#rfc8907-10.5.4-1"><code>RFC8907-10.5.4-1</code></a>, <a href="#rfc8907-x-2"><code>RFC8907-x-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc8907-4-3"><code>RFC8907-4-3</code></a>, <a href="#rfc8907-4-5"><code>RFC8907-4-5</code></a>, <a href="#rfc8907-5-1"><code>RFC8907-5-1</code></a>, <a href="#rfc8907-10-1"><code>RFC8907-10-1</code></a>, <a href="#rfc8907-5.4-1"><code>RFC8907-5.4-1</code></a>, <a href="#rfc8907-5.4-2"><code>RFC8907-5.4-2</code></a>, <a href="#rfc8907-5.4.2.3-1"><code>RFC8907-5.4.2.3-1</code></a>, <a href="#rfc8907-5.4.2.4-1"><code>RFC8907-5.4.2.4-1</code></a>, <a href="#rfc8907-5.4.2.5-1"><code>RFC8907-5.4.2.5-1</code></a>, <a href="#rfc8907-5.4.2.6-1"><code>RFC8907-5.4.2.6-1</code></a>, <a href="#rfc8907-4.6-2"><code>RFC8907-4.6-2</code></a></p>
 <p class="rfc-id-list"><strong>Derived from other rows (1):</strong> <a href="#rfc8907-10.5-1"><code>RFC8907-10.5-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -315,8 +320,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L146" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L241" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L63" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907EveryRequestCarriesMajorVersion12</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L146" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L75" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyWithOtherMajorVersionRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L241" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-2">RFC8907-4-2</code></td><td colspan="3"><span class="rfc-subject">TACACS+ clients only send packets containing odd sequence numbers, and TACACS+ servers only send packets containing even sequence numbers. (§4.1)</span></td></tr>
@@ -324,8 +331,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L147" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L250" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L94" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientSendsOddSequenceNumbers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L147" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L106" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyWithOddSequenceNumberRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L250" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-3">RFC8907-4-3</code></td><td colspan="3"><span class="rfc-subject">This number MUST be generated by a cryptographically strong random number generation method. (§4, Session Lifecycle)</span></td></tr>
@@ -334,7 +343,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_sessionid_test.go#L38" title="internal/component/tacacs/rfc8907_sessionid_test.go" target="_blank" rel="noopener"><code>TestRFC8907SessionIDComesFromCryptoRand</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L327" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestRandomSessionIDDistinct</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L327" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestRandomSessionIDDistinct</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the session id is drawn from crypto/rand (internal/component/tacacs/client.go:497-503) with no predictable/reject path</p></td>
 </tr>
@@ -343,16 +352,18 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L148" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze generates one session id at internal/component/tacacs/client.go:209 and reuses it for the single request/reply exchange; the reply mismatch guard (client.go:354-358) enforces constancy and the positive path exercises it, but a single-exchange client emits no second packet whose id could differ, so there is no client-side constancy-violation to test</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L122" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyKeepingSessionIDAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L148" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L134" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyChangingSessionIDRefused</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4-5">RFC8907-4-5</code></td><td colspan="3"><span class="rfc-subject">All length values are unsigned and in network byte order. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L15" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketHeaderMarshalRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_packet_test.go#L15" title="internal/component/tacacs/rfc8907_packet_test.go" target="_blank" rel="noopener"><code>TestPacketHeaderMarshalRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L150" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907LengthsAreUnsignedNetworkOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> multi-octet header fields (session_id, length) are written and read with binary.BigEndian at internal/component/tacacs/packet.go:75-76 and 90-91; the marshal/unmarshal round-trip is symmetric with no independent little-endian oracle, so a negative would only test a different codec</p></td>
 </tr>
@@ -362,6 +373,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L226" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ExactReplyLengthsAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L190" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907OverlongReplyComponentsRejected</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L239" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907TrailingReplyBytesRejected</code></a></span></div>
 </div></td>
 </tr>
@@ -379,8 +391,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST NOT</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L13" title="internal/component/tacacs/acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_acct_test.go#L13" title="internal/component/tacacs/rfc8907_acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L201" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingValidFlagsWritten</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L277" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingMoreFlagRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L210" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingOtherFlagsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-7-2">RFC8907-7-2</code></td><td colspan="3"><span class="rfc-subject">The START and STOP flags are mutually exclusive. (§7.2)</span></td></tr>
@@ -388,7 +402,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-7-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L14" title="internal/component/tacacs/acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_acct_test.go#L14" title="internal/component/tacacs/rfc8907_acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L288" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingStartStopCombinationRefused</code></a></span></div>
 </div></td>
 </tr>
@@ -397,7 +411,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>10.5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_packet_test.go#L128" title="internal/component/tacacs/rfc8907_packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93" title="internal/component/tacacs/rfc8907_unencrypted_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907UnencryptedModeIsNotReachableFromConfiguration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -409,7 +423,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalNoEncryption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_packet_test.go#L167" title="internal/component/tacacs/rfc8907_packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalNoEncryption</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L111" title="internal/component/tacacs/rfc8907_security_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907BuildRejectsMissingSecret</code></a></span></div>
 </div></td>
 </tr>
@@ -419,7 +433,9 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>10.5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10.5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L222" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientAcceptsObfuscatedReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L460" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907MatchingObfuscationKeepsStatusAndConnection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L435" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ObfuscationMismatchClosesAndFails</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6-1">RFC8907-6-1</code></td><td colspan="3"><span class="rfc-subject">Mandatory arguments require that the receiving side can handle the argument, that is, its implementation and configuration includes the details of how to act on it. If the client receives a mandatory argument that it cannot handle, it MUST consider the authorization to have failed. (§6.1)</span></td></tr>
@@ -447,8 +463,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>3.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-3.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L63" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PrintableTextInEveryField</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L108" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907PrintableTextRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L172" title="internal/component/tacacs/rfc8907_dispatch_wire_test.go" target="_blank" rel="noopener"><code>TestRFC8907TrustedDispatchIdentitiesReachWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L91" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907ControlCharactersRefusedInEveryField</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L130" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907NonPrintableTextRejected</code></a></span></div>
 </div></td>
 </tr>
@@ -457,8 +475,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L214" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907PresentFieldsFollowZeroLengthOnes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L59" title="internal/component/tacacs/rfc8907_status_test.go" target="_blank" rel="noopener"><code>TestRFC8907ZeroLengthDataIsReadAsAbsent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L67" title="internal/component/tacacs/rfc8907_status_test.go" target="_blank" rel="noopener"><code>TestRFC8907PresentZeroByteIsNotReadAsAbsent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L230" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ZeroLengthFieldsAreNotPresent</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.1-2">RFC8907-4.1-2</code></td><td colspan="3"><span class="rfc-subject">The first packet in a session MUST have the sequence number 1, and each subsequent packet will increment the sequence number by one. (§4.1, The TACACS+ Packet Header)</span></td></tr>
@@ -503,6 +523,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-4.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L281" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ServerClosureOfPooledConnectionIsAccommodated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L324" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L294" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClosureOnFreshDialIsNotRetried</code></a></span></div>
 </div></td>
 </tr>
@@ -575,7 +596,9 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>5.4.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-5.4.2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L75" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartCarriesUserAndPassword</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L158" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartOnWireCarriesUserAndPassword</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L89" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartRefusesPasswordItCannotCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L170" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartWithoutUsernameNeverSent</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.3-1">RFC8907-5.4.2.3-1</code></td><td colspan="3"><span class="rfc-subject">The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login)</span></td></tr>
@@ -614,13 +637,15 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;The exchange MAY consist of multiple messages while the server collects the information it requires in order to allow changing the principal&#39;s privilege level.&#34;; §5.4.2.6 defines an ENABLE privilege-change workflow, and the service rule applies when requesting an ENABLE. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ENABLE workflows. internal/component/tacacs/authen.go::NewPAPAuthenStart sets the LOGIN service for the management password callback; it does not request a privilege change. The separate prohibition on using ENABLE for other operations remains tested</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.6-2">RFC8907-5.4.2.6-2</code></td><td colspan="3"><span class="rfc-subject">In order to readily distinguish &#34;ENABLE&#34; requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. It MUST NOT be set to this value when requesting any other operation. (§5.4.2.6, Enable Requests)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.6-2">RFC8907-5.4.2.6-2</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT be set to this value when requesting any other operation. (§5.4.2.6, Enable Requests)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.4.2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-5.4.2.6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L97" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907LoginStartCarriesLoginService</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L453" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPLoginOnWireCarriesLoginService</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L105" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907LoginStartNeverCarriesEnableService</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L458" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoRequestCarriesEnableService</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.3-1">RFC8907-5.4.3-1</code></td><td colspan="3"><span class="rfc-subject">If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL. (§5.4.3, Aborting an Authentication Session)</span></td></tr>
@@ -638,7 +663,9 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-6.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L114" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorRequestUserLenMatchesUser</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L179" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorUserLenCountsBytes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L125" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorRequestRefusesUserItCannotMeasure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L190" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorUserLenRefusesRuneCount</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6.1-2">RFC8907-6.1-2</code></td><td colspan="3"><span class="rfc-subject">An argument name MUST NOT contain either of the separators. (§6.1, The Authorization REQUEST Packet Body)</span></td></tr>
@@ -695,7 +722,9 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L278" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorizationRequestsUseDictionaryArguments</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L87" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907CommandRecordsUseDictionaryArguments</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L285" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorizationRequestsCarryNoForeignArgument</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L103" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907CommandRecordsCarryNoForeignArgument</code></a></span></div>
 </div></td>
 </tr>
@@ -715,7 +744,9 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>8.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-8.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L116" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907StartTimeIsEpochSeconds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L344" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907StopTimeIsEpochSeconds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L132" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907StartTimeIgnoresLocalZone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L358" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907StopTimeIgnoresLocalZone</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.2-1">RFC8907-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Specifying a service argument indicates that this is a request for authorization or accounting of that service. For example: &#34;shell&#34;, &#34;tty-server&#34;, &#34;connection&#34;, &#34;system&#34; and &#34;firewall&#34;; others may be chosen for the required application. This argument MUST always be included. (§8.2)</span></td></tr>
@@ -723,7 +754,9 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>8.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-8.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L293" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907EveryRequestKindLeadsWithService</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L161" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907ServiceArgumentAlwaysFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L306" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoRequestKindOmitsService</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L167" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907ServiceArgumentPresentForEmptyCommand</code></a></span></div>
 </div></td>
 </tr>
@@ -733,7 +766,9 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>8.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-8.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L173" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907CmdArgumentFollowsShellService</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L321" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907EveryShellRequestCarriesCmd</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L180" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907CmdArgumentPresentForEmptyCommand</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L334" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907ShellRequestNeverLacksCmd</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-8.3-1">RFC8907-8.3-1</code></td><td colspan="3"><span class="rfc-subject">The following arguments are defined for TACACS+ accounting only. They MUST precede any argument-value pairs that are defined in &#34;Authorization&#34; (Section 6). (§8.3)</span></td></tr>
@@ -768,18 +803,18 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>8.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-8.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L277" title="cmd/ze/hub/api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1164" title="internal/component/plugin/server/command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L231" title="cmd/ze/hub/aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L46" title="internal/component/tacacs/accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingSaturationRetainsEveryStart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L277" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1164" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L231" title="cmd/ze/hub/rfc8907_aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L46" title="internal/component/tacacs/rfc8907_accountant_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingSaturationRetainsEveryStart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L107" title="internal/component/plugin/server/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907PluginDispatchAccountsCommand</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L171" title="internal/component/tacacs/rfc8907_dispatch_wire_test.go" target="_blank" rel="noopener"><code>TestRFC8907TrustedDispatchIdentitiesReachWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L33" title="internal/component/plugin/server/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907TypedDispatchAccountsDeniedCommand</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L343" title="cmd/ze/hub/api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1224" title="internal/component/plugin/server/command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L343" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1224" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L123" title="internal/component/tacacs/rfc8907_security_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingRequiresDestination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L90" title="internal/component/tacacs/accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingStopDrainsAcceptedStarts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L323" title="cmd/ze/hub/aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC8907BundleRetirementWaitsForAccountingPair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L90" title="internal/component/tacacs/rfc8907_accountant_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingStopDrainsAcceptedStarts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L323" title="cmd/ze/hub/rfc8907_aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC8907BundleRetirementWaitsForAccountingPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L296" title="internal/component/tacacs/rfc8907_dispatch_wire_test.go" target="_blank" rel="noopener"><code>TestRFC8907OversizedCommandAccountingStillReachesWire</code></a></span></div>
 </div></td>
 </tr>
@@ -828,8 +863,10 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>10.5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10.5.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L51" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907MandatoryCommandPolicyAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L379" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907SharedArgumentsKeepDefinedMeaning</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L62" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907MandatoryCommandPolicyDenied</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L210" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907MandatorySessionPolicyDenied</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L393" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907SharedArgumentsNeverReinterpreted</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-4.6-2">RFC8907-4.6-2</code></td><td colspan="3"><span class="rfc-subject">A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true. (§4.5, Data Obfuscation; stable historical ID)</span></td></tr>
@@ -922,40 +959,60 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8907-4-1"><code>RFC8907-4-1</code></a></h3>
 <p>This is the major TACACS+ version number. TAC_PLUS_MAJOR_VER := 0xc (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. validateResponseHeader compares the reply major nibble with the request, not with 0xc, and the test server echoes the request version: a client emitting major 0xD stays green in both TestTacacsClientAuthenticatePass and the wrong-major-version case; no tagged unit asserts the emitted major version is 0xc</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Positive TestRFC8907EveryRequestCarriesMajorVersion12 reads the captured request header (not an echo) and requires major nibble 0xc for authentication, authorization and accounting, so a client emitting 0xd goes red. Negative TestRFC8907ReplyWithOtherMajorVersionRefused mutates only the reply major nibble (header check runs before the body is read) for all 15 other values x 3 kinds and requires error + zero status; producer validateResponseHeader.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L241" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L241" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L75" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyWithOtherMajorVersionRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L146" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L146" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L63" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907EveryRequestCarriesMajorVersion12</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-4-2"><code>RFC8907-4-2</code></a></h3>
 <p>TACACS+ clients only send packets containing odd sequence numbers, and TACACS+ servers only send packets containing even sequence numbers. (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. tests assert reply seq == request seq+1 only; the echoing test server hides the client parity (a client sending seq 2 would get 3 and pass), and the seq-7 negative is refused for not being seq+1, not for being odd from a server</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Positive TestRFC8907ClientSendsOddSequenceNumbers reads the captured request seq_no and requires it odd for all 3 kinds, closing the old echo-server hole (a client sending 2 now goes red). Negative TestRFC8907ReplyWithOddSequenceNumberRefused sends each of the 128 odd server seq_no values x 3 kinds and requires refusal; only the reply seq_no differs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L250" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L250" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientRejectsBadResponseHeader</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L106" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyWithOddSequenceNumberRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L147" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L147" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L94" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientSendsOddSequenceNumbers</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -968,7 +1025,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L327" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestRandomSessionIDDistinct</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L327" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestRandomSessionIDDistinct</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -982,50 +1039,70 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-4-4"><code>RFC8907-4-4</code></a></h3>
 <p>The Id for this TACACS+ session. This field does not change for the duration of the TACACS+ session. (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestTacacsClientAuthenticatePass asserts only status and server_msg; the test server always echoes session_id, so removing the client mismatch guard or changing the id would stay green; single-polarity marker acknowledges no negative</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 after the invalid {single-polarity} marker was removed (correction recorded). Negative TestRFC8907ReplyChangingSessionIDRefused flips bit 0, bit 31 and all bits of the reply session_id (only field changed; type/version/seq/flags intact so the trySend session_id guard is the refusing check) for 3 kinds and requires error + zero status. Positive TestRFC8907ReplyKeepingSessionIDAccepted is the accepting path for all 3 kinds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L148" title="internal/component/tacacs/client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L134" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyChangingSessionIDRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L148" title="internal/component/tacacs/rfc8907_client_test.go" target="_blank" rel="noopener"><code>TestTacacsClientAuthenticatePass</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L122" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ReplyKeepingSessionIDAccepted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-4-5"><code>RFC8907-4-5</code></a></h3>
 <p>All length values are unsigned and in network byte order. (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestPacketHeaderMarshalRoundTrip is a symmetric marshal/unmarshal round trip with no wire-octet assertion: a little-endian codec on both sides passes</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. TestRFC8907LengthsAreUnsignedNetworkOrder asserts fixed wire octets for session_id and length (an independent big-endian oracle: a little-endian codec goes red), reads length 0xFFFFFFFE as unsigned, and reads 2-octet reply lengths 0x0100 and 0x8001 big-endian and unsigned in authentication, authorization and accounting replies (request lengths are 1 octet). {single-polarity: positive} holds: byte order has no refusal path. The marker&#39;s prose still describes the old symmetric round trip and should be refreshed; the argument itself stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L15" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketHeaderMarshalRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L150" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907LengthsAreUnsignedNetworkOrder</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_packet_test.go#L15" title="internal/component/tacacs/rfc8907_packet_test.go" target="_blank" rel="noopener"><code>TestPacketHeaderMarshalRoundTrip</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-4.6-1"><code>RFC8907-4.6-1</code></a></h3>
 <p>After a packet body is de-obfuscated, the lengths of the component values in the packet are summed. If the sum is not identical to the cleartext datalength value from the header, the packet MUST be discarded and an ERROR signaled. (§4.5, Data Obfuscation)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;the sum is not identical&#39; has two directions. TestRFC8907TrailingReplyBytesRejected proves only sum &lt; datalength (one trailing decrypted byte -&gt; error, status 0) for all three services, and TestRFC8907ExactReplyLengthsAccepted is the positive. No tagged unit sends component lengths whose sum exceeds datalength, so the other half of the inequality (reply.go:56 total != len(body), and the earlier truncation guards) is unasserted.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. The missing direction is now proven: TestRFC8907OverlongReplyComponentsRejected sends replies whose server_msg_len, data_len or argument length sums past the datalength, for all three kinds, and requires error + zero status (discard and ERROR). The &lt; direction (TestRFC8907TrailingReplyBytesRejected) and exact positive (TestRFC8907ExactReplyLengthsAccepted) stand; producer validateReplyBody.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L190" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907OverlongReplyComponentsRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L239" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907TrailingReplyBytesRejected</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L226" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ExactReplyLengthsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1036,20 +1113,30 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <p>No test carries RFC8907-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-7-1"><code>RFC8907-7-1</code></a></h3>
 <p>This holds bitmapped flags. Valid values are: TAC_PLUS_ACCT_FLAG_START := 0x02 TAC_PLUS_ACCT_FLAG_STOP := 0x04 TAC_PLUS_ACCT_FLAG_WATCHDOG := 0x08 (§7.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. producer (acct.go flag switch) allowlists START, STOP, WATCHDOG and WATCHDOG|START, but the tagged units probe only the 0x01 bit; a denylist of 0x01 alone would pass, and bits 0x10-0x80 are never exercised</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Positive TestRFC8907AccountingValidFlagsWritten writes 0x02, 0x04, 0x08 and 0x0a unchanged. Negative TestRFC8907AccountingOtherFlagsRefused refuses all 252 other values (every undefined bit 0x01, 0x10-0x80 and invalid combinations) and SendAccounting refuses 0x82 before contacting the server. Producer acct.go MarshalBinaryInto allowlist switch; a denylist now goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L210" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingOtherFlagsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L277" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingMoreFlagRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L13" title="internal/component/tacacs/acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_acct_test.go#L13" title="internal/component/tacacs/rfc8907_acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L201" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingValidFlagsWritten</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1067,7 +1154,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L14" title="internal/component/tacacs/acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_acct_test.go#L14" title="internal/component/tacacs/rfc8907_acct_test.go" target="_blank" rel="noopener"><code>TestAcctRequestMarshalStartStop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1082,19 +1169,19 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_packet_test.go#L128" title="internal/component/tacacs/rfc8907_packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93" title="internal/component/tacacs/rfc8907_unencrypted_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907UnencryptedModeIsNotReachableFromConfiguration</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1107,7 +1194,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalNoEncryption</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_packet_test.go#L167" title="internal/component/tacacs/rfc8907_packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalNoEncryption</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1119,27 +1206,37 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-10.5.2-1"><code>RFC8907-10.5.2-1</code></a></h3>
 <p>When a TACACS+ client receives responses from servers where: * the response packet was received from the server configured with a shared key, but the packet has TAC_PLUS_UNENCRYPTED_FLAG set, and * the response packet was received from the server configured not to use obfuscation, but the packet has TAC_PLUS_UNENCRYPTED_FLAG not set, the TACACS+ client MUST close the TCP session, and process the response in the same way that a TAC_PLUS_AUTHEN_STATUS_FAIL (authentication sessions) or TAC_PLUS_AUTHOR_STATUS_FAIL (authorization sessions) was received. (§10.5.2, Connections and Obfuscation)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC8907ClientRefusesUnobfuscatedReply asserts only the FAIL status for an authentication session; the MUST close the TCP session clause is not asserted, and the authorization-session FAIL path is not exercised</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Clause (a), keyed server + TAC_PLUS_UNENCRYPTED_FLAG: TestRFC8907ObfuscationMismatchClosesAndFails asserts AUTHEN FAIL and AUTHOR FAIL (the two session kinds the RFC names) AND that the client closed the TCP (probe reads EOF/ECONNRESET after writing a single-connect reply); producer trySend closeAndEvict + sendToServers errObfuscationMismatch-&gt;FAIL. Positive TestRFC8907MatchingObfuscationKeepsStatusAndConnection keeps PASS/PASS_ADD and the TCP open, so a client closing on every reply goes red. Clause (b), keyless server + flag clear, cannot arise: Packet.MarshalInto refuses an empty key, so the keyless probe sees no request (asserted); the trySend guard still covers both directions. Old units in rfc8907_obfuscation_test.go remain valid.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L435" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ObfuscationMismatchClosesAndFails</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L460" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907MatchingObfuscationKeepsStatusAndConnection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L222" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientAcceptsObfuscatedReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1196,38 +1293,58 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-3.7-2"><code>RFC8907-3.7-2</code></a></h3>
 <p>All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]. The term &#34;printable&#34; used here means the fields MUST exclude the &#34;Control Characters&#34; defined in Section 5.2 of [RFC0020]. (§3.7, Treatment of Text Strings)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;all other text fields&#39; is proven for four fields only: TestRFC8907NonPrintableTextRejected fails on a control, DEL or non-ASCII byte in the PAP password (authen data), an authorization cmd argument, the accounting port, and an authentication server_msg; TestRFC8907PrintableTextRoundTrip is the positive. validateText also guards rem_addr (authen.go:66, author.go:55, acct.go:62), the authentication and authorization port (authen.go:63, author.go:52), accounting arguments (acct.go:78) and the authorization/accounting reply message (reply.go:60,66); removing any of those calls leaves every tagged assertion green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. With the old units, every text field Ze writes or reads is now refused on NUL, 0x1f, DEL and a non-ASCII byte: authentication port/rem_addr, authorization port/rem_addr/argument, accounting port/rem_addr/argument, authentication reply server_msg, authorization reply server_msg/data/argument, accounting reply server_msg/data (RFC 6.2/7.2 route those data fields to Section 3.7). Negative request cases leave every other field empty/valid, so validateText is the refusing check. Authentication reply data and START/CONTINUE data are correctly excluded (not a printable text encoding). Positive TestRFC8907PrintableTextInEveryField carries all 95 printable characters through each field.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L91" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907ControlCharactersRefusedInEveryField</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L130" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907NonPrintableTextRejected</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L63" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PrintableTextInEveryField</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L172" title="internal/component/tacacs/rfc8907_dispatch_wire_test.go" target="_blank" rel="noopener"><code>TestRFC8907TrustedDispatchIdentitiesReachWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L108" title="internal/component/tacacs/rfc8907_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8907PrintableTextRoundTrip</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-4.1-1"><code>RFC8907-4.1-1</code></a></h3>
 <p>To signal that any variable-length data fields are unused, the corresponding length values are set to zero. Such fields MUST be ignored, and treated as if not present. (§4.1, The TACACS+ Packet Header)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Only the data field is asserted: TestRFC8907ZeroLengthDataIsReadAsAbsent (data_len 0 -&gt; Empty) and TestRFC8907PresentZeroByteIsNotReadAsAbsent (one zero byte retained). The quote binds any variable-length field whose length is zero (server_msg, user, port, rem_addr, reply arguments); no tagged assertion goes red if another zero-length field were read as present or read past.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. New units extend the old data-only proof to server_msg, data and reply arguments in all three reply kinds: TestRFC8907ZeroLengthFieldsAreNotPresent requires empty msg/data and that zero-length arguments yield no entry (Args == [a=b]); TestRFC8907PresentFieldsFollowZeroLengthOnes requires present fields read at the offsets the zero-length fields leave (read-past goes red). Request-side fields are written by Ze, not read.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L230" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ZeroLengthFieldsAreNotPresent</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L67" title="internal/component/tacacs/rfc8907_status_test.go" target="_blank" rel="noopener"><code>TestRFC8907PresentZeroByteIsNotReadAsAbsent</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L214" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907PresentFieldsFollowZeroLengthOnes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1289,12 +1406,12 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L240" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoSecondPacketWithoutSingleConnect</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L229" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907SecondSessionReusesEstablishedConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1309,19 +1426,19 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L266" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientDoesNotResignalSingleConnect</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L254" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907FlagClearedOnLaterReplyIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8907-4.3-3"><code>RFC8907-4.3-3</code></a></h3>
 <p>The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established. (§4.3, Single Connection Mode)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: failing a later session, or writing to the dead socket, after the server closed an established single-connect TCP. TestRFC8907ServerClosureOfPooledConnectionIsAccommodated goes red on that (authenticatePass, require.Len connections 2, requestsOn(1) 1). The negative-tagged TestRFC8907ClosureOnFreshDialIsNotRetried asserts a neighbouring property (a closure on a fresh dial is not retried), which does not violate this requirement, and the row carries no {single-polarity} marker, so only one genuine polarity exists.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Positive TestRFC8907ServerClosureOfPooledConnectionIsAccommodated (closure between sessions) and new TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated (server reads session 3&#39;s request on the established single-connect TCP, closes unanswered; session 3 must PASS on a fresh TCP, counts [3,1]) both go red if the client fails a session after the closure; producer sendReceive pooled retry. The negative-tagged TestRFC8907ClosureOnFreshDialIsNotRetried still asserts a neighbouring property (fresh-dial closure not retried) and is mistagged; it adds nothing to this row and should be retagged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1329,7 +1446,12 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L294" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClosureOnFreshDialIsNotRetried</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L324" title="internal/component/tacacs/rfc8907_header_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L281" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907ServerClosureOfPooledConnectionIsAccommodated</code></a></td>
@@ -1369,7 +1491,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L328" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L313" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoNewSessionOnBrokenPooledConnection</code></a></td>
@@ -1389,7 +1511,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L351" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907HealthyPooledConnectionStaysOpen</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L339" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907BrokenPooledConnectionIsClosed</code></a></td>
@@ -1437,7 +1559,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L394" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPClientSendsNoContinue</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L382" title="internal/component/tacacs/rfc8907_connection_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPExchangeIsOneStartOneReply</code></a></td>
@@ -1449,13 +1571,23 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-5.4.2.2-2"><code>RFC8907-5.4.2.2-2</code></a></h3>
 <p>The START packet MUST contain a username and the data field MUST contain the PAP ASCII password. (§5.4.2.2, PAP Login)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;MUST contain a username&#39; has no red assertion in a tagged unit: TestRFC8907PAPStartCarriesUserAndPassword asserts the user and data fields when a username is given, and the absent-username refusal lives only in the untagged TestRFC8907PAPRequiresPresentBoundedUsername. TestRFC8907PAPStartRefusesPasswordItCannotCarry proves a length bound, not presence of the password. The data-field-is-the-password clause is enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Positive TestRFC8907PAPStartOnWireCarriesUserAndPassword decodes the START from the wire and requires user=alice and data=the password. Negative TestRFC8907PAPStartWithoutUsernameNeverSent requires errRequestInvalid and that the server is never contacted, the tagged red assertion for &#39;MUST contain a username&#39; the old verdict lacked.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L170" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartWithoutUsernameNeverSent</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L89" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartRefusesPasswordItCannotCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L158" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPStartOnWireCarriesUserAndPassword</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1484,14 +1616,24 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8907-5.4.2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8907-5.4.2.6-2"><code>RFC8907-5.4.2.6-2</code></a></h3>
-<p>In order to readily distinguish &#34;ENABLE&#34; requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. It MUST NOT be set to this value when requesting any other operation. (§5.4.2.6, Enable Requests)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause 1 (&#39;MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE&#39;) has no assertion and no annotation: Ze sets only authenServiceLogin (authen.go:176) and never requests ENABLE, but the row carries no {single-polarity} or {not-applicable} argument for that half. Clause 2 is covered, though the two tagged units are one assertion wearing two hats (Equal LOGIN implies NotEqual ENABLE).</p>
+<p>It MUST NOT be set to this value when requesting any other operation. (§5.4.2.6, Enable Requests)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 on the narrowed row (verbatim second sentence of 5.4.2.6; the first sentence is RFC8907-5.4.2.6-1, feature-declined; correction recorded). Negative TestRFC8907NoRequestCarriesEnableService checks the authen_service octet of all five requests Ze sends (PAP START and session/command authorization from the wire, accounting START/STOP) and requires none be 0x02; it is no longer the positive&#39;s assertion in a second hat. Positive TestRFC8907PAPLoginOnWireCarriesLoginService requires LOGIN on the wire START.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L458" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoRequestCarriesEnableService</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L105" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907LoginStartNeverCarriesEnableService</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L453" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907PAPLoginOnWireCarriesLoginService</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1525,13 +1667,23 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-6.1-1"><code>RFC8907-6.1-1</code></a></h3>
 <p>The user_len MUST indicate the length of the user field, in bytes. (§6.1, The Authorization REQUEST Packet Body)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a user_len that is not the BYTE length of the user field (for example a character count). Both tagged units use ASCII users, where bytes and characters coincide: TestRFC8907AuthorRequestUserLenMatchesUser asserts body[4] == 5 and the five user bytes for &#34;alice&#34;, and TestRFC8907AuthorRequestRefusesUserItCannotMeasure asserts a 256-byte ASCII user is refused. A user_len computed as a rune count stays green; the multi-byte case (&#34;Alicé&#34;) is asserted only in TestRFC8907UsernameProfileOnWire, tagged to RFC8907-3.7-1.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Positive TestRFC8907AuthorUserLenCountsBytes: &#39;Alicé&#39; writes user_len 6 (a rune count writes 5) and a 255-byte multibyte user writes 255, with the user bytes read back at that length. Negative TestRFC8907AuthorUserLenRefusesRuneCount: 128 runes / 256 bytes is refused, which a rune-count producer would accept.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L190" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorUserLenRefusesRuneCount</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L125" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorRequestRefusesUserItCannotMeasure</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L179" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorUserLenCountsBytes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1665,7 +1817,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8-1"><code>RFC8907-8-1</code></a></h3>
 <p>Clients MUST use these arguments when supporting the corresponding use cases. (§8, Argument-Value Pairs)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote binds every use case the Section 8 dictionary serves. The tagged units assert only command accounting: TestRFC8907CommandRecordsUseDictionaryArguments requires service/cmd/cmd-arg/task_id/start_time|stop_time and TestRFC8907CommandRecordsCarryNoForeignArgument refuses names outside the dictionary. Authorization requests (command and session) are not asserted under this row, and the 8.2 rows that carry them are themselves weak.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Every request kind Ze sends is now asserted: authorization (command request exactly service/cmd/cmd-arg, session request service=shell cmd=) in TestRFC8907AuthorizationRequestsUseDictionaryArguments and TestRFC8907AuthorizationRequestsCarryNoForeignArgument, accounting in the old units. Exact equality catches a private name substituted for a dictionary one.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1675,8 +1827,18 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L285" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorizationRequestsCarryNoForeignArgument</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L87" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907CommandRecordsUseDictionaryArguments</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L278" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907AuthorizationRequestsUseDictionaryArguments</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1710,7 +1872,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.1-2"><code>RFC8907-8.1-2</code></a></h3>
 <p>Absolute date/times are specified in seconds since the epoch, 12:00am, January 1, 1970. The time zone MUST be UTC unless a time zone argument is specified. (§8.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an absolute date/time in local time, or not in epoch seconds, without a timezone argument. (b) TestRFC8907StartTimeIsEpochSeconds bounds start_time to time.Now().Unix(); TestRFC8907StartTimeIgnoresLocalZone sets time.Local five hours east and asserts no shift and no timezone argument. stop_time, the other absolute date/time Ze emits (accounting.go line 189), has no assertion, so a local-zone stop_time passes.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. stop_time, the missing absolute time, is now proven: TestRFC8907StopTimeIsEpochSeconds bounds it to [before, after] Unix seconds and TestRFC8907StopTimeIgnoresLocalZone sets time.Local +5h and requires no shift and no timezone argument. start_time stays proven by the old units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1720,8 +1882,18 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L358" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907StopTimeIgnoresLocalZone</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L116" title="internal/component/tacacs/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907StartTimeIsEpochSeconds</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L344" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907StopTimeIsEpochSeconds</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1730,13 +1902,23 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.2-1"><code>RFC8907-8.2-1</code></a></h3>
 <p>Specifying a service argument indicates that this is a request for authorization or accounting of that service. For example: &#34;shell&#34;, &#34;tty-server&#34;, &#34;connection&#34;, &#34;system&#34; and &#34;firewall&#34;; others may be chosen for the required application. This argument MUST always be included. (§8.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an authorization or accounting request without a service argument. (b) TestRFC8907ServiceArgumentAlwaysFirst and TestRFC8907ServiceArgumentPresentForEmptyCommand assert service=shell only for splitTacacsArgs, the command-authorization builder. The session authorization request built in authenticator.go (args service=shell, cmd=) and the accounting records have no assertion in a unit tagged to this row, so &#34;always&#34; is proven for one request kind.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Service is now asserted on every request kind: command and session authorization (service=shell first) and accounting START/STOP (TestRFC8907EveryRequestKindLeadsWithService); TestRFC8907NoRequestKindOmitsService requires exactly one service in each, including the session request with empty cmd and records for an argless command.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L306" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907NoRequestKindOmitsService</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L167" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907ServiceArgumentPresentForEmptyCommand</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L293" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907EveryRequestKindLeadsWithService</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1750,13 +1932,23 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.2-2"><code>RFC8907-8.2-2</code></a></h3>
 <p>The &#34;cmd&#34; argument MUST be specified if service equals &#34;shell&#34;. (§8.2, Authorization Arguments)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a service=shell request without a cmd argument. (b) TestRFC8907CmdArgumentFollowsShellService and TestRFC8907CmdArgumentPresentForEmptyCommand assert cmd= after service=shell only for splitTacacsArgs. The session authorization request (authenticator.go, service=shell with cmd=) is not asserted by a unit tagged to this row.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. Every service=shell request now carries cmd under a tagged unit: command request cmd=show, session request cmd=, accounting START/STOP cmd=show (TestRFC8907EveryShellRequestCarriesCmd); TestRFC8907ShellRequestNeverLacksCmd covers the edge inputs (empty session cmd, argless &#39;show&#39; records); old units cover the empty command in splitTacacsArgs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L334" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907ShellRequestNeverLacksCmd</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L180" title="internal/component/tacacs/rfc8907_body_test.go" target="_blank" rel="noopener"><code>TestRFC8907CmdArgumentPresentForEmptyCommand</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L321" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907EveryShellRequestCarriesCmd</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1836,22 +2028,22 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L323" title="cmd/ze/hub/aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC8907BundleRetirementWaitsForAccountingPair</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L323" title="cmd/ze/hub/rfc8907_aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC8907BundleRetirementWaitsForAccountingPair</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L343" title="cmd/ze/hub/api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L343" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1224" title="internal/component/plugin/server/command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1224" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L90" title="internal/component/tacacs/accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingStopDrainsAcceptedStarts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L90" title="internal/component/tacacs/rfc8907_accountant_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingStopDrainsAcceptedStarts</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1866,17 +2058,12 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L231" title="cmd/ze/hub/aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L231" title="cmd/ze/hub/rfc8907_aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L277" title="cmd/ze/hub/api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1164" title="internal/component/plugin/server/command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L277" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1891,7 +2078,12 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L46" title="internal/component/tacacs/accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingSaturationRetainsEveryStart</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1164" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L46" title="internal/component/tacacs/rfc8907_accountant_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingSaturationRetainsEveryStart</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1984,25 +2176,35 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-10.5.4-1"><code>RFC8907-10.5.4-1</code></a></h3>
 <p>The cost of the flexibility is that administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation. (§10.5.4, Authorization)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: Ze interpreting a shared argument-value pair differently from its defined meaning. (b) TestRFC8907MandatoryCommandPolicyAccepted asserts an exact service/cmd/cmd-arg policy with separators inside the value is enacted, which is one consistent-interpretation case. The negatives (TestRFC8907MandatoryCommandPolicyDenied, TestRFC8907MandatorySessionPolicyDenied) prove the next sentence of Section 10.5.4, unrecognized mandatory argument evaluated as FAIL, which RFC8907-6-1 carries. No assertion covers interpretation of the rest of the base dictionary Ze consumes (priv-lvl is asserted under RFC8907-8.1-1 only).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29. The consistent interpretation of shared values Ze consumes is now proven: priv-lvl 0/1/15 select exactly their profiles, and 16, &#39; 15&#39;, &#39;0x0f&#39;, &#39;1.5&#39; are rejected (ErrAuthRejected, no profile); full-width digits refused with no profile; a PASS_REPL naming the same cmd/cmd-arg in order authorizes, and a case or order change denies. Old units keep the unrecognized-mandatory-argument case.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L393" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907SharedArgumentsNeverReinterpreted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L62" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907MandatoryCommandPolicyDenied</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L210" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907MandatorySessionPolicyDenied</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L379" title="internal/component/tacacs/rfc8907_arguments_test.go" target="_blank" rel="noopener"><code>TestRFC8907SharedArgumentsKeepDefinedMeaning</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L51" title="internal/component/tacacs/rfc8907_authorization_test.go" target="_blank" rel="noopener"><code>TestRFC8907MandatoryCommandPolicyAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2742,7 +2944,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2869 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2869: RADIUS Extensions. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2869: RADIUS Extensions. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2869 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2869: RADIUS Extensions. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2869: RADIUS Extensions. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2869 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2869: RADIUS Extensions. 8 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2869: RADIUS Extensions. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>87.5%</strong><b>7 of 8 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.5%</strong><b>1 of 8 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>7 of 7 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.0%</strong><b>9 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>8</strong><b>of 11 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 8 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>7</strong><b>of 10 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 7 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 8 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>11</td>
+<td>10</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>8</td>
+<td>7</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2869.md</code></td>
@@ -268,8 +269,8 @@ Scoped to subscriber access.
 <td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>1</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -280,6 +281,10 @@ Scoped to subscriber access.
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -288,12 +293,11 @@ Scoped to subscriber access.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>8</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>7</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc2869-1.1-1"><code>RFC2869-1.1-1</code></a>, <a href="#rfc2869-1.1-2"><code>RFC2869-1.1-2</code></a>, <a href="#rfc2869-2.1-1"><code>RFC2869-2.1-1</code></a>, <a href="#rfc2869-2.1-2"><code>RFC2869-2.1-2</code></a>, <a href="#rfc2869-5.19-1"><code>RFC2869-5.19-1</code></a>, <a href="#rfc2869-x-2"><code>RFC2869-x-2</code></a>, <a href="#rfc2869-5.14-1"><code>RFC2869-5.14-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc2869-x-5"><code>RFC2869-x-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -351,7 +355,9 @@ Scoped to subscriber access.
 <td>5.19</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-5.19-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L137" title="internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L51" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPOnlyAccessRequestIsSent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L169" title="internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessRequestCarriesOneKindOfCredential</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L67" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPBesideAnotherCredentialIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-x-2">RFC2869-x-2</code></td><td colspan="3"><span class="rfc-subject">This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim- Update. (§5.1)</span></td></tr>
@@ -359,19 +365,9 @@ Scoped to subscriber access.
 <td>MUST</td>
 <td>5.1 - Acct-Input-Gigawords</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L322" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L321" title="internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L21" title="internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2869GigawordsAbsentOnStart</code></a></span></div>
 </div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-x-5">RFC2869-x-5</code></td><td colspan="3"><span class="rfc-subject">This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided (§5.1)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>5.1 - Acct-Input-Gigawords</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L324" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L256" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> splitGigawords derives Gigawords directly from the 64-bit byte counter (internal/component/l2tp/plugins/authradius/acct.go) with no separate wrap counter; there is no reject path so no negative case exists</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-5.14-1">RFC2869-5.14-1</code></td><td colspan="3"><span class="rfc-subject">A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent. (§5.14)</span></td></tr>
 <tr><td></td>
@@ -379,7 +375,9 @@ Scoped to subscriber access.
 <td>5.14 - Message-Authenticator</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-5.14-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L153" title="internal/component/radius/rfc2869_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L54" title="internal/component/radius/rfc2869_message_authenticator_codes_test.go" target="_blank" rel="noopener"><code>TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L185" title="internal/component/radius/rfc2869_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L89" title="internal/component/radius/rfc2869_message_authenticator_codes_test.go" target="_blank" rel="noopener"><code>TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-5.17-1">RFC2869-5.17-1</code></td><td colspan="3"><span class="rfc-subject">Either NAS-Port or NAS-Port-Id SHOULD be present in an Access- Request packet, if the NAS differentiates among its ports. (§5.17)</span></td></tr>
@@ -491,7 +489,7 @@ Scoped to subscriber access.
 </div>
 <h3><a href="#rfc2869-5.19-1"><code>RFC2869-5.19-1</code></a></h3>
 <p>An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§5.19 Note 1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The negative counts the four credential types in every Access-Request buildAuthAttrs builds (pap, chap-md5, mschapv2, none) and fails on more than one; the positive shows PAP and CHAP carry their credential. No input produces an EAP-Message, so the combination of EAP-Message with another credential, the one the RADIUS client can build (radius/client.go oneCredentialType), has no tagged assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The EAP combinations are now driven at the client every Access-Request leaves through: EAP-Message beside User-Password and beside CHAP-Password are refused by Client.Exchange with no datagram on the wire; EAP-only is sent. The L2TP builder pair covers PAP and CHAP-MD5 carrying exactly their own credential. ARAP-Password cannot be emitted: ze declares no ARAP attribute. User-Password beside CHAP-Password is not driven at the client guard, only proven absent from the builders&#39; output.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -499,19 +497,29 @@ Scoped to subscriber access.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L169" title="internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessRequestCarriesOneKindOfCredential</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L67" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPBesideAnotherCredentialIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L137" title="internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L51" title="internal/component/radius/rfc2869_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC2869EAPOnlyAccessRequestIsSent</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2869-x-2"><code>RFC2869-x-2</code></a></h3>
 <p>This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim- Update. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart errors if an Accounting-Start built from &gt;4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: only the tag comment on TestBuildAcctPacketGigawords changed (it absorbed the wrap-count wording of the retired RFC2869-x-5); the body is unchanged. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop, positive re-recorded against acct.go::splitGigawords and observed red. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart fails if an Accounting-Start built from &gt;4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -522,49 +530,39 @@ Scoped to subscriber access.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L322" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L321" title="internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc2869-x-5"><code>RFC2869-x-5</code></a></h3>
-<p>This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Gigawords value that is not the number of times the octet counter wrapped around 2^32. TestSplitGigawords errors on any case whose giga differs (0, 0xFFFFFFFF give 0; 0x100000000 gives 1; 0x30000002A gives 3), and TestBuildAcctPacketGigawords asserts the attribute on the wire holds 2 for 0x200000064 octets. Row carries {single-polarity: positive}.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L324" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L256" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2869-5.14-1"><code>RFC2869-5.14-1</code></a></h3>
 <p>A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent. (§5.14)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Access-Accept clause enforced: TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded fatals if Client.Exchange returns an Access-Accept whose Message-Authenticator is signed with another secret, and the positive delivers a correctly signed one. The sentence equally covers Access-Reject and Access-Challenge, and no tagged unit sends either with a wrong Message-Authenticator, so a client that checks only Access-Accept stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. All three reply codes now driven through Client.Exchange: Access-Accept (existing pair) and, new, Access-Reject and Access-Challenge whose Response Authenticator verifies (asserted) and whose Message-Authenticator is HMAC-MD5 under another secret are discarded (Exchange errors, no packet); correctly signed Reject and Challenge are delivered with their Reply-Message.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L89" title="internal/component/radius/rfc2869_message_authenticator_codes_test.go" target="_blank" rel="noopener"><code>TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L185" title="internal/component/radius/rfc2869_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L54" title="internal/component/radius/rfc2869_message_authenticator_codes_test.go" target="_blank" rel="noopener"><code>TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L153" title="internal/component/radius/rfc2869_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1141,7 +1139,7 @@ Scoped to subscriber access.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

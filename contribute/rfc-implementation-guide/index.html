@@ -710,6 +710,9 @@ declared by the test.</p>
 </table>
 <p>The four legacy trees under <code>test/interop*/</code> carry the same interop kinds through
 <code>legacyInteropCarriers</code>, keyed on a <code>/check.py</code> suffix.</p>
+<p>A unit test file's name follows its tags: a file whose tags cite one RFC is
+named <code>rfcNNNN_&lt;topic&gt;_test.go</code>, and one named for an RFC tags it or says why not
+("Test file names" in <code>docs/contributing/rfc-conformance-gates.md</code>).</p>
 <p>A requirement whose only evidence is nightly-tier is marked <code>**nightly-only**</code> on
 its ledger row and counted in its own rollup column. The rollup deliberately
 never sums the two, because a nightly tier is not merge-gate proof.</p>
@@ -727,7 +730,8 @@ prints the <code>mv</code> that ends the walk.</li>
 <li><code>./le rfc extraction-status</code> prints the sign-off counts.</li>
 <li><code>./le rfc reseal</code> re-stamps an audit verdict after a mechanical edit.</li>
 <li><code>./le rfc audit-stamp stem &lt;stem&gt; from &lt;path&gt;</code> adds new audit verdicts from a
-pending file, computing their fingerprints.</li>
+pending file, computing their fingerprints. With <code>mode rejudge</code> it replaces
+recorded verdicts a judge re-made, in place, and accepts <code>upgrade_reason</code>.</li>
 </ul>
 <p>For an enrolled RFC the gate fails unless every MUST has its pair or a
 reasoned annotation. Writing a summary does not enrol an RFC.</p>
@@ -765,8 +769,8 @@ of which not one carries a test in both polarities. Neither escape reaches that 
 each says the DOCUMENT imposes no MUST, and this red is about a MUST that exists and
 is unproven. Prove one requirement, or write <code>| Support status | Partial |</code>, which is
 what the public page's own vocabulary calls "not proven". Third, a <code>Support remaining</code>
-cell that spells a gap count immediately before MUST or SHALL must agree with the
-summary's <code>{gap}</code> count.</p>
+cell that spells a gap count, including zero, immediately before MUST or SHALL
+must agree with the summary's <code>{gap}</code> plus <code>{partial}</code> row count.</p>
 <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
 <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement -->
 </li>
@@ -775,16 +779,19 @@ summary's <code>{gap}</code> count.</p>
 exists, but it cannot read the test. The audit reads the RFC itself and each
 tagged test. It then judges whether the test would fail if the code stopped
 complying, and records a per-requirement verdict in <code>rfc/audit/&lt;rfc&gt;.json</code>.
-The verdict is one of five closed values, and the gate reads it:</p>
+The verdict uses the closed vocabulary the gate reads:</p>
 <ul>
-<li><code>enforced</code> is the only one that means proven.</li>
-<li><code>weak</code>, <code>wrong</code>, <code>unimplemented</code> and <code>not-applicable</code> each subtract the
-requirement from the published proven count. That count is in the ledger's
-<strong>Audit coverage</strong> section, and the gate still exits 0.</li>
+<li><code>enforced</code> is the only one that means whole-requirement proof.</li>
+<li><code>partial</code> means the declared tested scope is proven while the remainder is
+unmet or unproven; it needs the matching annotation and verified claim records.</li>
+<li><code>partial</code>, <code>weak</code>, <code>wrong</code>, <code>unimplemented</code> and <code>not-applicable</code> each stay
+outside the ledger's whole-proven count. Honest findings are legal when
+their evidence and public disclosure satisfy the gate.</li>
 </ul>
 <p>Recording a finding is free, and deleting one is not. <code>./le rfc check</code>
-re-stales a verdict when the requirement text, the tagged test's own function,
-or a cited producer changes.</p>
+re-stales a verdict when the requirement text, declared partial scope, tagged
+test's own function, or a cited producer changes. Whitespace-only partial
+reflow is not a new judgment; ordinary requirement fingerprints are unchanged.</p>
 <!-- source: internal/le/rfc/audit.go -- auditVerdicts -->
 <!-- source: internal/le/rfc/check_audit.go -- checkAuditSchema -->
 <!-- source: internal/le/rfc/coverage.go -- auditCoverageRows -->
@@ -793,10 +800,10 @@ or a cited producer changes.</p>
 <p><strong>A <code>SHIFTED</code> verdict is not your problem to re-read.</strong> When the gate says a
 verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
 moved: a line shift, a sibling test, or a rewritten import. Run
-<code>./le rfc reseal</code> then <code>./le rfc index-update</code>. It is the only command that
-re-stamps a recorded verdict, and that is deliberate. A check that also wrote cannot be trusted
-to report. And a regen target that wrote evidence would re-stamp hand-authored
-judgements during unrelated work.</p>
+<code>./le rfc reseal</code> then <code>./le rfc index-update</code>. Reseal owns mechanical
+fingerprint shifts, not independent rejudgment. Semantic changes require a
+new audit and <code>audit-stamp ... mode rejudge</code>; regeneration never authorizes
+a broader claim.</p>
 <!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
 <!-- source: internal/le/rfc/reseal.go -- resealTree -->
 </li>
@@ -808,6 +815,21 @@ judgements during unrelated work.</p>
 <p><strong>Never change a tagged test to make it pass.</strong> Once a test carries an
 <code>RFC requirement:</code> tag it is the requirement: fix your code, not the test.
 Changing its behavior needs the owner's approval.</p>
+</li>
+<li>
+<p><strong>The lock holds what HEAD records.</strong> The Write/Edit hook refuses an edit to
+a tagged unit only when the edit changes that unit and the unit carries its
+tag at HEAD. A unit is one Go function, or the whole file when the file is
+not Go or carries a tag outside every function, in the working tree or at
+HEAD; both sides are cut the same way. A file HEAD does not record (an
+untracked or only staged one), a unit appended since the last commit, and a
+tag written since then are still the author's to repair: no claim has been
+counted from them. A committed tagged unit stays locked
+whatever the working tree holds, and another session's uncommitted change
+to it does not lock an edit that leaves it alone. The commit gate,
+<code>rfcChangeProblems</code> in <code>internal/le/commit/rfcchange.go</code>, reads its baseline
+from HEAD too.</p>
+<!-- source: internal/le/test/weakened/proposed.go -- committedRFCChanges -->
 </li>
 </ul>
 <h3 id="the-owners-approval-lives-in-the-commit">The owner's approval lives in the commit</h3>
@@ -1027,7 +1049,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

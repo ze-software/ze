@@ -224,6 +224,19 @@ credentials, set <code>ze.api-server.token</code>.</p>
 list. <code>buildCommandMeta</code> is the one source those surfaces read, so the flag has
 one meaning everywhere.</p>
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
+<p>Each command in the list, and the object that <code>/api/v1/commands/{path}</code>
+returns, carries the keys <code>name</code>, <code>short-help</code>, <code>description</code>, <code>read-only</code>
+and <code>params</code>. Each entry in <code>params</code> carries <code>name</code>, <code>type</code>, <code>short-help</code>,
+<code>description</code> and <code>required</code>. An empty <code>short-help</code>, <code>description</code> or
+<code>params</code> is omitted. <code>read-only</code> and <code>required</code> are always sent.</p>
+<pre><code class="language-json">{
+  "name": "show bgp rib",
+  "short-help": "Show routes",
+  "read-only": true,
+  "params": [{"name": "family", "type": "string", "required": false}]
+}
+</code></pre>
+<!-- source: internal/component/api/types.go -- CommandMeta, ParamMeta json tags -->
 <p>POST <code>/api/v1/execute</code> body:</p>
 <pre><code class="language-json">{
   "command": "show bgp rib",
@@ -649,7 +662,7 @@ dispatcher command strings.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

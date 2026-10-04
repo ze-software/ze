@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>22 of 22 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>14.8%</strong><b>8 of 54 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.3%</strong><b>23 of 69 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 22 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 22 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>54</td>
+<td>69</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>54</td>
+<td>69</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>12</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>23</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7311.md</code></td>
@@ -276,7 +282,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td><strong>22</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -287,6 +293,10 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -312,8 +322,10 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L20" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGP</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L101" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedMetricWrongLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L20" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L20" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTLVLengthIsEleven</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L101" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedMetricWrongLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L21" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTLVLengthIsEleven</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3-2">RFC7311-3-2</code></td><td colspan="3"><span class="rfc-subject">The value field of the AIGP attribute is defined here to be a set of elements encoded as &#34;Type/Length/Value&#34; (i.e., a set of TLVs). (§3)</span></td></tr>
@@ -321,8 +333,10 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L52" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L89" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedTruncatedValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L52" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L57" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPValueIsWholeTLVSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L89" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedTruncatedValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L58" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPValueIsWholeTLVSet</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3-3">RFC7311-3-3</code></td><td colspan="3"><span class="rfc-subject">Any other AIGP TLVs in the AIGP attribute MUST be passed along unchanged if the AIGP attribute is passed along. (§3)</span></td></tr>
@@ -330,8 +344,11 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L57" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L142" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestAIGPWriteToMultipleTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L57" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L58" title="internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsPassedAlongUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L85" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsSurviveTheCodec</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L142" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestAIGPWriteToMultipleTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L59" title="internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsPassedAlongUnchanged</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3.2-4">RFC7311-3.2-4</code></td><td colspan="3"><span class="rfc-subject">If a BGP path attribute is received that has the AIGP attribute codepoint but also has the transitive bit set, the attribute MUST be considered to be a malformed AIGP attribute and MUST be discarded as specified in this section. (§3.2)</span></td></tr>
@@ -340,9 +357,9 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L103" title="internal/component/bgp/reactor/rfc7311_aigp_receive_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPNonTransitiveKeptOnReceive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L104" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPNonTransitiveIsKept</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7311_aigp_test.go#L104" title="internal/component/bgp/message/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPNonTransitiveIsKept</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_receive_test.go#L60" title="internal/component/bgp/reactor/rfc7311_aigp_receive_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTransitiveDiscardedOnReceive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L68" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPTransitiveIsDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7311_aigp_test.go#L68" title="internal/component/bgp/message/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPTransitiveIsDiscarded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3.2-1">RFC7311-3.2-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST NOT add the AIGP attribute to any route whose path leads outside the AIGP administrative domain to which the BGP speaker belongs (§3.4.1)</span></td></tr>
@@ -377,8 +394,8 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>MUST NOT</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_rfc7311_test.go#L50" title="internal/core/bgp/attribute/aigp_rfc7311_test.go" target="_blank" rel="noopener"><code>TestRFC7311DuplicateAndUnknownTLVsAreWellFormed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_rfc7311_test.go#L80" title="internal/core/bgp/attribute/aigp_rfc7311_test.go" target="_blank" rel="noopener"><code>TestRFC7311MalformedVerdictIsForLengthOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go#L50" title="internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311DuplicateAndUnknownTLVsAreWellFormed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go#L80" title="internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311MalformedVerdictIsForLengthOnly</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3.3-1">RFC7311-3.3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation that supports the AIGP attribute MUST support a per-session configuration item, AIGP_SESSION, that indicates whether the attribute is enabled or disabled for use on that session (§3.3)</span></td></tr>
@@ -459,7 +476,11 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>3.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.4.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L166" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L19" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L19" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L167" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L20" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L20" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3.4.3-3">RFC7311-3.4.3-3</code></td><td colspan="3"><span class="rfc-subject">Increasing the AIGP value MUST NOT cause the value to wrap around (§3.4.3)</span></td></tr>
@@ -499,7 +520,9 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>3.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.4.3-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L174" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L17" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L175" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L18" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-3.4.3-7">RFC7311-3.4.3-7</code></td><td colspan="3"><span class="rfc-subject">Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route. (§3.4.3)</span></td></tr>
@@ -508,11 +531,13 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>3.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7311-3.4.3-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L82" title="internal/component/bgp/plugins/rib/rfc7311_selection_test.go" target="_blank" rel="noopener"><code>TestAIGPDistanceChangeReselectsRetainedRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/aigp_readvertise_test.go#L169" title="internal/component/bgp/reactor/aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L169" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L14" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L17" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L83" title="internal/component/bgp/plugins/rib/rfc7311_selection_test.go" target="_blank" rel="noopener"><code>TestAIGPDistanceChangeReselectsRetainedRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/aigp_readvertise_test.go#L170" title="internal/component/bgp/reactor/aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L170" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L15" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L18" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7311-4.1-1">RFC7311-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Assuming that the BGP decision process invokes the tie-breaking procedures, the procedures in this section MUST be executed BEFORE any of the tie-breaking procedures described in [BGP], Section 9.1.2.2 are executed. (§4.1)</span></td></tr>
@@ -562,60 +587,95 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7311-3-1"><code>RFC7311-3-1</code></a></h3>
 <p>The AIGP TLV is encoded as follows: - Type: 1 - Length: 11 - Value: Accumulated IGP Metric. The value field of the AIGP TLV is always 8 octets long (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: accepting a Type-1 TLV whose Length is not 11. TestParseAIGPMalformedTruncatedValue is not tagged here; the tagged negative TestParseAIGPMalformedMetricWrongLength asserts an error only for Length 8 (below 11). No tagged assertion rejects a Type-1 TLV with Length above 11 (e.g. 12 with 9 value octets), so a validator written as tlvLen &lt; 11 passes both tagged units. Positive TestParseAIGP pins Type 1, Length 11, metric 100.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. TestRFC7311AIGPTLVLengthIsEleven: + WriteTo emits 01 000b and 8 value octets and ParseAIGP reads the metric back; - Type-1 TLVs of Length 12 and 10 are refused by ParseAIGP, the registered parser. Forbidden: accepting a Type-1 TLV whose Length is not 11. Records observed red (AIGPMetricOffset).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L101" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedMetricWrongLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L101" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedMetricWrongLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L21" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTLVLengthIsEleven</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L20" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGP</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L20" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGP</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L20" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTLVLengthIsEleven</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7311-3-2"><code>RFC7311-3-2</code></a></h3>
 <p>The value field of the AIGP attribute is defined here to be a set of elements encoded as &#34;Type/Length/Value&#34; (i.e., a set of TLVs). (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: accepting an attribute value that is not a whole set of TLVs, either a TLV overrunning the value (tagged negative TestParseAIGPMalformedTruncatedValue: assert.Error on Length 11 with 5 value octets) or trailing octets after the last TLV that do not form a TLV. The trailing-octets case (a valid TLV followed by 1 or 2 octets) has no assertion in a tagged unit, so a walker that stops at the last whole TLV passes. Positive TestParseAIGPMultipleTLVs pins two TLVs consuming exactly the value.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. TestRFC7311AIGPValueIsWholeTLVSet: + a value of two whole TLVs parses into exactly those two; - one, two or three trailing octets that do not form a TLV are refused. Forbidden: accepting a value that is not a whole set of TLVs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L89" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedTruncatedValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L89" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedTruncatedValue</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L58" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPValueIsWholeTLVSet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L52" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L52" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L57" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPValueIsWholeTLVSet</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7311-3-3"><code>RFC7311-3-3</code></a></h3>
 <p>Any other AIGP TLVs in the AIGP attribute MUST be passed along unchanged if the AIGP attribute is passed along. (§3)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The row quotes the Section 3 MUST that later AIGP TLVs (Type 1 after the first) are passed along unchanged when the attribute is passed along. Both tagged units (TestParseAIGPMultipleTLVs, TestAIGPWriteToMultipleTLVs) carry one Type-1 TLV and one Type-2 TLV and prove the codec keeps an unknown-type TLV through parse and WriteTo: the neighbouring unknown-type rule, not a second Type-1 TLV, and not the forwarding path where the attribute is passed along. No tagged assertion goes red if a forwarded AIGP drops or rewrites its second Type-1 TLV.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. Reactor TestRFC7311OtherAIGPTLVsPassedAlongUnchanged drives a received [T1 100][T1 7][T9 abcd] through applyFactsAIGP, buildModifiedPayload and fwdBatchHandler to the socket, transparent and next-hop-self, under a policy replacement that drops the other TLVs (R1(b)); the octets after the first TLV reach the wire unchanged. Codec half TestRFC7311OtherAIGPTLVsSurviveTheCodec. Judge break: OpCopy of received[:11] on both rails turned both subtests red. Supersedes the earlier wrong verdict: the tags now prove the other-TLV passing, not first-TLV use.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L142" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestAIGPWriteToMultipleTLVs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L59" title="internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsPassedAlongUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L142" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestAIGPWriteToMultipleTLVs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_test.go#L57" title="internal/core/bgp/attribute/aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L58" title="internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsPassedAlongUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L57" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L85" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsSurviveTheCodec</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -628,7 +688,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L68" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPTransitiveIsDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7311_aigp_test.go#L68" title="internal/component/bgp/message/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPTransitiveIsDiscarded</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -638,7 +698,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_aigp_test.go#L104" title="internal/component/bgp/message/rfc7606_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPNonTransitiveIsKept</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7311_aigp_test.go#L104" title="internal/component/bgp/message/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPNonTransitiveIsKept</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -698,12 +758,12 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_rfc7311_test.go#L80" title="internal/core/bgp/attribute/aigp_rfc7311_test.go" target="_blank" rel="noopener"><code>TestRFC7311MalformedVerdictIsForLengthOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go#L80" title="internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311MalformedVerdictIsForLengthOnly</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/aigp_rfc7311_test.go#L50" title="internal/core/bgp/attribute/aigp_rfc7311_test.go" target="_blank" rel="noopener"><code>TestRFC7311DuplicateAndUnknownTLVsAreWellFormed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go#L50" title="internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311DuplicateAndUnknownTLVsAreWellFormed</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -872,20 +932,40 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 </div>
 <h3><a href="#rfc7311-3.4.3-2"><code>RFC7311-3.4.3-2</code></a></h3>
 <p>In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: any Section 3.4.3 computation exceeding or wrapping past 0xffffffffffffffff. The tagged unit TestAIGPForwardedMetricsReachFinalWire case saturate asserts max-5 plus 30 equals the maximum for the next-hop-self interior addition, and case interior shows 130 is not clamped. The recursive procedure sums (Xattr+Y, Xattr+D) are not asserted in a unit tagged for this id; the sysrib saturation assertion in TestAIGPRecursiveDistanceUsesReceivedMetrics is tagged only for 3.4.3-4 and 3.4.3-7, and the direct-link addition (link-policy) is not tested near the maximum.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7311 §3.4.3: &#34;In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff. Increasing the AIGP value MUST NOT cause the value to wrap around.&#34; All tagged carriers were read. internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire pins ordinary interior addition 100+30=130 and overflowing max-5+30=max. rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears adds unresolved direct-link exact 107 and saturated max. rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire drives real Loc-RIB recursive metric changes and socket advertisements: initial 100+200+7=307, max-5 overflows recursive+terminal addition, max-50 overflows only the subsequent source addition, and finite 400 restores exact 507 rather than using the previous advertised maximum. Producers internal/core/rib/igpcost/igpcost.go::Add/Resolve and reactor/forward_aigp.go::applyFactsAIGP/replay path saturate each accumulation. Separate ordinary and overflow subcases discriminate both polarities without malformed packets. This closes the earlier direct and recursive arithmetic gaps, but is not proof of operator link-cost provenance or all RFC7311 behavior. No checks or red observation executed by this judge.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L20" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L167" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L20" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L19" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L166" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L19" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -972,15 +1052,25 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 </div>
 <h3><a href="#rfc7311-3.4.3-6"><code>RFC7311-3.4.3-6</code></a></h3>
 <p>Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: after next-hop-self over a direct EBGP link with no IGP, advertising the AIGP value unchanged (increase of zero). Case link-policy (unresolved, link cost 7) asserts 107, so a missing increase goes red. The tagged negative is case zero-refused, which uses a RESOLVED interior route of cost 0: that is the 3.4.3-5 scenario, not a direct link with no IGP. No tagged case has Resolved false with link cost 0, so an implementation that advertises the unchanged metric on an unresolved direct link with no configured cost passes.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 7311 §3.4.3: &#34;It is possible that R1 and R2 above are EBGP neighbors and that there is a direct link between them on which no IGP is running. Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount. The amount of the increase SHOULD be such that it is properly comparable to the IGP metrics.&#34; Both tagged carriers internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire and rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears assert 100+7=107 at final wire and now include unresolved direct-link cost zero with AIGP absent, closing the previous missing input case. They nevertheless call forward_aigp.go::applyFactsAIGP directly with a literal sourceLinkMetric. Neither traverses sourceAIGPLinkMetric or the actual general/route-server source-cost plumbing; changing that plumbing to use the destination peer metric can leave both green. Current producer correctly chooses source Settings().AIGPLinkMetric when the received next hop is the source peer, but the row does not prove that provenance. In addition, zero-cost suppression avoids an unchanged metric but does not itself prove the RFC-mandated nonzero increase; the RFC explicitly permits dropping for missing recursive AIGP, not as an equivalent direct-link increase. Keep weak instead of promoting helper arithmetic to the whole direct-link obligation. No production change or policy invention authorized.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L18" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L175" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L17" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L174" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
@@ -992,7 +1082,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 </div>
 <h3><a href="#rfc7311-3.4.3-7"><code>RFC7311-3.4.3-7</code></a></h3>
 <p>Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a change in the AIGP TLV value of a recursively resolved next hop (clause (a)) not triggering a new AIGP computation for the route. TestAIGPReadvertisesFromReceivedGeneration and TestAIGPDistanceChangeReselectsRetainedRoutes change an IGP or Loc-RIB metric (clause (b)) and the RIB test calls reselectAIGPRoutes by hand. TestAIGPRecursiveDistanceUsesReceivedMetrics changes a recursive route&#39;s AIGP (400) but calls IGPMetric by hand, proving the value is read when asked, not that the change triggers a recomputation or re-advertisement. No tagged assertion goes red if a recursive AIGP change is never acted on.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7311 §3.4.3: &#34;The AIGP TLV value of a given route depends on (a) the AIGP TLV values of all the next hops that are recursively resolved during this procedure, and (b) the IGP distance to any next hop that is not recursively resolved. Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route. Whether a change due to (b) triggers a new AIGP computation depends upon whether the change in IGP distance exceeds a configurable threshold.&#34; Read all four tagged carriers. reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire now changes a recursive BGP received AIGP in the actual Loc-RIB and waits for real forwarding-worker/socket output, without new source UPDATE or manual replay; expected 307/max/507/max/507 distinguishes notification loss, missing recomputation and accumulation from prior advertisement. reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration separately proves source generation survives cache eviction and exact 107 then 111. plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes and sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics are supplementary manual recomputation assertions, not credited as automatic-trigger proof. Producers reactor/aigp_readvertise.go::runAIGPAdvertisements/readvertiseAIGP/replayAIGP subscribe to Loc-RIB changes and recompute from retained received bytes using igpcost.Resolve; source AIGP is not an operator/MED substitute. The recursive carrier closes the prior clause-(a) trigger gap; the finite-after-saturation cases supply a distinct negative. This does not promote configurable clause-(b) threshold policy or runtime verification.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1003,9 +1093,14 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/aigp_readvertise_test.go#L170" title="internal/component/bgp/reactor/aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L170" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L18" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L15" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></td>
@@ -1018,9 +1113,14 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/aigp_readvertise_test.go#L169" title="internal/component/bgp/reactor/aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L169" title="internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go" target="_blank" rel="noopener"><code>TestAIGPReadvertisesFromReceivedGeneration</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L17" title="internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go" target="_blank" rel="noopener"><code>TestRFC7311RecursiveAIGPChangeReachesWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L14" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></td>
@@ -1274,7 +1374,7 @@ Automatic origination policies are not enabled. Origination accepts explicitly c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

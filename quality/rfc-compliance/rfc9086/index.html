@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9086 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9086: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering. 11 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9086: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering. 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9086 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9086: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering. 11 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9086: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering. 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9086 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9086: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering. 11 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9086: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering. 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -117,9 +118,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>72.7%</strong><b>8 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>94.1%</strong><b>16 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>22 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -133,10 +135,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.2%</strong><b>2 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 11 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 11 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -213,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>22</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>22</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>7</td>
+<td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>16</td>
+<td>22</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9086.md</code></td>
@@ -258,7 +264,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 PeerNode/Adj/Set SID TLVs and BGP Router-ID/Member-ASN descriptors decode. The native <code>bgp-epe</code> producer installs configured PeerNode labels through the MPLS FIB owner, waits for installation acknowledgement, and publishes live session identities with its SRGB. <code>bgp-ls-export</code> advertises that state and withdraws replaced or removed identities.
 </details>
 <p><strong>What the ledger says remains:</strong></p>
-PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses persistent operator-assigned indices, not three-octet label assignments. Centralized runtime verification and discrimination of the new producer remain required.
+PeerAdj and PeerSet segment assignment and their advertisement controls are not implemented; neither is per-recipient selection of EPE information. Native EPE uses persistent operator-assigned indices, not three-octet label assignments.
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -269,7 +275,7 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td><strong>8</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -280,6 +286,10 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -294,7 +304,7 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc9086-3-1"><code>RFC9086-3-1</code></a>, <a href="#rfc9086-3-2"><code>RFC9086-3-2</code></a>, <a href="#rfc9086-4.2-1"><code>RFC9086-4.2-1</code></a>, <a href="#rfc9086-4.2-2"><code>RFC9086-4.2-2</code></a>, <a href="#rfc9086-5-1"><code>RFC9086-5-1</code></a>, <a href="#rfc9086-5-3"><code>RFC9086-5-3</code></a>, <a href="#rfc9086-5-10"><code>RFC9086-5-10</code></a>, <a href="#rfc9086-7-1"><code>RFC9086-7-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc9086-5.2-1"><code>RFC9086-5.2-1</code></a>, <a href="#rfc9086-5-2"><code>RFC9086-5-2</code></a>, <a href="#rfc9086-5-5"><code>RFC9086-5-5</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc9086-5.2-1"><code>RFC9086-5.2-1</code></a>, <a href="#rfc9086-5-2"><code>RFC9086-5-2</code></a>, <a href="#rfc9086-7-2"><code>RFC9086-7-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -306,8 +316,8 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L89" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L195" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L89" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L307" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-3-2">RFC9086-3-2</code></td><td colspan="3"><span class="rfc-subject">One PeerNode SID MUST be instantiated to describe the BGP peer session (S3)</span></td></tr>
@@ -315,8 +325,8 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L90" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L211" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L90" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L323" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-4.2-1">RFC9086-4.2-1</code></td><td colspan="3"><span class="rfc-subject">The following Node Descriptor TLVs MUST be included in BGP-LS NLRI as Local Node Descriptors when distributing BGP information: * BGP Router-ID (TLV 516), which contains a valid BGP Identifier of the local BGP node. * Autonomous System Number (TLV 512) [RFC7752], which contains the Autonomous System Number (ASN) or AS Confederation Identifier (an ASN) [RFC5065], if confederations are used, of the local BGP node. (S4.2)</span></td></tr>
@@ -324,8 +334,10 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L92" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L184" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go#L26" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go" target="_blank" rel="noopener"><code>TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L92" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go#L57" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresLocalRouterID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L184" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-4.2-2">RFC9086-4.2-2</code></td><td colspan="3"><span class="rfc-subject">The following Node Descriptor TLVs MUST be included in BGP-LS Link NLRI as Remote Node Descriptors when distributing BGP information: * BGP Router-ID (TLV 516), which contains the valid BGP Identifier of the peer BGP node. * Autonomous System Number (TLV 512) [RFC7752], which contains the ASN or the AS Confederation Identifier (an ASN) [RFC5065], if confederations are used, of the peer BGP node. (S4.2)</span></td></tr>
@@ -333,8 +345,8 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L93" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L185" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L93" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L185" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-5-1">RFC9086-5-1</code></td><td colspan="3"><span class="rfc-subject">When enabled for Egress Peer Engineering, the BGP router MUST include the PeerNode SID TLV in the BGP-LS Attribute for the BGP-LS Link NLRI corresponding to its BGP peering sessions. (S5)</span></td></tr>
@@ -342,8 +354,8 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L91" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L196" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L91" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L308" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-5.2-1">RFC9086-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Link Descriptors MUST include the following TLV, as defined in [RFC7752]: - Link Local/Remote Identifiers (TLV 258) contains the 4-octet Link Local Identifier followed by the 4-octet Link Remote Identifier. (S5.2)</span></td></tr>
@@ -369,8 +381,12 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L254" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L257" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L366" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go#L57" title="internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go" target="_blank" rel="noopener"><code>TestRFC9086OriginatedPeerSIDRsvdBitsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L855" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go#L26" title="internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L369" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go#L65" title="internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go" target="_blank" rel="noopener"><code>TestRFC9086SourceRsvdBitsNeverOriginated</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-5-10">RFC9086-5-10</code></td><td colspan="3"><span class="rfc-subject">A 4-octet index defining the offset in the Segment Routing Global Block (SRGB) [RFC8402] advertised by this router. In this case, the SRGB MUST be advertised using the extensions defined in [RFC9085]. (S5)</span></td></tr>
@@ -378,27 +394,27 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L88" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L132" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L88" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L132" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-7-1">RFC9086-7-1</code></td><td colspan="3"><span class="rfc-subject">The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-7-1">RFC9086-7-1</code></td><td colspan="3"><span class="rfc-subject">The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, (S7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L210" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L211" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L210" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L211" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-5-5">RFC9086-5-5</code></td><td colspan="3"><span class="rfc-subject">Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received. (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-7-2">RFC9086-7-2</code></td><td colspan="3"><span class="rfc-subject">PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L854" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></span></div>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> decodePeerSID reads Flags without branching on reserved bits and never rejects on them, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_link.go:559-572)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> R3 split of the operator-control sentence; native bgp-epe implements only PeerNode assignment, not PeerAdj/PeerSet advertisement options or per-recipient information controls (internal/component/bgp/plugins/epe/epe_config.go ParseConfig; internal/component/bgp/plugins/ls_export/export_config.go parseExportConfig).</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-5-7">RFC9086-5-7</code></td><td colspan="3"><span class="rfc-subject">The values of the PeerNode SID, PeerAdj SID, and PeerSet SID Sub-TLVs SHOULD be persistent across router restart. (S5)</span></td></tr>
 <tr><td></td>
@@ -498,6 +514,10 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <td>{gap}, no test</td>
 <td>the encoder writes the Flags byte verbatim and never originates a label-encoded SID, so no path sets V/L (internal/component/bgp/plugins/nlri/ls/attr_link.go:521)</td>
 </tr>
+<tr><td><a href="#rfc9086-7-2"><code>RFC9086-7-2</code></a> PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</td>
+<td>{gap}, no test</td>
+<td>R3 split of the operator-control sentence; native bgp-epe implements only PeerNode assignment, not PeerAdj/PeerSet advertisement options or per-recipient information controls (internal/component/bgp/plugins/epe/epe_config.go ParseConfig; internal/component/bgp/plugins/ls_export/export_config.go parseExportConfig).</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -512,12 +532,12 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L195" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L307" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L89" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L89" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -532,12 +552,12 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L211" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L323" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L90" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L90" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -546,18 +566,28 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 </div>
 <h3><a href="#rfc9086-4.2-1"><code>RFC9086-4.2-1</code></a></h3>
 <p>The following Node Descriptor TLVs MUST be included in BGP-LS NLRI as Local Node Descriptors when distributing BGP information: * BGP Router-ID (TLV 516), which contains a valid BGP Identifier of the local BGP node. * Autonomous System Number (TLV 512) [RFC7752], which contains the Autonomous System Number (ASN) or AS Confederation Identifier (an ASN) [RFC5065], if confederations are used, of the local BGP node. (S4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence covers every BGP-LS NLRI Ze distributes for protocol BGP, Node NLRI and Link NLRI. (a) forbidden: a Local Node Descriptor without TLV 516 or TLV 512. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts local 516=192.0.2.1 and 512=65000 on the Link NLRI (capture.commands[1]); TestRFC9086NativePeerRequiresNodeIdentities refuses a local ASN of 0. Weak because the Node NLRI the same test emits (capture.commands[0]) never has its Local Node Descriptors checked, so dropping 516 or 512 from the Node NLRI stays green; the negative covers the missing ASN only, not a missing local Router-ID.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-10-02 (c33 judge): + TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN reads both emitted NLRIs (Node type 1 and Link type 2, Protocol-ID 7) and asserts one Local Node Descriptors TLV 256 holding TLV 516 c0 00 02 01 and TLV 512 00 00 fd e8 exactly once each, closing the unchecked Node NLRI. - TestRFC9086NativePeerRequiresLocalRouterID (local router-id 0.0.0.0 or absent: State errors, no label, no NLRI) beside HEAD TestRFC9086NativePeerRequiresNodeIdentities (local ASN 0). Judge break: the local-identifier check in epe_source.go State reduced to rejecting only a non-IPv4 address turns the new negative red. The confederation-identifier clause is conditional on confederations, which have no configuration surface in Ze (internal/component/bgp/reactor/forward_local_pref.go), so TLV 512 always carries the plain local ASN.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L184" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go#L57" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresLocalRouterID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L184" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L92" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go#L26" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go" target="_blank" rel="noopener"><code>TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L92" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -572,12 +602,12 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L185" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L185" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L93" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L93" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -592,12 +622,12 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L196" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L308" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L91" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L91" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -614,18 +644,38 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <p>No test carries RFC9086-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9086-5-3"><code>RFC9086-5-3</code></a></h3>
 <p>- Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received. (S5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Two clauses. Zero when originated: (a) a PeerNode SID sent with reserved flag bits set; (b) TestRFC9086NativePeerSIDReservedFlagsZero asserts sid[0]&amp;0x0f==0 on the wire from a source that set 0xcf, enforced. Ignored when received: (a) a received TLV rejected or mis-decoded because Rsvd bits are set; (b) no unit tagged 5-3 asserts it. The receive clause is proven only by TestRFC9086PeerSIDIgnoresReservedFields, which is tagged RFC9086-5-5. Rows 5-3 and 5-5 now quote the same sentence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9086 Section 5: &#34;Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received.&#34; All six current covers read. TestRFC9086OriginatedPeerSIDRsvdBitsZero and TestRFC9086SourceRsvdBitsNeverOriginated compare emitted flags for conforming 0xc0 and forbidden-source 0xcf. TestRFC9086NativePeerSIDReservedFlagsZero checks defined flags/weight/SID survive while reserved bits/field clear. TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived drives all three registered SID decoders with BOTH conforming seven-octet label and eight-octet index forms, with reserved flags set/clear, requiring equal meaningful flags, weight and SID. The older TestRFC9086PeerSIDIgnoresReservedFields additionally accepts nonzero reserved field; its eight-octet V/L-set fixture is not relied on as the conforming receive witness. clearOriginatedReserved handles 1101/1102/1103; decodePeerSID reads flags without rejecting reserved bits and decodes SID independently. Both originate and receive clauses are genuinely exercised in historical supported scope; no PeerAdj/PeerSet origin feature is claimed. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L257" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L369" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go#L65" title="internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go" target="_blank" rel="noopener"><code>TestRFC9086SourceRsvdBitsNeverOriginated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L254" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L366" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerSIDReservedFlagsZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go#L57" title="internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go" target="_blank" rel="noopener"><code>TestRFC9086OriginatedPeerSIDRsvdBitsZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L855" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go#L26" title="internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -640,12 +690,12 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L132" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L132" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L88" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L88" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -653,40 +703,29 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
 </table>
 </div>
 <h3><a href="#rfc9086-7-1"><code>RFC9086-7-1</code></a></h3>
-<p>The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: configure/enable/disable advertisement of PeerNode, of PeerAdj, of PeerSet, and control of which information goes to which internal or external peer. (b) TestRFC9086NativeConfigurationEnableDisable asserts config enables a PeerNode advertisement and label and removing the config withdraws both, enforced for PeerNode only. No tagged unit asserts an option for PeerAdj or PeerSet (Ze originates neither) or any per-receiving-peer control of what is advertised.</p>
+<p>The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, (S7)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 9086 Section 7 whole sentence: &#34;The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.&#34; Current requirement text ends at PeerNode SID and the remaining clauses are disclosed on RFC9086-7-2; the source sentence and historical capability boundary have not changed. TestRFC9086NativeConfigurationEnableDisable genuinely proves configure/enable/disable for PeerNode: parsed operator configuration yields label 16007 plus exact PeerNode TLV, removing configuration removes forwarding labels and emits collector withdrawals while the session remains up. Producers epe_config.go ParseConfig and epe_source.go publishLocked implement only PeerNode assignment. No current tagged unit proves PeerAdj/PeerSet options or per-recipient information control, and the row&#39;s previous weak judgment explicitly bound the whole sentence. Preserve weak rather than upgrading solely because the summary was truncated; the existing RFC9086-7-2 gap remains intact, with no new exclusion or feature implementation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L211" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L211" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L210" title="internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L210" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc9086-5-5"><code>RFC9086-5-5</code></a></h3>
-<p>Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received. (S5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Same sentence as RFC9086-5-3 (the receive-only half is under 24 characters, so the quote carries both clauses). Ignored when received: (a) decodePeerSID rejecting or corrupting a TLV with Rsvd bits set; (b) TestRFC9086PeerSIDIgnoresReservedFields asserts NoError, Flags&amp;0xF0==0xC0 and SID==24000 for flags 0xCF, enforced. Zero when originated: no unit tagged 5-5 asserts it; it is proven only under RFC9086-5-3 (TestRFC9086NativePeerSIDReservedFlagsZero).</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L854" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9086PeerSIDIgnoresReservedFields</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
+<h3><a href="#rfc9086-7-2"><code>RFC9086-7-2</code></a></h3>
+<p>PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9086-7-2, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -910,7 +949,7 @@ PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses pers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

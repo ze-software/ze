@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>48.0%</strong><b>12 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>20.0%</strong><b>5 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.0%</strong><b>8 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>47.1%</strong><b>16 of 34 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>32.0%</strong><b>8 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>18</strong><b>of 25 gated MUSTs judged</b><p>8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>18</strong><b>of 25 gated MUSTs judged</b><p>7 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>32</td>
+<td>34</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>32</td>
+<td>34</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>18</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>16</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9252.md</code></td>
@@ -265,7 +271,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-EVPN transposition is not implemented: Section 6 puts the label field at a different NLRI offset per route type, in the PMSI Tunnel Attribute for Route Type 3 and in the ESI Label extended community for Route Type 1 per-ES, and Route Type 2 has two label fields bound to different Service TLVs. An EVPN route whose Prefix-SID declares a transposition therefore yields no SID rather than the partial one. Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9252.md" target="_blank" rel="noopener"><code>rfc/short/rfc9252.md</code></a>: <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>/6.1-1/6.2-1 -- Transposition Length is now bounded against the 20-bit VPN and 24-bit EVPN label field widths but still not against FL or AL; <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a>/3.2.1-2 -- the zero-offset-when-length-zero and zero-when-scheme-not-applicable transposition constraints are not enforced; <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>/3.2-6 -- ze keeps no SRv6 Endpoint Behavior registry, so it neither ignores SIDs with a non-zero Argument Length under an unknown behavior nor validates AL against a known behavior; and <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a> -- ze installs the received Service SID into the FIB (kernel SEG6 encap at <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></a>, VPP SR steering at <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/vpp/srv6.go" target="_blank" rel="noopener"><code>internal/plugins/fib/vpp/srv6.go</code></a>) but performs no Section 5 resolvability check on the SID locator before best-path computation (isSRv6Ineligible gates on extraction validity only). Six further MUST gaps were added by the 2026-09-21 extraction walk and none is proven: <a href="#rfc9252-3.2.1-4"><code>RFC9252-3.2.1-4</code></a>, <a href="#rfc9252-3.2.1-5"><code>RFC9252-3.2.1-5</code></a>, <a href="#rfc9252-3.2.1-6"><code>RFC9252-3.2.1-6</code></a>, <a href="#rfc9252-5-3"><code>RFC9252-5-3</code></a>, <a href="#rfc9252-7-1"><code>RFC9252-7-1</code></a> and <a href="#rfc9252-7-2"><code>RFC9252-7-2</code></a>, so the count of MUST gaps on this page is fourteen, not eight.
+EVPN transposition is not implemented: Section 6 puts the label field at a different NLRI offset per route type, in the PMSI Tunnel Attribute for Route Type 3 and in the ESI Label extended community for Route Type 1 per-ES, and Route Type 2 has two label fields bound to different Service TLVs. An EVPN route whose Prefix-SID declares a transposition therefore yields no SID rather than the partial one. Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9252.md" target="_blank" rel="noopener"><code>rfc/short/rfc9252.md</code></a>: <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>/6.1-1/6.2-1 -- Transposition Length is now bounded against the 20-bit VPN and 24-bit EVPN label field widths but still not against FL or AL; <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a>/3.2.1-2 -- the zero-offset-when-length-zero and zero-when-scheme-not-applicable transposition constraints are not enforced; <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>/3.2-6 -- ze keeps no SRv6 Endpoint Behavior registry, so it neither ignores SIDs with a non-zero Argument Length under an unknown behavior nor validates AL against a known behavior; and <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a> -- ze installs the received Service SID into the Linux FIB (kernel SEG6 encap at <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></a>) but performs no Section 5 resolvability check on the SID locator before best-path computation (isSRv6Ineligible gates on extraction validity only). VPP issues a steering request using the Service SID as a binding SID but installs no SR policy, so this is not end-to-end VPP encapsulation (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/vpp/srv6.go" target="_blank" rel="noopener"><code>internal/plugins/fib/vpp/srv6.go</code></a>::addSRv6Steer; owner assigned a separate policy-installation spec on 2026-10-02). Six further MUST gaps were added by the 2026-09-21 extraction walk and none is proven: <a href="#rfc9252-3.2.1-4"><code>RFC9252-3.2.1-4</code></a>, <a href="#rfc9252-3.2.1-5"><code>RFC9252-3.2.1-5</code></a>, <a href="#rfc9252-3.2.1-6"><code>RFC9252-3.2.1-6</code></a>, <a href="#rfc9252-5-3"><code>RFC9252-5-3</code></a>, <a href="#rfc9252-7-1"><code>RFC9252-7-1</code></a> and <a href="#rfc9252-7-2"><code>RFC9252-7-2</code></a>, so the count of MUST gaps on this page is fourteen, not eight.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -277,7 +283,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td><strong>12</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>13</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -288,6 +294,10 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -302,7 +312,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (12):</strong> <a href="#rfc9252-3.1-2"><code>RFC9252-3.1-2</code></a>, <a href="#rfc9252-3.2.1-3"><code>RFC9252-3.2.1-3</code></a>, <a href="#rfc9252-5-1"><code>RFC9252-5-1</code></a>, <a href="#rfc9252-3.3-1"><code>RFC9252-3.3-1</code></a>, <a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a>, <a href="#rfc9252-3.4-1"><code>RFC9252-3.4-1</code></a>, <a href="#rfc9252-3.2.1-4"><code>RFC9252-3.2.1-4</code></a>, <a href="#rfc9252-3.2.1-5"><code>RFC9252-3.2.1-5</code></a>, <a href="#rfc9252-3.2.1-6"><code>RFC9252-3.2.1-6</code></a>, <a href="#rfc9252-5-3"><code>RFC9252-5-3</code></a>, <a href="#rfc9252-7-1"><code>RFC9252-7-1</code></a>, <a href="#rfc9252-7-2"><code>RFC9252-7-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (13):</strong> <a href="#rfc9252-3.1-1"><code>RFC9252-3.1-1</code></a>, <a href="#rfc9252-3.2-1"><code>RFC9252-3.2-1</code></a>, <a href="#rfc9252-3.2-2"><code>RFC9252-3.2-2</code></a>, <a href="#rfc9252-3.2-3"><code>RFC9252-3.2-3</code></a>, <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a>, <a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a>, <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>, <a href="#rfc9252-6.1-1"><code>RFC9252-6.1-1</code></a>, <a href="#rfc9252-6.2-1"><code>RFC9252-6.2-1</code></a>, <a href="#rfc9252-3.2-4"><code>RFC9252-3.2-4</code></a>, <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>, <a href="#rfc9252-3.2-6"><code>RFC9252-3.2-6</code></a>, <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (13):</strong> <a href="#rfc9252-3.1-1"><code>RFC9252-3.1-1</code></a>, <a href="#rfc9252-3.2-1"><code>RFC9252-3.2-1</code></a>, <a href="#rfc9252-3.2-2"><code>RFC9252-3.2-2</code></a>, <a href="#rfc9252-3.2-3"><code>RFC9252-3.2-3</code></a>, <a href="#rfc9252-3.2.1-1"><code>RFC9252-3.2.1-1</code></a>, <a href="#rfc9252-3.2.1-2"><code>RFC9252-3.2.1-2</code></a>, <a href="#rfc9252-4.1-1"><code>RFC9252-4.1-1</code></a>, <a href="#rfc9252-6.1-1"><code>RFC9252-6.1-1</code></a>, <a href="#rfc9252-6.2-1"><code>RFC9252-6.2-1</code></a>, <a href="#rfc9252-3.2-4"><code>RFC9252-3.2-4</code></a>, <a href="#rfc9252-3.2-5"><code>RFC9252-3.2-5</code></a>, <a href="#rfc9252-3.2-6"><code>RFC9252-3.2-6</code></a>, <a href="#rfc9252-5-2"><code>RFC9252-5-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -323,8 +333,8 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L255" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L269" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L255" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L269" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2-1">RFC9252-3.2-1</code></td><td colspan="3"><span class="rfc-subject">RESERVED1 (1 octet): This field MUST be set to 0 by the sender (§3.1)</span></td></tr>
@@ -377,9 +387,9 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>3.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L139" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_WithTransposition</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L217" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_InvalidSIDStructure</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L235" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_SumBelowTransposition</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L139" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_WithTransposition</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L217" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_InvalidSIDStructure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L235" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_SumBelowTransposition</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-4.1-1">RFC9252-4.1-1</code></td><td colspan="3"><span class="rfc-subject">When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL. (§5.1, §5.2)</span></td></tr>
@@ -414,7 +424,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST NOT</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L285" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_UnknownEndpointBehavior</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L285" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_UnknownEndpointBehavior</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> extractSIDFromServiceTLV extracts the SID without inspecting or validating the SRv6 Endpoint Behavior, so an unrecognized behavior is never rejected and there is no behavior-based rejection path to drive negatively (internal/component/bgp/plugins/rib/pool/srv6sid.go:84)</p></td>
 </tr>
@@ -441,9 +451,9 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L72" title="internal/component/bgp/plugins/rib/srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_ValidSID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L83" title="internal/component/bgp/plugins/rib/srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_InvalidSID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_transposition_test.go#L168" title="internal/component/bgp/plugins/rib/srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go#L72" title="internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_ValidSID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go#L83" title="internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_InvalidSID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go#L196" title="internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-5-2">RFC9252-5-2</code></td><td colspan="3"><span class="rfc-subject">Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation. (S5)</span></td></tr>
@@ -460,8 +470,9 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L336" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L339" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L339" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go#L55" title="internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go" target="_blank" rel="noopener"><code>TestRFC9252ReservedFieldsPropagatedUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L342" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.3-2">RFC9252-3.3-2</code></td><td colspan="3"><span class="rfc-subject">If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed. (§2)</span></td></tr>
@@ -469,8 +480,9 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L338" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L337" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L341" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L171" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L340" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.4-1">RFC9252-3.4-1</code></td><td colspan="3"><span class="rfc-subject">The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute. (§7)</span></td></tr>
@@ -488,8 +500,8 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>3.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L10" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginTranspositionKeepsOnlyUntransposedBits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L21" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesNonzeroTransposedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L10" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginTranspositionKeepsOnlyUntransposedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L21" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesNonzeroTransposedBits</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2.1-5">RFC9252-3.2.1-5</code></td><td colspan="3"><span class="rfc-subject">Implementations supporting this specification MUST provide a mechanism to control the advertisement of SRv6-based BGP service routes on a per-neighbor and per-service basis. (S3.2.1)</span></td></tr>
@@ -506,8 +518,8 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>3.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L30" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginWithoutArguments</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L41" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesArgumentsForDT4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L30" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginWithoutArguments</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L41" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesArgumentsForDT4</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-5-3">RFC9252-5-3</code></td><td colspan="3"><span class="rfc-subject">it indicates that the egress PE supports SRv6 overlay, and the BGP ingress PE receiving this route MUST perform IPv6 encapsulation and insert an SRH [RFC8754] when required (§5)</span></td></tr>
@@ -515,8 +527,8 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L15" title="internal/plugins/fib/kernel/nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestSRv6ServiceSIDSelectsIPv6Encapsulation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L39" title="internal/plugins/fib/kernel/nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestRouteWithoutServiceSIDKeepsMPLSEncapsulation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go#L15" title="internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestSRv6ServiceSIDSelectsIPv6Encapsulation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go#L39" title="internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestRouteWithoutServiceSIDKeepsMPLSEncapsulation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-7-1">RFC9252-7-1</code></td><td colspan="3"><span class="rfc-subject">If multiple instances of the SRv6 L3 Service TLV are encountered, all but the first instance MUST be ignored. (S7)</span></td></tr>
@@ -524,8 +536,8 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L31" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L32" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L31" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L32" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-7-2">RFC9252-7-2</code></td><td colspan="3"><span class="rfc-subject">If multiple instances of the SRv6 L2 Service TLV are encountered, all but the first instance MUST be ignored. (S7)</span></td></tr>
@@ -533,8 +545,8 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-7-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L33" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L34" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L33" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L34" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2-7">RFC9252-3.2-7</code></td><td colspan="3"><span class="rfc-subject">When multiple SRv6 SID Information Sub-TLVs are present, the ingress PE SHOULD use the SRv6 SID from the first instance of the Sub-TLV. (§3.1)</span></td></tr>
@@ -652,12 +664,12 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L269" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L269" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L255" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L255" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_ServiceReservedZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -725,17 +737,17 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L217" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_InvalidSIDStructure</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L217" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_InvalidSIDStructure</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L235" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_SumBelowTransposition</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L235" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_SumBelowTransposition</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L139" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_WithTransposition</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L139" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SIDFull_WithTransposition</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -762,7 +774,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid_test.go#L285" title="internal/component/bgp/plugins/rib/pool/srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_UnknownEndpointBehavior</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go#L285" title="internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go" target="_blank" rel="noopener"><code>TestExtractSRv6SID_UnknownEndpointBehavior</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -779,23 +791,23 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <p>No test carries RFC9252-3.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9252-5-1"><code>RFC9252-5-1</code></a></h3>
 <p>The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix. (§7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. &#39;any such&#39; refers back to the Section 7 cases: transposition length wider than the label field, a SID Structure condition of Section 3.2.1 unmet, a non-zero transposition where none applies. TestIsSRv6Ineligible_InvalidSID covers only a SID Information Sub-TLV too short to hold a SID. isSRv6Ineligible decides on pool.ExtractSRv6SID, which returns a valid SID in each of the Section 7 cases, so such a path stays eligible. TestSRv6TranspositionWiderThanLabelFieldIsIneligible is tagged negative but asserts only that no SID is reconstructed, and says in its own comment that ineligibility is not asserted.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 9252 Section 7: &#39;The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix.&#39; Its preceding sentence defines invalidity: &#39;The SRv6 SID value in the SRv6 SID Information Sub-TLV is invalid when the SID Structure Sub-Sub-TLV transposition length is greater than the number of bits of the label field or if any of the conditions for the fields of the Sub-Sub-TLV, as specified in Section 3.2.1, is not met.&#39; Section 7 also requires zero transposition offset/length on families where transposition does not apply. Section 3.2.1 was read with verified erratum 7817 (sum &gt;= offset+length). All tagged tests were read: internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID and ::TestIsSRv6Ineligible_InvalidSID, and internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible. The positive helper test uses a valid extracted SID. The first negative instead supplies a five-octet SID Information Sub-TLV: this is structural malformation whose RFC action is treat-as-withdraw, not an isolated semantic-ineligibility case. The transposition negative supplies an otherwise valid VPNv4 SID Structure with FL=24, offset=48, length=24 and a 20-bit label field, but checks only storedSRv6SID -&gt; storedPathSRv6SID -&gt; srv6SIDFromResult returning no SID. Its final comment explicitly excludes candidate admission from the assertion. Thus its tag claims a selection result the test never checks. rib_bestchange.go::isSRv6Ineligible calls pool.ExtractSRv6SID, which discards the transposition result and returns the extracted SID even for this width violation; rib_commands.go::candidateAdmitted and rib_flowspec_validation.go::reconcileFlowSpecs use that predicate. pool/srv6sid.go::parseSIDStructure also returns no-transposition on invalid sum without invalidating the SID returned by extractSIDFromServiceTLV. These are source-backed existing-capability defects, not authorization to implement absent EVPN reconstruction or endpoint-behavior features. Proposed unrun reproduction: feed the existing tooWide=24 VPNv4 fixture and assert zero real candidates and no best-change install; pair with valid 20-bit boundary input. Current tests can stay green while the invalid route participates in selection. No build, test or mutation was run for this judgment; no matching discrimination record exists.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L83" title="internal/component/bgp/plugins/rib/srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_InvalidSID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go#L83" title="internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_InvalidSID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_transposition_test.go#L168" title="internal/component/bgp/plugins/rib/srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go#L196" title="internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/srv6_ineligible_test.go#L72" title="internal/component/bgp/plugins/rib/srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_ValidSID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go#L72" title="internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_ValidSID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -808,40 +820,50 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <p>No test carries RFC9252-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9252-3.3-1"><code>RFC9252-3.3-1</code></a></h3>
 <p>If the BGP next hop is unchanged during the advertisement, the SRv6 Service TLVs, including any unrecognized Types of Sub-TLV and Sub-Sub-TLV, SHOULD be propagated further. In addition, all Reserved fields in the TLV, Sub-TLV, or Sub-Sub-TLV MUST be propagated unchanged. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: with the next hop unchanged, a forwarded Prefix-SID whose Reserved octets differ from those received. TestPrefixSIDPropagationNextHop asserts only that applyFactsNextHop emits no op for code 40; nothing compares the forwarded Prefix-SID bytes on the wire, so a re-encode that zeroed Reserved would pass. Its negative-tagged subtest asserts the next-hop-changed suppression, which is RFC9252-3.3-2, not a violation of this row.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The missing wire tag is now present: TestRFC9252ReservedFieldsPropagatedUnchanged relays, with the next hop unchanged, on the general and route-server rails, L3 and L2 Service TLVs with TLV RESERVED 0xA5, SID Information Sub-TLV RESERVED1 0x5A and RESERVED2 0xC3 (layout checked against rfc9252.txt Section 2, 3.1, 3.2.1; the SID Structure Sub-Sub-TLV has no Reserved field), an unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE, and asserts attribute 40 byte-identical plus the source next hop; a zeroing or dropping rail goes red. Observed red with applyFactsNextHop broken. Negative stays on TestPrefixSIDPropagationNextHop: the propagation is conditional, and with the next hop changed the Service TLVs are named for removal (observed red).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L339" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L342" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L336" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L339" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go#L55" title="internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go" target="_blank" rel="noopener"><code>TestRFC9252ReservedFieldsPropagatedUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9252-3.3-2"><code>RFC9252-3.3-2</code></a></h3>
 <p>If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub- TLVs SHOULD be updated with the locally allocated SRv6 SID information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: with the next hop changed, unrecognized Sub-TLVs or Sub-Sub-TLVs forwarded. (b) TestPrefixSIDPropagationNextHop &#39;next-hop changed removes Prefix-SID&#39; asserts exactly one AttrModSuppress op on code 40, so the whole attribute and every unrecognized sub-TLV in it is removed; removing it would turn the assertion red. The negative subtest pins that next-hop-unchanged does not suppress. The SHOULD half (update with a local SID) is not done: ze removes the attribute.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The wire tag the previous note asked for is present: TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange, now tagged +, relays with next-hop-self on both rails a Prefix-SID whose L3 Service TLV carries an unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE, and asserts attribute 40 absent while the route arrives with the new next hop and its NLRI; a handler ignoring the Remove (the KeepAll the old note named) would put attribute 40 on the wire and go red. Observed red with prefixSIDNextHopHandler broken. Negative on TestPrefixSIDPropagationNextHop (next hop unchanged: no removal op). The SHOULD half (rebuild with a locally allocated SID) is not done: Ze allocates none; the MUST (unrecognized removed) is met by removing the whole Service TLVs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L337" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L340" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts_test.go#L338" title="internal/component/bgp/reactor/peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L171" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L341" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -879,12 +901,12 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L21" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesNonzeroTransposedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L21" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesNonzeroTransposedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L10" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginTranspositionKeepsOnlyUntransposedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L10" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginTranspositionKeepsOnlyUntransposedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -893,7 +915,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 </div>
 <h3><a href="#rfc9252-3.2.1-5"><code>RFC9252-3.2.1-5</code></a></h3>
 <p>Implementations supporting this specification MUST provide a mechanism to control the advertisement of SRv6-based BGP service routes on a per-neighbor and per-service basis. (S3.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: no way to withhold an SRv6 service route from one neighbour while sending another service to it, or while sending the same service to another neighbour. (b) test/plugin/srv6-service-export-control.ci: filtered-peer has reject=pattern for the RT10 SID and expects the RT20 SID (per service); control-peer expects both SIDs (per neighbour). Losing either control turns an expect or reject red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: no way to withhold an SRv6 service route from one neighbour while sending another service to it, or while sending the same service to another neighbour. (b) test/plugin/srv6-service-export-control.ci: filtered-peer has reject=pattern for the RT10 SID and expects the RT20 SID (per service); control-peer expects both SIDs (per neighbour). Losing either control turns an expect or reject red. Re-read after the 2026-09-29 change: both peers now advertise Extended Next Hop for ipv4/mpls-vpn, because RFC 9252 Section 5.1 encodes IPv4 VPN over SRv6 per RFC 8950 and RFC 8950 Section 4 now withholds the IPv6 next hop from a peer without the pair; no expect or reject line changed. Observed-red records: positive on evaluateCommunities (the export filter fails closed, RT20 never reaches filtered-peer), negative on Peer.ExportFilters (a panic, so it proves reach only; the per-neighbour discrimination of the negative is by reading: a filter applied to every peer withholds RT10 from control-peer and its seq=2 expect goes red).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -901,12 +923,12 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L3" title="test/plugin/srv6-service-export-control.ci" target="_blank" rel="noopener"><code>srv6-service-export-control.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L2" title="test/plugin/srv6-service-export-control.ci" target="_blank" rel="noopener"><code>srv6-service-export-control.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -919,12 +941,12 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L41" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesArgumentsForDT4</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L41" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginRefusesArgumentsForDT4</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_srv6_test.go#L30" title="internal/component/bgp/config/routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginWithoutArguments</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc9252_routeattr_srv6_test.go#L30" title="internal/component/bgp/config/rfc9252_routeattr_srv6_test.go" target="_blank" rel="noopener"><code>TestSRv6OriginWithoutArguments</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -939,12 +961,12 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L39" title="internal/plugins/fib/kernel/nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestRouteWithoutServiceSIDKeepsMPLSEncapsulation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go#L39" title="internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestRouteWithoutServiceSIDKeepsMPLSEncapsulation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_srv6_linux_test.go#L15" title="internal/plugins/fib/kernel/nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestSRv6ServiceSIDSelectsIPv6Encapsulation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go#L15" title="internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go" target="_blank" rel="noopener"><code>TestSRv6ServiceSIDSelectsIPv6Encapsulation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -959,12 +981,12 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L32" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L32" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L31" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L31" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -979,12 +1001,12 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L34" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L34" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go#L33" title="internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go#L33" title="internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC9252FirstServiceTLVWins</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1373,7 +1395,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

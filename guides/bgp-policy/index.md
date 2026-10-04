@@ -129,6 +129,15 @@ Two properties are worth knowing before you write policy around this.
 
 **Withdrawals are not affected.** All three clauses forbid ADVERTISING the route. One UPDATE can carry withdrawn routes and an announcement together. A peer refused the announcement still receives the withdrawals, so it never keeps a prefix ze can no longer take back.
 
+A refused announcement produces a withdrawal of its destinations as well. The
+forwarding rails do not retain a per-destination advertised inventory, so they
+cannot prove that the peer never held an earlier generation. Withdrawing it
+prevents a newly restricted route from remaining usable. This is not an
+advertisement: wire assertions must distinguish reachable NLRI from Withdrawn
+Routes and MP_UNREACH_NLRI, rather than reject a prefix anywhere in an UPDATE.
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+
 Each suppression increments `ze_bgp_wellknown_community_suppressed_total` with the community as its label. Nothing else reports it: there is no per-route log line and no configuration switch, because a switch here would be a switch to violate the RFC.
 
 <!-- source: internal/component/bgp/wireu/wellknown.go — ScanWellKnown, WellKnown.AllowsEgressTo -->

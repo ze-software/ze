@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-09-28](2026-09-28/index.md)
+
+A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section. The release queue closed the week at 213 required work items and 221 nice-to-have, against 191 and 219 at the start. 24 items joined and none left. Eleven of the required additions are defects found this week, and seven more split the RFC fix work by area. The rest are update authenticity, an SRv6 forwarding path and two tooling items. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/
+
+Areas: BGP, OSPF, BFD, LDP, L2TP, PPP, RADIUS, IPsec, RSVP-TE, Flow Export, API, Graceful Restart, RFC Compliance, Quality Improvement
+
 ## [Week of 2026-09-21](2026-09-21/index.md)
 
 Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end. The release queue closed the week at 191 required work items and 219 nice-to-have, against 157 and 183 at the start. 74 items joined and 4 left. Almost everything that joined is a defect or a missing behavior found by reading the RFCs end to end. Three of the four that left are the backup and restore work below. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/

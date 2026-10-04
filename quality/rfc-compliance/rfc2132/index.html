@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>23.5%</strong><b>8 of 34 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>12.5%</strong><b>1 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>2.9%</strong><b>1 of 34 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 34 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -234,7 +239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2132.md</code></td>
@@ -273,7 +278,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>34</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -284,6 +289,10 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -297,7 +306,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (34):</strong> <a href="#rfc2132-3.3-1"><code>RFC2132-3.3-1</code></a>, <a href="#rfc2132-3.5-1"><code>RFC2132-3.5-1</code></a>, <a href="#rfc2132-3.6-1"><code>RFC2132-3.6-1</code></a>, <a href="#rfc2132-3.7-1"><code>RFC2132-3.7-1</code></a>, <a href="#rfc2132-3.8-1"><code>RFC2132-3.8-1</code></a>, <a href="#rfc2132-3.9-1"><code>RFC2132-3.9-1</code></a>, <a href="#rfc2132-3.10-1"><code>RFC2132-3.10-1</code></a>, <a href="#rfc2132-3.11-1"><code>RFC2132-3.11-1</code></a>, <a href="#rfc2132-3.12-1"><code>RFC2132-3.12-1</code></a>, <a href="#rfc2132-3.13-1"><code>RFC2132-3.13-1</code></a>, <a href="#rfc2132-8.2-1"><code>RFC2132-8.2-1</code></a>, <a href="#rfc2132-8.3-1"><code>RFC2132-8.3-1</code></a>, <a href="#rfc2132-8.9-1"><code>RFC2132-8.9-1</code></a>, <a href="#rfc2132-8.10-1"><code>RFC2132-8.10-1</code></a>, <a href="#rfc2132-8.12-1"><code>RFC2132-8.12-1</code></a>, <a href="#rfc2132-8.13-1"><code>RFC2132-8.13-1</code></a>, <a href="#rfc2132-8.14-1"><code>RFC2132-8.14-1</code></a>, <a href="#rfc2132-8.15-1"><code>RFC2132-8.15-1</code></a>, <a href="#rfc2132-8.16-1"><code>RFC2132-8.16-1</code></a>, <a href="#rfc2132-8.17-1"><code>RFC2132-8.17-1</code></a>, <a href="#rfc2132-8.18-1"><code>RFC2132-8.18-1</code></a>, <a href="#rfc2132-8.19-1"><code>RFC2132-8.19-1</code></a>, <a href="#rfc2132-8.20-1"><code>RFC2132-8.20-1</code></a>, <a href="#rfc2132-8.21-1"><code>RFC2132-8.21-1</code></a>, <a href="#rfc2132-4.7-1"><code>RFC2132-4.7-1</code></a>, <a href="#rfc2132-4.3-1"><code>RFC2132-4.3-1</code></a>, <a href="#rfc2132-5.8-1"><code>RFC2132-5.8-1</code></a>, <a href="#rfc2132-2-1"><code>RFC2132-2-1</code></a>, <a href="#rfc2132-2-2"><code>RFC2132-2-2</code></a>, <a href="#rfc2132-2-3"><code>RFC2132-2-3</code></a>, <a href="#rfc2132-8.4-1"><code>RFC2132-8.4-1</code></a>, <a href="#rfc2132-9.13-1"><code>RFC2132-9.13-1</code></a>, <a href="#rfc2132-9.8-1"><code>RFC2132-9.8-1</code></a>, <a href="#rfc2132-9.14-1"><code>RFC2132-9.14-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (34):</strong> <a href="#rfc2132-3.3-1"><code>RFC2132-3.3-1</code></a>, <a href="#rfc2132-3.5-1"><code>RFC2132-3.5-1</code></a>, <a href="#rfc2132-3.6-1"><code>RFC2132-3.6-1</code></a>, <a href="#rfc2132-3.7-1"><code>RFC2132-3.7-1</code></a>, <a href="#rfc2132-3.8-1"><code>RFC2132-3.8-1</code></a>, <a href="#rfc2132-3.9-1"><code>RFC2132-3.9-1</code></a>, <a href="#rfc2132-3.10-1"><code>RFC2132-3.10-1</code></a>, <a href="#rfc2132-3.11-1"><code>RFC2132-3.11-1</code></a>, <a href="#rfc2132-3.12-1"><code>RFC2132-3.12-1</code></a>, <a href="#rfc2132-3.13-1"><code>RFC2132-3.13-1</code></a>, <a href="#rfc2132-8.2-1"><code>RFC2132-8.2-1</code></a>, <a href="#rfc2132-8.3-1"><code>RFC2132-8.3-1</code></a>, <a href="#rfc2132-8.9-1"><code>RFC2132-8.9-1</code></a>, <a href="#rfc2132-8.10-1"><code>RFC2132-8.10-1</code></a>, <a href="#rfc2132-8.12-1"><code>RFC2132-8.12-1</code></a>, <a href="#rfc2132-8.13-1"><code>RFC2132-8.13-1</code></a>, <a href="#rfc2132-8.14-1"><code>RFC2132-8.14-1</code></a>, <a href="#rfc2132-8.15-1"><code>RFC2132-8.15-1</code></a>, <a href="#rfc2132-8.16-1"><code>RFC2132-8.16-1</code></a>, <a href="#rfc2132-8.17-1"><code>RFC2132-8.17-1</code></a>, <a href="#rfc2132-8.18-1"><code>RFC2132-8.18-1</code></a>, <a href="#rfc2132-8.19-1"><code>RFC2132-8.19-1</code></a>, <a href="#rfc2132-8.20-1"><code>RFC2132-8.20-1</code></a>, <a href="#rfc2132-8.21-1"><code>RFC2132-8.21-1</code></a>, <a href="#rfc2132-4.7-1"><code>RFC2132-4.7-1</code></a>, <a href="#rfc2132-4.3-1"><code>RFC2132-4.3-1</code></a>, <a href="#rfc2132-5.8-1"><code>RFC2132-5.8-1</code></a>, <a href="#rfc2132-2-5"><code>RFC2132-2-5</code></a>, <a href="#rfc2132-2-2"><code>RFC2132-2-2</code></a>, <a href="#rfc2132-2-3"><code>RFC2132-2-3</code></a>, <a href="#rfc2132-8.4-1"><code>RFC2132-8.4-1</code></a>, <a href="#rfc2132-9.13-1"><code>RFC2132-9.13-1</code></a>, <a href="#rfc2132-9.8-1"><code>RFC2132-9.8-1</code></a>, <a href="#rfc2132-9.14-1"><code>RFC2132-9.14-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -547,21 +556,21 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Static Route option (code 33), so this sender length constraint binds no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-2-1">RFC2132-2-1</code></td><td colspan="3"><span class="rfc-subject">Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero. (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-2-5">RFC2132-2-5</code></td><td colspan="3"><span class="rfc-subject">In the case of some variable-length options the length field is a constant but must still be specified. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-1">
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every option ze emits goes through safeAppendOption, which always writes a length octet (internal/plugins/dhcpserver/handler.go:361-363); only the exempt Pad/End markers are written without one, so ze emits no length-octet-less option to test negatively</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every option ze emits goes through safeAppendOption, which writes the length octet before the data on every path (internal/plugins/dhcpserver/handler.go); no input selects a path that omits it, so there is no refusal to assert</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-2-2">RFC2132-2-2</code></td><td colspan="3"><span class="rfc-subject">the receiver of such options MUST be prepared to delete trailing nulls if they exist. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1458" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze reads ASCII-carrying options 60 and 77 only by fixed-prefix match (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498), so a trailing NUL never corrupts interpretation; no ze receive path rejects or mishandles ASCII option data because of a trailing NUL, so there is no negative case</p></td>
 </tr>
@@ -570,7 +579,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>MUST NOT</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1444" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1450" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s ASCII-option receiver prefix-matches options 60 and 77 (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498) and so never requires a trailing NUL; option data without one is accepted, and there is no ze path that demands a trailing NUL to test negatively</p></td>
 </tr>
@@ -579,7 +588,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>MUST</td>
 <td>8.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1501" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1507" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze never reads a received option 43 -- vendor-specific information appears only in ze&#39;s Tx path (handler.go:325) and the option-parse loop skips any code it does not request (parseMsgType/parseOptionBytes advance past unrequested options, internal/plugins/dhcpserver/handler.go:367-403), so ze ignores client vendor-specific info and no code path interprets or rejects it</p></td>
 </tr>
@@ -588,7 +597,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>MUST</td>
 <td>9.13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.13-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1548" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1554" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze inspects option 60 only for the &#34;PXEClient:&#34; prefix (isPXEClient internal/plugins/dhcpserver/handler.go:493-496); any other vendor class yields false and no class-specific handling, so an unrecognized class is ignored and no code path rejects a packet on class content to test negatively</p></td>
 </tr>
@@ -1176,9 +1185,9 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <p>The minimum length of this option is 8, and the length MUST be a multiple of 8. (§5.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2132-5.8-1, so no unit is bound to it.</p>
-<h3><a href="#rfc2132-2-1"><code>RFC2132-2-1</code></a></h3>
-<p>Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero. (§2)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence binds options defined subsequent to RFC 2132 (an obligation on later option authors, like RFC 7606 section 8). TestEveryEmittedOptionHasLengthOctet walks the reply by length octet over codes 53/54/1/3/6/15/51/58/59, all defined in RFC 2132 itself; buildReply/appendPXEOptions (internal/plugins/dhcpserver/handler.go) emit no later-defined option. The test proves the general section 2 TLV format, which is not this row&#39;s obligation; the row reads not-applicable and the tag has no row stating what it proves</p>
+<h3><a href="#rfc2132-2-5"><code>RFC2132-2-5</code></a></h3>
+<p>In the case of some variable-length options the length field is a constant but must still be specified. (§2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity positive is valid: safeAppendOption writes the length octet on its only write path and no input selects an omission. TestEveryEmittedOptionHasLengthOctet walks the OFFER by length octets to End and now pins the constant length of 53 (1) and 54, 1, 51, 58, 59 (4), so an omitted or wrong length octet goes red</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1186,7 +1195,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1199,7 +1208,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1458" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1214,7 +1223,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1444" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1450" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1229,7 +1238,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1501" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1507" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1244,7 +1253,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1548" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1554" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1266,10 +1275,10 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>claude</td>
+<td>claude (independent judge of the services dhcpserver package)</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-29</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1284,10 +1293,10 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>rfc/extraction/rfc2132.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>34</td>
+<td>33</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>3</td>
+<td>4</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -1884,6 +1893,11 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>Section 1.1 is the document&#39;s RFC 2119 terminology section: it lists the keywords and defines them (&#39;This word or the adjective &#34;REQUIRED&#34; means that the item is an absolute requirement of this specification.&#39;). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation.</td>
 <td>o &#34;MUST NOT&#34;</td>
 </tr>
+<tr><td><code>2:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>binds the authors of option definitions published after RFC 2132, which Ze does not write; Ze sends only options RFC 2132 itself defines (buildReply, appendPXEOptions in internal/plugins/dhcpserver/handler.go). Row RFC2132-2-1 is retired (rfc/corrections/rfc2132.md)</td>
+<td>Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1920,7 +1934,7 @@ One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

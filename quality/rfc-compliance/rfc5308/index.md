@@ -13,8 +13,10 @@ what Ze has
 | Tested both ways | 100.0% | 8 of 8 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 8 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 8 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 10.0% | 2 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 86.7% | 26 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 8 | of 8 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,15 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 8 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 8 | of 8 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +41,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 20 |
-| Tagged units | 20 |
+| Test tags | 30 |
+| Tagged units | 30 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 2 |
+| Discrimination records | 26 |
 | Summary | `rfc/short/rfc5308.md` |
 | Requirement shard | `rfc/requirements/rfc5308.md` |
 | RFC text | `rfc/full/rfc5308.txt` |
@@ -96,9 +91,10 @@ Same IS-IS experimental status. [`RFC5308-2-3`](#rfc5308-2-3), the external bit 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 8 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
@@ -109,13 +105,13 @@ Same IS-IS experimental status. [`RFC5308-2-3`](#rfc5308-2-3), the external bit 
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5308-2-1` | Link-local prefixes MUST NOT be advertised using this TLV. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L65). **negative:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L66) |
-| `RFC5308-2-2` | if a prefix is advertised with a metric larger than MAX_V6_PATH_METRIC (0xFE000000), this prefix MUST not be considered during the normal Shortest Path First (SPF) computation. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L207). **negative:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L206) |
-| `RFC5308-2-3` | If the prefix was distributed into IS-IS from another routing protocol, the external bit SHALL be set to 1. (§2) | SHALL | 2 | **positive:** `unit/verify` [`TestRFC5308RedistributedIPv6SetsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/ipv6_rfc5308_test.go#L15). **negative:** `unit/verify` [`TestRFC5308ConnectedIPv6ClearsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/ipv6_rfc5308_test.go#L37) |
-| `RFC5308-3-1` | For Hello PDUs, the "Interface Address" TLV MUST contain only the link-local IPv6 addresses assigned to the interface that is sending the Hello. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L30). **negative:** `unit/verify` [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L103). **negative:** `unit/verify` [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L130) |
-| `RFC5308-3-2` | For LSPs, the "Interface Address" TLVs MUST contain only the non-link-local IPv6 addresses assigned to the IS. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L110). **negative:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L111) |
-| `RFC5308-4-1` | The value of the IPv6 Network Layer Protocol ID (NLPID) is 142 (0x8E). As with [RFC1195] and IPv4, if the IS supports IPv6 routing using IS-IS, it MUST advertise this in the "NLPID" TLV by adding the IPv6 NLPID. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L31). **positive:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L148). **negative:** `unit/verify` [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L78). **negative:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L149) |
-| `RFC5308-5-1` | The order of preference between paths for a given prefix MUST be modified to consider the up/down bit. The new order of preference is as follows (from best to worst). 1. Level 1 up prefix 2. Level 2 up prefix 3. Level 2 down prefix 4. Level 1 down prefix (§5) | MUST | 5 | **positive:** `unit/verify` [`TestISISIPv6LevelArbitration`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L91). **positive:** `unit/verify` [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_test.go#L46). **negative:** `unit/verify` [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_test.go#L47) |
+| `RFC5308-2-1` | Link-local prefixes MUST NOT be advertised using this TLV. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L65). **negative:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L66) |
+| `RFC5308-2-2` | if a prefix is advertised with a metric larger than MAX_V6_PATH_METRIC (0xFE000000), this prefix MUST not be considered during the normal Shortest Path First (SPF) computation. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_ipv6_test.go#L207). **positive:** `unit/verify` [`TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L98). **negative:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_ipv6_test.go#L206). **negative:** `unit/verify` [`TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L100) |
+| `RFC5308-2-3` | If the prefix was distributed into IS-IS from another routing protocol, the external bit SHALL be set to 1. (§2) | SHALL | 2 | **positive:** `unit/verify` [`TestRFC5308RedistributedIPv6SetsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/rfc5308_ipv6_test.go#L15). **negative:** `unit/verify` [`TestRFC5308ConnectedIPv6ClearsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/rfc5308_ipv6_test.go#L37) |
+| `RFC5308-3-1` | For Hello PDUs, the "Interface Address" TLV MUST contain only the link-local IPv6 addresses assigned to the interface that is sending the Hello. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L30). **positive:** `unit/verify` [`TestRFC5308HelloAddressIsTheInterfaceLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L60). **positive:** `unit/verify` [`TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L211). **negative:** `unit/verify` [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L103). **negative:** `unit/verify` [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L130). **negative:** `unit/verify` [`TestRFC5308HelloAddressIsTheInterfaceLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L64) |
+| `RFC5308-3-2` | For LSPs, the "Interface Address" TLVs MUST contain only the non-link-local IPv6 addresses assigned to the IS. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L110). **positive:** `unit/verify` [`TestRFC5308LSPInterfaceAddressesAreNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L116). **negative:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L111). **negative:** `unit/verify` [`TestRFC5308LSPInterfaceAddressesAreNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L119) |
+| `RFC5308-4-1` | The value of the IPv6 Network Layer Protocol ID (NLPID) is 142 (0x8E). As with [RFC1195] and IPv4, if the IS supports IPv6 routing using IS-IS, it MUST advertise this in the "NLPID" TLV by adding the IPv6 NLPID. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L31). **positive:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L148). **positive:** `unit/verify` [`TestRFC5308HelloNLPIDIs142`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L228). **negative:** `unit/verify` [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L78). **negative:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L149) |
+| `RFC5308-5-1` | The order of preference between paths for a given prefix MUST be modified to consider the up/down bit. The new order of preference is as follows (from best to worst). 1. Level 1 up prefix 2. Level 2 up prefix 3. Level 2 down prefix 4. Level 1 down prefix (§5) | MUST | 5 | **positive:** `unit/verify` [`TestISISIPv6LevelArbitration`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_ipv6_test.go#L91). **positive:** `unit/verify` [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_route_test.go#L46). **positive:** `unit/verify` [`TestRFC5308FourStepPathPreference`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L156). **negative:** `unit/verify` [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_route_test.go#L47). **negative:** `unit/verify` [`TestRFC5308FourStepPathPreference`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L159) |
 | `RFC5308-5-2` | If, during the SPF, a path metric would exceed MAX_V6_PATH_METRIC, it SHALL be considered to be MAX_V6_PATH_METRIC. (Section 5) | SHALL | 5 | **positive:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L250). **negative:** `unit/verify` [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251) |
 | `RFC5308-5-3` | Any remaining multiple paths SHOULD be considered for equal-cost multi-path routing if the router supports this; otherwise, the router can select any one of the multiple paths. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 
@@ -135,19 +131,21 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L66) | unit/verify | unproven |
-| positive | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L65) | unit/verify | unproven |
+| negative | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L66) | unit/verify | unproven |
+| positive | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L65) | unit/verify | unproven |
 
 ### [`RFC5308-2-2`](#rfc5308-2-2)
 
 if a prefix is advertised with a metric larger than MAX_V6_PATH_METRIC (0xFE000000), this prefix MUST not be considered during the normal Shortest Path First (SPF) computation. (§2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a TLV 236 prefix with metric > 0xFE000000 considered in normal SPF. (b) TestISISIPv6MetricAboveMaxIgnored asserts 2001:db8:bad::/64 (metric 0xFE000001) is not routed, but its node distance is 0, so clampMetric saturates the path to MaxPathMetric and the accumulated-cost ceiling drops it anyway (TestISISIPv6MetricAtMaxBoundary shows metric == max is already dropped by that ceiling). Removing the per-entry over-max filter leaves the assertion green: the input does not isolate this rule.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a TLV 236 prefix advertised with a metric larger than MAX_V6_PATH_METRIC taking part in normal SPF. (b) spf TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered: node 3 (distance 10) advertises 2001:db8:9::/64 at 50 (positive, installed at 60 via node 3); node 2 (distance 10) advertises the same prefix at 0xFE000001 and 2001:db8:8::/64 only at 0xFFFFFFFF (negative): the shared prefix keeps one next hop at 60 and the lone prefix is absent. The lone prefix is the discriminating input: any BuildRoutesV6 that considered it would install it (at MAX after clampMetric saturation, or at a wrapped cost without it). The per-entry filter (ipv6.go, p.Metric > MaxV6PathMetric) and the accumulated-cost ceiling (total >= MaxPathMetric) are redundant for every over-max input, so no input isolates the filter alone; removing either one alone leaves Ze compliant, and the test asserts the stack outcome the RFC states. Recorded +/- on BuildRoutesV6.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L206) | unit/verify | unproven |
-| positive | [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L207) | unit/verify | unproven |
+| negative | [`TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L100) | unit/verify | revert, verified |
+| negative | [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_ipv6_test.go#L206) | unit/verify | revert, verified |
+| positive | [`TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L98) | unit/verify | revert, verified |
+| positive | [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_ipv6_test.go#L207) | unit/verify | revert, verified |
 
 ### [`RFC5308-2-3`](#rfc5308-2-3)
 
@@ -157,62 +155,70 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5308ConnectedIPv6ClearsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/ipv6_rfc5308_test.go#L37) | unit/verify | revert, verified |
-| positive | [`TestRFC5308RedistributedIPv6SetsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/ipv6_rfc5308_test.go#L15) | unit/verify | revert, verified |
+| negative | [`TestRFC5308ConnectedIPv6ClearsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/rfc5308_ipv6_test.go#L37) | unit/verify | revert, verified |
+| positive | [`TestRFC5308RedistributedIPv6SetsExternalBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/rfc5308_ipv6_test.go#L15) | unit/verify | revert, verified |
 
 ### [`RFC5308-3-1`](#rfc5308-3-1)
 
 For Hello PDUs, the "Interface Address" TLV MUST contain only the link-local IPv6 addresses assigned to the interface that is sending the Hello. (§3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a Hello TLV 232 carrying a non-link-local address, or a link-local address not assigned to the sending interface. (b) TestISISIIHTLV232RejectsNonLinkLocal errors when a global, ULA or multicast address reaches TLV 232 and TestISISIIHTLV232LinkLocal checks the one address IsLinkLocalUnicast, which covers the link-local clause. No tagged assertion compares the emitted address to the address assigned to the sending interface: an encoder emitting a fixed fe80:: address stays green, so the 'assigned to the interface that is sending the Hello' clause is unproven.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. (a) forbidden: a Hello TLV 232 carrying a non-link-local address, or a link-local address not assigned to the sending interface. (b) The earlier gap (the production address source untested) is closed: root TestRFC5308HelloAddressIsTheInterfaceLinkLocal registers a test iface backend (only the OS address list is fake; the resolver's link-local classification is real) with two interfaces holding distinct link-local addresses, and requires interfaceIPv6LinkLocal to return fe80::a:1 for isis-ll-a although its global address is listed first, and fe80::b:2 for isis-ll-b (positive); a global-only interface and an interface without ipv6-unicast yield none (negative). circuits.go builds each circuit's Config.IPv6LinkLocal from interfaceIPv6LinkLocal(ic) for that same interface, and circuit TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal proves each circuit sends exactly its own configured address; TestISISIIHTLV232RejectsNonLinkLocal and TestISISIIHTLV232LinkLocal cover the encoder's link-local-only guard. Recorded +/- on circuits.go interfaceIPv6LinkLocal.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L103) | unit/verify | unproven |
-| negative | [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L130) | unit/verify | unproven |
-| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L30) | unit/verify | unproven |
+| negative | [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L103) | unit/verify | revert, verified |
+| negative | [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L130) | unit/verify | revert, verified |
+| negative | [`TestRFC5308HelloAddressIsTheInterfaceLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L64) | unit/verify | revert, verified |
+| positive | [`TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L211) | unit/verify | revert, verified |
+| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L30) | unit/verify | revert, verified |
+| positive | [`TestRFC5308HelloAddressIsTheInterfaceLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L60) | unit/verify | revert, verified |
 
 ### [`RFC5308-3-2`](#rfc5308-3-2)
 
 For LSPs, the "Interface Address" TLVs MUST contain only the non-link-local IPv6 addresses assigned to the IS. (§3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an LSP TLV 232 carrying a link-local address. (b) TestISISOriginateTLV232Scope errors on a link-local address in the decoded LSP TLV 232, but it pre-filters its input with lsdb.NonLinkLocalV6Addrs, which has no non-test caller. Production fills LevelState.InterfaceAddrsV6 from interfaceIPv6NonLinkLocal (lsdb_wiring.go), and Originator.Originate does not filter, so breaking the production filter leaves the tagged unit green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. (a) forbidden: an LSP TLV 232 carrying a link-local address. (b) The earlier gap (the production filter untested) is closed: root TestRFC5308LSPInterfaceAddressesAreNonLinkLocal runs the engine over the test iface backend with two IPv6 circuits and decodes fragment 0 at both levels, built by the production path (lsdb_wiring.go levelState -> interfaceIPv6NonLinkLocal -> Originate): TLV 232 is exactly [2001:db8:a::1] (positive), and neither fe80::a:1 (same circuit) nor fe80::b:2 (the other circuit's only IPv6 address) appears (negative). Recorded +/- on circuits.go interfaceIPv6NonLinkLocal. lsdb TestISISOriginateTLV232Scope remains tagged and pre-filters its input; it carries no weight.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L111) | unit/verify | unproven |
-| positive | [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L110) | unit/verify | unproven |
+| negative | [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L111) | unit/verify | revert, verified |
+| negative | [`TestRFC5308LSPInterfaceAddressesAreNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L119) | unit/verify | revert, verified |
+| positive | [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L110) | unit/verify | revert, verified |
+| positive | [`TestRFC5308LSPInterfaceAddressesAreNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5308_hello_link_local_test.go#L116) | unit/verify | revert, verified |
 
 ### [`RFC5308-4-1`](#rfc5308-4-1)
 
 The value of the IPv6 Network Layer Protocol ID (NLPID) is 142 (0x8E). As with [RFC1195] and IPv4, if the IS supports IPv6 routing using IS-IS, it MUST advertise this in the "NLPID" TLV by adding the IPv6 NLPID. (§4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an IPv6-capable IS omitting the IPv6 NLPID from TLV 129, or advertising a value other than 142 (0x8E). (b) TestISISProtocolsSupportedDualStack and TestISISIIHTLV232LinkLocal assert the dual-stack NLPID list equals [packet.NLPIDIPv4, packet.NLPIDIPv6] and the IPv4-only cases (TestISISProtocolsSupportedDualStack ipv4-only, TestISISIIHNoTLV232WhenIPv4Only) assert it is absent, which covers the advertise clause. Every comparison is against the constant packet.NLPIDIPv6, never the literal 0x8E, so a wrong constant value stays green: the 'is 142 (0x8E)' clause has no red assertion.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: an IPv6-capable IS omitting the IPv6 NLPID from TLV 129, or advertising a value other than 142 (0x8E). (b) circuit TestRFC5308HelloNLPIDIs142 checks the transmitted dual-stack IIH's TLV 129 wire octets equal exactly cc 8e, against the literal rather than packet.NLPIDIPv6, closing the constant gap; TestISISProtocolsSupportedDualStack and TestISISIIHTLV232LinkLocal cover the advertise clause and the IPv4-only cases (TestISISProtocolsSupportedDualStack ipv4-only, TestISISIIHNoTLV232WhenIPv4Only) the absence when IPv6 is not supported. Recorded + on hello.go protocolsSupportedTLV.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L78) | unit/verify | unproven |
-| negative | [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L149) | unit/verify | unproven |
-| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L31) | unit/verify | unproven |
-| positive | [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L148) | unit/verify | unproven |
+| negative | [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L78) | unit/verify | revert, verified |
+| negative | [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L149) | unit/verify | revert, verified |
+| positive | [`TestRFC5308HelloNLPIDIs142`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L228) | unit/verify | revert, verified |
+| positive | [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go#L31) | unit/verify | revert, verified |
+| positive | [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L148) | unit/verify | revert, verified |
 
 ### [`RFC5308-5-1`](#rfc5308-5-1)
 
 The order of preference between paths for a given prefix MUST be modified to consider the up/down bit. The new order of preference is as follows (from best to worst). 1. Level 1 up prefix 2. Level 2 up prefix 3. Level 2 down prefix 4. Level 1 down prefix (§5)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: any path order other than L1-up > L2-up > L2-down > L1-down. (b) TestISISLeakUpDownBit pins L1-up over L2-up (metric 100 vs 10), L2-up over L1-down and L2-down over L1-down; TestISISIPv6LevelArbitration pins L1-up over L2-up on the IPv6 builder. Its case 'L2-up beats L2-down' builds only one L2 candidate (l1 nil, one l2), so no assertion goes red if L2-down outranked L2-up, and L1-up over L2-down is never compared. Two adjacent pairs of the four-step order are unproven.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: any path order other than L1-up > L2-up > L2-down > L1-down. (b) spf TestRFC5308FourStepPathPreference advertises the four classes each from its own node at metrics that invert the class order (400, 300, 200, 100), then drops the best class in turn: the installed route is always the best class left (checked by next hop, level and up/down), so each adjacent pair is decided by class not metric, and a separate case pits L1 up against L2 down alone. This closes the two pairs the previous note named (L2-up over L2-down, L1-up over L2-down). Recorded +/- on route.go preferenceRank, which BuildRoutesV6 uses. TestISISLeakUpDownBit and TestISISIPv6LevelArbitration remain tagged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_test.go#L47) | unit/verify | unproven |
-| positive | [`TestISISIPv6LevelArbitration`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L91) | unit/verify | unproven |
-| positive | [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_test.go#L46) | unit/verify | unproven |
+| negative | [`TestRFC5308FourStepPathPreference`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L159) | unit/verify | revert, verified |
+| negative | [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_route_test.go#L47) | unit/verify | revert, verified |
+| positive | [`TestRFC5308FourStepPathPreference`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L156) | unit/verify | revert, verified |
+| positive | [`TestISISIPv6LevelArbitration`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_ipv6_test.go#L91) | unit/verify | revert, verified |
+| positive | [`TestISISLeakUpDownBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5308_route_test.go#L46) | unit/verify | revert, verified |
 
 ### [`RFC5308-5-2`](#rfc5308-5-2)
 
 If, during the SPF, a path metric would exceed MAX_V6_PATH_METRIC, it SHALL be considered to be MAX_V6_PATH_METRIC. (Section 5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a path metric that exceeds MAX_V6_PATH_METRIC kept (or wrapped) instead of taken as MAX_V6_PATH_METRIC. (b) TestISISMetricWidth asserts clampMetric(MaxPathMetric-1, 10) == MaxPathMetric (negative) and clampMetric(1000, 2000) == 3000 (positive). clampMetric is the one saturating adder the IPv6 builder calls (spf/ipv6.go) and MaxPathMetric is 0xFE000000, the MAX_V6_PATH_METRIC value.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a path metric that exceeds MAX_V6_PATH_METRIC kept (or wrapped) instead of taken as MAX_V6_PATH_METRIC. (b) TestISISMetricWidth asserts clampMetric(MaxPathMetric-1, 10) == MaxPathMetric (negative) and clampMetric(1000, 2000) == 3000 (positive). clampMetric is the one saturating adder the IPv6 builder calls (spf/ipv6.go) and MaxPathMetric is 0xFE000000, the MAX_V6_PATH_METRIC value. Re-judged 2026-10-02: TestISISMetricWidth changed only in the prose of its RFC5305-4-1 positive tag line (claim narrowed to node reachability); the clampMetric assertions this row rests on are unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

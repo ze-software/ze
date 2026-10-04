@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>28.8%</strong><b>17 of 59 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.9%</strong><b>7 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>68.2%</strong><b>30 of 44 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>87.5%</strong><b>49 of 56 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>55.9%</strong><b>33 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 59 gated MUSTs judged</b><p>9 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 59 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>44</td>
+<td>56</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>44</td>
+<td>56</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>17</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>30</td>
+<td>49</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3209.md</code></td>
@@ -269,7 +275,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td><strong>17</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>42</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -280,6 +286,10 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -294,7 +304,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (17):</strong> <a href="#rfc3209-4.2-1"><code>RFC3209-4.2-1</code></a>, <a href="#rfc3209-4.1-1"><code>RFC3209-4.1-1</code></a>, <a href="#rfc3209-4.3.4-1"><code>RFC3209-4.3.4-1</code></a>, <a href="#rfc3209-4.3.4.1-1"><code>RFC3209-4.3.4.1-1</code></a>, <a href="#rfc3209-3-1"><code>RFC3209-3-1</code></a>, <a href="#rfc3209-4.2.1-1"><code>RFC3209-4.2.1-1</code></a>, <a href="#rfc3209-4.2.4-2"><code>RFC3209-4.2.4-2</code></a>, <a href="#rfc3209-4.2.4-3"><code>RFC3209-4.2.4-3</code></a>, <a href="#rfc3209-4.3.3-1"><code>RFC3209-4.3.3-1</code></a>, <a href="#rfc3209-4.4.1-1"><code>RFC3209-4.4.1-1</code></a>, <a href="#rfc3209-4.4.3-1"><code>RFC3209-4.4.3-1</code></a>, <a href="#rfc3209-4.4.3-2"><code>RFC3209-4.4.3-2</code></a>, <a href="#rfc3209-4.4.3-3"><code>RFC3209-4.4.3-3</code></a>, <a href="#rfc3209-4.4.3-4"><code>RFC3209-4.4.3-4</code></a>, <a href="#rfc3209-4.7.3-1"><code>RFC3209-4.7.3-1</code></a>, <a href="#rfc3209-4.7.4-3"><code>RFC3209-4.7.4-3</code></a>, <a href="#rfc3209-6-1"><code>RFC3209-6-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (42):</strong> <a href="#rfc3209-4.6.1-1"><code>RFC3209-4.6.1-1</code></a>, <a href="#rfc3209-4.6.2-1"><code>RFC3209-4.6.2-1</code></a>, <a href="#rfc3209-4.6.1-2"><code>RFC3209-4.6.1-2</code></a>, <a href="#rfc3209-2.6-1"><code>RFC3209-2.6-1</code></a>, <a href="#rfc3209-2.6-2"><code>RFC3209-2.6-2</code></a>, <a href="#rfc3209-2.6-3"><code>RFC3209-2.6-3</code></a>, <a href="#rfc3209-2.6-4"><code>RFC3209-2.6-4</code></a>, <a href="#rfc3209-2.6-5"><code>RFC3209-2.6-5</code></a>, <a href="#rfc3209-3-2"><code>RFC3209-3-2</code></a>, <a href="#rfc3209-4.1.1.1-1"><code>RFC3209-4.1.1.1-1</code></a>, <a href="#rfc3209-4.1.1.1-2"><code>RFC3209-4.1.1.1-2</code></a>, <a href="#rfc3209-4.1.1.1-3"><code>RFC3209-4.1.1.1-3</code></a>, <a href="#rfc3209-4.2.2-1"><code>RFC3209-4.2.2-1</code></a>, <a href="#rfc3209-4.2.2-2"><code>RFC3209-4.2.2-2</code></a>, <a href="#rfc3209-4.2.2-3"><code>RFC3209-4.2.2-3</code></a>, <a href="#rfc3209-4.2.3-1"><code>RFC3209-4.2.3-1</code></a>, <a href="#rfc3209-4.2.3-2"><code>RFC3209-4.2.3-2</code></a>, <a href="#rfc3209-4.2.4-1"><code>RFC3209-4.2.4-1</code></a>, <a href="#rfc3209-4.2.4-4"><code>RFC3209-4.2.4-4</code></a>, <a href="#rfc3209-4.2.5-1"><code>RFC3209-4.2.5-1</code></a>, <a href="#rfc3209-4.3.3.1-1"><code>RFC3209-4.3.3.1-1</code></a>, <a href="#rfc3209-4.3.4.2-1"><code>RFC3209-4.3.4.2-1</code></a>, <a href="#rfc3209-4.6.2-2"><code>RFC3209-4.6.2-2</code></a>, <a href="#rfc3209-4.7.4-1"><code>RFC3209-4.7.4-1</code></a>, <a href="#rfc3209-4.7.4-2"><code>RFC3209-4.7.4-2</code></a>, <a href="#rfc3209-5.2.2-1"><code>RFC3209-5.2.2-1</code></a>, <a href="#rfc3209-5.2.2-2"><code>RFC3209-5.2.2-2</code></a>, <a href="#rfc3209-5.2.2-3"><code>RFC3209-5.2.2-3</code></a>, <a href="#rfc3209-5.3-1"><code>RFC3209-5.3-1</code></a>, <a href="#rfc3209-5.3-2"><code>RFC3209-5.3-2</code></a>, <a href="#rfc3209-5.3-3"><code>RFC3209-5.3-3</code></a>, <a href="#rfc3209-5.3-4"><code>RFC3209-5.3-4</code></a>, <a href="#rfc3209-5.3-5"><code>RFC3209-5.3-5</code></a>, <a href="#rfc3209-5.3-6"><code>RFC3209-5.3-6</code></a>, <a href="#rfc3209-5.3-7"><code>RFC3209-5.3-7</code></a>, <a href="#rfc3209-5.3-8"><code>RFC3209-5.3-8</code></a>, <a href="#rfc3209-5.3-9"><code>RFC3209-5.3-9</code></a>, <a href="#rfc3209-5.3-10"><code>RFC3209-5.3-10</code></a>, <a href="#rfc3209-5.3-11"><code>RFC3209-5.3-11</code></a>, <a href="#rfc3209-5.4-1"><code>RFC3209-5.4-1</code></a>, <a href="#rfc3209-5.4-2"><code>RFC3209-5.4-2</code></a>, <a href="#rfc3209-6-2"><code>RFC3209-6-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (42):</strong> <a href="#rfc3209-4.6.1-1"><code>RFC3209-4.6.1-1</code></a>, <a href="#rfc3209-4.6.2-1"><code>RFC3209-4.6.2-1</code></a>, <a href="#rfc3209-4.6.1-2"><code>RFC3209-4.6.1-2</code></a>, <a href="#rfc3209-2.6-1"><code>RFC3209-2.6-1</code></a>, <a href="#rfc3209-2.6-2"><code>RFC3209-2.6-2</code></a>, <a href="#rfc3209-2.6-3"><code>RFC3209-2.6-3</code></a>, <a href="#rfc3209-2.6-4"><code>RFC3209-2.6-4</code></a>, <a href="#rfc3209-2.6-5"><code>RFC3209-2.6-5</code></a>, <a href="#rfc3209-3-2"><code>RFC3209-3-2</code></a>, <a href="#rfc3209-4.1.1.1-1"><code>RFC3209-4.1.1.1-1</code></a>, <a href="#rfc3209-4.1.1.1-2"><code>RFC3209-4.1.1.1-2</code></a>, <a href="#rfc3209-4.1.1.1-3"><code>RFC3209-4.1.1.1-3</code></a>, <a href="#rfc3209-4.2.2-1"><code>RFC3209-4.2.2-1</code></a>, <a href="#rfc3209-4.2.2-2"><code>RFC3209-4.2.2-2</code></a>, <a href="#rfc3209-4.2.2-3"><code>RFC3209-4.2.2-3</code></a>, <a href="#rfc3209-4.2.3-1"><code>RFC3209-4.2.3-1</code></a>, <a href="#rfc3209-4.2.3-2"><code>RFC3209-4.2.3-2</code></a>, <a href="#rfc3209-4.2.4-1"><code>RFC3209-4.2.4-1</code></a>, <a href="#rfc3209-4.2.4-4"><code>RFC3209-4.2.4-4</code></a>, <a href="#rfc3209-4.2.5-1"><code>RFC3209-4.2.5-1</code></a>, <a href="#rfc3209-4.3.3.1-1"><code>RFC3209-4.3.3.1-1</code></a>, <a href="#rfc3209-4.3.4.2-1"><code>RFC3209-4.3.4.2-1</code></a>, <a href="#rfc3209-4.6.2-2"><code>RFC3209-4.6.2-2</code></a>, <a href="#rfc3209-4.7.4-1"><code>RFC3209-4.7.4-1</code></a>, <a href="#rfc3209-4.7.4-2"><code>RFC3209-4.7.4-2</code></a>, <a href="#rfc3209-5.2.2-1"><code>RFC3209-5.2.2-1</code></a>, <a href="#rfc3209-5.2.2-2"><code>RFC3209-5.2.2-2</code></a>, <a href="#rfc3209-5.2.2-3"><code>RFC3209-5.2.2-3</code></a>, <a href="#rfc3209-5.3-1"><code>RFC3209-5.3-1</code></a>, <a href="#rfc3209-5.3-2"><code>RFC3209-5.3-2</code></a>, <a href="#rfc3209-5.3-3"><code>RFC3209-5.3-3</code></a>, <a href="#rfc3209-5.3-4"><code>RFC3209-5.3-4</code></a>, <a href="#rfc3209-5.3-5"><code>RFC3209-5.3-5</code></a>, <a href="#rfc3209-5.3-6"><code>RFC3209-5.3-6</code></a>, <a href="#rfc3209-5.3-7"><code>RFC3209-5.3-7</code></a>, <a href="#rfc3209-5.3-8"><code>RFC3209-5.3-8</code></a>, <a href="#rfc3209-5.3-9"><code>RFC3209-5.3-9</code></a>, <a href="#rfc3209-5.3-10"><code>RFC3209-5.3-10</code></a>, <a href="#rfc3209-5.3-11"><code>RFC3209-5.3-11</code></a>, <a href="#rfc3209-5.4-1"><code>RFC3209-5.4-1</code></a>, <a href="#rfc3209-5.4-2"><code>RFC3209-5.4-2</code></a>, <a href="#rfc3209-6-2"><code>RFC3209-6-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -306,6 +316,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.6.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L59" title="internal/plugins/rsvpte/literals_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionReservedZeroOverDirtyBuffer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the encoder writes the SESSION reserved octet as 0 on every SESSION it emits, but the decoder never reads that octet, so a non-zero-reserved reject test is not meaningful (internal/plugins/rsvpte/wire.go:238, :243)</p></td>
@@ -333,8 +344,10 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L45" title="internal/plugins/rsvpte/build_test.go" target="_blank" rel="noopener"><code>TestBuildPathRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L222" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L45" title="internal/plugins/rsvpte/rfc3209_build_test.go" target="_blank" rel="noopener"><code>TestBuildPathRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L46" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressPathCarriesLabelRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L55" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressPathNeverWithoutLabelRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L222" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.1-1">RFC3209-4.1-1</code></td><td colspan="3"><span class="rfc-subject">The label for a sender MUST immediately follow the FILTER_SPEC for that sender in the Resv message (S4.1)</span></td></tr>
@@ -342,8 +355,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L75" title="internal/plugins/rsvpte/build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L463" title="internal/plugins/rsvpte/engine_test.go" target="_blank" rel="noopener"><code>TestEngineResvWithoutLabelRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75" title="internal/plugins/rsvpte/rfc3209_build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L463" title="internal/plugins/rsvpte/rfc3209_engine_test.go" target="_blank" rel="noopener"><code>TestEngineResvWithoutLabelRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.1-2">RFC3209-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Labels MAY be carried in Resv messages (S4.1)</span></td></tr>
@@ -360,8 +373,9 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.3.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L291" title="internal/plugins/rsvpte/engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitForwarding</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L509" title="internal/plugins/rsvpte/engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitNoUsableERONextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L291" title="internal/plugins/rsvpte/rfc3209_engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitForwarding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L509" title="internal/plugins/rsvpte/rfc3209_engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitNoUsableERONextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitNotAdjacentToSecondSubobject</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.3.4.1-1">RFC3209-4.3.4.1-1</code></td><td colspan="3"><span class="rfc-subject">1) The node receiving the RSVP message MUST first evaluate the first subobject. (S4.3.4.1)</span></td></tr>
@@ -369,8 +383,9 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.3.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.3.4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L123" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitEvaluatesFirstEROSubobject</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L145" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitNoFirstEROSubobject</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L123" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitEvaluatesFirstEROSubobject</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L145" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitNoFirstEROSubobject</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L71" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitRefusesForeignFirstSubobject</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-2.6-1">RFC3209-2.6-1</code></td><td colspan="3"><span class="rfc-subject">an LSR MUST execute the following algorithm (§2.6)</span></td></tr>
@@ -423,7 +438,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L254" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsFilterSpec</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L254" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsFilterSpec</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L47" title="internal/plugins/rsvpte/repairs_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC3209ResvLabelFollowsFilterSpec</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L58" title="internal/plugins/rsvpte/repairs_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC3209ResvNeverCarriesSenderTemplate</code></a></span></div>
 </div></td>
@@ -523,7 +538,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.2.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L30" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209EgressResvCarriesLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L30" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209EgressResvCarriesLabel</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the egress always encodes a LABEL in the RESV it answers a LABEL_REQUEST PATH with (handlePathEgress, buildResv), and no input makes it accept the request and omit the label</p></td>
 </tr>
@@ -532,8 +547,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST NOT</td>
 <td>4.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.2.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L205" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsLabelRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L221" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L205" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsLabelRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L221" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.2.4-3">RFC3209-4.2.4-3</code></td><td colspan="3"><span class="rfc-subject">A node that sends a LABEL_REQUEST object MUST be ready to accept and correctly process a LABEL object in the corresponding Resv messages (S4.2.4)</span></td></tr>
@@ -541,8 +556,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.2.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L48" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressProcessesResvLabel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L74" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressRefusesResvWithoutLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L48" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressProcessesResvLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L74" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressRefusesResvWithoutLabel</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.2.4-4">RFC3209-4.2.4-4</code></td><td colspan="3"><span class="rfc-subject">A node which receives and forwards a Path message each with a LABEL_REQUEST object, MUST copy the L3PID from the received LABEL_REQUEST object to the forwarded LABEL_REQUEST object. (S4.2.4)</span></td></tr>
@@ -550,7 +565,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.2.4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L106" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitCopiesL3PID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L106" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitCopiesL3PID</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> handlePathTransit copies the received LABEL_REQUEST whole into the relayed PATH, so a wrong L3PID never appears and the negative is the same assertion</p></td>
 </tr>
@@ -604,8 +619,10 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L13" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONewSubobjectIsOwnAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L24" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoSubobjectWithoutOwnAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L117" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209EngineRecordsOwnAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L13" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONewSubobjectIsOwnAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L137" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209EngineNeverRecordsNeighborAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L24" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoSubobjectWithoutOwnAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.4.3-2">RFC3209-4.4.3-2</code></td><td colspan="3"><span class="rfc-subject">A node MUST NOT push on a Label Record subobject without also pushing on an IPv4 or IPv6 subobject (S4.4.3)</span></td></tr>
@@ -613,8 +630,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST NOT</td>
 <td>4.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L32" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROLabelRecordFollowsAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L43" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoLabelRecordWithoutAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L32" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROLabelRecordFollowsAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L43" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoLabelRecordWithoutAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.4.3-3">RFC3209-4.4.3-3</code></td><td colspan="3"><span class="rfc-subject">If the newly added subobject causes the RRO to be too big to fit in a Path (or Resv) message, the RRO object SHALL be dropped from the message and message processing continues as normal. (S4.4.3)</span></td></tr>
@@ -622,17 +639,19 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>SHALL</td>
 <td>4.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.4.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L44" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRODroppedWhenTooBig</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L63" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROKeptWhenItFits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L171" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRRODroppedWhenTooBig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L44" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRODroppedWhenTooBig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L183" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROKeptWhenItFits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L63" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROKeptWhenItFits</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.4.3-4">RFC3209-4.4.3-4</code></td><td colspan="3"><span class="rfc-subject">Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.4.3-4">RFC3209-4.4.3-4</code></td><td colspan="3"><span class="rfc-subject">A received Path message without an RRO indicates that the sender node no longer needs route recording.  Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3)</span></td></tr>
 <tr><td></td>
 <td>SHALL NOT</td>
 <td>4.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.4.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L285" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROWithdrawal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L330" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROForwarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L285" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L330" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROForwarded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-4.6.2-2">RFC3209-4.6.2-2</code></td><td colspan="3"><span class="rfc-subject">0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | | + + | IPv6 tunnel sender address | + + | (16 bytes) | + + | | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | LSP ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ (S4.6.2)</span></td></tr>
@@ -676,8 +695,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>SHALL</td>
 <td>4.7.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-4.7.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L165" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeRelayedUnmodified</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L195" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeNotInserted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L165" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeRelayedUnmodified</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L195" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeNotInserted</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-5.2.2-1">RFC3209-5.2.2-1</code></td><td colspan="3"><span class="rfc-subject">This value MUST change when the sender is reset, when the node reboots, or when communication is lost to the neighboring node and otherwise remains the same. (S5.2.2)</span></td></tr>
@@ -829,8 +848,10 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/reroute_test.go#L41" title="internal/plugins/rsvpte/reroute_test.go" target="_blank" rel="noopener"><code>TestEngineMakeBeforeBreak</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/admission_se_test.go#L38" title="internal/plugins/rsvpte/admission_se_test.go" target="_blank" rel="noopener"><code>TestSEAdmissionDistinctSessionsDoNotShare</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_reroute_test.go#L41" title="internal/plugins/rsvpte/rfc3209_reroute_test.go" target="_blank" rel="noopener"><code>TestEngineMakeBeforeBreak</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L195" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209ReroutePathKeepsSessionNewLSPID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L211" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209RerouteNeverReusesLSPID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_admission_se_test.go#L38" title="internal/plugins/rsvpte/rfc3209_admission_se_test.go" target="_blank" rel="noopener"><code>TestSEAdmissionDistinctSessionsDoNotShare</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-6-2">RFC3209-6-2</code></td><td colspan="3"><span class="rfc-subject">On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node. (§4.6.4)</span></td></tr>
@@ -838,7 +859,8 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>MUST</td>
 <td>4.6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L80" title="internal/plugins/rsvpte/build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L80" title="internal/plugins/rsvpte/rfc3209_build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L227" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209EgressResvStyleIsSharedExplicit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every RESV ze originates carries STYLE = Shared Explicit (18) and admission always applies SE sharing semantics; ze never emits a Fixed-Filter style for an LSP tunnel (internal/plugins/rsvpte/engine.go:272, build.go:126, wire.go:680)</p></td>
 </tr>
@@ -1017,15 +1039,20 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3209-4.6.1-1"><code>RFC3209-4.6.1-1</code></a></h3>
 <p>| IPv4 tunnel end point address | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | Tunnel ID | (§4.6.1.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a SESSION emitted with a non-zero reserved field. TestRSVPSessionObjectEncoding asserts buf[8],buf[9]==0, but over make([]byte,32), a buffer already zero there, so an encodeSessionIPv4 that never writes the reserved octets (and on a pooled buffer ships stale bytes) stays green. Only a stray non-zero write is caught. Prefill the buffer as TestRSVPSenderTemplateReservedZeroOnSend does.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Single-polarity row. TestRFC3209SessionReservedZeroOverDirtyBuffer encodes into a 0xFF-prefilled buffer and asserts the two reserved octets are zero, with the literal header 16/1/7, so an encoder that skipped the reserved write now goes red. Its record breaks encodeObjectHeader (reach), not the reserved write itself; the prefill makes the assertion discriminating.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L59" title="internal/plugins/rsvpte/literals_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionReservedZeroOverDirtyBuffer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L342" title="internal/plugins/rsvpte/wire_test.go" target="_blank" rel="noopener"><code>TestRSVPSessionObjectEncoding</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1062,20 +1089,30 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </div>
 <h3><a href="#rfc3209-4.2-1"><code>RFC3209-4.2-1</code></a></h3>
 <p>To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object. The LABEL_REQUEST object indicates that a label binding for this path is requested and provides an indication of the network layer protocol that is to be carried over this path. (§4.2.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence obliges the sender: the Path message that establishes an LSP tunnel carries a LABEL_REQUEST naming the L3PID. Positive TestBuildPathRoundTrip asserts HasLabelRequest and LabelRequest==psb.LabelRequest on buildPath output, which goes red if buildPath drops the object or its L3PID. The negative TestRFC3209NoLabelWithoutLabelRequest proves a receiver rule (egress refuses a PATH without LABEL_REQUEST), not the sender obligation, and the row has no single-polarity marker.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Sender obligation now driven through the ingress: TestRFC3209IngressPathCarriesLabelRequest (setupTunnel PATH carries LABEL_REQUEST, L3PID 0x0800) and TestRFC3209IngressPathNeverWithoutLabelRequest (originated PATH, two refreshes and the make-before-break PATH all carry it). The older receiver-rule negative TestRFC3209NoLabelWithoutLabelRequest stays tagged and proves a neighbouring rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L222" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L222" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L45" title="internal/plugins/rsvpte/build_test.go" target="_blank" rel="noopener"><code>TestBuildPathRoundTrip</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L55" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressPathNeverWithoutLabelRequest</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L45" title="internal/plugins/rsvpte/rfc3209_build_test.go" target="_blank" rel="noopener"><code>TestBuildPathRoundTrip</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L46" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressPathCarriesLabelRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1088,12 +1125,12 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L463" title="internal/plugins/rsvpte/engine_test.go" target="_blank" rel="noopener"><code>TestEngineResvWithoutLabelRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L463" title="internal/plugins/rsvpte/rfc3209_engine_test.go" target="_blank" rel="noopener"><code>TestEngineResvWithoutLabelRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L75" title="internal/plugins/rsvpte/build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75" title="internal/plugins/rsvpte/rfc3209_build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1122,38 +1159,48 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </div>
 <h3><a href="#rfc3209-4.3.4-1"><code>RFC3209-4.3.4-1</code></a></h3>
 <p>The node determines whether it is topologically adjacent to the abstract node described by the second subobject. If so, the node selects a particular next hop which is a member of the abstract node. The node then deletes the first subobject and continues processing with section 4.3.4.2. (§4.3.4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Step 4: a node adjacent to the second subobject&#39;s abstract node selects a next hop in it and deletes the first subobject. Positive TestEngineTransitForwarding asserts the PATH goes to the egress (dst) and fwd.ERO has length 1 starting at the egress, red if the first subobject is kept or the hop is wrong. The negative TestEngineTransitNoUsableERONextHop uses an ERO with no second subobject, which is step 2 (end of explicit route) and an implicit-route failure, a neighbouring rule; no negative covers step 4.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Closure rejudge 2026-10-02: TestEngineTransitForwarding changed only in its positive claim, which named nextHopFromERO (gone) and now names the current producer, routing.go resolveExplicitPath, which skips the leading local subobjects and, when the next node is in the second abstract node, returns the ERO from that subobject on; the body still asserts the PATH is relayed to the egress with a one-hop ERO beginning at the egress. Positive re-recorded on resolveExplicitPath (observed red). Negatives TestRFC3209TransitNotAdjacentToSecondSubobject (no route to the strict second subobject: no next hop, nothing forwarded, no state, PathErr 24/2) and TestEngineTransitNoUsableERONextHop, both recorded on resolveExplicitPath.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L509" title="internal/plugins/rsvpte/engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitNoUsableERONextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L509" title="internal/plugins/rsvpte/rfc3209_engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitNoUsableERONextHop</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitNotAdjacentToSecondSubobject</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_test.go#L291" title="internal/plugins/rsvpte/engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitForwarding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L291" title="internal/plugins/rsvpte/rfc3209_engine_test.go" target="_blank" rel="noopener"><code>TestEngineTransitForwarding</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3209-4.3.4.1-1"><code>RFC3209-4.3.4.1-1</code></a></h3>
 <p>1) The node receiving the RSVP message MUST first evaluate the first subobject. (S4.3.4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a node that does not evaluate the first subobject, e.g. pops it blindly. Positive TestRFC3209TransitEvaluatesFirstEROSubobject consumes a first subobject naming this node; a blind pop also passes. Negative TestRFC3209TransitNoFirstEROSubobject covers the absent first subobject. No tagged unit sends a first subobject that does NOT name this node (Bad initial subobject), the only input that shows evaluation happened.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). The missing input is now covered: TestRFC3209TransitRefusesForeignFirstSubobject sends a first subobject 10.0.0.77/32 that does not contain this node; the transit forwards nothing, keeps no state, and answers PathErr 24/4 to the previous hop, which a blind pop would fail. Positive TestRFC3209TransitEvaluatesFirstEROSubobject.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L145" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitNoFirstEROSubobject</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L145" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitNoFirstEROSubobject</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L71" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitRefusesForeignFirstSubobject</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L123" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitEvaluatesFirstEROSubobject</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L123" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitEvaluatesFirstEROSubobject</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1193,12 +1240,12 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L254" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsFilterSpec</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L47" title="internal/plugins/rsvpte/repairs_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC3209ResvLabelFollowsFilterSpec</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L47" title="internal/plugins/rsvpte/repairs_rfc2205_test.go" target="_blank" rel="noopener"><code>TestRFC3209ResvLabelFollowsFilterSpec</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L254" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsFilterSpec</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1280,7 +1327,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L30" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209EgressResvCarriesLabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L30" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209EgressResvCarriesLabel</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1295,12 +1342,12 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L221" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L221" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209NoLabelWithoutLabelRequest</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L205" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsLabelRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L205" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209LabelFollowsLabelRequest</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1315,12 +1362,12 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L74" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressRefusesResvWithoutLabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L74" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressRefusesResvWithoutLabel</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L48" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressProcessesResvLabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L48" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209IngressProcessesResvLabel</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1335,7 +1382,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc3209_test.go#L106" title="internal/plugins/rsvpte/engine_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitCopiesL3PID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L106" title="internal/plugins/rsvpte/rfc3209_engine_label_test.go" target="_blank" rel="noopener"><code>TestRFC3209TransitCopiesL3PID</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1396,18 +1443,28 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </div>
 <h3><a href="#rfc3209-4.4.3-1"><code>RFC3209-4.4.3-1</code></a></h3>
 <p>The newly added subobject MUST be this router&#39;s IP address. (S4.4.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the node adds a subobject that is not its own IP address. TestRFC3209RRONewSubobjectIsOwnAddress passes self into prependRRO and asserts it comes back at the head, which proves the helper, not that the engine passes this router&#39;s address; a caller passing the next hop stays green. The negative (invalid address pushes nothing) is a local rule the sentence does not state.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Now proven at the engine, not the helper: TestRFC3209EngineRecordsOwnAddress drives a transit through handlePacket and reads the RRO head of the relayed PATH and the relayed RESV as the router&#39;s own 10.0.0.5, rest in order; TestRFC3209EngineNeverRecordsNeighborAddress asserts the head is neither the next hop nor the previous hop.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L24" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoSubobjectWithoutOwnAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L24" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoSubobjectWithoutOwnAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L137" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209EngineNeverRecordsNeighborAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L13" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONewSubobjectIsOwnAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L13" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONewSubobjectIsOwnAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L117" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209EngineRecordsOwnAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1422,12 +1479,12 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L43" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoLabelRecordWithoutAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L43" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRONoLabelRecordWithoutAddress</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rro_rfc3209_test.go#L32" title="internal/plugins/rsvpte/rro_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROLabelRecordFollowsAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L32" title="internal/plugins/rsvpte/rfc3209_rro_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROLabelRecordFollowsAddress</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1436,18 +1493,28 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </div>
 <h3><a href="#rfc3209-4.4.3-3"><code>RFC3209-4.4.3-3</code></a></h3>
 <p>If the newly added subobject causes the RRO to be too big to fit in a Path (or Resv) message, the RRO object SHALL be dropped from the message and message processing continues as normal. (S4.4.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: drop the RRO from a Path or a Resv that it no longer fits, and continue processing. TestRFC3209RRODroppedWhenTooBig and TestRFC3209RROKeptWhenItFits cover the Resv relay only (HasRRO false, LSP up; RRO kept when it fits). No tagged unit covers the Path direction, and &#39;too big&#39; is modelled by the maxRecordRouteHops cap rather than the message size.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Path direction now covered: TestRFC3209PathRRODroppedWhenTooBig (32 subobjects in, PATH forwarded without RRO, path state installed) and TestRFC3209PathRROKeptWhenItFits (31 in, 32 out headed by this router); the Resv direction was already covered. &#39;Too big&#39; is realised as maxRecordRouteHops (32), the bound that keeps the RRO inside the fixed encode buffer (wire.go); that threshold is a model choice, not the message size.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L63" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROKeptWhenItFits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L63" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209RROKeptWhenItFits</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L183" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROKeptWhenItFits</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L44" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRODroppedWhenTooBig</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L44" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209RRODroppedWhenTooBig</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L171" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRRODroppedWhenTooBig</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1455,19 +1522,19 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </table>
 </div>
 <h3><a href="#rfc3209-4.4.3-4"><code>RFC3209-4.4.3-4</code></a></h3>
-<p>Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Resv that carries an RRO after a Path without an RRO. TestRFC3209PathRROWithdrawal, at transit and egress, asserts HasRRO false on the next relayed RESV and on a sendResv refresh. The negative TestRFC3209PathRROForwarded asserts the RRO is still included while the PATH requests it, so an always-drop implementation goes red.</p>
+<p>A received Path message without an RRO indicates that the sender node no longer needs route recording.  Subsequent Resv messages SHALL NOT contain an RRO. (S4.4.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Row widened to the verbatim trigger plus ban; the tests already drive the trigger. TestRFC3209PathRROWithdrawal: after a Path without an RRO, the next relayed RESV and a sendResv refresh carry no RRO, at transit and egress. Negative TestRFC3209PathRROForwarded keeps the RRO while the PATH requests it, so an always-drop implementation goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L330" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROForwarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L330" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROForwarded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L285" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L285" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209PathRROWithdrawal</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1514,12 +1581,12 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L195" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeNotInserted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L195" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeNotInserted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/relay_rfc3209_test.go#L165" title="internal/plugins/rsvpte/relay_rfc3209_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeRelayedUnmodified</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L165" title="internal/plugins/rsvpte/rfc3209_relay_test.go" target="_blank" rel="noopener"><code>TestRFC3209SessionAttributeRelayedUnmodified</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1592,35 +1659,50 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <p>No test carries RFC3209-5.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3209-6-1"><code>RFC3209-6-1</code></a></h3>
 <p>When an ingress node with an established path wants to change that path, it forms a new Path message as follows. The existing SESSION object is used. In particular the Tunnel_ID and Extended_Tunnel_ID are unchanged. The ingress node picks a new LSP_ID to form a new SENDER_TEMPLATE. (§4.6.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a reroute PATH whose SESSION changes (Tunnel_ID or Extended_Tunnel_ID) or whose SENDER_TEMPLATE keeps the old LSP_ID. Positive TestEngineMakeBeforeBreak asserts the internal newKey fields and the emitted path.SenderTemplate.LSPID==2, but never the emitted PATH&#39;s SESSION object, so a PATH built with a different SESSION than the key stays green. Negative TestSEAdmissionDistinctSessionsDoNotShare proves admission sharing keyed on SESSION, a neighbouring rule.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC3209ReroutePathKeepsSessionNewLSPID reads the emitted make-before-break PATH: SESSION equal to the original and to the PSB, same sender, new LSP_ID. TestRFC3209RerouteNeverReusesLSPID: two successive reroutes give three distinct LSP_IDs under one SESSION.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/admission_se_test.go#L38" title="internal/plugins/rsvpte/admission_se_test.go" target="_blank" rel="noopener"><code>TestSEAdmissionDistinctSessionsDoNotShare</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_admission_se_test.go#L38" title="internal/plugins/rsvpte/rfc3209_admission_se_test.go" target="_blank" rel="noopener"><code>TestSEAdmissionDistinctSessionsDoNotShare</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L211" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209RerouteNeverReusesLSPID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/reroute_test.go#L41" title="internal/plugins/rsvpte/reroute_test.go" target="_blank" rel="noopener"><code>TestEngineMakeBeforeBreak</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_reroute_test.go#L41" title="internal/plugins/rsvpte/rfc3209_reroute_test.go" target="_blank" rel="noopener"><code>TestEngineMakeBeforeBreak</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L195" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209ReroutePathKeepsSessionNewLSPID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3209-6-2"><code>RFC3209-6-2</code></a></h3>
 <p>On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node. (§4.6.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an egress that answers a PATH with a Resv in a style other than Shared Explicit. The tagged unit TestBuildResvRoundTrip sets rsb.Style=SE itself and asserts buildResv round-trips it; an engine choosing FF on receipt of a PATH stays green. No tagged unit drives an egress receiving a PATH and reads the Resv STYLE.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Single-polarity row, now driven at the engine: TestRFC3209EgressResvStyleIsSharedExplicit has an egress receive a PATH through handlePacket and reads the STYLE of the RESV it sends as the literal 0x12.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/build_test.go#L80" title="internal/plugins/rsvpte/build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L80" title="internal/plugins/rsvpte/rfc3209_build_test.go" target="_blank" rel="noopener"><code>TestBuildResvRoundTrip</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L227" title="internal/plugins/rsvpte/rfc3209_signaling_test.go" target="_blank" rel="noopener"><code>TestRFC3209EgressResvStyleIsSharedExplicit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2287,7 +2369,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1350 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1350: The TFTP Protocol (Revision 2). 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 1350: The TFTP Protocol (Revision 2). 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 1350 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1350: The TFTP Protocol (Revision 2). 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 1350: The TFTP Protocol (Revision 2). 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1350 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1350: The TFTP Protocol (Revision 2). 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 1350: The TFTP Protocol (Revision 2). 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>40.0%</strong><b>4 of 10 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>40.0%</strong><b>4 of 10 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.0%</strong><b>17 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>18.2%</strong><b>2 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 10 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>20.0%</strong><b>2 of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 11 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,8 +160,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,16 +205,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>15</td>
+<td>14</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>11</td>
+<td>10</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>2</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>13</td>
+<td>21</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>13</td>
+<td>21</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>17</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1350.md</code></td>
@@ -250,14 +251,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: The TFTP Protocol (revision 2), base TFTP read-only server: eleven MUST-level requirements. Eight are met -- 2-1 (512-octet blocks with a short block ending the transfer), 6-1 (retransmit on timeout), 5-2 (octet mode transfers bytes unchanged), 4-1 (block numbers start at 1 and increment), 4-3 (a fresh transfer TID distinct from port 69), 7-1 (timeout then abort), and 5-3 (an exact-multiple file ends with a zero-length DATA block) are {single-polarity: positive} since ze is the DATA sender with no reject path; 2-2 (lockstep, advance only after ACK) carries positive+negative tags. 2-3 (silently ignore a duplicate or stale ACK per the Sorcerer&#39;s Apprentice fix) is {gap}: ze&#39;s sendAndWaitACK retransmits on any non-matching ACK. 5-1 (netascii translation on received data) and 4-2 (WRQ acknowledged with an ACK for block 0) are {not-applicable}: ze is a read-only server that rejects WRQ and accepts only octet mode.</p>
+<p>Enrolled: The TFTP Protocol (revision 2), base TFTP read-only server: ten MUST-level requirements. Eight are met -- 2-1 (512-octet blocks with a short block ending the transfer), 4-1 (block numbers start at 1 and increment), 4-3 (a fresh transfer TID distinct from port 69), and 5-3 (an exact-multiple file ends with a zero-length DATA block) are {single-polarity: positive} since ze is the DATA sender with no reject path; 2-2 (lockstep, advance only after ACK), 2-3 (a duplicate ACK triggers no DATA, the Sorcerer&#39;s Apprentice fix in sendAndWaitACK), 6-1 (retransmit the last DATA until it is acknowledged) and 7-1 (the ACK timeout ends the transfer of a gone peer) carry positive+negative tags. 5-1 (netascii translation on received data) and 4-2 (WRQ acknowledged with an ACK for block 0) are {not-applicable}: ze is a read-only server that rejects WRQ and accepts only octet mode.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Read-only TFTP server for PXE bootloader delivery.
 <p><strong>What the ledger says remains:</strong></p>
-<a href="#rfc1350-2-3"><code>RFC1350-2-3</code></a> unmet (Sorcerer&#39;s Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go) instead of silently ignoring a duplicate or stale ACK.
+None: RFC1350-5-2, which binds a host that receives an octet file and returns it, is retired because Ze&#39;s server never receives a file (it refuses WRQ).
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -265,11 +266,11 @@ Read-only TFTP server for PXE bootloader delivery.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>1</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>10</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -280,6 +281,10 @@ Read-only TFTP server for PXE bootloader delivery.
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -288,12 +293,12 @@ Read-only TFTP server for PXE bootloader delivery.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>11</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>10</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc1350-2-2"><code>RFC1350-2-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (10):</strong> <a href="#rfc1350-2-1"><code>RFC1350-2-1</code></a>, <a href="#rfc1350-6-1"><code>RFC1350-6-1</code></a>, <a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a>, <a href="#rfc1350-5-2"><code>RFC1350-5-2</code></a>, <a href="#rfc1350-4-1"><code>RFC1350-4-1</code></a>, <a href="#rfc1350-4-2"><code>RFC1350-4-2</code></a>, <a href="#rfc1350-4-3"><code>RFC1350-4-3</code></a>, <a href="#rfc1350-7-1"><code>RFC1350-7-1</code></a>, <a href="#rfc1350-2-3"><code>RFC1350-2-3</code></a>, <a href="#rfc1350-5-3"><code>RFC1350-5-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc1350-2-2"><code>RFC1350-2-2</code></a>, <a href="#rfc1350-6-1"><code>RFC1350-6-1</code></a>, <a href="#rfc1350-7-1"><code>RFC1350-7-1</code></a>, <a href="#rfc1350-2-3"><code>RFC1350-2-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (6):</strong> <a href="#rfc1350-2-1"><code>RFC1350-2-1</code></a>, <a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a>, <a href="#rfc1350-4-1"><code>RFC1350-4-1</code></a>, <a href="#rfc1350-4-2"><code>RFC1350-4-2</code></a>, <a href="#rfc1350-4-3"><code>RFC1350-4-3</code></a>, <a href="#rfc1350-5-3"><code>RFC1350-5-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -305,8 +310,8 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>MUST</td>
 <td>2 - Overview of the Protocol</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L471" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L390" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L466" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L387" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze is the DATA sender and always frames output at the block size, ending on a short or zero block (handler.go:360, 373, 379), so no client input can make it emit a non-conforming block and there is no reject path for a negative</p></td>
 </tr>
@@ -315,8 +320,10 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>MUST</td>
 <td>2 - Overview of the Protocol</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L393" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L726" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPConcurrentLimit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L153" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LockstepWaitsForTheACK</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L390" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L155" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LockstepWaitsForTheACK</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L721" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPConcurrentLimit</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-6-1">RFC1350-6-1</code></td><td colspan="3"><span class="rfc-subject">The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out. (Section 6)</span></td></tr>
@@ -324,9 +331,10 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>MUST</td>
 <td>6 - Normal Termination</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L757" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> retransmission fires only on ackTimeout expiry in sendAndWaitACK (handler.go:392-400). Its only counterpart, ceasing to resend once a valid ACK arrives, is the lockstep advance already pinned by RFC1350-2-2, so no distinct negative remains</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L271" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LastDATARetransmittedUntilAcknowledged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L752" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L273" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LastDATARetransmittedUntilAcknowledged</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-1">RFC1350-5-1</code></td><td colspan="3"><span class="rfc-subject">A host which receives netascii mode data must translate the data to its own format. (Section 5)</span></td></tr>
 <tr><td></td>
@@ -337,22 +345,12 @@ Read-only TFTP server for PXE bootloader delivery.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a read-only TFTP server that rejects WRQ (internal/plugins/tftpserver/handler.go:227) and accepts only octet mode (handler.go:248), so it never receives file data to translate between netascii and its local format</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-2">RFC1350-5-2</code></td><td colspan="3"><span class="rfc-subject">If a host receives a octet file and then returns it, the returned file must be identical to the original. (Section 5)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>5 - TFTP Packets</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L398" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L335" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> octet is the only accepted mode (handler.go:248) and serveFile copies file bytes verbatim into DATA (handler.go:360, 373), so no octet code path transforms bytes and there is no altered-bytes negative to test</p></td>
-</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-4-1">RFC1350-4-1</code></td><td colspan="3"><span class="rfc-subject">block numbers are consecutive and begin with one (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Initial Connection Protocol</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L396" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L393" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L332" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the server assigns block numbers itself, starting at 1 and incrementing (handler.go:362, 382), so no input can make it emit a non-1-based or non-consecutive number and there is no reject path for a negative</p></td>
@@ -371,7 +369,8 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>MUST</td>
 <td>4 - Initial Connection Protocol</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/socket_integration_linux_test.go#L144" title="internal/plugins/tftpserver/socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go#L144" title="internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L202" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350ServerChoosesOneTIDForTheTransfer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the server always allocates a fresh transfer socket via net.DialUDP per RRQ (handler.go:287), so no configuration or input reuses port 69 and there is no stale-TID negative case</p></td>
 </tr>
@@ -380,26 +379,28 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>MUST</td>
 <td>7 - Premature Termination</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L760" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the failure branch (abort after maxRetransmit ackTimeout expiries, handler.go:387 and 411, roughly 4x5s) needs about 20 seconds of real timeouts to reach, so a unit test exercises only the positive timeout-detection</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L302" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350TimeoutEndsTheTransferOfAGonePeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L755" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L338" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350TimeoutThenACKContinuesTheTransfer</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-2-3">RFC1350-2-3</code></td><td colspan="3"><span class="rfc-subject">All packets other than duplicate ACK&#39;s and those used for termination are acknowledged unless a timeout occurs [4]. Sending a DATA packet is an acknowledgment for the first ACK packet of the previous DATA packet. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - TFTP Packets</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s sendAndWaitACK (internal/plugins/tftpserver/handler.go:386-413) retransmits the DATA block on any non-matching ACK (ackBlock != block, handler.go:407) rather than silently ignoring a duplicate or stale ACK, so the RFC 1350 Sorcerer&#39;s Apprentice Syndrome fix is not implemented</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L178" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350DuplicateACKTriggersNoDATA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L180" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350DuplicateACKTriggersNoDATA</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-3">RFC1350-5-3</code></td><td colspan="3"><span class="rfc-subject">The data field is from zero to 512 bytes long. If it is 512 bytes long, the block is not the last block of data; if it is from zero to 511 bytes long, it signals the end of the transfer. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - TFTP Packets</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1350-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L537" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadEmptyFile</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L474" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L231" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350DataFieldLengthEndsTheTransfer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L532" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadEmptyFile</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L469" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze is the sender and always appends the zero-length terminator when the file length is an exact multiple of the block size (handler.go:364-383, 379), so no input can suppress or misplace it and there is no reject-path negative for this framing requirement</p></td>
 </tr>
@@ -456,10 +457,6 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze serves reads only and rejects WRQ with an ERROR (internal/plugins/tftpserver/handler.go:227-230), so there is no WRQ-to-ACK-block-0 write-initiation path</td>
 </tr>
-<tr><td><a href="#rfc1350-2-3"><code>RFC1350-2-3</code></a> All packets other than duplicate ACK&#39;s and those used for termination are acknowledged unless a timeout occurs [4]. Sending a DATA packet is an acknowledgment for the first ACK packet of the previous DATA packet. (§5)</td>
-<td>{gap}, no test</td>
-<td>ze&#39;s sendAndWaitACK (internal/plugins/tftpserver/handler.go:386-413) retransmits the DATA block on any non-matching ACK (ackBlock != block, handler.go:407) rather than silently ignoring a duplicate or stale ACK, so the RFC 1350 Sorcerer&#39;s Apprentice Syndrome fix is not implemented</td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -468,18 +465,18 @@ Read-only TFTP server for PXE bootloader delivery.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc1350-2-1"><code>RFC1350-2-1</code></a></h3>
 <p>the file is sent in fixed length blocks of 512 bytes (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a non-final DATA block that is not 512 bytes. TestTFTPReadExact512 asserts block 1 of a 512-byte file carries exactly 512 bytes (n-4 != 512 fails) and that the transfer continues to block 2; TestTFTPReadLargeFile asserts three blocks for 1500 bytes. Single-polarity marker: ze is the sender and no input changes its framing.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: a non-final DATA block that is not 512 bytes. TestTFTPReadExact512 asserts block 1 of a 512-byte file carries exactly 512 bytes (n-4 != 512 fails) and that the transfer continues to block 2; TestTFTPReadLargeFile asserts three blocks for 1500 bytes. Single-polarity marker: ze is the sender and no input changes its framing.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L471" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L466" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L390" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L387" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -488,35 +485,55 @@ Read-only TFTP server for PXE bootloader delivery.
 </div>
 <h3><a href="#rfc1350-2-2"><code>RFC1350-2-2</code></a></h3>
 <p>Each data packet contains one block of data, and must be acknowledged by an acknowledgment packet before the next packet can be sent. (Section 2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: sending DATA block n+1 before block n is ACKed. No tagged assertion goes red on it. TestTFTPReadLargeFile ACKs each block and checks gotBlock == block, which a server that streamed all blocks without waiting would also pass (the reads arrive in order). The negative in TestTFTPConcurrentLimit asserts only that a second RRQ gets ERROR while the first transfer holds the semaphore; a server that sent block 2 unacknowledged would still hold it. Needs an assertion that no block 2 arrives before the ACK of block 1.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: DATA block 2 before block 1 is ACKed. TestRFC1350LockstepWaitsForTheACK requires block 1 to be exactly octets 0..511, then expectSilence for 1 s with block 1 unacked (red on a server that streams ahead; the ACK timeout is 5 s so no retransmission confounds it), then after ACK 1 block 2 must be octets 512..1023. Both clauses (one block per packet, ACK before the next) are asserted in both polarities. The older handler_test units stay weak on their own.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L726" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPConcurrentLimit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L721" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPConcurrentLimit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L155" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LockstepWaitsForTheACK</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L393" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L390" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L153" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LockstepWaitsForTheACK</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1350-6-1"><code>RFC1350-6-1</code></a></h3>
 <p>The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out. (Section 6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;must retransmit it&#39;: TestTFTPRetransmitOnTimeout withholds the ACK of the single (last) DATA and asserts a byte-identical retransmission arrives within 7s, red if none. Clause &#39;until the packet is acknowledged&#39;: no tagged unit asserts the retransmissions stop once the ACK arrives; the test ACKs at the end and asserts nothing after. The marker points at RFC1350-2-2, whose own tagged units do not prove the stop either.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC1350LastDATARetransmittedUntilAcknowledged: the last DATA (block 2 of 1000 octets) left unacked must be retransmitted byte for byte within ackTimeout+2 s (red on no retransmission); after ACK 2, expectSilence for ackTimeout+2 s (red on retransmitting past the ACK, the &#39;until acknowledged&#39; clause the old verdict found missing). The &#39;or times out&#39; end is the sender&#39;s give-up, asserted by the RFC1350-7-1 unit on a single-block (last) DATA.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L757" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L273" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LastDATARetransmittedUntilAcknowledged</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L752" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L271" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350LastDATARetransmittedUntilAcknowledged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -525,35 +542,15 @@ Read-only TFTP server for PXE bootloader delivery.
 <p>A host which receives netascii mode data must translate the data to its own format. (Section 5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1350-5-1, so no unit is bound to it.</p>
-<h3><a href="#rfc1350-5-2"><code>RFC1350-5-2</code></a></h3>
-<p>If a host receives a octet file and then returns it, the returned file must be identical to the original. (Section 5)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence binds a host that RECEIVES an octet file and later returns it. Ze&#39;s TFTP server rejects WRQ (handler.go handleRRQ path only) and never receives a file, so the obligation&#39;s round trip cannot occur. TestTFTPReadRequest and TestTFTPReadLargeFile prove a neighbouring rule: the RRQ path sends a stored file&#39;s bytes verbatim in octet mode. The tags are misplaced.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L398" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L335" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadRequest</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
 <h3><a href="#rfc1350-4-1"><code>RFC1350-4-1</code></a></h3>
 <p>block numbers are consecutive and begin with one (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a first block other than 1, or a gap or repeat in the numbering. TestTFTPReadRequest asserts buf[2:4] == 1; TestTFTPReadLargeFile asserts gotBlock == block for 1,2,3; TestTFTPReadExact512 asserts block 2 follows block 1. Single-polarity marker: the server assigns the numbers.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: a first block other than 1, or a gap or repeat in the numbering. TestTFTPReadRequest asserts buf[2:4] == 1; TestTFTPReadLargeFile asserts gotBlock == block for 1,2,3; TestTFTPReadExact512 asserts block 2 follows block 1. Single-polarity marker: the server assigns the numbers.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L396" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L393" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -571,54 +568,90 @@ Read-only TFTP server for PXE bootloader delivery.
 <p>No test carries RFC1350-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc1350-4-3"><code>RFC1350-4-3</code></a></h3>
 <p>each end of the connection chooses a TID for itself, to be used for the duration of that connection (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the server answering from port 69 instead of a TID it chose, or changing its TID mid-transfer. TestListenTFTPLoopbackRoundTrip (Linux, skips without root) asserts only that the bytes arrive; tftpFetch records the first DATA source and ACKs to it but never asserts it differs from port 69, so a server replying from 69 passes. A mid-transfer TID change would stall the fetch only incidentally. No unit asserts the chosen TID.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: answering from the request port, or changing TID mid-transfer. TestRFC1350ServerChoosesOneTIDForTheTransfer reads the source of each of three DATA blocks and fails if any equals the listener port or differs from block 1&#39;s port. Single-polarity marker holds: the server has no input-driven refusal path; a server reusing port 69 or re-dialing per block goes red on the positive.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/socket_integration_linux_test.go#L144" title="internal/plugins/tftpserver/socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go#L144" title="internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go" target="_blank" rel="noopener"><code>TestListenTFTPLoopbackRoundTrip</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L202" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350ServerChoosesOneTIDForTheTransfer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1350-7-1"><code>RFC1350-7-1</code></a></h3>
 <p>Timeouts must also be used to detect errors. (Section 7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Not wrong: TestTFTPRetransmitOnTimeout does go red on a server with no ACK timeout at all (it would block on Read and no retransmission arrives within 7s), which is part of the obligation. But the sentence (Section 7, Premature Termination) requires timeouts to detect errors, i.e. a peer that is gone or failed ends the transfer. A server that retransmitted forever and never declared the transfer failed passes: the abort after maxRetransmit (sendAndWaitACK returning false) has no assertion. The single-polarity marker&#39;s reason (the abort needs about 20s of real timeouts) is a test-cost argument, not the absence of a negative behaviour.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive TestRFC1350TimeoutEndsTheTransferOfAGonePeer: with no ACK, block 1 must arrive exactly maxRetransmit+1 times then silence past a full ackTimeout+2 s (red on retransmitting forever or on no timeout), and a one-slot server must then serve a new RRQ (red if the failed transfer never releases its slot). Negative TestRFC1350TimeoutThenACKContinuesTheTransfer: an ACK after one timeout-driven retransmission continues to block 2 (red on treating the first timeout as fatal). The old single-polarity test-cost argument is gone from the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L760" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L338" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350TimeoutThenACKContinuesTheTransfer</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L755" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPRetransmitOnTimeout</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L302" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350TimeoutEndsTheTransferOfAGonePeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1350-2-3"><code>RFC1350-2-3</code></a></h3>
 <p>All packets other than duplicate ACK&#39;s and those used for termination are acknowledged unless a timeout occurs [4]. Sending a DATA packet is an acknowledgment for the first ACK packet of the previous DATA packet. (§5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1350-2-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC1350DuplicateACKTriggersNoDATA: after ACK 1 and DATA 2, a second ACK 1 must produce no datagram for 1 s (the ACK timeout is 5 s, so a timeout retransmission cannot confound it); judge re-ran it against HEAD&#39;s handler.go by overlay and it fails &#39;DATA sent in answer to a duplicate ACK: got opcode 3 block 2&#39;, so it discriminates the Sorcerer&#39;s Apprentice bug. Positive: a fresh ACK 2 is answered by DATA 3, and after ACK 3 silence, so block 3 is sent once. Producer sendAndWaitACK now keeps reading to the same deadline on a non-matching packet (isACKFor).</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L180" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350DuplicateACKTriggersNoDATA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L178" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350DuplicateACKTriggersNoDATA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1350-5-3"><code>RFC1350-5-3</code></a></h3>
 <p>The data field is from zero to 512 bytes long. If it is 512 bytes long, the block is not the last block of data; if it is from zero to 511 bytes long, it signals the end of the transfer. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;512 bytes: not the last block&#39;: TestTFTPReadExact512 asserts block 1 is 512 bytes and a block 2 follows, red if the server stopped. Clause &#39;zero to 511 bytes signals the end of the transfer&#39;: no tagged assertion goes red if the server sent further DATA after the short or zero-length block (neither test reads after the terminating block) or sent a short block before the end of a multi-block file. Clause &#39;zero to 512 bytes&#39;: both tests read into a 516-byte buffer, which truncates an oversize datagram, so a block over 512 bytes is not detected. TestTFTPReadEmptyFile asserts only that block 1 is zero-length.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC1350DataFieldLengthEndsTheTransfer reads into a 64 KiB buffer so an oversize field is seen whole (fails &gt;512); for 1500/1024/0-octet files a 512 block must be followed by the next block (expectData fails otherwise), the transfer must end on the first 0..511 block with expectSilence for 1 s after its ACK (red on DATA after the end), and the reassembled bytes equal the file (red on a short non-final block, which would end the loop early). All three clauses asserted; single-polarity marker holds (Ze is the sender).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L537" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadEmptyFile</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L532" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadEmptyFile</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L474" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L469" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L231" title="internal/plugins/tftpserver/rfc1350_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC1350DataFieldLengthEndsTheTransfer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -630,10 +663,10 @@ Read-only TFTP server for PXE bootloader delivery.
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>ze-work agent, spec-rfcgate-6, rfc1350</td>
+<td>independent judge, spec-rfc-verdict-fix-services (session 869df689)</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-08-31</td>
+<td>2026-09-30</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -648,10 +681,10 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>rfc/extraction/rfc1350.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>5</td>
+<td>4</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>5</td>
+<td>6</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -734,6 +767,11 @@ Read-only TFTP server for PXE bootloader delivery.
 <td>A description of the datagram layer, not a directive to a TFTP speaker. The sentence derives a range from a property of the protocol underneath it: TIDs are handed to UDP to be used as ports, &#39;therefore they must be between 0 and 65,535&#39;. The bound is the width of the UDP port field, so no TFTP implementation can violate it and none can be tested against it. Ze obtains its transfer TID from net.DialUDP in handleRRQ (internal/plugins/tftpserver/handler.go) and never chooses a port number itself. rfc/short/rfc1350.md declares no requirement for this sentence, and the TID obligation it does declare, RFC1350-4-3, is read from section 4 and declared unsourced there.</td>
 <td>The transfer identifiers (TID&#39;s) used by TFTP are passed to the Datagram layer to be used as ports; therefore they must be between 0 and 65,535.</td>
 </tr>
+<tr><td><code>5:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>binds a host that receives an octet file and then returns it, which Ze does not implement: the TFTP server refuses WRQ (serve in internal/plugins/tftpserver/handler.go) and Ze has no TFTP client, so it never receives a file. Row RFC1350-5-2 is retired (rfc/corrections/rfc1350.md)</td>
+<td>If a host receives a octet file and then returns it, the returned file must be identical to the original.</td>
+</tr>
 <tr><td><code>5:3</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
 <td>Binds the mail-mode role, which RFC 1350 retires in its own section 1: &#39;mail, netascii characters sent to a user rather than a file. (The mail mode is obsolete and should not be implemented or used.)&#39; The sentence tells a host that offers mail mode that such a transfer begins with a WRQ and names a recipient in place of a file. Ze plays no mail-mode role at all: handleRRQ accepts only &#39;octet&#39; and the server rejects WRQ outright in serve (internal/plugins/tftpserver/handler.go). rfc/short/rfc1350.md declares no requirement for mail mode.</td>
@@ -790,7 +828,7 @@ Read-only TFTP server for PXE bootloader delivery.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

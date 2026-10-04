@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>68.4%</strong><b>13 of 19 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>15.8%</strong><b>3 of 19 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>1.9%</strong><b>1 of 53 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>24.2%</strong><b>16 of 66 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 19 gated MUSTs judged</b><p>9 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 19 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>53</td>
+<td>66</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>53</td>
+<td>66</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>17</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>16</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9234.md</code></td>
@@ -270,7 +276,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td><strong>13</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +287,10 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -295,7 +305,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc9234-4.1-1"><code>RFC9234-4.1-1</code></a>, <a href="#rfc9234-4.2-1"><code>RFC9234-4.2-1</code></a>, <a href="#rfc9234-4.2-2"><code>RFC9234-4.2-2</code></a>, <a href="#rfc9234-4.2-3"><code>RFC9234-4.2-3</code></a>, <a href="#rfc9234-5-1"><code>RFC9234-5-1</code></a>, <a href="#rfc9234-5-2"><code>RFC9234-5-2</code></a>, <a href="#rfc9234-5-3"><code>RFC9234-5-3</code></a>, <a href="#rfc9234-5-4"><code>RFC9234-5-4</code></a>, <a href="#rfc9234-5-5"><code>RFC9234-5-5</code></a>, <a href="#rfc9234-5-6"><code>RFC9234-5-6</code></a>, <a href="#rfc9234-5-10"><code>RFC9234-5-10</code></a>, <a href="#rfc9234-3.1-1"><code>RFC9234-3.1-1</code></a>, <a href="#rfc9234-5-12"><code>RFC9234-5-12</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (6):</strong> <a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a>, <a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a>, <a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a>, <a href="#rfc9234-5-9"><code>RFC9234-5-9</code></a>, <a href="#rfc9234-5-11"><code>RFC9234-5-11</code></a>, <a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (6):</strong> <a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a>, <a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a>, <a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a>, <a href="#rfc9234-5-9"><code>RFC9234-5-9</code></a>, <a href="#rfc9234-5-11"><code>RFC9234-5-11</code></a>, <a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -307,8 +317,9 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>4.1 - BGP Role Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L288" title="internal/component/bgp/plugins/role/config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L289" title="internal/component/bgp/plugins/role/config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_config_test.go#L288" title="internal/component/bgp/plugins/role/rfc9234_config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_config_test.go#L289" title="internal/component/bgp/plugins/role/rfc9234_config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/dynamic-peer-gets-group-role-capability.ci#L21" title="test/plugin/dynamic-peer-gets-group-role-capability.ci" target="_blank" rel="noopener"><code>dynamic-peer-gets-group-role-capability.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.1-2">RFC9234-4.1-2</code></td><td colspan="3"><span class="rfc-subject">An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1)</span></td></tr>
@@ -316,8 +327,9 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST NOT</td>
 <td>4.1 - BGP Role Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L290" title="internal/component/bgp/plugins/role/config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_config_test.go#L290" title="internal/component/bgp/plugins/role/rfc9234_config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/dynamic-peer-gets-group-role-capability.ci#L24" title="test/plugin/dynamic-peer-gets-group-role-capability.ci" target="_blank" rel="noopener"><code>dynamic-peer-gets-group-role-capability.ci</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) reads a single import role per peer and extractRoleCapabilities (config.go:213) emits exactly one CapabilityDecl per peer, so no code path can advertise multiple Role capabilities and only the exactly-one assertion is constructible</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.2-1">RFC9234-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If the BGP Role Capability is advertised, and one is also received from the peer, the Roles MUST correspond to the relationships in Table 2. (S4.2)</span></td></tr>
@@ -325,9 +337,9 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>4.2 - Role Correctness</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L21" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L122" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L65" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L21" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L122" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L65" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.2-2">RFC9234-4.2-2</code></td><td colspan="3"><span class="rfc-subject">If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (S4.2)</span></td></tr>
@@ -335,12 +347,14 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>4.2 - Role Correctness</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L267" title="internal/component/bgp/server/validate_test.go" target="_blank" rel="noopener"><code>TestAskOpenValidatorsLeavesASilentPluginPending</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L223" title="internal/component/bgp/server/validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L123" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L66" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L250" title="internal/component/bgp/server/validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L22" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc9234_validate_test.go#L267" title="internal/component/bgp/server/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestAskOpenValidatorsLeavesASilentPluginPending</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc9234_validate_test.go#L223" title="internal/component/bgp/server/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L123" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L66" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc9234_validate_test.go#L250" title="internal/component/bgp/server/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L22" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-mismatch-notification.ci#L4" title="test/plugin/role-mismatch-notification.ci" target="_blank" rel="noopener"><code>role-mismatch-notification.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/peer-open-role-complement.ci#L4" title="test/plugin/peer-open-role-complement.ci" target="_blank" rel="noopener"><code>peer-open-role-complement.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.2-3">RFC9234-4.2-3</code></td><td colspan="3"><span class="rfc-subject">If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (§4.2)</span></td></tr>
@@ -348,8 +362,10 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>4.2 - Role Correctness</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-4.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L163" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleDifferentRoles</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L193" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleSameRoles</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L166" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleDifferentRoles</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L196" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleSameRoles</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-multiple-roles-notification.ci#L4" title="test/plugin/role-multiple-roles-notification.ci" target="_blank" rel="noopener"><code>role-multiple-roles-notification.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-multiple-same-roles.ci#L4" title="test/plugin/role-multiple-same-roles.ci" target="_blank" rel="noopener"><code>role-multiple-same-roles.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-1">RFC9234-5-1</code></td><td colspan="3"><span class="rfc-subject">If a route with the OTC Attribute is received from a Customer or an RS-Client, then it is a route leak and MUST be considered ineligible (see Section 3). (S5)</span></td></tr>
@@ -357,9 +373,9 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L335" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L81" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestOTCIngressGateRunsForADynamicGroupMember</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L345" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L335" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L81" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestOTCIngressGateRunsForADynamicGroupMember</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L345" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-2">RFC9234-5-2</code></td><td colspan="3"><span class="rfc-subject">If a route with the OTC Attribute is received from a Peer (i.e., remote AS with a Peer Role) and the Attribute has a value that is not equal to the remote (i.e., Peer&#39;s) AS number, then it is a route leak and MUST be considered ineligible. (§5)</span></td></tr>
@@ -367,8 +383,8 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L505" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L497" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L505" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L497" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-3">RFC9234-5-3</code></td><td colspan="3"><span class="rfc-subject">If a route is received from a Provider, a Peer, or an RS and the OTC Attribute is not present, then it MUST be added with a value equal to the AS number of the remote AS. (§5)</span></td></tr>
@@ -376,10 +392,10 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L481" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L330" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1989" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnMPUnreachOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1961" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnPureWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L481" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L330" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1991" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnMPUnreachOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1963" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnPureWithdrawal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-4">RFC9234-5-4</code></td><td colspan="3"><span class="rfc-subject">If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS. (§5)</span></td></tr>
@@ -387,12 +403,14 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L964" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1928" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsMixedWithdrawAndAnnounce</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1125" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1887" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnMPUnreachOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1866" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnPureWithdrawal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1003" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampProvider</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L964" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1930" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsMixedWithdrawAndAnnounce</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1127" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L48" title="internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCStampedToEveryDownstreamDestination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1889" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnMPUnreachOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1868" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnPureWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1003" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampProvider</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L67" title="internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCNotStampedOutsideTheDownstreamScope</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L8" title="test/plugin/role-otc-fwd-withdraw.ci" target="_blank" rel="noopener"><code>role-otc-fwd-withdraw.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-client-dest-stamp.ci#L12" title="test/plugin/role-otc-rs-client-dest-stamp.ci" target="_blank" rel="noopener"><code>role-otc-rs-client-dest-stamp.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L14" title="test/plugin/role-otc-rs-withdraw-eor.ci" target="_blank" rel="noopener"><code>role-otc-rs-withdraw-eor.ci</code></a></span></div>
@@ -407,8 +425,8 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1723" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1724" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1725" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1726" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-6">RFC9234-5-6</code></td><td colspan="3"><span class="rfc-subject">Once the OTC Attribute has been set, it MUST be preserved unchanged (this also applies to an AS Confederation). (S5)</span></td></tr>
@@ -416,8 +434,8 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1511" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerExistingPreserved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1490" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerNewAttr</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1513" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerExistingPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1492" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerNewAttr</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-7">RFC9234-5-7</code></td><td colspan="3"><span class="rfc-subject">If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier. (S5)</span></td></tr>
@@ -443,7 +461,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1336" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampLocalASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1338" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampLocalASN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses dest.LocalAS, the effective per-peer internet-facing local AS supplied by the reactor at internal/component/bgp/reactor/peer_forward_facts.go:133, and no code path stamps any other value, so a wrong-ASN negative is not constructible</p></td>
 </tr>
@@ -452,11 +470,11 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2020" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestIsPayloadUnicastMPUnreachFamily</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2063" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNonUnicastWithdrawalNotProcessed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1369" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressUnicastOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2103" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCNonUnicastWithdrawalSkipsOTCProcedures</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L965" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2022" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestIsPayloadUnicastMPUnreachFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2065" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNonUnicastWithdrawalNotProcessed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1371" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressUnicastOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2105" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCNonUnicastWithdrawalSkipsOTCProcedures</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L965" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-11">RFC9234-5-11</code></td><td colspan="3"><span class="rfc-subject">The operator MUST NOT have the ability to modify the procedures defined in this section. (S5)</span></td></tr>
@@ -464,7 +482,8 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-11">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1725" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1727" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L87" title="internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCProceduresSurviveOperatorSettings</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> checkOTCIngress (internal/component/bgp/plugins/role/otc.go:164) and OTCEgressFilter (otc.go:384) take no operator override, peerRoleConfig (config.go:17) exposes no disable flag, and the wire-bytes OTC suppression at otc.go:384 runs before and independent of the export policy, so the procedures cannot be switched off by configuration and a modifiable negative is not constructible</p></td>
 </tr>
@@ -482,9 +501,9 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MUST NOT</td>
 <td>3.1 - Peering Relationships</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L661" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1071" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressSuppressProviderLearnedWithoutMeta</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L671" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L661" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1073" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressSuppressProviderLearnedWithoutMeta</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L671" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-12">RFC9234-5-12</code></td><td colspan="3"><span class="rfc-subject">The OTC Attribute is considered malformed if the length value is not 4. An UPDATE message with a malformed OTC Attribute SHALL be handled using the approach of &#34;treat-as-withdraw&#34; [RFC7606]. (§5)</span></td></tr>
@@ -492,8 +511,10 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>SHALL</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1773" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressMalformedTreatAsWithdraw</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L346" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1775" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressMalformedTreatAsWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go#L36" title="internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L346" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go#L56" title="internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4-1">RFC9234-4-1</code></td><td colspan="3"><span class="rfc-subject">One of the Roles described below SHOULD be configured at the local AS for each eBGP session (see definitions in Section 3) based on the local AS&#39;s knowledge of its Role. (§4)</span></td></tr>
@@ -528,8 +549,9 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>MAY</td>
 <td>4.2 - Role Correctness</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-4.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L175" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L175" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L112" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_NoPeerRole_NoStrict</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-strict-enforcement.ci#L4" title="test/plugin/role-strict-enforcement.ci" target="_blank" rel="noopener"><code>role-strict-enforcement.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-13">RFC9234-5-13</code></td><td colspan="3"><span class="rfc-subject">The BGP Role negotiation and OTC-Attribute-based procedures specified in this document are NOT RECOMMENDED to be used between autonomous systems in an AS Confederation [RFC5065]. (§5)</span></td></tr>
@@ -570,35 +592,45 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9234-4.1-1"><code>RFC9234-4.1-1</code></a></h3>
 <p>If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message. (S4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: an OPEN sent with no Role capability although a role is configured. TestExtractRoleCapabilities_ParseBGPConfig require.Len(caps,1) + Code==9 goes red only if the role plugin stops DECLARING the capability; no tagged unit reads the OPEN ze sends, so an engine that dropped the declaration stays green (question 2 fails for the &#39;in the BGP OPEN message&#39; clause). Negative (no/invalid/empty role -&gt; no capability) is sound. Candidate tag: test/plugin/dynamic-peer-gets-group-role-capability.ci if it asserts code 9 in the OPEN bytes</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive on the wire: dynamic-peer-gets-group-role-capability.ci asserts ze&#39;s whole OPEN octet for octet ending 09 01 01 (role rs configured); revert record on extractRoleCapabilities, plus a mutant record on extractPeerRoleConfigs for TestExtractRoleCapabilities_ParseBGPConfig. Negative (no, invalid or empty role: no capability 9) is a table case in that same unit, recorded 2026-09-29 by the judge (revert extractRoleCapabilities, observed red).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L289" title="internal/component/bgp/plugins/role/config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_config_test.go#L289" title="internal/component/bgp/plugins/role/rfc9234_config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L288" title="internal/component/bgp/plugins/role/config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_config_test.go#L288" title="internal/component/bgp/plugins/role/rfc9234_config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/dynamic-peer-gets-group-role-capability.ci#L21" title="test/plugin/dynamic-peer-gets-group-role-capability.ci" target="_blank" rel="noopener"><code>dynamic-peer-gets-group-role-capability.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a></h3>
 <p>An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. single-polarity positive. non-compliant: an OPEN carrying two Role capabilities. TestExtractRoleCapabilities_ParseBGPConfig require.Len(caps,1) and require.Len(cap.Peers,1) pin one declaration per peer at the plugin; no tagged unit counts Role capabilities in the OPEN ze encodes, so duplication after the declaration is unobserved (question 2 fails at the OPEN)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive, argument re-checked: parseRoleContainer reads one role per peer and extractRoleCapabilities emits one CapabilityDecl per peer. The .ci now asserts the OPEN ze sends octet for octet, so a second Role capability changes the length fields and goes red; revert record on extractRoleCapabilities. The marker cites config.go line numbers that have shifted; the argument holds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L290" title="internal/component/bgp/plugins/role/config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_config_test.go#L290" title="internal/component/bgp/plugins/role/rfc9234_config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/dynamic-peer-gets-group-role-capability.ci#L24" title="test/plugin/dynamic-peer-gets-group-role-capability.ci" target="_blank" rel="noopener"><code>dynamic-peer-gets-group-role-capability.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -611,17 +643,17 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L122" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L122" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L65" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L65" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L21" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L21" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -630,60 +662,80 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-4.2-2"><code>RFC9234-4.2-2</code></a></h3>
 <p>If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (S4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: a mismatched pair rejected with a different NOTIFICATION, or not rejected. The plugin units assert Accept=false with NotifyCode 2 / NotifySubcode 11 in validateOpenRolePair&#39;s OUTPUT; TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy covers only the unanswered-plugin path at the engine. No tagged unit observes the engine turning a plugin mismatch verdict into the NOTIFICATION it sends and closing the connection (question 2 fails for &#39;reject the connection&#39;). Candidate: a mismatch .ci like test/plugin/role-strict-enforcement.ci, which asserts 03020B on the wire for strict mode</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive role-mismatch-notification.ci: ze Provider, ze-peer Provider, first message on the wire is NOTIFICATION 03020B and no EoR; mutant record removing ! from !isValidRolePair (revert cannot discriminate: a crashed plugin also fails closed with 2/11). Negative peer-open-role-complement.ci: same config, ze-peer answers Customer, EoR sent and 03020B rejected; revert record on validateOpenRolePair. Only the peer&#39;s role octet differs, so the pair isolates the correspondence check.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L22" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L22" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L250" title="internal/component/bgp/server/validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc9234_validate_test.go#L250" title="internal/component/bgp/server/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/peer-open-role-complement.ci#L4" title="test/plugin/peer-open-role-complement.ci" target="_blank" rel="noopener"><code>peer-open-role-complement.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L123" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L123" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L66" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L66" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc9234_validate_test.go#L267" title="internal/component/bgp/server/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestAskOpenValidatorsLeavesASilentPluginPending</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L267" title="internal/component/bgp/server/validate_test.go" target="_blank" rel="noopener"><code>TestAskOpenValidatorsLeavesASilentPluginPending</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc9234_validate_test.go#L223" title="internal/component/bgp/server/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/validate_test.go#L223" title="internal/component/bgp/server/validate_test.go" target="_blank" rel="noopener"><code>TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-mismatch-notification.ci#L4" title="test/plugin/role-mismatch-notification.ci" target="_blank" rel="noopener"><code>role-mismatch-notification.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9234-4.2-3"><code>RFC9234-4.2-3</code></a></h3>
 <p>If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: multiple differing Role capabilities accepted or refused with another code. TestValidateOpenRolePair_MultipleDifferentRoles asserts Accept=false, 2/11 in the plugin output; negative TestValidateOpenRolePair_MultipleSameRoles asserts identical duplicates accepted. As for RFC9234-4.2-2, no tagged unit observes the connection rejected with the NOTIFICATION on the wire</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive role-multiple-roles-notification.ci: Customer then Peer; Customer alone pairs with ze&#39;s Provider, so only the differing second value can refuse; wire 03020B, no EoR; mutant record on len(peerRoles) &gt; 1. Negative role-multiple-same-roles.ci: Customer twice establishes (EoR, 03020B rejected); revert record. The unit pair in validate_test.go stays as plugin-tier cover.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L193" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleSameRoles</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L196" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleSameRoles</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-multiple-same-roles.ci#L4" title="test/plugin/role-multiple-same-roles.ci" target="_blank" rel="noopener"><code>role-multiple-same-roles.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L166" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleDifferentRoles</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L163" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleDifferentRoles</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-multiple-roles-notification.ci#L4" title="test/plugin/role-multiple-roles-notification.ci" target="_blank" rel="noopener"><code>role-multiple-roles-notification.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -696,17 +748,17 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L345" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L345" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L81" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestOTCIngressGateRunsForADynamicGroupMember</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L81" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestOTCIngressGateRunsForADynamicGroupMember</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L335" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L335" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -721,12 +773,12 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L497" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L497" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L505" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L505" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -741,22 +793,22 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L330" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L330" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1989" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnMPUnreachOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1991" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnMPUnreachOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1961" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnPureWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1963" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnPureWithdrawal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L481" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L481" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -765,25 +817,30 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-5-4"><code>RFC9234-5-4</code></a></h3>
 <p>If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: a route to a Customer, Peer or RS-Client advertised without OTC == local AS. Customer: TestOTCEgressStampMod (op code 35, value 65000), TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig, role-otc-fwd-withdraw.ci, role-otc-rs-withdraw-eor.ci; RS-Client: role-otc-rs-client-dest-stamp.ci. The Peer destination has no tagged assertion (TestOTCEgressStampPeer, untagged, asserts Gao-Rexford suppression, not a stamp), so one of the three listed cases is unproven (question 4). The scope negative TestOTCEgressNoStampProvider uses a payload with no NLRI, which payloadAdvertisesNLRI already refuses, so it stays green with the destination gate removed (question 3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive TestRFC9234OTCStampedToEveryDownstreamDestination: an NLRI-bearing route with no OTC toward Customer, Peer and RS-Client each gets exactly one set op, code 35, value local AS 65000; plus the existing .ci and FRR interop positives. Negatives TestRFC9234OTCNotStampedOutsideTheDownstreamScope: the same NLRI-bearing route toward Provider and RS gets no op (the destination gate refuses, not the empty-NLRI gate), and a route already carrying OTC toward a Customer gets no op. TestOTCEgressNoStampProvider was vacuous (no NLRI, refused before the destination gate) and now carries NLRI (D-15 correction, not a weakening). Revert records on OTCEgressFilter for all three.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1887" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnMPUnreachOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L67" title="internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCNotStampedOutsideTheDownstreamScope</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1889" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnMPUnreachOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1866" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnPureWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1868" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampOnPureWithdrawal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1003" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampProvider</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1003" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNoStampProvider</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L856" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></td>
@@ -801,17 +858,22 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L964" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L48" title="internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCStampedToEveryDownstreamDestination</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L964" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1928" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsMixedWithdrawAndAnnounce</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1930" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsMixedWithdrawAndAnnounce</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1125" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1127" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -846,12 +908,12 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1724" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1726" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1723" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1725" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -866,12 +928,12 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1490" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerNewAttr</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1492" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerNewAttr</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1511" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerExistingPreserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1513" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerExistingPreserved</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -894,7 +956,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1336" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampLocalASN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1338" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampLocalASN</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -909,27 +971,27 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L965" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L965" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2020" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestIsPayloadUnicastMPUnreachFamily</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2022" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestIsPayloadUnicastMPUnreachFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2063" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNonUnicastWithdrawalNotProcessed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2065" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressNonUnicastWithdrawalNotProcessed</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1369" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressUnicastOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1371" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressUnicastOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L2103" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCNonUnicastWithdrawalSkipsOTCProcedures</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2105" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCNonUnicastWithdrawalSkipsOTCProcedures</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -938,13 +1000,18 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-5-11"><code>RFC9234-5-11</code></a></h3>
 <p>The operator MUST NOT have the ability to modify the procedures defined in this section. (S5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. single-polarity positive. The sentence covers every ingress and egress procedure of Section 5. TestOTCEgressWireBytesCheck shows only egress rule 2 running with no source role config. No tagged unit shows the ingress procedures or the egress stamp surviving an operator setting (for example an export policy or a role option), so the claim &#39;cannot be switched off by configuration&#39; rests on the marker&#39;s code reading, not on an assertion (question 4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive, argument re-checked: peerRoleConfig carries only role, strict and export; TestRFC9234OTCProceduresSurviveOperatorSettings sets strict on and export naming every role on the source configs (the export set the egress filter reads, srcCfg.resolvedExport) and shows ingress still stamps OTC 64500 from a Provider, still refuses an OTC route from a Customer, egress still withholds an OTC route from a Provider and still stamps 65000 toward a Customer. Revert record on checkOTCIngress. The marker&#39;s otc.go:164/:384 line citations are stale (now checkOTCIngress and OTCEgressFilter moved); the argument holds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1725" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L87" title="internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCProceduresSurviveOperatorSettings</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1727" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -963,17 +1030,17 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L671" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L671" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L661" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L661" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressFilter</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1071" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressSuppressProviderLearnedWithoutMeta</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1073" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressSuppressProviderLearnedWithoutMeta</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -982,18 +1049,28 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-5-12"><code>RFC9234-5-12</code></a></h3>
 <p>The OTC Attribute is considered malformed if the length value is not 4. An UPDATE message with a malformed OTC Attribute SHALL be handled using the approach of &#34;treat-as-withdraw&#34; [RFC7606]. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. non-compliant: an OTC of length other than 4 not handled as treat-as-withdraw. TestOTCIngressMalformedTreatAsWithdraw asserts the NLRI moves to withdrawn, attribute length 0, OTC gone, and TestCheckOTCIngress malformed_* assert otcTreatWithdraw for every role, but every tagged malformed input has length 3. Lengths above 4 and 0 are driven only by TestOTCBoundaryLength (untagged, detection only), so &#39;not 4&#39; is proven for the short side alone. Negative (length 4 accepted) is sound</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw: OTC lengths 0, 5 and 8 from a Provider (attributes ORIGIN + OTC only, isolated) move 10.0.0.0/24 to withdrawn, clear the attributes and keep the message. Negative TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw: length 4 accepted unchanged. Revert records on findOTC for both.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L346" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go#L56" title="internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L346" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1773" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressMalformedTreatAsWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go#L36" title="internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1775" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressMalformedTreatAsWithdraw</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1002,15 +1079,25 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-4.2-5"><code>RFC9234-4.2-5</code></a></h3>
 <p>An operator may choose to apply a &#34;strict mode&#34; in which the receipt of a BGP Role Capability from the remote AS is required. When operating in the &#34;strict mode&#34;, if the BGP Role Capability is sent but one is not received, the connection is rejected using the Role Mismatch Notification (code 2, subcode 11). (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. MAY; the quote carries the strict-mode rejection sentence. Positive TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole asserts Accept=false, 2/11, reason &#39;strict&#39; and a compliant member accepted. No negative polarity is tagged: the non-strict acceptance of a missing capability (TestValidateOpenRolePair_NoPeerRole_NoStrict, untagged) is not claimed, and no {single-polarity} marker. Wire proof exists untagged in test/plugin/role-strict-enforcement.ci</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive role-strict-enforcement.ci: strict true, ze-peer drops capability 9, first message is 03020B; mutant record cfg.strict -&gt; false turns it red, so strict mode is what refuses. Negative TestValidateOpenRolePair_NoPeerRole_NoStrict: non-strict accepts a missing role; revert record. Note: the .ci session is iBGP (asn 1/1); the strict sentence is not eBGP-scoped in RFC 9234, so this does not void it. The .ci has a 10s budget and flaked once (journal row).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L112" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_NoPeerRole_NoStrict</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/dynamic_group_test.go#L175" title="internal/component/bgp/plugins/role/dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L175" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-strict-enforcement.ci#L4" title="test/plugin/role-strict-enforcement.ci" target="_blank" rel="noopener"><code>role-strict-enforcement.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1203,7 +1290,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

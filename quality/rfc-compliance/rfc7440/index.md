@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 11.1% | 1 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 1 | of 9 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 2 |
-| Tagged units | 2 |
+| Test tags | 4 |
+| Tagged units | 4 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc7440.md` |
 | Requirement shard | `rfc/requirements/rfc7440.md` |
 | RFC text | `rfc/full/rfc7440.txt` |
@@ -88,22 +82,23 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 8 | one part of the gated population |
+| Annotated (including scoped evidence) | 8 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC7440-3-1`](#rfc7440-3-1)
 
-**Annotated instead of tested (8):** [`RFC7440-3-2`](#rfc7440-3-2), [`RFC7440-3-3`](#rfc7440-3-3), [`RFC7440-3-4`](#rfc7440-3-4), [`RFC7440-4-1`](#rfc7440-4-1), [`RFC7440-4-2`](#rfc7440-4-2), [`RFC7440-4-3`](#rfc7440-4-3), [`RFC7440-4-4`](#rfc7440-4-4), [`RFC7440-4-5`](#rfc7440-4-5)
+**Annotated (including scoped evidence) (8):** [`RFC7440-3-2`](#rfc7440-3-2), [`RFC7440-3-3`](#rfc7440-3-3), [`RFC7440-3-4`](#rfc7440-3-4), [`RFC7440-4-1`](#rfc7440-4-1), [`RFC7440-4-2`](#rfc7440-4-2), [`RFC7440-4-3`](#rfc7440-4-3), [`RFC7440-4-4`](#rfc7440-4-4), [`RFC7440-4-5`](#rfc7440-4-5)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7440-3-1` | Note that all fields except "opc" MUST be ASCII strings followed by a single-byte NULL character. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestTFTPParseRRQ`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L98). **negative:** `unit/verify` [`TestTFTPParseRRQInvalid`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L126) |
+| `RFC7440-3-1` | Note that all fields except "opc" MUST be ASCII strings followed by a single-byte NULL character. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC7440FieldsAreNULTerminatedASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L257). **positive:** `unit/verify` [`TestTFTPParseRRQ`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L98). **negative:** `unit/verify` [`TestRFC7440FieldsAreNULTerminatedASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L261). **negative:** `unit/verify` [`TestTFTPParseRRQInvalid`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L126) |
 | `RFC7440-3-2` | The valid values range MUST be between 1 and 65535 blocks, inclusive. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not implement the RFC 7440 windowsize option; parseRRQ records the option name as a bool and discards the value (internal/plugins/tftpserver/handler.go:129-130) without range-validating it, and the option is never negotiated |
 | `RFC7440-3-3` | If the server is willing to accept the windowsize option, it sends an Option Acknowledgment (OACK) to the client. The specified value MUST be less than or equal to the value specified by the client. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never acknowledges the windowsize option -- sendOACKAndWait (internal/plugins/tftpserver/handler.go:312-343) builds the OACK from blksize/tsize only, so there is no acknowledged windowsize to constrain |
 | `RFC7440-3-4` | The client MUST then either use the size specified in the OACK or send an ERROR packet, with error code 8, to terminate the transfer. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a TFTP client obligation (use the OACK windowsize or send ERROR 8); ze is a TFTP server and does not implement the windowsize option |
@@ -140,12 +135,14 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Note that all fields except "opc" MUST be ASCII strings followed by a single-byte NULL character. (§3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. 'All fields except opc MUST be ASCII strings followed by a single-byte NULL.' TestTFTPParseRRQ/TestTFTPParseRRQInvalid (tftpserver) prove the NUL terminator for filename and mode only: 'no filename NUL' and 'no mode NUL' are rejected. No assertion covers the ASCII clause (a non-ASCII byte in a field is accepted untested), and the windowsize option name/value fields this section defines are not exercised, since ze does not implement the option.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. The sentence formats the RRQ/WRQ, so its ASCII clause binds the request's sender; Ze only receives requests, and no receiver obligation to refuse non-ASCII follows from it. Receiver side, TestRFC7440FieldsAreNULTerminatedASCIIStrings: the Section 3 example parses to foobar/octet/windowsize; a windowsize whose #blocks lacks its NUL is not recognized, and a filename without its NUL is refused (red on a parser taking an unterminated field). Supplementary: every field of the OACK Ze sends is printable ASCII with one NUL (four fields).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestTFTPParseRRQInvalid`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L126) | unit/verify | unproven |
-| positive | [`TestTFTPParseRRQ`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L98) | unit/verify | unproven |
+| negative | [`TestTFTPParseRRQInvalid`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L126) | unit/verify | revert, verified |
+| negative | [`TestRFC7440FieldsAreNULTerminatedASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L261) | unit/verify | revert, verified |
+| positive | [`TestTFTPParseRRQ`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L98) | unit/verify | revert, verified |
+| positive | [`TestRFC7440FieldsAreNULTerminatedASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L257) | unit/verify | revert, verified |
 
 ### [`RFC7440-3-2`](#rfc7440-3-2)
 

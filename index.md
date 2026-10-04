@@ -23,9 +23,9 @@ Ze generates command, configuration and support reference data from the code and
 
  Recently shipped
 
-### [Week of 2026-09-21](https://ze-software.net/project/changes/2026-09-21/)
+### [Week of 2026-09-28](https://ze-software.net/project/changes/2026-09-28/)
 
-Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and…
+A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes…
 
  RFC compliance progress
 
@@ -37,17 +37,17 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**32,500+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**34,100+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**151 RFCs supported**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**152 RFCs supported**
 
-- 3,896 MUSTs to test
-- 2,488 checked with a test
-- 63.9% done
+- 4,005 MUSTs to test
+- 2,572 checked with a test
+- 64.2% done
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,100+ end to end tests**
 
@@ -122,7 +122,7 @@ Ze runs on any existing Linux distro, managed by systemd or your chosen process 
 
 ### [Run as an appliance](https://ze-software.net/guides/ze-install/)
 
-A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision.
+A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.
 
 `gokrazy image` `Read-only root filesystem` Install guide PXE, ISO, or Ventoy
 
@@ -225,6 +225,16 @@ Weekly updates come from git history and Discord's `ze-news`. They stay specific
 
  01
 
+Week of 2026-09-28
+
+### [A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section. The release queue closed the week at 213 required work items and 221 nice-to-have, against 191 and 219 at the start. 24 items joined and none left. Eleven of the required additions are defects found this week, and seven more split the RFC fix work by area. The rest are update authenticity, an SRv6 forwarding path and two tooling items. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-28/)
+
+ BGP L2TP IPsec Flow Export
+
+**Update**
+
+ 02
+
 Week of 2026-09-21
 
 ### [Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end. The release queue closed the week at 191 required work items and 219 nice-to-have, against 157 and 183 at the start. 74 items joined and 4 left. Almost everything that joined is a defect or a missing behavior found by reading the RFCs end to end. Three of the four that left are the backup and restore work below. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-21/)
@@ -233,23 +243,13 @@ Week of 2026-09-21
 
 **Update**
 
- 02
+ 03
 
 Week of 2026-09-14
 
 ### [Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable. The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-14/)
 
- Diagnostics IPsec OSPF Interfaces
-
-**Update**
-
- 03
-
-Week of 2026-09-07
-
-### [Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.](https://ze-software.net/project/changes/2026-09-07/)
-
- BGP Interfaces Security PPPoE - [See all updates](https://ze-software.net/project/changes/)
+ Diagnostics IPsec OSPF Interfaces - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.

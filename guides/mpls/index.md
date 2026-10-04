@@ -108,6 +108,13 @@ KeepAlive Time of 0`, and closes the connection. A peer proposing a protocol
 version other than 1 is refused the same way, with the Bad Protocol Version
 Notification.
 
+During initialization, `OPENSENT` accepts only an Initialization message and
+`OPENREC` accepts only a KeepAlive. Any other message, including a Notification,
+triggers a Shutdown Notification and ends the transport session before its body
+is applied. The Initialization PDU's LSR ID and label-space ID must also match
+the Hello adjacency that opened the session; a mismatch receives Session
+Rejected/No Hello.
+
 <!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->
 <!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit -->
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->

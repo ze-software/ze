@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>85.7%</strong><b>12 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>14.3%</strong><b>2 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>92.9%</strong><b>13 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.1%</strong><b>1 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>2.6%</strong><b>1 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>21.7%</strong><b>10 of 46 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>15</strong><b>of 14 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 19 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 20 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 14 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>14</strong><b>of 14 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>19</td>
+<td>20</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>14</td>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>38</td>
+<td>46</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>38</td>
+<td>46</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>14</td>
+<td>15</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>10</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5709.md</code></td>
@@ -265,11 +267,11 @@ Same OSPF experimental status.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>12</strong></td>
+<td><strong>13</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>2</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -279,6 +281,10 @@ Same OSPF experimental status.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -292,8 +298,8 @@ Same OSPF experimental status.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (12):</strong> <a href="#rfc5709-3-1"><code>RFC5709-3-1</code></a>, <a href="#rfc5709-3.1-1"><code>RFC5709-3.1-1</code></a>, <a href="#rfc5709-3.1-2"><code>RFC5709-3.1-2</code></a>, <a href="#rfc5709-3.1-3"><code>RFC5709-3.1-3</code></a>, <a href="#rfc5709-3.1-4"><code>RFC5709-3.1-4</code></a>, <a href="#rfc5709-3.3-1"><code>RFC5709-3.3-1</code></a>, <a href="#rfc5709-3.3-2"><code>RFC5709-3.3-2</code></a>, <a href="#rfc5709-3.3-3"><code>RFC5709-3.3-3</code></a>, <a href="#rfc5709-3.3-4"><code>RFC5709-3.3-4</code></a>, <a href="#rfc5709-3.4-1"><code>RFC5709-3.4-1</code></a>, <a href="#rfc5709-3.4-2"><code>RFC5709-3.4-2</code></a>, <a href="#rfc5709-3.2-1"><code>RFC5709-3.2-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc5709-3-5"><code>RFC5709-3-5</code></a>, <a href="#rfc5709-3.2-2"><code>RFC5709-3.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc5709-3-1"><code>RFC5709-3-1</code></a>, <a href="#rfc5709-3.1-1"><code>RFC5709-3.1-1</code></a>, <a href="#rfc5709-3.1-2"><code>RFC5709-3.1-2</code></a>, <a href="#rfc5709-3.1-3"><code>RFC5709-3.1-3</code></a>, <a href="#rfc5709-3.1-4"><code>RFC5709-3.1-4</code></a>, <a href="#rfc5709-3.3-1"><code>RFC5709-3.3-1</code></a>, <a href="#rfc5709-3.3-2"><code>RFC5709-3.3-2</code></a>, <a href="#rfc5709-3.3-3"><code>RFC5709-3.3-3</code></a>, <a href="#rfc5709-3.3-4"><code>RFC5709-3.3-4</code></a>, <a href="#rfc5709-3.4-1"><code>RFC5709-3.4-1</code></a>, <a href="#rfc5709-3.4-2"><code>RFC5709-3.4-2</code></a>, <a href="#rfc5709-3.2-1"><code>RFC5709-3.2-1</code></a>, <a href="#rfc5709-3.2-2"><code>RFC5709-3.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc5709-3-5"><code>RFC5709-3-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -342,6 +348,7 @@ Same OSPF experimental status.
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L82" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go#L36" title="internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go" target="_blank" rel="noopener"><code>TestRFC5709AnyAlgorithmUnderAnyKeyID</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> keyConfig binds KeyID and Algorithm independently and resolveChainKeys/signKey honor each per-key algorithm with no fixed algorithm-per-KeyID mapping, so this is a permissive config capability with no forbidden (supported-algorithm, KeyID) pairing to reject (internal/plugins/ospf/auth_keystore.go:239-253, :292-324)</p></td>
 </tr>
@@ -350,7 +357,7 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L56" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineSignPacketCrypto</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L56" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineSignPacketCrypto</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L73" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthStoreSignVerify</code></a></span></div>
 </div></td>
 </tr>
@@ -360,7 +367,9 @@ Same OSPF experimental status.
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L61" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L21" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC5709AuthDataLengthIsHashOutputLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L229" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L74" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC5709WrongAuthDataLengthRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.1-3">RFC5709-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Third, the 32-bit cryptographic sequence number is set in accordance with the procedures in RFC 2328, Appendix D that are applicable to the Cryptographic Authentication type. (§3.1)</span></td></tr>
@@ -369,6 +378,7 @@ Same OSPF experimental status.
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L63" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_crypto_sequence_test.go#L50" title="internal/plugins/ospf/rfc5709_crypto_sequence_test.go" target="_blank" rel="noopener"><code>TestRFC5709CryptoSequenceNonDecreasingOnInterface</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L140" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
 </div></td>
 </tr>
@@ -427,10 +437,10 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L137" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L137" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L81" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L399" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveIndependentDigest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L138" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L138" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L359" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoChecksumOctetAuthenticated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L98" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L435" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveRejectsWrongHashConstruction</code></a></span></div>
@@ -441,9 +451,9 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L135" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L135" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L250" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L136" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L136" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L247" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></span></div>
 </div></td>
 </tr>
@@ -452,18 +462,28 @@ Same OSPF experimental status.
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L559" title="internal/plugins/ospf/config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverOverlapAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L572" title="internal/plugins/ospf/config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverGapRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L559" title="internal/plugins/ospf/rfc5709_config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverOverlapAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L572" title="internal/plugins/ospf/rfc5709_config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverGapRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-2">RFC5709-3.2-2</code></td><td colspan="3"><span class="rfc-subject">In the event that the last key associated with an interface expires, it is unacceptable to revert to an unauthenticated condition, and not advisable to disrupt routing. (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-2">RFC5709-3.2-2</code></td><td colspan="3"><span class="rfc-subject">In the event that the last key associated with an interface expires, it is unacceptable to revert to an unauthenticated condition (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L48" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709LastKeyExpiredStillSigns</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L344" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSignKeyNoRevertWhenAllExpired</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> selectSendKey returns the most-recently-starting key when every send-lifetime has expired and signKey never yields AuTypeNull for a resolved chain, so the forbidden revert-to-unauthenticated transition is structurally absent and there is no packet-reject direction (internal/plugins/ospf/auth_keystore.go:263-287)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L70" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709LastKeyExpiredRefusesUnauthenticated</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-5">RFC5709-3.2-5</code></td><td colspan="3"><span class="rfc-subject">Therefore, the router should send a &#34;last Authentication Key expiration&#34; notification to the network manager and treat the key as having an infinite lifetime until the lifetime is extended, the key is deleted by network management, or a new key is configured. (§3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5709-3.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L103" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709LastKeyExpiredKeepsAdjacency</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L150" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709ExpiredKeyRefusedOnceNotLast</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5709-3.2-3">RFC5709-3.2-3</code></td><td colspan="3"><span class="rfc-subject">In order to achieve smooth key transition, KeyStartAccept SHOULD be less than KeyStartGenerate and KeyStopGenerate SHOULD be less than KeyStopAccept. (§3.2)</span></td></tr>
 <tr><td></td>
@@ -514,7 +534,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5709-3-5"><code>RFC5709-3-5</code></a></h3>
 <p>An implementation of this specification MUST allow network operators to configure ANY authentication algorithm supported by that implementation for use with ANY given KeyID value that is configured into that OSPFv2 router. (Section 3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an operator config that refuses a supported algorithm under some KeyID, or fixes an algorithm per KeyID; (b) none: the tagged TestOSPFAuthSignVerifyCrypto builds packet.AuthKey directly with the single KeyID 7 and never goes through operator configuration (parseOSPFConfig/validateConfig), so a config path that rejected e.g. hmac-sha-1 at key-id 200 would stay green</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5709AnyAlgorithmUnderAnyKeyID drives operator config: five key-chain texts rotate md5 and hmac-sha-1/256/384/512 over Key IDs 1,77,200,254,255 through parseOSPFConfig, validateConfig and the running engine&#39;s verifyPacket, auth failures 0. Judge overlay fixing the algorithm per Key ID in resolveChainKeys turns every shift red; Key ID 0 (not sampled) also passes under a judge overlay. {single-polarity: positive} on the row; record observed red on resolveChainKeys.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -523,6 +543,11 @@ Same OSPF experimental status.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L82" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go#L36" title="internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go" target="_blank" rel="noopener"><code>TestRFC5709AnyAlgorithmUnderAnyKeyID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -540,7 +565,7 @@ Same OSPF experimental status.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L56" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineSignPacketCrypto</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L56" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineSignPacketCrypto</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -549,7 +574,7 @@ Same OSPF experimental status.
 </div>
 <h3><a href="#rfc5709-3.1-2"><code>RFC5709-3.1-2</code></a></h3>
 <p>set the Authentication Data Length field to the length (measured in bytes, not bits) of the cryptographic hash that will be used. When any NIST SHS algorithm is used in HMAC mode with OSPFv2 Cryptographic Authentication, the Authentication Data Length is equal to the normal hash output length (measured in bytes) for the specific NIST SHS algorithm in use. (§3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an Authentication Data Length other than the hash output length L; (b) positive TestOSPFAuthSignVerifyCrypto asserts af[3]==authDigestLen(algo), whose expected value comes from the production table and is cross-checked only through the reference digest length; the tagged negative TestOSPFAuthCryptoRejectsExtraTrailerBytes appends a byte after the trailer and leaves af[3] correct, so it proves trailer framing, and no tagged unit presents a packet whose Auth Data Length field is wrong (Verify&#39;s int(af[3]) != l guard is unexercised)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c23 re-judge (independent judge). Positive: TestRFC5709AuthDataLengthIsHashOutputLength signs AuType 2 under HMAC-SHA-1/256/384/512 and asserts af[3] == the literal 20/32/48/64 (not the production table), the trailer is that many octets and equals rfc5709ReferenceDigest (independent Ko, Apad and HMAC); overlay authDigestLen SHA-256 -&gt; 31 reds it (scratch/c23/a1). Negative (owner ruling 2, handling of a peer packet with the wrong field): TestRFC5709WrongAuthDataLengthRejected presents an HMAC-SHA-1 packet with af[3]=32 whose 20-octet digest is computed independently over that very header, so only the length field differs from the verifying control (af[3]=20); Verify refuses it. Overlay removing Verify&#39;s int(af[3]) != l guard reds only this unit while TestOSPFAuthSignVerifyCrypto and TestOSPFAuthCryptoRejectsExtraTrailerBytes stay green (a2), closing the earlier finding. Observed-red records on authDigestLen and Verify. HEAD units supplementary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -559,17 +584,27 @@ Same OSPF experimental status.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L74" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC5709WrongAuthDataLengthRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L61" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L21" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC5709AuthDataLengthIsHashOutputLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5709-3.1-3"><code>RFC5709-3.1-3</code></a></h3>
 <p>Third, the 32-bit cryptographic sequence number is set in accordance with the procedures in RFC 2328, Appendix D that are applicable to the Cryptographic Authentication type. (§3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: a sender that sets the 32-bit sequence number other than per RFC 2328 App D, i.e. that lets it decrease between packets; (b) none: TestOSPFAuthSignVerifyCrypto only proves a caller-supplied 42 is written at offset 4, and the negative TestOSPFAuthReplay proves the receiver&#39;s replay check, a neighbouring receive-side rule; no tagged unit asserts the engine emits non-decreasing sequence numbers across successive packets Re-read 2026-09-27 (DF-OSPF-B): the AuType 2 equal sequence is now accepted per RFC 2328 D.4.3; the tag asserts only 5 &lt; 11 dropped, and 10 &lt; stored 11 dropped.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 7, judge): the weak finding (no sender-side sequence assertion) is closed. TestRFC5709CryptoSequenceNonDecreasingOnInterface signs five Hellos through eng.signPacket on eth0 and reloads the key from Key ID 1 to 2 before the fourth; each packet&#39;s 32-bit sequence (auth offset 4) is not below the previous one (RFC 2328 D.4.3 (5): non-decreasing), Key ID checked per packet. Positive revert record on signKey re-recorded by the judge after continuation 8 changed signKey, observed red. Negative: TestOSPFAuthReplay-side replayedSequence refusal (revert record observed red). The packet-level round-trip positive in packet/auth_verify_test.go has no record (pre-existing).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -583,6 +618,11 @@ Same OSPF experimental status.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L63" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_crypto_sequence_test.go#L50" title="internal/plugins/ospf/rfc5709_crypto_sequence_test.go" target="_blank" rel="noopener"><code>TestRFC5709CryptoSequenceNonDecreasingOnInterface</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -720,11 +760,6 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L138" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L359" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoChecksumOctetAuthenticated</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
@@ -739,8 +774,8 @@ Same OSPF experimental status.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L137" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L138" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -751,6 +786,11 @@ Same OSPF experimental status.
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L399" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestRFC5709ReceiveIndependentDigest</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L137" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -765,22 +805,22 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L136" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L247" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_wiring_test.go#L135" title="internal/plugins/ospf/auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L136" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L250" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsKeyIDMismatch</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L135" title="internal/plugins/ospf/rfc5709_auth_wiring_test.go" target="_blank" rel="noopener"><code>TestEngineReceiveSelectsSecurityAssociation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -795,12 +835,12 @@ Same OSPF experimental status.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L572" title="internal/plugins/ospf/config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverGapRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L572" title="internal/plugins/ospf/rfc5709_config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverGapRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L559" title="internal/plugins/ospf/config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverOverlapAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L559" title="internal/plugins/ospf/rfc5709_config_test.go" target="_blank" rel="noopener"><code>TestKeyRolloverOverlapAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -808,16 +848,46 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc5709-3.2-2"><code>RFC5709-3.2-2</code></a></h3>
-<p>In the event that the last key associated with an interface expires, it is unacceptable to revert to an unauthenticated condition, and not advisable to disrupt routing. (§3.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: the interface reverting to an unauthenticated condition when its last key expires, on generation or on acceptance; (b) TestSignKeyNoRevertWhenAllExpired asserts signKey still returns AuTypeCryptographic with key 2 after every send-lifetime expired, covering generation at the store level only; no tagged unit asserts that after the last key&#39;s accept-lifetime expires an unauthenticated (AuType 0) packet is still refused, and none drives it through eng.signPacket to the wire</p>
+<p>In the event that the last key associated with an interface expires, it is unacceptable to revert to an unauthenticated condition (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 8, judge): row narrowed per R35 to the MUST NOT (no revert to an unauthenticated condition); the &#39;not advisable to disrupt routing&#39; clause moved to RFC5709-3.2-5. Positive TestRFC5709LastKeyExpiredStillSigns: only key&#39;s send and accept lifetimes over, a Hello through eng.signPacket leaves AuType 2 Key ID 1; positive TestSignKeyNoRevertWhenAllExpired (store level). Negative TestRFC5709LastKeyExpiredRefusesUnauthenticated: AuType 0 Hello refused by verify with autype-mismatch after expiry. All three revert records (selectSendKey, verify) re-recorded by the judge after continuation 8 changed those producers, observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L70" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709LastKeyExpiredRefusesUnauthenticated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L344" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSignKeyNoRevertWhenAllExpired</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L48" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709LastKeyExpiredStillSigns</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5709-3.2-5"><code>RFC5709-3.2-5</code></a></h3>
+<p>Therefore, the router should send a &#34;last Authentication Key expiration&#34; notification to the network manager and treat the key as having an infinite lifetime until the lifetime is extended, the key is deleted by network management, or a new key is configured. (§3.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. New row 2026-09-30 (R35, D-8 fixed). auth_keystore.go: lastKeyIndex (latest sendStart, tie -&gt; later accept end) is shared by signer and verifier; selectSendKey signs with it when no key is active; lastKeyExtendedIndex extends its accept window only when every window of the chain has closed and the last key&#39;s accept end passed (a not-yet-open chain is not expiry); noticeLocked notifies once per interface until configure installs a new chain; notification = slog Warn + ospf/last-key-expiration event. Positive TestRFC5709LastKeyExpiredKeepsAdjacency: two engines with the same expired one-key chain, two Hellos signed by one verify on the other, exactly one event each (eth0, key 1, send / receive). Negative TestRFC5709ExpiredKeyRefusedOnceNotLast: after a live Key ID 2 is configured the expired Key ID 1 is refused accept-lifetime, the signer moves to Key ID 2, no event. Revert records on lastKeyExtendedIndex observed red for both polarities. &#39;Lifetime extended&#39; and &#39;key deleted&#39; are the same configure path as &#39;new key configured&#39; and are not separately asserted.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L150" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709ExpiredKeyRefusedOnceNotLast</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L103" title="internal/plugins/ospf/rfc5709_last_key_expiry_test.go" target="_blank" rel="noopener"><code>TestRFC5709LastKeyExpiredKeepsAdjacency</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1010,7 +1080,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

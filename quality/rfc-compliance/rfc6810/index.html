@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>15.0%</strong><b>6 of 40 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.0%</strong><b>2 of 40 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.3%</strong><b>5 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>61.9%</strong><b>13 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>10.0%</strong><b>4 of 40 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 40 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>15</td>
+<td>23</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>15</td>
+<td>21</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>5</td>
+<td>13</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6810.md</code></td>
@@ -273,7 +278,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>34</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -284,6 +289,10 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -298,7 +307,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a>, <a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a>, <a href="#rfc6810-5.1-3"><code>RFC6810-5.1-3</code></a>, <a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a>, <a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a>, <a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (34):</strong> <a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a>, <a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a>, <a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a>, <a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a>, <a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a>, <a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a>, <a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a>, <a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a>, <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a>, <a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a>, <a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a>, <a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a>, <a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a>, <a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a>, <a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a>, <a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a>, <a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a>, <a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a>, <a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a>, <a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a>, <a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a>, <a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a>, <a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a>, <a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a>, <a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a>, <a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a>, <a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a>, <a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a>, <a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a>, <a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a>, <a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a>, <a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a>, <a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a>, <a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (34):</strong> <a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a>, <a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a>, <a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a>, <a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a>, <a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a>, <a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a>, <a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a>, <a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a>, <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a>, <a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a>, <a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a>, <a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a>, <a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a>, <a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a>, <a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a>, <a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a>, <a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a>, <a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a>, <a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a>, <a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a>, <a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a>, <a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a>, <a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a>, <a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a>, <a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a>, <a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a>, <a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a>, <a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a>, <a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a>, <a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a>, <a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a>, <a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a>, <a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a>, <a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -329,8 +338,10 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L37" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L38" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.6-1">RFC6810-5.6-1</code></td><td colspan="3"><span class="rfc-subject">The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (Section 5.6)</span></td></tr>
@@ -428,7 +439,8 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>MUST</td>
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L23" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810DefaultPollCadenceIsHourly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L23" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810DefaultPollCadenceIsHourly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L512" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRPollsAtLeastHourly</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the re-query cadence is Run&#39;s post-sync wait of s.retryInterval (internal/component/bgp/plugins/rpki/rtr_session.go:106-110), defaulting to 600s (rtr_session.go:81) which is below the one-hour ceiling; there is no malformed input that yields a too-infrequent negative case</p></td>
 </tr>
@@ -447,7 +459,9 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>6.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.4-1">RFC6810-6.4-1</code></td><td colspan="3"><span class="rfc-subject">If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4)</span></td></tr>
@@ -455,8 +469,8 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>MUST</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L71" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L72" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-3-1">RFC6810-3-1</code></td><td colspan="3"><span class="rfc-subject">A relying party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any authoritative cache(s) it uses. (Section 3)</span></td></tr>
@@ -483,6 +497,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L86" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case</p></td>
 </tr>
@@ -1108,18 +1123,28 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </div>
 <h3><a href="#rfc6810-5.1-3"><code>RFC6810-5.1-3</code></a></h3>
 <p>The value of such a field MUST be ignored on receipt. (Section 5.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The row covers every zero/reserved field of every PDU. TestRFC6810ReservedPrefixOctetsIgnored proves it for the IPv4 Prefix PDU only: an all-ones header zero field, reserved flag bits and zero octet still authorize the route, and clearing the announce bit withdraws it (so only reserved bits are ignored). No unit sends a nonzero reserved field in the other PDUs a router receives (Serial Notify, Cache Response, End of Data, Cache Reset, IPv6 Prefix), so a receiver that rejects those stays green. Same judgement as RFC8210-5-1.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Receipt of unspecified-content fields proven for every router-received PDU that has one: IPv4 Prefix (TestRFC6810ReservedPrefixOctetsIgnored), IPv6 Prefix header zero field, reserved flags and zero octet all ones still authorize 2001:db8::/32, and Cache Reset octets 2-3 0xFFFF still reset (TestRTRReservedOctetsIgnoredOnReceipt). Serial Notify, Cache Response and End of Data carry Session ID there, not a reserved field. Negative: the same 0xFFFF in a Cache Response is read as Session ID.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L38" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L37" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1168,13 +1193,18 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a></h3>
 <p>To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} carried on the row. TestRFC6810DefaultPollCadenceIsHourly asserts only that pollDelay(true) and pollDelay(false) return at most one hour on a fresh session. It does not drive Run, so a loop that ignored pollDelay and never re-queried would stay green, and nothing asserts that a v0 End of Data (which carries no timing parameters) leaves those intervals within the hour.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row annotation). TestRTRPollsAtLeastHourly: after an End of Data with zero interval fields, pollDelay(true) and pollDelay(false) are both at most one hour; the running cacheGroup queries again when the wait ends (Reset then Serial on the wire with a 1s wait), so the loop does re-query. TestRFC6810DefaultPollCadenceIsHourly keeps the fresh-session defaults.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L23" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810DefaultPollCadenceIsHourly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L23" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810DefaultPollCadenceIsHourly</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L512" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRPollsAtLeastHourly</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1187,20 +1217,30 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-6.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a></h3>
 <p>If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: after a Cache Reset with no more-preferred cache, not issuing a Reset Query or not taking a whole new load. TestCacheResetTriggersResetQuery calls handlePDU directly and asserts only that s.serial becomes 0 and the sync ends; no tagged unit observes the Reset Query on the wire or the old set replaced by a full load. The negative (Serial Notify keeps the serial) holds. Same judgement as RFC8210-8.3-1.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Same units as RFC8210-8.3-1: TestRTRCacheResetReloadsTheWholeSet, one-session group, Cache Reset makes the next wire query a Reset Query and its load replaces the old set; negative: data in answer to the Serial Query keeps Serial Queries and merges.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1213,12 +1253,12 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L72" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L71" title="internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1235,7 +1275,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a></h3>
 <p>Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} carried on the row. TestParseRPKIConfigDefaults asserts only that a parsed cache-server with no port defaults to 323; no tagged unit drives an unprotected TCP RTR session from config to show ze implements the transport on that port. Same judgement as RFC8210-9-1.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row annotation). Same unit as RFC8210-9-1: TestRTRUnprotectedTCPFromConfig drives a config-parsed trusted-network cache (default port 323) over plain TCP to a completed sync with the VRP used.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1244,6 +1284,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L86" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2015,7 +2060,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

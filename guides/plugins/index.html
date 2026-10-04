@@ -1489,7 +1489,12 @@ unique, reference it directly (e.g. <code>STRIP</code>). The prefixed forms
 accepted for disambiguation or advanced use.</p>
 <p>The plugin emits policy intent only. The reactor performs the wire rewrite so
 AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
-to EBGP peers, private-AS removal runs before the normal local-AS prepend.</p>
+to EBGP peers, private-AS removal runs before the normal local-AS prepend. On
+export to an IBGP peer (peer AS equals local AS, or equals the configured
+migration AS, which RFC 7705 Section 4.2 makes internal) the removal is not applied:
+RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to
+an internal peer, so the route leaves with its AS_PATH unchanged.</p>
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runEgressPolicyChainASN4 -->
 <!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
@@ -1741,8 +1746,14 @@ command argument, which expands the chain in the client process and answers
 </tr>
 </tbody>
 </table>
+<p><code>StartAfter</code> is separate from either kind of dependency. It orders two plugins
+only when both are already selected and never activates its target. BFD starts
+after <code>interface</code> when interface configuration is present, so its logical names
+bind before sessions start; a BFD-only configuration does not load an interface
+backend. Cycles among selected plugins are refused for order-only edges too.</p>
 <p><code>bgp-rs</code> uses <code>bgp-adj-rib-in</code> optionally: when both are loaded, replay-on-peer-up works; when <code>bgp-adj-rib-in</code> is absent, forwarding still works and a single WARN log announces that replay is disabled. <code>bgp-rs</code> forwards via the typed <code>Plugin.ForwardCached</code> / <code>ReleaseCached</code> fast path (rs-fastpath-3) instead of the legacy text-RPC <code>send bgp &lt;sel&gt; cached &lt;id&gt;</code> pipeline. See <a href="../../architecture/api/commands/#fast-path-typed-sdk-rs-fastpath-3">architecture/api/commands</a> for the full SDK surface.</p>
-<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies, Registration.OptionalDependencies, Registration.StartAfter -->
+<!-- source: internal/component/bfd/register.go -- StartAfter -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
 <h2 id="exclusive-roles">Exclusive Roles</h2>
 <p>When two plugins both implement a behavior but only one should run it, the plugin that takes over declares the role in its static registration (<code>Claims</code>), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with <code>sdk.Plugin.ClaimActive(role)</code> from its <code>OnConfigure</code> handler.</p>
@@ -1762,19 +1773,21 @@ command argument, which expands the chain in the client process and answers
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
 <h2 id="session-ready-report">Session-Ready Report</h2>
-<p>A plugin whose routes belong to a peer's INITIAL routing update declares <code>SignalsSessionReady: true</code> and dispatches <code>request peer &lt;addr&gt; plugin session ready</code> once those routes are out. The engine holds that peer's End-of-RIB until the report arrives, so the marker means the initial routing update completed (RFC 4724 Section 4).</p>
-<p>The declaration is voluntary. It says WHEN your routes belong, not what you may send, so a plugin that pushes routes on its own schedule declares nothing and is never waited for, and binding it with <code>send [ update ]</code> costs the peer no delay.</p>
+<p>A plugin that reports completion of its peer-up route replay declares <code>SignalsSessionReady: true</code> and dispatches <code>request peer &lt;addr&gt; plugin session ready</code> once those routes are out. This report does not delay the peer's End-of-RIB marker.</p>
+<p>The declaration is voluntary. A plugin that pushes routes on its own schedule need not declare it; binding that plugin with <code>send [ update ]</code> alone does not make it a session-ready reporter.</p>
 <p>An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares <code>signals-session-ready</code> in its Stage-1 <code>declare-registration</code> instead, and the engine reads it off the running process. Declaring nothing stays the default there too.</p>
 <p>The name you are waited for under is the one the operator wrote in <code>attach process &lt;name&gt;</code>, whatever your plugin is called. <code>plugin { internal rs { use bgp-rs } }</code> runs the process as <code>rs</code>, and the engine resolves that alias back to the <code>bgp-rs</code> registration before it asks whether you declared. Your report carries the process name, so it is credited to <code>rs</code> as well. The spelling of the implementation does not change the answer: <code>use bgp-rs</code>, <code>use ze.bgp-rs</code>, <code>run ze.bgp-rs</code> and <code>run ze plugin bgp-rs</code> all reach the same registration, because one function (<code>plugin.RegistryNames</code>) answers which registry row a process configuration names and every caller derives from it.</p>
 <p>Three facts have to hold before a peer names your process in its barrier, and each one is something you can check in your own config. The peer grants the route-push rail, with <code>send [ update ]</code> or <code>send [ raw ]</code>. The plugin declares the field. The peer grants <code>receive [ state ]</code>, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is never named.</p>
 <p>Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working".</p>
-<p><strong>Your report does not hold the peer's End-of-RIB (owner ruling, 2026-09-18).</strong> A process that creates routes counts as a peer when the marker is decided, and Ze does not wait for a peer's marker before sending its own. The marker goes out as soon as the peer has written the routes it owns itself. What your report buys is ORDER during the initial sync: routes you push before it are part of that update, and routes you push after the marker are delivered as ordinary updates, which is what RFC 4724 Section 2 describes. A process that never reports costs its peer nothing.</p>
+<p><strong>Your report does not hold the peer's End-of-RIB (owner ruling, 2026-09-18).</strong> A process that creates routes counts as a peer when the marker is decided, and Ze does not wait for a peer's marker before sending its own. The marker follows the routes Ze owns, after the separate peer-up registration barrier. Routes a process pushes after the marker are ordinary updates.</p>
+<p>Replay ordering is a separate obligation. A reporter whose registration also declares <code>FencesLiveForwards</code> holds live forwarding behind its peer-up replay. Once all fence owners report, the engine releases those live forwards. A reporter without that declaration does not hold the forwarding fence, but a fence owner that never reports can leave live forwards held; neither case holds End-of-RIB.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, lowerReplayFence -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- replayFenceOwners -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 <h2 id="startup-timing">Startup Timing</h2>
 <p>Each handshake stage is bounded by progress, not by wall clock. A stage fails only when the whole startup tier goes <code>ze.plugin.stage.timeout</code> (default 5s) without any plugin completing a stage; every completion re-arms the window. A BGP config puts twenty or more plugins in one tier (<code>bgp</code>, <code>bgp-bmp</code>, <code>bgp-rpki</code>, every <code>bgp-filter-*</code>), and a flat per-tier budget meant a CPU-starved or slow-disk host could lose all of them at once and come up with its BGP plugins missing.</p>
@@ -1871,7 +1884,7 @@ command argument, which expands the chain in the client process and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

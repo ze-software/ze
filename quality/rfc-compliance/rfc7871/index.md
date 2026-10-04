@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 38 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 7.9% | 3 of 38 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 38 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 3 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 0.0% | 0 of 36 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5.6% | 2 of 36 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 36 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 36 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +22,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 38 | of 90 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 29 | of 38 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 76.3% | 29 of 38 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 38 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 38 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 36 | of 88 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 29 | of 36 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 80.6% | 29 of 36 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 36 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 36 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,10 +34,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 15.8% | 6 of 38 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 3 | of 38 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| No test at all | 13.9% | 5 of 36 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 36 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -60,15 +61,15 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 90 |
-| Gated MUST-level | 38 |
+| Requirements | 88 |
+| Gated MUST-level | 36 |
 | Not applicable, so out of scope | 29 |
-| Declared gaps | 6 |
+| Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 3 |
-| Tagged units | 3 |
+| Test tags | 2 |
+| Tagged units | 2 |
 | Recorded audit verdicts | 3 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc7871.md` |
@@ -77,7 +78,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Client Subnet in DNS Queries / EDNS0 ECS (RFC 7871): ECS consumer role only. geodns reads the incoming EDNS0 client-subnet ADDRESS for geo source-selection (a MAY) and constructs no ECS option. 3 single-polarity positive (emits no ECS option in any response 7.2.1-7/7.2.2-1, never refuses a 0-address-bit query 7.5-6) + 6 gap (tailors answers from ECS but does not echo the option/indicate support/set SCOPE 7.2.1-5/7.2.2-2/12.1-4/12.1-5, nor FORMERR-reject a malformed option 7.2.1-3/7.2.1-4) + 29 not-applicable (originates/forwards/validates no ECS query, caches nothing by network)
+Enrolled: Client Subnet in DNS Queries / EDNS0 ECS (RFC 7871): ECS consumer role only. geodns reads the incoming EDNS0 client-subnet ADDRESS for geo source-selection (a MAY) and constructs no ECS option. 2 single-polarity positive (emits no ECS option in a response to an ECS-less query 7.2.1-7, never refuses a 0-address-bit query 7.5-6) + 5 gap (tailors answers from ECS but does not echo the option/indicate support/set SCOPE 7.2.1-5/12.1-4/12.1-5, nor FORMERR-reject a malformed option 7.2.1-3/7.2.1-4) + 29 not-applicable (originates/forwards/validates no ECS query, caches nothing by network)
 
 ## What the public ledger says
 
@@ -92,21 +93,22 @@ Enrolled: Client Subnet in DNS Queries / EDNS0 ECS (RFC 7871): ECS consumer role
 
 **What the ledger says remains**
 
-Six MUST gaps, each annotated in [`rfc/short/rfc7871.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc7871.md): GeoDNS uses ECS to tailor answers but includes no ECS option in its responses, so it neither echoes the option, indicates support, nor sets SCOPE ([`RFC7871-7.2.1-5`](#rfc7871-7.2.1-5), 7.2.2-2, 12.1-4, 12.1-5), and it validates no consumed option's FAMILY nor returns FORMERR for a malformed one ([`RFC7871-7.2.1-3`](#rfc7871-7.2.1-3), 7.2.1-4). The resolver/forwarder origination, ECS-response validation, network-scope caching, and DNSSEC-tailoring MUSTs are not-applicable: ze originates, forwards, and caches no ECS and is a plain stub resolver.
+Five MUST gaps, each annotated in [`rfc/short/rfc7871.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc7871.md): GeoDNS uses ECS to tailor answers but includes no ECS option in its responses, so it neither echoes the option, indicates support, nor sets SCOPE ([`RFC7871-7.2.1-5`](#rfc7871-7.2.1-5), 12.1-4, 12.1-5), and it validates no consumed option's FAMILY nor returns FORMERR for a malformed one ([`RFC7871-7.2.1-3`](#rfc7871-7.2.1-3), 7.2.1-4). The resolver/forwarder origination, ECS-response validation, network-scope caching, and DNSSEC-tailoring MUSTs are not-applicable: ze originates, forwards, and caches no ECS and is a plain stub resolver.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 38 | one part of the gated population |
+| Annotated (including scoped evidence) | 36 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **38** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **36** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (38):** [`RFC7871-6-1`](#rfc7871-6-1), [`RFC7871-6-2`](#rfc7871-6-2), [`RFC7871-7.1.1-2`](#rfc7871-7.1.1-2), [`RFC7871-7.1.1-3`](#rfc7871-7.1.1-3), [`RFC7871-7.1.1-4`](#rfc7871-7.1.1-4), [`RFC7871-7.1.1-7`](#rfc7871-7.1.1-7), [`RFC7871-7.1.2-2`](#rfc7871-7.1.2-2), [`RFC7871-7.1.2-3`](#rfc7871-7.1.2-3), [`RFC7871-7.1.2-5`](#rfc7871-7.1.2-5), [`RFC7871-7.1.3-1`](#rfc7871-7.1.3-1), [`RFC7871-7.1.3-2`](#rfc7871-7.1.3-2), [`RFC7871-7.1.3-3`](#rfc7871-7.1.3-3), [`RFC7871-7.2.1-2`](#rfc7871-7.2.1-2), [`RFC7871-7.2.1-3`](#rfc7871-7.2.1-3), [`RFC7871-7.2.1-4`](#rfc7871-7.2.1-4), [`RFC7871-7.2.1-5`](#rfc7871-7.2.1-5), [`RFC7871-7.2.1-7`](#rfc7871-7.2.1-7), [`RFC7871-7.2.1-8`](#rfc7871-7.2.1-8), [`RFC7871-7.2.1-12`](#rfc7871-7.2.1-12), [`RFC7871-7.2.2-1`](#rfc7871-7.2.2-1), [`RFC7871-7.2.2-2`](#rfc7871-7.2.2-2), [`RFC7871-7.3-3`](#rfc7871-7.3-3), [`RFC7871-7.3-4`](#rfc7871-7.3-4), [`RFC7871-7.3-6`](#rfc7871-7.3-6), [`RFC7871-7.3.1-1`](#rfc7871-7.3.1-1), [`RFC7871-7.3.1-3`](#rfc7871-7.3.1-3), [`RFC7871-7.3.1-4`](#rfc7871-7.3.1-4), [`RFC7871-7.3.2-1`](#rfc7871-7.3.2-1), [`RFC7871-7.3.2-4`](#rfc7871-7.3.2-4), [`RFC7871-7.5-1`](#rfc7871-7.5-1), [`RFC7871-7.5-6`](#rfc7871-7.5-6), [`RFC7871-9-1`](#rfc7871-9-1), [`RFC7871-11.1-2`](#rfc7871-11.1-2), [`RFC7871-11.2-1`](#rfc7871-11.2-1), [`RFC7871-11.3-4`](#rfc7871-11.3-4), [`RFC7871-12.1-3`](#rfc7871-12.1-3), [`RFC7871-12.1-4`](#rfc7871-12.1-4), [`RFC7871-12.1-5`](#rfc7871-12.1-5)
+**Annotated (including scoped evidence) (36):** [`RFC7871-6-1`](#rfc7871-6-1), [`RFC7871-6-2`](#rfc7871-6-2), [`RFC7871-7.1.1-2`](#rfc7871-7.1.1-2), [`RFC7871-7.1.1-3`](#rfc7871-7.1.1-3), [`RFC7871-7.1.1-4`](#rfc7871-7.1.1-4), [`RFC7871-7.1.1-7`](#rfc7871-7.1.1-7), [`RFC7871-7.1.2-2`](#rfc7871-7.1.2-2), [`RFC7871-7.1.2-3`](#rfc7871-7.1.2-3), [`RFC7871-7.1.2-5`](#rfc7871-7.1.2-5), [`RFC7871-7.1.3-1`](#rfc7871-7.1.3-1), [`RFC7871-7.1.3-2`](#rfc7871-7.1.3-2), [`RFC7871-7.1.3-3`](#rfc7871-7.1.3-3), [`RFC7871-7.2.1-2`](#rfc7871-7.2.1-2), [`RFC7871-7.2.1-3`](#rfc7871-7.2.1-3), [`RFC7871-7.2.1-4`](#rfc7871-7.2.1-4), [`RFC7871-7.2.1-5`](#rfc7871-7.2.1-5), [`RFC7871-7.2.1-7`](#rfc7871-7.2.1-7), [`RFC7871-7.2.1-8`](#rfc7871-7.2.1-8), [`RFC7871-7.2.1-12`](#rfc7871-7.2.1-12), [`RFC7871-7.3-3`](#rfc7871-7.3-3), [`RFC7871-7.3-4`](#rfc7871-7.3-4), [`RFC7871-7.3-6`](#rfc7871-7.3-6), [`RFC7871-7.3.1-1`](#rfc7871-7.3.1-1), [`RFC7871-7.3.1-3`](#rfc7871-7.3.1-3), [`RFC7871-7.3.1-4`](#rfc7871-7.3.1-4), [`RFC7871-7.3.2-1`](#rfc7871-7.3.2-1), [`RFC7871-7.3.2-4`](#rfc7871-7.3.2-4), [`RFC7871-7.5-1`](#rfc7871-7.5-1), [`RFC7871-7.5-6`](#rfc7871-7.5-6), [`RFC7871-9-1`](#rfc7871-9-1), [`RFC7871-11.1-2`](#rfc7871-11.1-2), [`RFC7871-11.2-1`](#rfc7871-11.2-1), [`RFC7871-11.3-4`](#rfc7871-11.3-4), [`RFC7871-12.1-3`](#rfc7871-12.1-3), [`RFC7871-12.1-4`](#rfc7871-12.1-4), [`RFC7871-12.1-5`](#rfc7871-12.1-5)
 
 ## Requirements
 
@@ -131,8 +133,6 @@ Six MUST gaps, each annotated in [`rfc/short/rfc7871.md`](https://github.com/ze-
 | `RFC7871-7.2.1-7` | (Note that the requirement in [RFC6891] to reserve space for the OPT record could mean that the Answer section of the response will be truncated and fall back to TCP indicated accordingly.) If an ECS option was not included in a query, one MUST NOT be included in the response even if the server is providing a Tailored Response -- presumably based on the address from which it received the query. (§7.2.1) | MUST NOT | 7.2.1 | **positive:** `unit/verify` [`TestRFC7871_NoECSQueryNoECSResponse`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L72). **negative:** no negative test. **{single-polarity}:** geodns emits no ECS option in any response (internal/plugins/geodns/server.go:168), so the complementary state (an ECS option present when the query carried none) cannot be constructed; the positive case, an ECS-less query that still yields a tailored answer producing an ECS-less response, is pinned in internal/plugins/geodns/rfc7871_server_test.go |
 | `RFC7871-7.2.1-8` | FAMILY, SOURCE PREFIX-LENGTH, and ADDRESS in the response MUST match those in the query. (§7.2.1) | MUST | 7.2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** geodns includes no ECS option in its response (internal/plugins/geodns/server.go:168), so there are no echoed FAMILY/SOURCE/ADDRESS fields that could fail to match the query; the missing echo itself is disclosed as the RFC7871-7.2.1-5 gap |
 | `RFC7871-7.2.1-12` | Because it can't be guaranteed that queries for all longer prefix lengths would arrive before one that would be answered by the shorter prefix length, an Authoritative Nameserver MUST NOT overlap prefixes. (§7.2.1) | MUST NOT | 7.2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** geodns publishes no SCOPE-scoped Tailored Response whose prefixes a downstream cache could order-dependently overlap; its config source prefixes resolve deterministically by longest-prefix at lookup (internal/core/dnsserver/matcher.go:28) |
-| `RFC7871-7.2.2-1` | Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response. (§7.2.2) | MUST NOT | 7.2.2 | **positive:** `unit/verify` [`TestRFC7871_NoECSQueryNoECSResponse`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L77). **negative:** no negative test. **{single-polarity}:** geodns includes no ECS option in any response (internal/plugins/geodns/server.go:168), so no negative case exists; internal/plugins/geodns/rfc7871_server_test.go asserts an ECS-less query draws an ECS-less response |
-| `RFC7871-7.2.2-2` | If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2) | MUST | 7.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** geodns consumes the query's ECS option to select an answer yet includes no ECS option in its response (internal/plugins/geodns/server.go:168) |
 | `RFC7871-7.3-3` | If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don't match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3) | MUST | 7.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze issues no ECS-bearing query and so validates no ECS response for a FAMILY/SOURCE/ADDRESS mismatch to drop (internal/component/resolve/dns/resolver.go:261) |
 | `RFC7871-7.3-4` | In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information that the Authoritative Nameserver used to generate the answer, so that it can be cached accordingly. (§7.3) | MUST | 7.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** geodns emits no ECS option in its response (internal/plugins/geodns/server.go:168), so it carries no FAMILY/ADDRESS response fields; the absent echo is disclosed as the RFC7871-7.2.1-5 gap |
 | `RFC7871-7.3-6` | If a REFUSED response is received from an Authoritative Nameserver, an ECS-aware resolver MUST retry the query without ECS to distinguish the response from one where the Authoritative Nameserver is not responsible for the name, which is a common convention for the REFUSED status. (§7.3) | MUST | 7.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze sends no ECS-bearing query, so it has no ECS query to retry without on a REFUSED (internal/component/resolve/dns/resolver.go:261) |
@@ -142,7 +142,7 @@ Six MUST gaps, each annotated in [`rfc/short/rfc7871.md`](https://github.com/ze-
 | `RFC7871-7.3.2-1` | Then, the appropriate RRset MUST be chosen based on the longest prefix matching. (§7.3.2) | MUST | 7.3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze selects no cached RRset by ECS longest-prefix; geodns's longest-prefix match runs over operator-configured source prefixes (internal/plugins/geodns/server.go:77, internal/core/dnsserver/matcher.go:40), an authoritative selection the RFC does not govern, not an ECS-response cache |
 | `RFC7871-7.3.2-4` | If no matching network is found, the Intermediate Nameserver MUST perform resolution as usual. (§7.3.2) | MUST | 7.3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze keeps no ECS-response cache to miss; geodns answers authoritatively and, on no host-set match, returns a normal NOERROR negative rather than a cache fallthrough (internal/plugins/geodns/server.go:182) |
 | `RFC7871-7.5-1` | Any Intermediate Nameserver that forwards ECS options received from its clients MUST fully implement the caching behavior described in Section 7.3. (§7.5) | MUST | 7.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze forwards no client ECS option and keeps no section 7.3 network-scoped cache; it consumes the ADDRESS locally (internal/core/dnsserver/client.go:21) and the cache is keyed by name+qtype (internal/component/resolve/dns/cache.go:16) |
-| `RFC7871-7.5-6` | Note again that a query MUST NOT be refused solely because it provides 0 address bits. (§7.5) | MUST NOT | 7.5 | **positive:** `unit/verify` [`TestRFC7871_ZeroAddressBitsNotRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L113). **negative:** no negative test. **{single-polarity}:** geodns refuses only when disabled and never on ECS content (internal/plugins/geodns/server.go:236), so a query carrying 0 address bits is answered, not refused; the refuse-for-0-bits case is unreachable and internal/plugins/geodns/rfc7871_server_test.go pins the positive |
+| `RFC7871-7.5-6` | Note again that a query MUST NOT be refused solely because it provides 0 address bits. (§7.5) | MUST NOT | 7.5 | **positive:** `unit/verify` [`TestRFC7871_ZeroAddressBitsNotRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L108). **negative:** no negative test. **{single-polarity}:** geodns refuses only when disabled and never on ECS content (internal/plugins/geodns/server.go:236), so a query carrying 0 address bits is answered, not refused; the refuse-for-0-bits case is unreachable and internal/plugins/geodns/rfc7871_server_test.go pins the positive |
 | `RFC7871-9-1` | Most DNSSEC records SHOULD be scoped at /0, except for the RRSIG records, which MUST be tied to the RRset that they sign in a Tailored Response. (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** geodns emits no RRSIG or DNSSEC records and no SCOPE-scoped Tailored Response; it synthesizes only unsigned A/AAAA/SRV/SOA/NS answers (internal/plugins/geodns/server.go:106) |
 | `RFC7871-11.1-2` | As described in previous sections, this option will be forwarded across all the Recursive Resolvers supporting ECS, which MUST NOT modify it to include the network address of the client. (§11.1) | MUST NOT | 11.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze forwards no ECS option, so it modifies none in flight; it reads the incoming ADDRESS only for local selection (internal/core/dnsserver/client.go:21) |
 | `RFC7871-11.2-1` | To counter this, the ECS option in a response packet MUST contain the full FAMILY, ADDRESS, and SOURCE PREFIX-LENGTH fields from the corresponding query. Intermediate Nameservers processing a response MUST verify that these match (§11.2) | MUST | 11.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is no Intermediate Nameserver validating an ECS response; it issues no ECS query whose response fields it would verify (internal/component/resolve/dns/resolver.go:261) |
@@ -225,7 +225,6 @@ Six MUST gaps, each annotated in [`rfc/short/rfc7871.md`](https://github.com/ze-
 | [`RFC7871-7.2.1-5`](#rfc7871-7.2.1-5) An Authoritative Nameserver that implements this protocol and receives an ECS option MUST include an ECS option in its response to indicate that it SHOULD be cached accordingly, regardless of whether the client information was needed to formulate an answer. (§7.2.1) | {gap}, no test | geodns uses the ECS ADDRESS to tailor answers (internal/core/dnsserver/client.go:21) but includes no ECS option in its response (internal/plugins/geodns/server.go:168), so it does not echo the option |
 | [`RFC7871-7.2.1-8`](#rfc7871-7.2.1-8) FAMILY, SOURCE PREFIX-LENGTH, and ADDRESS in the response MUST match those in the query. (§7.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: geodns includes no ECS option in its response (internal/plugins/geodns/server.go:168), so there are no echoed FAMILY/SOURCE/ADDRESS fields that could fail to match the query; the missing echo itself is disclosed as the RFC7871-7.2.1-5 gap |
 | [`RFC7871-7.2.1-12`](#rfc7871-7.2.1-12) Because it can't be guaranteed that queries for all longer prefix lengths would arrive before one that would be answered by the shorter prefix length, an Authoritative Nameserver MUST NOT overlap prefixes. (§7.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: geodns publishes no SCOPE-scoped Tailored Response whose prefixes a downstream cache could order-dependently overlap; its config source prefixes resolve deterministically by longest-prefix at lookup (internal/core/dnsserver/matcher.go:28) |
-| [`RFC7871-7.2.2-2`](#rfc7871-7.2.2-2) If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2) | {gap}, no test | geodns consumes the query's ECS option to select an answer yet includes no ECS option in its response (internal/plugins/geodns/server.go:168) |
 | [`RFC7871-7.3-3`](#rfc7871-7.3-3) If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don't match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze issues no ECS-bearing query and so validates no ECS response for a FAMILY/SOURCE/ADDRESS mismatch to drop (internal/component/resolve/dns/resolver.go:261) |
 | [`RFC7871-7.3-4`](#rfc7871-7.3-4) In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information that the Authoritative Nameserver used to generate the answer, so that it can be cached accordingly. (§7.3) | no test | no test carries this requirement id; annotated {not-applicable}: geodns emits no ECS option in its response (internal/plugins/geodns/server.go:168), so it carries no FAMILY/ADDRESS response fields; the absent echo is disclosed as the RFC7871-7.2.1-5 gap |
 | [`RFC7871-7.3-6`](#rfc7871-7.3-6) If a REFUSED response is received from an Authoritative Nameserver, an ECS-aware resolver MUST retry the query without ECS to distinguish the response from one where the Authoritative Nameserver is not responsible for the name, which is a common convention for the REFUSED status. (§7.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze sends no ECS-bearing query, so it has no ECS query to retry without on a REFUSED (internal/component/resolve/dns/resolver.go:261) |
@@ -307,7 +306,7 @@ No test carries RFC7871-7.1.2-2, so no unit is bound to it.
 
 A SOURCE PREFIX-LENGTH value of 0 means that the Recursive Resolver MUST NOT add the client's address information to its queries. (§7.1.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: not-applicable (the requirement has no reachable code path in Ze), fresh. Binds a Recursive Resolver (and, for the dropped Section 7.5 sentence, an Intermediate Nameserver).
 
 No test carries RFC7871-7.1.2-3, so no unit is bound to it.
 
@@ -379,7 +378,7 @@ No test carries RFC7871-7.2.1-5, so no unit is bound to it.
 
 (Note that the requirement in [RFC6891] to reserve space for the OPT record could mean that the Answer section of the response will be truncated and fall back to TCP indicated accordingly.) If an ECS option was not included in a query, one MUST NOT be included in the response even if the server is providing a Tailored Response -- presumably based on the address from which it received the query. (§7.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: the unit changed only by dropping the retired RFC7871-7.2.2-1 tag and its duplicate assertion; the 7.2.1-7 assertion is unchanged. TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -400,24 +399,6 @@ Because it can't be guaranteed that queries for all longer prefix lengths would 
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7871-7.2.1-12, so no unit is bound to it.
-
-### [`RFC7871-7.2.2-1`](#rfc7871-7.2.2-1)
-
-Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response. (§7.2.2)
-
-Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. the tag sits on a repeat of the 7.2.1-7 assertion; section 7.2.2 binds an Intermediate Nameserver, which geodns is not, so the tagged unit proves nothing for this row. Section 7.2.2 binds an Intermediate Nameserver ('When an Intermediate Nameserver uses ECS ... the server MUST NOT provide one in its response'); geodns is an Authoritative Nameserver and forwards nothing, so the role is not Ze's. The tagged assertion in TestRFC7871_NoECSQueryNoECSResponse is a byte-identical repeat of the 7.2.1-7 check, which is where the authoritative obligation is proved.
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| positive | [`TestRFC7871_NoECSQueryNoECSResponse`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L77) | unit/verify | unproven |
-
-### [`RFC7871-7.2.2-2`](#rfc7871-7.2.2-2)
-
-If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7871-7.2.2-2, so no unit is bound to it.
 
 ### [`RFC7871-7.3-3`](#rfc7871-7.3-3)
 
@@ -499,7 +480,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC7871_ZeroAddressBitsNotRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L113) | unit/verify | unproven |
+| positive | [`TestRFC7871_ZeroAddressBitsNotRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7871_server_test.go#L108) | unit/verify | unproven |
 
 ### [`RFC7871-9-1`](#rfc7871-9-1)
 
@@ -561,14 +542,14 @@ No test carries RFC7871-12.1-5, so no unit is bound to it.
 
 | Field | Value |
 |---|---|
-| Reviewer | claude |
-| Signed off | 2026-09-21 |
+| Reviewer | independent judge, spec-rfc-verdict-fix-services (session 869df689) |
+| Signed off | 2026-09-30 |
 | Register | rfc2119 |
 | Source | rfc/full/rfc7871.txt |
 | Source fingerprint | de63f477f0265ea1 |
 | Record | rfc/extraction/rfc7871.json |
-| Mapped sentences | 37 |
-| Declined as scope | 3 |
+| Mapped sentences | 35 |
+| Declined as scope | 5 |
 | Relocated to a spec, which Ze OWES | 0 |
 | Unclassified | 0 |
 
@@ -615,6 +596,8 @@ No test carries RFC7871-12.1-5, so no unit is bound to it.
 
 | Site | Excluded kind | Reason | Quote |
 |---|---|---|---|
+| `7.2.2:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | section 7.2.2 binds an Intermediate Nameserver ("When an Intermediate Nameserver uses ECS"), which Ze does not implement: geodns is an Authoritative Nameserver and forwards no query. The authoritative obligation is row RFC7871-7.2.1-7. Row RFC7871-7.2.2-1 is retired (rfc/corrections/rfc7871.md) | Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response. |
+| `7.2.2:2` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | section 7.2.2 binds an Intermediate Nameserver ("When an Intermediate Nameserver uses ECS"; section 4: "Any nameserver in between the Stub Resolver and the Authoritative Nameserver"), which Ze does not implement: geodns is an Authoritative Nameserver and forwards no query. The authoritative echo obligation is the {gap} row RFC7871-7.2.1-5. Row RFC7871-7.2.2-2 is retired (rfc/corrections/rfc7871.md) | If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. |
 | `7.5:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates for any Intermediate Nameserver the obligation section 7.1.2 states for the Recursive Resolver, which this walk maps at 7.1.2:2: 'A SOURCE PREFIX-LENGTH value of 0 means that the Recursive Resolver MUST NOT add the client's address information to its queries.' The sentence cites that section itself ('see Section 7.1.2'), and RFC7871-7.1.2-3 already carries both readings. | If an Intermediate Nameserver receives a query with SOURCE PREFIX- LENGTH set to 0, it MUST NOT include client address information in queries made to resolve that client's request (see Section 7.1.2). |
 | `11.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates as an anti-spoofing measure the echo requirement section 7.2.1 states and this walk maps at 7.2.1:5: 'FAMILY, SOURCE PREFIX-LENGTH, and ADDRESS in the response MUST match those in the query.' RFC7871-7.2.1-8 already records that section 11.2 restates it. | To counter this, the ECS option in a response packet MUST contain the full FAMILY, ADDRESS, and SOURCE PREFIX-LENGTH fields from the corresponding query. |
 | `11.2:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Explains the LEVEL the sentence before it uses rather than stating an obligation: 'The requirement to discard is categorized as "SHOULD" instead of "MUST" because it stands in opposition to the instruction in Section 7.3'. The capitalised keywords are quoted words, the subject of the sentence. The obligations themselves are RFC7871-11.2-1 (MUST verify) and RFC7871-11.2-2 (SHOULD discard), both carried by the checklist. | The requirement to discard is categorized as "SHOULD" instead of "MUST" because it stands in opposition to the instruction in Section 7.3, which states that a response lacking an ECS option should be treated as though it had one of SCOPE PREFIX-LENGTH of 0. |

@@ -17,7 +17,10 @@ ACCM, ACFC or FCS Alternatives, and both reject peer requests for them.
 These restrictions do not change L2TP negotiation. A PADT matching the
 session ID and both MAC addresses ends the PPPoE transport immediately;
 PPP termination packets are not sent afterwards. Local teardown also
-stops PPP before sending PADT.
+stops PPP before sending PADT. A subscriber's LCP Terminate-Request is
+answered with a Terminate-Ack, and one Restart time later (3 seconds) the
+AC sends the PADT, with User Request as the accounting cause; a new LCP
+Configure-Request arriving before the PADT completes is still answered.
 
 ```
 Subscriber CPE
@@ -66,6 +69,11 @@ answers no PADI.
 
 `auth-method` is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: `chap-md5` (the default), `pap`, `ms-chap-v2`, or `none`.
+With `pap`, the first Configure-Request still offers CHAP-MD5, and PAP is
+offered only after the subscriber sends a Configure-Nak that suggests PAP
+(RFC 1334 Section 2: an implementation that includes CHAP MUST offer it before
+PAP).
+<!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
 `none` requires `allow-no-auth true`. The daemon rejects `none` without that
 opt-in, and rejects an unknown authentication method, with
 `parse pppoe config: ...`.

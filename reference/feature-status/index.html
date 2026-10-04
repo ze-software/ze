@@ -422,7 +422,7 @@
 <tr>
 <td>IKEv2 Cryptographic Primitives</td>
 <td>Supported</td>
-<td>DH groups (MODP 2048/3072/4096/8192, ECP 256/384/521), PRF (SHA-256/384/512), integrity (HMAC-SHA-256/384/512), encryption (AES-CBC, AES-GCM-16 128/256, ChaCha20-Poly1305), SKEYSEED derivation, key expansion (RFC 7296 Section 2.14). <!-- source: internal/component/ike/crypto/ -- cryptographic primitives --></td>
+<td>DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384), PRF (SHA-256/384/512), integrity (HMAC-SHA-256/384/512), encryption (AES-CBC, AES-GCM-16 128/256, and AES-CCM 8/12/16 for the IKE SA only), SKEYSEED derivation, key expansion (RFC 7296 Section 2.14). <!-- source: internal/component/ike/crypto/ -- cryptographic primitives --></td>
 </tr>
 <tr>
 <td>IKEv2 Engine</td>
@@ -582,7 +582,7 @@
 <tr>
 <td>RFC 1997 well-known community suppression</td>
 <td>Supported</td>
-<td>NO_EXPORT, NO_ADVERTISE and NO_EXPORT_SUBCONFED are honored on egress automatically, on both forward rails, with no configuration and no switch. The scan runs once per UPDATE over the SOURCE payload the peer sent, never over a policy chain's wire override, so an export policy that strips NO_EXPORT does not license the leak: the route arrived carrying it. A destination the gate refuses receives the withdrawal half of that same UPDATE rather than nothing, so a route already advertised is taken back. This is the ordering that separates Ze from FRR and BIRD, which apply the route-map first, where stripping the community there restores advertisement. <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- scanWellKnownEgress over the source payload --></td>
+<td>NO_EXPORT, NO_ADVERTISE and NO_EXPORT_SUBCONFED are honored on egress automatically, on both forward rails, with no configuration and no switch. The scan runs once per UPDATE over the SOURCE payload the peer sent, never over a policy chain's wire override, so an export policy that strips NO_EXPORT does not license the leak: the route arrived carrying it. A destination the gate refuses is sent the withdrawal of every route that UPDATE names rather than nothing (RFC 7606 Section 2 treat-as-withdraw), so a route already advertised is taken back. This is the ordering that separates Ze from FRR and BIRD, which apply the route-map first, where stripping the community there restores advertisement. <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- scanWellKnownEgress over the source payload --></td>
 </tr>
 <tr>
 <td>RFC 7999 BLACKHOLE</td>
@@ -726,7 +726,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

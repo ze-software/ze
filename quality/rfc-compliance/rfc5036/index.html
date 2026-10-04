@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5036 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5036: LDP Specification. 83 gated MUST-level requirements, 59 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5036: LDP Specification. 90 gated MUST-level requirements, 60 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5036 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5036: LDP Specification. 83 gated MUST-level requirements, 59 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5036: LDP Specification. 90 gated MUST-level requirements, 60 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5036 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5036: LDP Specification. 83 gated MUST-level requirements, 59 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5036: LDP Specification. 90 gated MUST-level requirements, 60 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>26.5%</strong><b>22 of 83 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.6%</strong><b>3 of 83 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 83 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.3%</strong><b>34 of 47 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>31.1%</strong><b>28 of 90 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.3%</strong><b>3 of 90 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 90 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 90 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>85.0%</strong><b>51 of 60 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>83</strong><b>of 87 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 83 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 83 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 83 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 83 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>90</strong><b>of 94 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 90 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 90 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 90 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 90 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>69.9%</strong><b>58 of 83 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 83 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>65.6%</strong><b>59 of 90 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>26</strong><b>of 90 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 83 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 90 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -204,16 +210,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>87</td>
+<td>94</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>83</td>
+<td>90</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>59</td>
+<td>60</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>47</td>
+<td>60</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>47</td>
+<td>60</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>15</td>
+<td>26</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>34</td>
+<td>51</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5036.md</code></td>
@@ -258,10 +264,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negotiation, label information base, downstream-unsolicited Label Mapping advertisement and reception, kernel MPLS integration. The 2026-09-21 walk widened the checklist to the whole document, so this list now covers a small part of the row set rather than most of it.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>The 2026-09-21 extraction walk read all 87 normative sites in <a href="https://github.com/ze-software/ze/blob/main/rfc/full/rfc5036.txt" target="_blank" rel="noopener"><code>rfc/full/rfc5036.txt</code></a> and grew the checklist from 19 rows to 86.</p>
-<p class="rfc-prose"><strong>Messages ze emits on one path only:</strong> <a href="#rfc5036-2.5.3-2"><code>RFC5036-2.5.3-2</code></a> and <a href="#rfc5036-3.5.1-1"><code>RFC5036-3.5.1-1</code></a> (a Notification NAKs an unacceptable Initialization, and every other fatal error still closes the session silently), <a href="#rfc5036-2.6.1.3-1"><code>RFC5036-2.6.1.3-1</code></a> (no Label Release on a received withdraw), <a href="#rfc5036-2.6.1.2-1"><code>RFC5036-2.6.1.2-1</code></a> (SendLabelWithdraw at session.go has no production caller, so a local binding is never withdrawn on the wire).</p>
-<p class="rfc-prose"><strong>Session checks ze omits:</strong> <a href="#rfc5036-2.5.1-4"><code>RFC5036-2.5.1-4</code></a> (handleInit at session.go overwrites the expected peer LSR ID instead of comparing it), <a href="#rfc5036-2.5.1-3"><code>RFC5036-2.5.1-3</code></a> (the establishment KeepAlive at register.go is unconditional, not a response to an accepted Initialization). The walk corrected four rows against the document: <a href="#rfc5036-2.9-1"><code>RFC5036-2.9-1</code></a> rose to MUST, <a href="#rfc5036-2.6.1.1-1"><code>RFC5036-2.6.1.1-1</code></a> fell to MAY, <a href="#rfc5036-3.5.1-1"><code>RFC5036-3.5.1-1</code></a> fell to SHOULD, and <a href="#rfc5036-2.7-1"><code>RFC5036-2.7-1</code></a> lost a prohibition on sending labeled packets before MPLS forwarding is enabled, which no sentence of RFC 5036 states. Ze still imposes labels without that check, at ProgramPush in <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/fib.go" target="_blank" rel="noopener"><code>internal/plugins/ldp/fib.go</code></a>, and the walk removed the row that recorded it, so nothing on this ledger gates it now.</p>
-<p class="rfc-prose"><strong>The 67 rows the walk added carry no test:</strong> the Loop Detection procedures, the ATM and Frame Relay label and session parameters, the Downstream on Demand Label Request, Abort and Release procedures, the vendor-private U-bit configuration interfaces, and the session parameter negotiations.</p>
+<p>The 2026-09-21 extraction walk read all 87 normative sites in <a href="https://github.com/ze-software/ze/blob/main/rfc/full/rfc5036.txt" target="_blank" rel="noopener"><code>rfc/full/rfc5036.txt</code></a> and grew the checklist from 19 rows to 86. Fatal Notification handling remains partial: <a href="#rfc5036-2.5.3-2"><code>RFC5036-2.5.3-2</code></a> and <a href="#rfc5036-3.5.1-1"><code>RFC5036-3.5.1-1</code></a> (unacceptable Initialization and unexpected message types in OPENSENT/OPENREC are NAK&#39;d, but KeepAlive expiry and decoding errors outside the initialization type checks still close silently).</p>
+<p class="rfc-prose"><strong>Other missing send paths:</strong> <a href="#rfc5036-2.6.1.3-1"><code>RFC5036-2.6.1.3-1</code></a> (no Label Release on a received withdraw), <a href="#rfc5036-2.6.1.2-1"><code>RFC5036-2.6.1.2-1</code></a> (SendLabelWithdraw has no production caller, so a local binding is never withdrawn on the wire). Passive-role session procedures remain absent: <a href="#rfc5036-2.5.1-4"><code>RFC5036-2.5.1-4</code></a>, <a href="#rfc5036-2.5.1-3"><code>RFC5036-2.5.1-3</code></a> and <a href="#rfc5036-2.5.3-7"><code>RFC5036-2.5.3-7</code></a> (ze dials every session and nothing listens on TCP port 646). The walk corrected four rows against the document: <a href="#rfc5036-2.9-1"><code>RFC5036-2.9-1</code></a> rose to MUST, <a href="#rfc5036-2.6.1.1-1"><code>RFC5036-2.6.1.1-1</code></a> fell to MAY, <a href="#rfc5036-3.5.1-1"><code>RFC5036-3.5.1-1</code></a> fell to SHOULD, and <a href="#rfc5036-2.7-1"><code>RFC5036-2.7-1</code></a> lost a prohibition on sending labeled packets before MPLS forwarding is enabled, which no sentence of RFC 5036 states. Ze still imposes labels without that check, at ProgramPush in <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/fib.go" target="_blank" rel="noopener"><code>internal/plugins/ldp/fib.go</code></a>, and the walk removed the row that recorded it, so nothing on this ledger gates it now. Remaining implementation gaps include Loop Detection procedures, ATM and Frame Relay label and session parameters, Downstream on Demand Label Request, Abort and Release procedures, and vendor-private U-bit configuration interfaces.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -270,11 +274,11 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>22</strong></td>
+<td><strong>28</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>61</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>62</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -285,6 +289,10 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -293,12 +301,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>83</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>90</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (22):</strong> <a href="#rfc5036-x-1"><code>RFC5036-x-1</code></a>, <a href="#rfc5036-x-2"><code>RFC5036-x-2</code></a>, <a href="#rfc5036-x-3"><code>RFC5036-x-3</code></a>, <a href="#rfc5036-2.5.1-1"><code>RFC5036-2.5.1-1</code></a>, <a href="#rfc5036-2.5.3-1"><code>RFC5036-2.5.3-1</code></a>, <a href="#rfc5036-2.5.1-2"><code>RFC5036-2.5.1-2</code></a>, <a href="#rfc5036-3.5.3-1"><code>RFC5036-3.5.3-1</code></a>, <a href="#rfc5036-3.5.2-1"><code>RFC5036-3.5.2-1</code></a>, <a href="#rfc5036-2.5.3-3"><code>RFC5036-2.5.3-3</code></a>, <a href="#rfc5036-2.5.3-4"><code>RFC5036-2.5.3-4</code></a>, <a href="#rfc5036-2.5.2-1"><code>RFC5036-2.5.2-1</code></a>, <a href="#rfc5036-2.6.1.2-2"><code>RFC5036-2.6.1.2-2</code></a>, <a href="#rfc5036-3.1-1"><code>RFC5036-3.1-1</code></a>, <a href="#rfc5036-3.3-1"><code>RFC5036-3.3-1</code></a>, <a href="#rfc5036-3.4.4.1-1"><code>RFC5036-3.4.4.1-1</code></a>, <a href="#rfc5036-3.4.4.1-2"><code>RFC5036-3.4.4.1-2</code></a>, <a href="#rfc5036-3.5.3-3"><code>RFC5036-3.5.3-3</code></a>, <a href="#rfc5036-3.5.3-5"><code>RFC5036-3.5.3-5</code></a>, <a href="#rfc5036-3.5.3-6"><code>RFC5036-3.5.3-6</code></a>, <a href="#rfc5036-3.5.3-7"><code>RFC5036-3.5.3-7</code></a>, <a href="#rfc5036-3.5.3-9"><code>RFC5036-3.5.3-9</code></a>, <a href="#rfc5036-3.5.4.1-1"><code>RFC5036-3.5.4.1-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (61):</strong> <a href="#rfc5036-2.6.1.2-1"><code>RFC5036-2.6.1.2-1</code></a>, <a href="#rfc5036-2.6.1.3-1"><code>RFC5036-2.6.1.3-1</code></a>, <a href="#rfc5036-2.5.1-3"><code>RFC5036-2.5.1-3</code></a>, <a href="#rfc5036-2.5.1-4"><code>RFC5036-2.5.1-4</code></a>, <a href="#rfc5036-2.5.3-2"><code>RFC5036-2.5.3-2</code></a>, <a href="#rfc5036-2.7-1"><code>RFC5036-2.7-1</code></a>, <a href="#rfc5036-2.9-1"><code>RFC5036-2.9-1</code></a>, <a href="#rfc5036-2.8.1-1"><code>RFC5036-2.8.1-1</code></a>, <a href="#rfc5036-2.8.1-2"><code>RFC5036-2.8.1-2</code></a>, <a href="#rfc5036-2.8.1-3"><code>RFC5036-2.8.1-3</code></a>, <a href="#rfc5036-2.8.1-4"><code>RFC5036-2.8.1-4</code></a>, <a href="#rfc5036-2.8.1-5"><code>RFC5036-2.8.1-5</code></a>, <a href="#rfc5036-2.8.1-6"><code>RFC5036-2.8.1-6</code></a>, <a href="#rfc5036-2.8.1-7"><code>RFC5036-2.8.1-7</code></a>, <a href="#rfc5036-2.8.2-1"><code>RFC5036-2.8.2-1</code></a>, <a href="#rfc5036-2.8.2-2"><code>RFC5036-2.8.2-2</code></a>, <a href="#rfc5036-2.8.2-3"><code>RFC5036-2.8.2-3</code></a>, <a href="#rfc5036-2.8.2-4"><code>RFC5036-2.8.2-4</code></a>, <a href="#rfc5036-2.8.2-5"><code>RFC5036-2.8.2-5</code></a>, <a href="#rfc5036-2.8.2-6"><code>RFC5036-2.8.2-6</code></a>, <a href="#rfc5036-2.8.2-7"><code>RFC5036-2.8.2-7</code></a>, <a href="#rfc5036-2.8.2-8"><code>RFC5036-2.8.2-8</code></a>, <a href="#rfc5036-2.8.2-9"><code>RFC5036-2.8.2-9</code></a>, <a href="#rfc5036-2.8.2-10"><code>RFC5036-2.8.2-10</code></a>, <a href="#rfc5036-2.8.2-11"><code>RFC5036-2.8.2-11</code></a>, <a href="#rfc5036-2.8.2-12"><code>RFC5036-2.8.2-12</code></a>, <a href="#rfc5036-2.8.2-13"><code>RFC5036-2.8.2-13</code></a>, <a href="#rfc5036-3.4.2.2-1"><code>RFC5036-3.4.2.2-1</code></a>, <a href="#rfc5036-3.4.2.2-2"><code>RFC5036-3.4.2.2-2</code></a>, <a href="#rfc5036-3.4.2.2-3"><code>RFC5036-3.4.2.2-3</code></a>, <a href="#rfc5036-3.4.2.3-1"><code>RFC5036-3.4.2.3-1</code></a>, <a href="#rfc5036-3.4.4.1-3"><code>RFC5036-3.4.4.1-3</code></a>, <a href="#rfc5036-3.4.5.1.1-1"><code>RFC5036-3.4.5.1.1-1</code></a>, <a href="#rfc5036-3.4.5.1.1-2"><code>RFC5036-3.4.5.1.1-2</code></a>, <a href="#rfc5036-3.4.5.1.1-3"><code>RFC5036-3.4.5.1.1-3</code></a>, <a href="#rfc5036-3.4.5.1.2-1"><code>RFC5036-3.4.5.1.2-1</code></a>, <a href="#rfc5036-3.4.5.1.2-2"><code>RFC5036-3.4.5.1.2-2</code></a>, <a href="#rfc5036-3.4.5.1.2-3"><code>RFC5036-3.4.5.1.2-3</code></a>, <a href="#rfc5036-3.5-1"><code>RFC5036-3.5-1</code></a>, <a href="#rfc5036-3.5.3-2"><code>RFC5036-3.5.3-2</code></a>, <a href="#rfc5036-3.5.3-4"><code>RFC5036-3.5.3-4</code></a>, <a href="#rfc5036-3.5.3-8"><code>RFC5036-3.5.3-8</code></a>, <a href="#rfc5036-3.5.3-10"><code>RFC5036-3.5.3-10</code></a>, <a href="#rfc5036-3.5.3-11"><code>RFC5036-3.5.3-11</code></a>, <a href="#rfc5036-3.5.3-12"><code>RFC5036-3.5.3-12</code></a>, <a href="#rfc5036-3.5.3-13"><code>RFC5036-3.5.3-13</code></a>, <a href="#rfc5036-3.5.3-14"><code>RFC5036-3.5.3-14</code></a>, <a href="#rfc5036-3.5.7-1"><code>RFC5036-3.5.7-1</code></a>, <a href="#rfc5036-3.5.8.1-1"><code>RFC5036-3.5.8.1-1</code></a>, <a href="#rfc5036-3.5.8.1-2"><code>RFC5036-3.5.8.1-2</code></a>, <a href="#rfc5036-3.5.8.1-3"><code>RFC5036-3.5.8.1-3</code></a>, <a href="#rfc5036-3.5.8.1-4"><code>RFC5036-3.5.8.1-4</code></a>, <a href="#rfc5036-3.5.9.1-1"><code>RFC5036-3.5.9.1-1</code></a>, <a href="#rfc5036-3.5.9.1-2"><code>RFC5036-3.5.9.1-2</code></a>, <a href="#rfc5036-3.5.9.1-3"><code>RFC5036-3.5.9.1-3</code></a>, <a href="#rfc5036-3.5.11.1-1"><code>RFC5036-3.5.11.1-1</code></a>, <a href="#rfc5036-3.6.1.1-1"><code>RFC5036-3.6.1.1-1</code></a>, <a href="#rfc5036-3.6.1.2-1"><code>RFC5036-3.6.1.2-1</code></a>, <a href="#rfc5036-a.1.2-1"><code>RFC5036-A.1.2-1</code></a>, <a href="#rfc5036-a.1.7-1"><code>RFC5036-A.1.7-1</code></a>, <a href="#rfc5036-a.1-1"><code>RFC5036-A.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (28):</strong> <a href="#rfc5036-x-1"><code>RFC5036-x-1</code></a>, <a href="#rfc5036-x-2"><code>RFC5036-x-2</code></a>, <a href="#rfc5036-x-3"><code>RFC5036-x-3</code></a>, <a href="#rfc5036-2.5.1-1"><code>RFC5036-2.5.1-1</code></a>, <a href="#rfc5036-2.5.3-1"><code>RFC5036-2.5.3-1</code></a>, <a href="#rfc5036-2.5.1-2"><code>RFC5036-2.5.1-2</code></a>, <a href="#rfc5036-3.5.3-1"><code>RFC5036-3.5.3-1</code></a>, <a href="#rfc5036-2.5.3-5"><code>RFC5036-2.5.3-5</code></a>, <a href="#rfc5036-2.5.3-6"><code>RFC5036-2.5.3-6</code></a>, <a href="#rfc5036-2.5.3-8"><code>RFC5036-2.5.3-8</code></a>, <a href="#rfc5036-2.5.3-9"><code>RFC5036-2.5.3-9</code></a>, <a href="#rfc5036-2.5.4-1"><code>RFC5036-2.5.4-1</code></a>, <a href="#rfc5036-2.5.4-2"><code>RFC5036-2.5.4-2</code></a>, <a href="#rfc5036-3.5.2-1"><code>RFC5036-3.5.2-1</code></a>, <a href="#rfc5036-2.5.3-3"><code>RFC5036-2.5.3-3</code></a>, <a href="#rfc5036-2.5.3-4"><code>RFC5036-2.5.3-4</code></a>, <a href="#rfc5036-2.5.2-1"><code>RFC5036-2.5.2-1</code></a>, <a href="#rfc5036-2.6.1.2-2"><code>RFC5036-2.6.1.2-2</code></a>, <a href="#rfc5036-3.1-1"><code>RFC5036-3.1-1</code></a>, <a href="#rfc5036-3.3-1"><code>RFC5036-3.3-1</code></a>, <a href="#rfc5036-3.4.4.1-1"><code>RFC5036-3.4.4.1-1</code></a>, <a href="#rfc5036-3.4.4.1-2"><code>RFC5036-3.4.4.1-2</code></a>, <a href="#rfc5036-3.5.3-3"><code>RFC5036-3.5.3-3</code></a>, <a href="#rfc5036-3.5.3-5"><code>RFC5036-3.5.3-5</code></a>, <a href="#rfc5036-3.5.3-6"><code>RFC5036-3.5.3-6</code></a>, <a href="#rfc5036-3.5.3-7"><code>RFC5036-3.5.3-7</code></a>, <a href="#rfc5036-3.5.3-9"><code>RFC5036-3.5.3-9</code></a>, <a href="#rfc5036-3.5.4.1-1"><code>RFC5036-3.5.4.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (62):</strong> <a href="#rfc5036-2.6.1.2-1"><code>RFC5036-2.6.1.2-1</code></a>, <a href="#rfc5036-2.6.1.3-1"><code>RFC5036-2.6.1.3-1</code></a>, <a href="#rfc5036-2.5.1-3"><code>RFC5036-2.5.1-3</code></a>, <a href="#rfc5036-2.5.3-7"><code>RFC5036-2.5.3-7</code></a>, <a href="#rfc5036-2.5.1-4"><code>RFC5036-2.5.1-4</code></a>, <a href="#rfc5036-2.5.3-2"><code>RFC5036-2.5.3-2</code></a>, <a href="#rfc5036-2.7-1"><code>RFC5036-2.7-1</code></a>, <a href="#rfc5036-2.9-1"><code>RFC5036-2.9-1</code></a>, <a href="#rfc5036-2.8.1-1"><code>RFC5036-2.8.1-1</code></a>, <a href="#rfc5036-2.8.1-2"><code>RFC5036-2.8.1-2</code></a>, <a href="#rfc5036-2.8.1-3"><code>RFC5036-2.8.1-3</code></a>, <a href="#rfc5036-2.8.1-4"><code>RFC5036-2.8.1-4</code></a>, <a href="#rfc5036-2.8.1-5"><code>RFC5036-2.8.1-5</code></a>, <a href="#rfc5036-2.8.1-6"><code>RFC5036-2.8.1-6</code></a>, <a href="#rfc5036-2.8.1-7"><code>RFC5036-2.8.1-7</code></a>, <a href="#rfc5036-2.8.2-1"><code>RFC5036-2.8.2-1</code></a>, <a href="#rfc5036-2.8.2-2"><code>RFC5036-2.8.2-2</code></a>, <a href="#rfc5036-2.8.2-3"><code>RFC5036-2.8.2-3</code></a>, <a href="#rfc5036-2.8.2-4"><code>RFC5036-2.8.2-4</code></a>, <a href="#rfc5036-2.8.2-5"><code>RFC5036-2.8.2-5</code></a>, <a href="#rfc5036-2.8.2-6"><code>RFC5036-2.8.2-6</code></a>, <a href="#rfc5036-2.8.2-7"><code>RFC5036-2.8.2-7</code></a>, <a href="#rfc5036-2.8.2-8"><code>RFC5036-2.8.2-8</code></a>, <a href="#rfc5036-2.8.2-9"><code>RFC5036-2.8.2-9</code></a>, <a href="#rfc5036-2.8.2-10"><code>RFC5036-2.8.2-10</code></a>, <a href="#rfc5036-2.8.2-11"><code>RFC5036-2.8.2-11</code></a>, <a href="#rfc5036-2.8.2-12"><code>RFC5036-2.8.2-12</code></a>, <a href="#rfc5036-2.8.2-13"><code>RFC5036-2.8.2-13</code></a>, <a href="#rfc5036-3.4.2.2-1"><code>RFC5036-3.4.2.2-1</code></a>, <a href="#rfc5036-3.4.2.2-2"><code>RFC5036-3.4.2.2-2</code></a>, <a href="#rfc5036-3.4.2.2-3"><code>RFC5036-3.4.2.2-3</code></a>, <a href="#rfc5036-3.4.2.3-1"><code>RFC5036-3.4.2.3-1</code></a>, <a href="#rfc5036-3.4.4.1-3"><code>RFC5036-3.4.4.1-3</code></a>, <a href="#rfc5036-3.4.5.1.1-1"><code>RFC5036-3.4.5.1.1-1</code></a>, <a href="#rfc5036-3.4.5.1.1-2"><code>RFC5036-3.4.5.1.1-2</code></a>, <a href="#rfc5036-3.4.5.1.1-3"><code>RFC5036-3.4.5.1.1-3</code></a>, <a href="#rfc5036-3.4.5.1.2-1"><code>RFC5036-3.4.5.1.2-1</code></a>, <a href="#rfc5036-3.4.5.1.2-2"><code>RFC5036-3.4.5.1.2-2</code></a>, <a href="#rfc5036-3.4.5.1.2-3"><code>RFC5036-3.4.5.1.2-3</code></a>, <a href="#rfc5036-3.5-1"><code>RFC5036-3.5-1</code></a>, <a href="#rfc5036-3.5.3-2"><code>RFC5036-3.5.3-2</code></a>, <a href="#rfc5036-3.5.3-4"><code>RFC5036-3.5.3-4</code></a>, <a href="#rfc5036-3.5.3-8"><code>RFC5036-3.5.3-8</code></a>, <a href="#rfc5036-3.5.3-10"><code>RFC5036-3.5.3-10</code></a>, <a href="#rfc5036-3.5.3-11"><code>RFC5036-3.5.3-11</code></a>, <a href="#rfc5036-3.5.3-12"><code>RFC5036-3.5.3-12</code></a>, <a href="#rfc5036-3.5.3-13"><code>RFC5036-3.5.3-13</code></a>, <a href="#rfc5036-3.5.3-14"><code>RFC5036-3.5.3-14</code></a>, <a href="#rfc5036-3.5.7-1"><code>RFC5036-3.5.7-1</code></a>, <a href="#rfc5036-3.5.8.1-1"><code>RFC5036-3.5.8.1-1</code></a>, <a href="#rfc5036-3.5.8.1-2"><code>RFC5036-3.5.8.1-2</code></a>, <a href="#rfc5036-3.5.8.1-3"><code>RFC5036-3.5.8.1-3</code></a>, <a href="#rfc5036-3.5.8.1-4"><code>RFC5036-3.5.8.1-4</code></a>, <a href="#rfc5036-3.5.9.1-1"><code>RFC5036-3.5.9.1-1</code></a>, <a href="#rfc5036-3.5.9.1-2"><code>RFC5036-3.5.9.1-2</code></a>, <a href="#rfc5036-3.5.9.1-3"><code>RFC5036-3.5.9.1-3</code></a>, <a href="#rfc5036-3.5.11.1-1"><code>RFC5036-3.5.11.1-1</code></a>, <a href="#rfc5036-3.6.1.1-1"><code>RFC5036-3.6.1.1-1</code></a>, <a href="#rfc5036-3.6.1.2-1"><code>RFC5036-3.6.1.2-1</code></a>, <a href="#rfc5036-a.1.2-1"><code>RFC5036-A.1.2-1</code></a>, <a href="#rfc5036-a.1.7-1"><code>RFC5036-A.1.7-1</code></a>, <a href="#rfc5036-a.1-1"><code>RFC5036-A.1-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -310,8 +318,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L126" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOneAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L153" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOtherRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L135" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOneAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L162" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOtherRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-x-2">RFC5036-x-2</code></td><td colspan="3"><span class="rfc-subject">This field is reserved. It MUST be set to zero on transmission and ignored on receipt. (§3.5.2)</span></td></tr>
@@ -319,8 +327,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L178" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsZeroOnTransmit</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L200" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsIgnoredOnReceipt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L187" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsZeroOnTransmit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L209" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsIgnoredOnReceipt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-x-3">RFC5036-x-3</code></td><td colspan="3"><span class="rfc-subject">Two octet unsigned integer containing the version number of the protocol. This version of the specification specifies LDP protocol version 1. (§3.5.3)</span></td></tr>
@@ -328,8 +336,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L223" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOne</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L257" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOtherRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L232" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOne</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L266" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOtherRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.1-1">RFC5036-2.5.1-1</code></td><td colspan="3"><span class="rfc-subject">After the connection is established, if LSR1 is playing the active role, it initiates negotiation of session parameters by sending an Initialization message to LSR2. (§2.5.3)</span></td></tr>
@@ -337,8 +345,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>2.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L403" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SessionSendsInitializationFirst</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L426" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SessionNotOperationalWithoutOwnInit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L98" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleInitiatesNegotiation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L436" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SessionNotOperationalWithoutOwnInit</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.3-1">RFC5036-2.5.3-1</code></td><td colspan="3"><span class="rfc-subject">An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period. Any LDP protocol message will do but, in circumstances where no other LDP protocol messages have been sent within the period, a KeepAlive message MUST be sent. (§3.5.4.1)</span></td></tr>
@@ -346,8 +354,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L514" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivesSentPeriodically</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L540" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivesNotSentContinuously</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L525" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivesSentPeriodically</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L408" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.6.1.2-1">RFC5036-2.6.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Whenever an LSR breaks the binding between a label and a FEC, it MUST withdraw the FEC label mapping from all LDP peers to which it has previously sent the mapping. (§A)</span></td></tr>
@@ -373,8 +381,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L459" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationAdoptsLower</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L475" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationRefusesHigher</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L469" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationAdoptsLower</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L485" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationRefusesHigher</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-1">RFC5036-3.5.3-1</code></td><td colspan="3"><span class="rfc-subject">Two octet unsigned non zero integer that indicates the number of seconds that the sending LSR proposes for the value of the KeepAlive Time. (§3.5.3)</span></td></tr>
@@ -382,8 +390,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L318" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitNonZeroKeepaliveTimeAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L355" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitZeroKeepaliveTimeRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L327" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitNonZeroKeepaliveTimeAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L364" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitZeroKeepaliveTimeRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.1-3">RFC5036-2.5.1-3</code></td><td colspan="3"><span class="rfc-subject">Next LSR1 checks whether the session parameters proposed in the message are acceptable. If they are, LSR1 replies with an Initialization message of its own to propose the parameters it wishes to use and a KeepAlive message to signal acceptance of LSR2&#39;s parameters. (§2.5.3)</span></td></tr>
@@ -393,15 +401,79 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> handleInit (internal/plugins/ldp/session.go:504) applies the negotiated parameters and advances the FSM without emitting anything; the only establishment KeepAlive is the unconditional one at internal/plugins/ldp/register.go:758, sent right after ze&#39;s own Initialization and before the peer&#39;s arrives, so no KeepAlive is conditioned on receiving and accepting an Initialization</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze has no passive role. startSessionForAdj (internal/plugins/ldp/register.go) dials every session and nothing listens on TCP port 646, so ze never receives an Initialization before it has sent its own and never replies with one. The active role&#39;s reply, a KeepAlive to an acceptable Initialization, is RFC5036-2.5.3-5</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.3-5">RFC5036-2.5.3-5</code></td><td colspan="3"><span class="rfc-subject">If LSR1 receives an Initialization message, it checks whether the session parameters are acceptable. If so, it replies with a KeepAlive message. (§2.5.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L129" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L159" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.3-6">RFC5036-2.5.3-6</code></td><td colspan="3"><span class="rfc-subject">If the session parameters are unacceptable, LSR1 sends a Session Rejected/Parameters Error Notification message and closes the connection. (§2.5.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L192" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L242" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleAcceptableInitKeepsConnection</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.3-7">RFC5036-2.5.3-7</code></td><td colspan="3"><span class="rfc-subject">If the parameters are not acceptable, LSR1 responds by sending a Session Rejected/Parameters Error Notification message and closing the TCP connection. (§2.5.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> this is the passive role&#39;s step, and ze has no passive role: startSessionForAdj (internal/plugins/ldp/register.go) dials every session and nothing listens on TCP port 646, so no Initialization reaches ze on a connection the peer opened. The active role&#39;s refusal is RFC5036-2.5.3-6</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.3-8">RFC5036-2.5.3-8</code></td><td colspan="3"><span class="rfc-subject">If LSR1 receives a KeepAlive message, LSR2 has accepted its proposed session parameters. (§2.5.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L13" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L39" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedWaitsForPeerKeepAlive</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.3-9">RFC5036-2.5.3-9</code></td><td colspan="3"><span class="rfc-subject">When LSR1 has received both an acceptable Initialization message and a KeepAlive message, the session is operational from LSR1&#39;s point of view. (§2.5.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L15" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L56" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L41" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedWaitsForPeerKeepAlive</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.4-1">RFC5036-2.5.4-1</code></td><td colspan="3"><span class="rfc-subject">OPENREC Receive KeepAlive msg OPERATIONAL Receive Any other LDP msg NON EXISTENT Action: Transmit Error Notification msg (NAK) and close transport connection (§2.5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L89" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedOtherMessageRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L17" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.4-2">RFC5036-2.5.4-2</code></td><td colspan="3"><span class="rfc-subject">OPENSENT Receive acceptable OPENREC Initialization msg Action: Transmit KeepAlive msg Receive Any other LDP msg NON EXISTENT Action: Transmit Error Notification msg (NAK) and close transport connection (§2.5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L101" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenSentOtherMessageRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L19" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.2-1">RFC5036-3.5.2-1</code></td><td colspan="3"><span class="rfc-subject">A value of 0 means use the default, which is 15 seconds for Link Hellos and 45 seconds for Targeted Hellos. (§3.5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L579" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeZeroUsesDefault</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L619" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeNonZeroNotDefaulted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L584" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeZeroUsesDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L624" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeNonZeroNotDefaulted</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.1-4">RFC5036-2.5.1-4</code></td><td colspan="3"><span class="rfc-subject">If LSR1 receives an Initialization message, it attempts to match the LDP Identifier carried by the message PDU with a Hello adjacency. (§2.5.3)</span></td></tr>
@@ -420,7 +492,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> partly met. An unacceptable Initialization IS now NAK&#39;d -- rejectInit (internal/plugins/ldp/session.go) sends the Notification through encodeNotification (internal/plugins/ldp/wire.go) for Bad Protocol Version and Session Rejected/Bad KeepAlive Time -- but every other fatal error still returns the error and closes the connection with no Notification: keepalive expiry and decode failure in ReadLoop and processMessages (internal/plugins/ldp/session.go), and the session-ended log in register.go</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> partly met. An unacceptable Initialization is NAK&#39;d by rejectInit, and processMessages sends fatal Shutdown for every unexpected complete message type in OPENSENT/OPENREC. KeepAlive expiry and decoding errors outside those state checks still return an error and close with no Notification in ReadLoop and processMessages (internal/plugins/ldp/session.go). The separate spec-ldp-keepalive-expiry-notification owns only the expiry cause</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.7-1">RFC5036-2.7-1</code></td><td colspan="3"><span class="rfc-subject">To retrieve the label, the LSR must be able to map the next hop address for the prefix to an LDP Identifier. Similarly, when the LSR learns a label for a prefix from an LDP peer, it must be able to determine whether that peer is currently a next hop for the prefix to determine whether it needs to start using the newly learned label when forwarding packets that match the prefix. To make that decision, the LSR must be able to map an LDP Identifier to the peer&#39;s addresses to check whether any are a next hop for the prefix. To enable LSRs to map between a peer LDP Identifier and the peer&#39;s addresses, LSRs advertise their addresses using LDP Address and Withdraw Address messages. (§2.7)</span></td></tr>
 <tr><td></td>
@@ -438,7 +510,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> partly met. On the Initialization path the obligation now holds end to end -- rejectInit (internal/plugins/ldp/session.go) sends the fatal Notification and returns the cause, processMessages stops on it and ReadLoop propagates it, so no further message from that peer is processed. Every other fatal error still sends no Notification, so the obligation&#39;s trigger has no producer there; it is unmet for the same reason as RFC5036-2.5.3-2</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> partly met. An unacceptable Initialization and an unexpected complete message type in OPENSENT/OPENREC receive fatal Notifications; processMessages then returns an error, ReadLoop ends and runSession closes. KeepAlive expiry and decoding errors outside the initialization type checks still send no Notification, leaving the same remaining causes as RFC5036-2.5.3-2</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.9-1">RFC5036-2.9-1</code></td><td colspan="3"><span class="rfc-subject">This section specifies a mechanism to protect against the introduction of spoofed TCP segments into LDP session connection streams. The use of this mechanism MUST be supported as a configurable option. (§2.9)</span></td></tr>
 <tr><td></td>
@@ -481,8 +553,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>2.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L322" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L346" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L322" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L346" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.3-4">RFC5036-2.5.3-4</code></td><td colspan="3"><span class="rfc-subject">The session establishment setup attempt following a NAK&#39;d Initialization message MUST be delayed no less than 15 seconds, and subsequent delays MUST grow to a maximum delay of no less than 2 minutes (§2.5.3)</span></td></tr>
@@ -490,8 +562,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>2.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L324" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L348" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L324" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L348" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.5.2-1">RFC5036-2.5.2-1</code></td><td colspan="3"><span class="rfc-subject">An LSR MUST advertise the same transport address in all Hellos that advertise the same label space (§2.5.2)</span></td></tr>
@@ -499,8 +571,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>2.5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L483" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HellosCarryOneTransportAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L501" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloTransportAddressNeverFollowsTheSocket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L491" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036HellosCarryOneTransportAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L509" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloTransportAddressNeverFollowsTheSocket</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.6.1.2-2">RFC5036-2.6.1.2-2</code></td><td colspan="3"><span class="rfc-subject">For each FEC for which the LSR is not the egress and no mapping exists, the LSR MUST wait until a label from a downstream LSR is received before mapping the FEC and passing corresponding labels to upstream LSRs. (§2.6.1.2)</span></td></tr>
@@ -508,8 +580,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>2.6.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.6.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L432" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L461" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L498" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.8.1-1">RFC5036-2.8.1-1</code></td><td colspan="3"><span class="rfc-subject">- The Label Request message MUST include a Hop Count TLV. (§2.8.1)</span></td></tr>
@@ -697,8 +769,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L373" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036DistinctLSRIDFormsAdjacency</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L391" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L373" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036DistinctLSRIDFormsAdjacency</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L439" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.3-1">RFC5036-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3)</span></td></tr>
@@ -706,8 +778,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L99" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitSetIsSkipped</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L128" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitClearIsRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L99" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitSetIsSkipped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitClearIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.4.2.2-1">RFC5036-3.4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">It MUST be set to zero on transmission and MUST be ignored on receipt. (§3.4.2.2)</span></td></tr>
@@ -751,8 +823,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.4.4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L174" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L203" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L174" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L203" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.4.4.1-2">RFC5036-3.4.4.1-2</code></td><td colspan="3"><span class="rfc-subject">If so, it MUST behave as if the containing message has traversed a loop by sending a Notification message signaling Loop Detected in reply to the sender of the message. (§3.4.4.1)</span></td></tr>
@@ -760,8 +832,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.4.4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L206" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L177" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L206" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L177" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.4.4.1-3">RFC5036-3.4.4.1-3</code></td><td colspan="3"><span class="rfc-subject">If Loop Detection is configured, the LSR MUST follow the procedures specified in Section &#34;Loop Detection&#34;. (§3.4.4.1)</span></td></tr>
@@ -832,7 +904,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L330" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L336" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation binds the sender and ze&#39;s encoders take no input that could reorder the mandatory parameters, so no violating input exists to refuse</p></td>
 </tr>
@@ -850,8 +922,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L97" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L117" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L85" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L105" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-4">RFC5036-3.5.3-4</code></td><td colspan="3"><span class="rfc-subject">If the label advertisement discipline determined in this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Advertisement Mode Notification message in response to the Initialization message and not establish the session (§3.5.3)</span></td></tr>
@@ -860,7 +932,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L121" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L109" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Downstream Unsolicited is the only discipline ze runs and it is always acceptable, so no unacceptable advertisement mode exists to reject</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-5">RFC5036-3.5.3-5</code></td><td colspan="3"><span class="rfc-subject">The configured maximum Path Vector length. MUST be 0 if Loop Detection is disabled (D = 0). (§3.5.3)</span></td></tr>
@@ -868,8 +940,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L163" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L179" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L151" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L167" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-6">RFC5036-3.5.3-6</code></td><td colspan="3"><span class="rfc-subject">This field is reserved. It MUST be set to zero on transmission and ignored on receipt. (§3.5.3)</span></td></tr>
@@ -877,8 +949,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L215" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L229" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L203" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L217" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-7">RFC5036-3.5.3-7</code></td><td colspan="3"><span class="rfc-subject">The receiving LSR MUST calculate the maximum PDU length for the session by using the smaller of its and its peer&#39;s proposals for Max PDU Length (§3.5.3)</span></td></tr>
@@ -886,8 +958,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L266" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L305" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L254" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L311" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-8">RFC5036-3.5.3-8</code></td><td colspan="3"><span class="rfc-subject">If the maximum PDU length determined this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Max PDU Length Notification message in response to the Initialization message and not establish the session (§3.5.3)</span></td></tr>
@@ -896,7 +968,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L269" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L257" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze accepts every Max PDU Length by taking the smaller of the two proposals, so no unacceptable value exists to reject</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-9">RFC5036-3.5.3-9</code></td><td colspan="3"><span class="rfc-subject">If there is no matching Hello adjacency, the LSR MUST send a Session Rejected/No Hello Notification message in response to the Initialization message and not establish the session. (§3.5.3)</span></td></tr>
@@ -904,8 +976,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L249" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitFromHelloAdjacencyAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L270" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitWithoutHelloAdjacencyRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L249" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitFromHelloAdjacencyAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L270" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitWithoutHelloAdjacencyRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-10">RFC5036-3.5.3-10</code></td><td colspan="3"><span class="rfc-subject">A receiving LSR MUST calculate the intersection between the received range and its own supported label range. (§3.5.3)</span></td></tr>
@@ -958,8 +1030,8 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <td>MUST</td>
 <td>3.5.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L375" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L403" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L381" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L405" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.7-1">RFC5036-3.5.7-1</code></td><td colspan="3"><span class="rfc-subject">Label Request Message ID If this Label Mapping message is a response to a Label Request message, it MUST include the Label Request Message ID optional parameter. (§3.5.7)</span></td></tr>
@@ -1107,7 +1179,11 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </tr>
 <tr><td><a href="#rfc5036-2.5.1-3"><code>RFC5036-2.5.1-3</code></a> Next LSR1 checks whether the session parameters proposed in the message are acceptable. If they are, LSR1 replies with an Initialization message of its own to propose the parameters it wishes to use and a KeepAlive message to signal acceptance of LSR2&#39;s parameters. (§2.5.3)</td>
 <td>{gap}, no test</td>
-<td>handleInit (internal/plugins/ldp/session.go:504) applies the negotiated parameters and advances the FSM without emitting anything; the only establishment KeepAlive is the unconditional one at internal/plugins/ldp/register.go:758, sent right after ze&#39;s own Initialization and before the peer&#39;s arrives, so no KeepAlive is conditioned on receiving and accepting an Initialization</td>
+<td>ze has no passive role. startSessionForAdj (internal/plugins/ldp/register.go) dials every session and nothing listens on TCP port 646, so ze never receives an Initialization before it has sent its own and never replies with one. The active role&#39;s reply, a KeepAlive to an acceptable Initialization, is RFC5036-2.5.3-5</td>
+</tr>
+<tr><td><a href="#rfc5036-2.5.3-7"><code>RFC5036-2.5.3-7</code></a> If the parameters are not acceptable, LSR1 responds by sending a Session Rejected/Parameters Error Notification message and closing the TCP connection. (§2.5.3)</td>
+<td>{gap}, no test</td>
+<td>this is the passive role&#39;s step, and ze has no passive role: startSessionForAdj (internal/plugins/ldp/register.go) dials every session and nothing listens on TCP port 646, so no Initialization reaches ze on a connection the peer opened. The active role&#39;s refusal is RFC5036-2.5.3-6</td>
 </tr>
 <tr><td><a href="#rfc5036-2.5.1-4"><code>RFC5036-2.5.1-4</code></a> If LSR1 receives an Initialization message, it attempts to match the LDP Identifier carried by the message PDU with a Hello adjacency. (§2.5.3)</td>
 <td>{gap}, no test</td>
@@ -1115,7 +1191,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </tr>
 <tr><td><a href="#rfc5036-2.5.3-2"><code>RFC5036-2.5.3-2</code></a> If an LSR encounters a condition requiring it to notify its peer with advisory or error information, it sends the peer a Notification message containing a Status TLV that encodes the information and optionally additional TLVs that provide more information about the condition. If the condition is one that is a fatal error, the Status Code carried in the Notification will indicate that. (§3.5.1.1)</td>
 <td>{gap}, no test</td>
-<td>partly met. An unacceptable Initialization IS now NAK&#39;d -- rejectInit (internal/plugins/ldp/session.go) sends the Notification through encodeNotification (internal/plugins/ldp/wire.go) for Bad Protocol Version and Session Rejected/Bad KeepAlive Time -- but every other fatal error still returns the error and closes the connection with no Notification: keepalive expiry and decode failure in ReadLoop and processMessages (internal/plugins/ldp/session.go), and the session-ended log in register.go</td>
+<td>partly met. An unacceptable Initialization is NAK&#39;d by rejectInit, and processMessages sends fatal Shutdown for every unexpected complete message type in OPENSENT/OPENREC. KeepAlive expiry and decoding errors outside those state checks still return an error and close with no Notification in ReadLoop and processMessages (internal/plugins/ldp/session.go). The separate spec-ldp-keepalive-expiry-notification owns only the expiry cause</td>
 </tr>
 <tr><td><a href="#rfc5036-2.7-1"><code>RFC5036-2.7-1</code></a> To retrieve the label, the LSR must be able to map the next hop address for the prefix to an LDP Identifier. Similarly, when the LSR learns a label for a prefix from an LDP peer, it must be able to determine whether that peer is currently a next hop for the prefix to determine whether it needs to start using the newly learned label when forwarding packets that match the prefix. To make that decision, the LSR must be able to map an LDP Identifier to the peer&#39;s addresses to check whether any are a next hop for the prefix. To enable LSRs to map between a peer LDP Identifier and the peer&#39;s addresses, LSRs advertise their addresses using LDP Address and Withdraw Address messages. (§2.7)</td>
 <td>{gap}, no test</td>
@@ -1123,7 +1199,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </tr>
 <tr><td><a href="#rfc5036-3.5.1-1"><code>RFC5036-3.5.1-1</code></a> If the condition is one that is a fatal error, the Status Code carried in the Notification will indicate that. In this case, after sending the Notification message the LSR SHOULD terminate the LDP session by closing the session TCP connection and discard all state associated with the session, including all label-FEC bindings learned via the session. (§3.5.1.1)</td>
 <td>{gap}</td>
-<td>partly met. On the Initialization path the obligation now holds end to end -- rejectInit (internal/plugins/ldp/session.go) sends the fatal Notification and returns the cause, processMessages stops on it and ReadLoop propagates it, so no further message from that peer is processed. Every other fatal error still sends no Notification, so the obligation&#39;s trigger has no producer there; it is unmet for the same reason as RFC5036-2.5.3-2</td>
+<td>partly met. An unacceptable Initialization and an unexpected complete message type in OPENSENT/OPENREC receive fatal Notifications; processMessages then returns an error, ReadLoop ends and runSession closes. KeepAlive expiry and decoding errors outside the initialization type checks still send no Notification, leaving the same remaining causes as RFC5036-2.5.3-2</td>
 </tr>
 <tr><td><a href="#rfc5036-2.9-1"><code>RFC5036-2.9-1</code></a> This section specifies a mechanism to protect against the introduction of spoofed TCP segments into LDP session connection streams. The use of this mechanism MUST be supported as a configurable option. (§2.9)</td>
 <td>{gap}, no test</td>
@@ -1347,12 +1423,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L153" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOtherRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L162" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOtherRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L126" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOneAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L135" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PDUVersionOneAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1367,12 +1443,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L200" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsIgnoredOnReceipt</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L209" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L178" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsZeroOnTransmit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L187" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloReservedBitsZeroOnTransmit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1381,18 +1457,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-x-3"><code>RFC5036-x-3</code></a></h3>
 <p>Two octet unsigned integer containing the version number of the protocol. This version of the specification specifies LDP protocol version 1. (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036InitProtocolVersionOne reads the Initialization SendInit emits and checks Protocol Version 1, and drives processMessages to operational on version 1; TestRFC5036InitProtocolVersionOtherRejected checks versions 0, 2 and 65535 draw the Bad Protocol Version Notification, errBadVersion and no operational state.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036InitProtocolVersionOne reads the Initialization SendInit emits and checks Protocol Version 1, and drives processMessages to operational on version 1; TestRFC5036InitProtocolVersionOtherRejected checks versions 0, 2 and 65535 draw the Bad Protocol Version Notification, errBadVersion and no operational state. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer&#39;s KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer&#39;s KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L257" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOtherRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L266" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOtherRejected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L223" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOne</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L232" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProtocolVersionOne</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1401,40 +1477,40 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-2.5.1-1"><code>RFC5036-2.5.1-1</code></a></h3>
 <p>After the connection is established, if LSR1 is playing the active role, it initiates negotiation of session parameters by sending an Initialization message to LSR2. (§2.5.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The positive TestRFC5036SessionSendsInitializationFirst calls sess.SendInit directly and checks the emitted message is an Initialization, which holds whatever the session-start path does: it would not fail if runSession stopped sending the Initialization. No unit distinguishes the active role, which initiates, from the passive role, which waits. The negative only shows the FSM does not go operational without ze&#39;s own Initialization.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The positive now drives runSession, the function startSessionForAdj runs on the connection ze dialed (ze is always the active LSR), with a silent peer: the first PDU on the wire must be ze&#39;s Initialization, carrying ze&#39;s LDP Identifier in the header and the peer&#39;s as receiver. It fails if runSession stops sending the Initialization, sends something else first, or waits for the peer (observed red with runSession broken). The negative is a consequence guard rather than a violating input: a session that never sent its own Initialization does not go operational on the peer&#39;s. The passive-role clause of the same RFC sentence is outside this row and recorded as a gap on RFC5036-2.5.1-3.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L426" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SessionNotOperationalWithoutOwnInit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L436" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SessionNotOperationalWithoutOwnInit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L403" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SessionSendsInitializationFirst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L98" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleInitiatesNegotiation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5036-2.5.3-1"><code>RFC5036-2.5.3-1</code></a></h3>
 <p>An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period. Any LDP protocol message will do but, in circumstances where no other LDP protocol messages have been sent within the period, a KeepAlive message MUST be sent. (§3.5.4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC5036KeepalivesSentPeriodically reads four KeepAlives through runSession, but each read has a 2s deadline and the negotiated KeepAlive Time is 150ms, so a sender whose interval exceeds the KeepAlive Time still passes: the bound &#39;at least every KeepAlive Time period&#39; is not asserted. The negative only shows KeepAlives are not continuous.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both clauses asserted through runSession on an operational session. Positive: KeepAlive Time 1s on both sides, empty LIB so no other message is due, the next three PDUs must each be a KeepAlive and each gap at most 1s, so a sender slower than the KeepAlive Time or one sending nothing fails. Negative (dual-tagged with RFC5036-3.5.4.1-1): ze proposes 60s, the peer 1s, the input on which a sender pacing from its own proposal leaves the peer 20s without a message; each gap must stay within the negotiated 1s. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L540" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivesNotSentContinuously</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L408" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L514" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivesSentPeriodically</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L525" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivesSentPeriodically</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1455,12 +1531,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L475" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationRefusesHigher</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L485" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationRefusesHigher</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L459" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationAdoptsLower</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L469" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepaliveNegotiationAdoptsLower</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1469,18 +1545,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.5.3-1"><code>RFC5036-3.5.3-1</code></a></h3>
 <p>Two octet unsigned non zero integer that indicates the number of seconds that the sending LSR proposes for the value of the KeepAlive Time. (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036InitNonZeroKeepaliveTimeAccepted takes a non-zero KeepAlive Time to operational with no Notification; TestRFC5036InitZeroKeepaliveTimeRejected checks a zero KeepAlive Time draws Session Rejected/Bad KeepAlive Time referring to the Initialization, errBadKeepaliveTime, no operational state and no zero reaching the timers.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036InitNonZeroKeepaliveTimeAccepted takes a non-zero KeepAlive Time to operational with no Notification; TestRFC5036InitZeroKeepaliveTimeRejected checks a zero KeepAlive Time draws Session Rejected/Bad KeepAlive Time referring to the Initialization, errBadKeepaliveTime, no operational state and no zero reaching the timers. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer&#39;s KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer&#39;s KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L355" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitZeroKeepaliveTimeRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L364" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitZeroKeepaliveTimeRejected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L318" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitNonZeroKeepaliveTimeAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L327" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitNonZeroKeepaliveTimeAccepted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1491,6 +1567,135 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <p>Next LSR1 checks whether the session parameters proposed in the message are acceptable. If they are, LSR1 replies with an Initialization message of its own to propose the parameters it wishes to use and a KeepAlive message to signal acceptance of LSR2&#39;s parameters. (§2.5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5036-2.5.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5036-2.5.3-5"><code>RFC5036-2.5.3-5</code></a></h3>
+<p>If LSR1 receives an Initialization message, it checks whether the session parameters are acceptable. If so, it replies with a KeepAlive message. (§2.5.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: through runSession in the active role, an acceptable peer Initialization (KeepAlive Time 30) is answered by a KeepAlive as the next PDU, and the peer&#39;s own KeepAlive then makes the session operational (awaitOperational; RFC 5036 2.5.4 OPENSENT -&gt; OPENREC -&gt; OPERATIONAL since the c29 R4 fix). Negative: nothing follows ze&#39;s Initialization for 300ms while the peer has sent none (the pre-fix unconditional establishment KeepAlive fails here, observed red against HEAD register.go), and an unacceptable Initialization (KeepAlive Time 0) draws a Notification, never a KeepAlive, and no operational state. The recorded break for the negative is rejectInit; the silence half was confirmed red by the judge with HEAD runSession overlaid. Re-judged 2026-10-02 (c29 judge): only the positive&#39;s tail changed, from an immediate operational check to the peer KeepAlive plus the same operational assertion.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L159" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L129" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5036-2.5.3-6"><code>RFC5036-2.5.3-6</code></a></h3>
+<p>If the session parameters are unacceptable, LSR1 sends a Session Rejected/Parameters Error Notification message and closes the connection. (§2.5.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: through runSession, an Initialization with KeepAlive Time 0 draws Session Rejected/Bad KeepAlive Time (0x80000018, a Session Rejected parameters code of RFC 5036 section 3.9) naming the Initialization&#39;s id and type, then end of file on the peer end, and no operational state. The second case (Protocol Version 2) draws Bad Protocol Version, which section 3.5.1.2.1 names rather than a Session Rejected code; it proves the close, not this row&#39;s status code. Negative: an acceptable Initialization draws a KeepAlive and the connection stays open for a periodic KeepAlive. Only KeepAlive Time and Protocol Version are refusable today; Max PDU Length and advertisement-mode refusals are never owed by ze&#39;s acceptance rules.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L242" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleAcceptableInitKeepsConnection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L192" title="internal/plugins/ldp/rfc5036_establishment_test.go" target="_blank" rel="noopener"><code>TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5036-2.5.3-7"><code>RFC5036-2.5.3-7</code></a></h3>
+<p>If the parameters are not acceptable, LSR1 responds by sending a Session Rejected/Parameters Error Notification message and closing the TCP connection. (§2.5.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5036-2.5.3-7, so no unit is bound to it.</p>
+<h3><a href="#rfc5036-2.5.3-8"><code>RFC5036-2.5.3-8</code></a></h3>
+<p>If LSR1 receives a KeepAlive message, LSR2 has accepted its proposed session parameters. (§2.5.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC5036 section 2.5.3 item 2.c: the live OpenReceivedKeepAliveEstablishesSession test first proves OPENREC after acceptable Initialization, then requires Operational on peer KeepAlive and timeout-only wire silence. OpenReceivedWaitsForPeerKeepAlive instead withholds that message, requires timeout (not EOF), and pins OPENREC. Reviewed processMessages, handleInit, keepaliveReceived, ReadLoop and runSession; acceptance is not inferred from TCP connect.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L39" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedWaitsForPeerKeepAlive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L13" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5036-2.5.3-9"><code>RFC5036-2.5.3-9</code></a></h3>
+<p>When LSR1 has received both an acceptable Initialization message and a KeepAlive message, the session is operational from LSR1&#39;s point of view. (§2.5.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The live positive requires acceptable Initialization followed by peer KeepAlive before Operational. Independent negative controls withhold KeepAlive or send it before any peer Initialization. The latter now requires fatal Shutdown 0x8000000a referencing KeepAlive 9, EOF and no recorded SessionUp after joining the worker; it no longer blesses premature KeepAlive silence. The former requires OPENREC and timeout-only silence. These distinguish both required peer messages.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L56" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L41" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedWaitsForPeerKeepAlive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L15" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5036-2.5.4-1"><code>RFC5036-2.5.4-1</code></a></h3>
+<p>OPENREC Receive KeepAlive msg OPERATIONAL Receive Any other LDP msg NON EXISTENT Action: Transmit Error Notification msg (NAK) and close transport connection (§2.5.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently rejudged after the quotation-ending prose period changed TestRFC5036OpenReceivedOtherMessageRejected. RFC 5036 Section 2.5.4 says: &#34;Note that a Shutdown message is implemented as a Notification message with a Status TLV indicating a fatal error.&#34; Its OPENREC table requires KeepAlive -&gt; OPERATIONAL and any other LDP message -&gt; NON EXISTENT with Error Notification and transport close (rfc/full/rfc5036.txt:884-927). Section 3.5.1.1 says: &#34;When an LSR receives a Shutdown message during session initialization, it SHOULD transmit a Shutdown message and then close the transport connection.&#34; Section 2.5.3 also overrides message U-bit handling before establishment (lines 847-853). Q1 yes: the two tagged carriers assert these two table branches, not merely the implementation&#39;s current error return. Q2 yes by source analysis: TestRFC5036OpenReceivedOtherMessageRejected delegates to testInitializationOtherMessageRejected, whose twelve non-KeepAlive cases demand Notification/Status TLV, exact fatal Shutdown 0x8000000a, offending message ID/type, then actual EOF before test cleanup; after the worker exits they demand no SessionUp, no Operational state and no installed Mapping or Address. Removing refusal, sending another status, silently closing, or leaving the transport open fails an assertion. TestRFC5036OpenReceivedKeepAliveEstablishesSession requires OPENREC after the live Initialization exchange, then exact Operational state after a valid peer KeepAlive and timeout-only silence, which rejects data and EOF. Q3 yes: complete version-1 PDUs reach the type guard; Mapping, Address, Address Withdraw, Initialization and Shutdown have structured bodies, while other complete message headers deliberately exercise type rejection before body decoding. The guard in internal/plugins/ldp/session.go::processMessages (lines 457-495) precedes decoding and dispatch; body errors cannot satisfy the required Shutdown/referring-message/EOF combination, and unknown U=0/U=1 cannot bypass it. Q4 yes for this whole checklist row: both KeepAlive acceptance and all non-KeepAlive type classes, including Shutdown and both unknown U bits, are exercised. These are distinct polarity assertions: repository positive labels the refusal obligation&#39;s non-KeepAlive trigger, while negative is a genuinely conforming KeepAlive control, not a second malformed input. Producer chain: processMessages calls sendNotification and returns the rejection; ReadLoop propagates it; internal/plugins/ldp/register.go::runSession defers Session.Stop, whose close resets StateNonExistent. keepaliveReceived implements the accepted transition; handleInit establishes OPENREC and initAccepted. internal/plugins/ldp/wire.go::encodeNotification encodes the asserted status and offending reference. Test sources: internal/plugins/ldp/rfc5036_openrec_test.go:13-37,89-97,108-213; helpers readNotificationStatus, expectClosed, expectSilence and runSessionForTest were read. Existing discrimination records name keepaliveReceived for the negative carrier and processMessages for the positive carrier; their whole-producer panic breaks prove sensitivity only to those breaks, not each clause independently. No new execution or fingerprint calculation was performed in this audit; parent owns the already-queued positive-carrier native renewal. No whole-RFC or adjacent gap closure is claimed.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L17" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L89" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedOtherMessageRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5036-2.5.4-2"><code>RFC5036-2.5.4-2</code></a></h3>
+<p>OPENSENT Receive acceptable OPENREC Initialization msg Action: Transmit KeepAlive msg Receive Any other LDP msg NON EXISTENT Action: Transmit Error Notification msg (NAK) and close transport connection (§2.5.4)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. OPENSENT common guard in Session.processMessages accepts only Initialization. OpenSentOtherMessageRejected uses twelve other types including KeepAlive, valid Shutdown/Mapping/Address and both unknown U bits; requires fatal Shutdown with offending reference, EOF, no SessionUp and no applied mapping/address. The live acceptable Initialization control requires a KeepAlive response and OPENREC, then peer KeepAlive reaches Operational without Notification or close (strict timeout). This judges both complete table branches, not solely non-establishment.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L19" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenReceivedKeepAliveEstablishesSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L101" title="internal/plugins/ldp/rfc5036_openrec_test.go" target="_blank" rel="noopener"><code>TestRFC5036OpenSentOtherMessageRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5036-3.5.2-1"><code>RFC5036-3.5.2-1</code></a></h3>
 <p>A value of 0 means use the default, which is 15 seconds for Link Hellos and 45 seconds for Targeted Hellos. (§3.5.2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036HelloHoldTimeZeroUsesDefault checks Hold Time 0 keeps the adjacency with 15s for a Link Hello and 45s for a Targeted Hello and not expired; TestRFC5036HelloHoldTimeNonZeroNotDefaulted checks non-zero values below and above the default are used as sent.</p>
@@ -1499,12 +1704,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L619" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeNonZeroNotDefaulted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L624" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeNonZeroNotDefaulted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L579" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeZeroUsesDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L584" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloHoldTimeZeroUsesDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1535,12 +1740,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L346" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L346" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L322" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L322" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1555,12 +1760,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L348" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L348" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryRefusedInsideDelay</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L324" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L324" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036SetupRetryBackoffGrows</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1575,12 +1780,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L501" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloTransportAddressNeverFollowsTheSocket</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L509" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036HelloTransportAddressNeverFollowsTheSocket</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L483" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HellosCarryOneTransportAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L491" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036HellosCarryOneTransportAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1589,18 +1794,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-2.6.1.2-2"><code>RFC5036-2.6.1.2-2</code></a></h3>
 <p>For each FEC for which the LSR is not the egress and no mapping exists, the LSR MUST wait until a label from a downstream LSR is received before mapping the FEC and passing corresponding labels to upstream LSRs. (§2.6.1.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The units show an egress FEC is mapped at once and a non-egress FEC with only a third-party binding is not mapped, but no unit shows the second half of the obligation: that the FEC IS mapped and passed upstream once a label from the downstream LSR arrives. A code that never maps a transit FEC passes both units.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L461" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L498" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L432" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1689,18 +1894,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <p>No test carries RFC5036-2.8.2-13, so no unit is bound to it.</p>
 <h3><a href="#rfc5036-3.1-1"><code>RFC5036-3.1-1</code></a></h3>
 <p>The first four octets identify the LSR and MUST be a globally unique value. (§3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Global uniqueness is an operator property ze can only police by refusing its own identifier: TestRFC5036OwnLSRIDFormsNoAdjacency does that. The positive TestRFC5036DistinctLSRIDFormsAdjacency&#39;s PDU-header half encodes a literal 10.0.0.1 through encodePDUHeader and reads it back, which cannot fail and does not show the configured lsr-id reaches the header of a PDU ze sends.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Global uniqueness is an operator property; what ze owns is that every LDP Identifier it sends carries the configured lsr-id and that it refuses its own identifier from the wire. The positive now reads the header of a Hello sendHello puts on a real UDP socket and of the Initialization runSession sends on a session built by sessionConfigForAdj, both of which must carry the engine&#39;s 192.0.2.77, and a distinct-LSR Hello must form the adjacency. The negative shows a Hello carrying ze&#39;s own LSR ID forms no adjacency.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L391" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L439" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L373" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036DistinctLSRIDFormsAdjacency</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L373" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036DistinctLSRIDFormsAdjacency</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1715,12 +1920,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L128" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitClearIsRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitClearIsRefused</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L99" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitSetIsSkipped</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L99" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitSetIsSkipped</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1745,18 +1950,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <p>No test carries RFC5036-3.4.2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5036-3.4.4.1-1"><code>RFC5036-3.4.4.1-1</code></a></h3>
 <p>If an LSR receives a message containing a Hop Count TLV, it MUST check the hop count value to determine whether the hop count has exceeded its configured maximum allowable value (§3.4.4.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The tagged HopCountWithinMaximumIsApplied and HopCountAboveMaximumDrawsLoopDetected correctly distinguish Label Mapping hop counts 4 and 5 at configured maximum 4, including callback data/suppression and exact advisory reply. But full RFC5036 section 3.4.4.1 covers received Label Request as well as Label Mapping. Session.processMessages groups MsgTypeLabelRequest among unhandled message types, without parsing/checking Hop Count. Both tagged tests send Mapping only, so they cannot detect this uncovered receive behavior. Renewed producer-halt records prove reachability, not whole-row enforcement.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L203" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L203" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L174" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L174" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1765,18 +1970,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.4.4.1-2"><code>RFC5036-3.4.4.1-2</code></a></h3>
 <p>If so, it MUST behave as if the containing message has traversed a loop by sending a Notification message signaling Loop Detected in reply to the sender of the message. (§3.4.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036HopCountAboveMaximumDrawsLoopDetected checks a hop count above the configured maximum draws a Loop Detected Notification referring to the Label Mapping, the mapping is not applied and the session stays up; TestRFC5036HopCountWithinMaximumIsApplied checks a hop count at the maximum draws no Notification.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Prior enforcement overstated full RFC5036 section 3.4.4.1. The two tagged tests correctly prove Label Mapping count 5 above maximum 4 yields advisory Loop Detected with exact offending reference, no callback and Operational state, while count 4 is applied with timeout-only wire silence. But the RFC also covers Label Request containing Hop Count; Session.processMessages treats MsgTypeLabelRequest as unhandled and never checks its hop count or sends Loop Detected. Both tests send Mapping, leaving that receive case untested. Renewed producer-halt records do not close the semantic gap.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L177" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L177" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountWithinMaximumIsApplied</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L206" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L206" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036HopCountAboveMaximumDrawsLoopDetected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1819,7 +2024,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L330" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L336" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1832,18 +2037,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <p>No test carries RFC5036-3.5.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5036-3.5.3-3"><code>RFC5036-3.5.3-3</code></a></h3>
 <p>Otherwise, Downstream Unsolicited MUST be used (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. On non-ATM/non-Frame-Relay sessions, InitProposesDownstreamUnsolicited pins A=0 in the sent Common Session Parameters. InitOnDemandProposalKeepsDownstreamUnsolicited constructs A=1, confirms decoding, processes Initialization plus peer KeepAlive, requires Operational and strict timeout-only silence, then successfully sends and reads an unsolicited Mapping. handleInit retains Downstream Unsolicited regardless of peer A, and runSession advertises local bindings without a request.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L117" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L105" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L97" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L85" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1852,13 +2057,13 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.5.3-4"><code>RFC5036-3.5.3-4</code></a></h3>
 <p>If the label advertisement discipline determined in this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Advertisement Mode Notification message in response to the Initialization message and not establish the session (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Reviewed the negative-only annotation: handleInit accepts Downstream Unsolicited for all supported IP sessions and has no unacceptable advertisement-mode policy. The A=1 control requires Operational, timeout-only silence rather than EOF, and a subsequent unsolicited Mapping. Thus the tested supported negotiation cannot spuriously reject an acceptable mode; no absent ATM/Frame Relay capability is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L121" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L109" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1873,12 +2078,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L179" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L167" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L163" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L151" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1887,18 +2092,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.5.3-6"><code>RFC5036-3.5.3-6</code></a></h3>
 <p>This field is reserved. It MUST be set to zero on transmission and ignored on receipt. (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036InitReservedBitsZeroOnTransmission checks the six reserved bits of the Common Session Parameters flags octet are zero in the sent Initialization; TestRFC5036InitReservedBitsIgnoredOnReceipt sets them all and checks A and D are not read from them, the session goes operational and no Notification is sent. ze sends no ATM or Frame Relay Session Parameters (RFC5036-3.5.3-13 gap).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read both reserved-bit tests and EncodeInit/DecodeInit. Transmission requires all six reserved bits zero. Reception sets all six, requires neither A nor D set, processes Initialization plus peer KeepAlive to Operational, pins negotiated 30s and now requires a deadline timeout for silence (EOF fails). The initialization guard continues to accept the conforming message types; reserved bits do not change negotiation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L229" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L217" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L215" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L203" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1907,18 +2112,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.5.3-7"><code>RFC5036-3.5.3-7</code></a></h3>
 <p>The receiving LSR MUST calculate the maximum PDU length for the session by using the smaller of its and its peer&#39;s proposals for Max PDU Length (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First judgment. Live InitMaxPDULengthTakesTheSmallerProposal preserves proposals 1000,255,100,0 and pins negotiated values 1000,4096,4096,4096, a KeepAlive response, OPENREC before peer KeepAlive, Operational afterward and timeout-only silence. Independent 8000 proposal control pins the unchanged local maximum 4096. Reviewed handleInit normalization at &lt;=255 and minimum selection. This proves negotiation, not a separate promise about enforcing received PDU size.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L305" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L311" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L266" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L254" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1927,13 +2132,13 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.5.3-8"><code>RFC5036-3.5.3-8</code></a></h3>
 <p>If the maximum PDU length determined this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Max PDU Length Notification message in response to the Initialization message and not establish the session (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First judgment; negative-only annotation is supported by handleInit: no Max PDU proposal is unacceptable to this implementation after &lt;=255 normalization and minimum selection. Four live cases require KeepAlive rather than Notification, exact negotiated maximum, OPENREC then peer-KeepAlive Operational, and a timeout rather than EOF. No fatal rejection branch for an unsupported policy is invented.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L269" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L257" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1942,18 +2147,18 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.5.3-9"><code>RFC5036-3.5.3-9</code></a></h3>
 <p>If there is no matching Hello adjacency, the LSR MUST send a Session Rejected/No Hello Notification message in response to the Initialization message and not establish the session. (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036InitFromHelloAdjacencyAccepted checks an Initialization from the adjacency&#39;s LDP Identifier goes operational with no write; TestRFC5036InitWithoutHelloAdjacencyRejected checks another LSR ID and another label space each draw Session Rejected/No Hello referring to the Initialization and no session.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036InitFromHelloAdjacencyAccepted checks an Initialization from the adjacency&#39;s LDP Identifier goes operational with no write; TestRFC5036InitWithoutHelloAdjacencyRejected checks another LSR ID and another label space each draw Session Rejected/No Hello referring to the Initialization and no session. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer&#39;s KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer&#39;s KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L270" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitWithoutHelloAdjacencyRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L270" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitWithoutHelloAdjacencyRejected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/procedures_rfc5036_test.go#L249" title="internal/plugins/ldp/procedures_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitFromHelloAdjacencyAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L249" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitFromHelloAdjacencyAccepted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1988,12 +2193,12 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L403" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L405" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/sessionparams_rfc5036_test.go#L375" title="internal/plugins/ldp/sessionparams_rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L381" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3115,7 +3320,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

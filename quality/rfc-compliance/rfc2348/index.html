@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>4 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>85.7%</strong><b>12 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>4</strong><b>of 5 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>8</td>
+<td>14</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>8</td>
+<td>14</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>12</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2348.md</code></td>
@@ -264,7 +265,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -275,6 +276,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -289,7 +294,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc2348-x-1"><code>RFC2348-x-1</code></a>, <a href="#rfc2348-x-3"><code>RFC2348-x-3</code></a>, <a href="#rfc2348-x-4"><code>RFC2348-x-4</code></a>, <a href="#rfc2348-x-5"><code>RFC2348-x-5</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc2348-x-2"><code>RFC2348-x-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc2348-x-2"><code>RFC2348-x-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -319,7 +324,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Blocksize</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2348-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L174" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeBoundsAreInclusive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L52" title="internal/plugins/tftpserver/rfc2348_blksize_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeRangeEnforced</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L177" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeBoundsAreInclusive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L55" title="internal/plugins/tftpserver/rfc2348_blksize_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeRangeEnforced</code></a></span></div>
 </div></td>
 </tr>
@@ -328,8 +335,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Blocksize</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2348-x-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L383" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L468" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L210" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ShortBlockIsTheFinalPacket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L380" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L214" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ShortBlockIsTheFinalPacket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L463" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2348-x-5">RFC2348-x-5</code></td><td colspan="3"><span class="rfc-subject">If the amount of data to be transfered is an integral multiple of the blocksize, an extra data packet containing no data is sent to end the transfer. (§Blocksize Option Specification)</span></td></tr>
@@ -337,8 +346,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Blocksize</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2348-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L464" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L387" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L234" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ZeroLengthBlockEndsAnExactMultiple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L459" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L237" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ZeroLengthBlockEndsAnExactMultiple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L384" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -386,60 +397,90 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC2348-x-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2348-x-3"><code>RFC2348-x-3</code></a></h3>
 <p>Valid values range between &#34;8&#34; and &#34;65464&#34; octets, inclusive. (§Blocksize Option Specification)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Only 5 and 70000 (rejected) and 512 (accepted) are exercised. The &#39;inclusive&#39; bounds are never asserted: a parseRRQ that used n &gt; 8 or n &lt; 65464 (rejecting 8 or 65464) or accepted 7 or 65465 stays green. No tagged assertion at 7/8/65464/65465.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2348BlksizeBoundsAreInclusive asserts both inclusive bounds and one past each: 8 is acked as 8 and block 1 carries 8 octets; 65464 is acked (as the 1468 cap, which x-1 allows), red on n&lt;65464; 7 and 65465 beside tsize are absent from the OACK, red on n&gt;=7 or n&lt;=65465. Every off-by-one at either bound goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L177" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeBoundsAreInclusive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L55" title="internal/plugins/tftpserver/rfc2348_blksize_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeRangeEnforced</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L174" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeBoundsAreInclusive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2348_blksize_test.go#L52" title="internal/plugins/tftpserver/rfc2348_blksize_test.go" target="_blank" rel="noopener"><code>TestRFC2348BlksizeRangeEnforced</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2348-x-4"><code>RFC2348-x-4</code></a></h3>
 <p>The reception of a data packet with a data length less than the negotiated blocksize is the final packet. (§Blocksize Option Specification)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestTFTPReadLargeFile reads exactly three blocks and never checks that nothing follows the short block, so a server that kept sending after the short block (not treating it as final) stays green. Both units run at the default 512 without negotiating blksize, so a server that compared against 512 instead of the negotiated blocksize stays green. The negative (TestTFTPReadExact512 continues after a full block) holds.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestTFTPReadLargeFile changed only by losing the retired RFC1350-5-2 tag comment; every assertion is unchanged. TestRFC2348ShortBlockIsTheFinalPacket at a negotiated 1024: a 600-octet file must be exactly [600] with silence after its ACK (a server comparing against 512 sends a block 2 and goes red), and 2500 must be [1024,1024,452] then silence (red on DATA after the short block). Negative: full 1024 blocks are followed by the next block.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L468" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L463" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L214" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ShortBlockIsTheFinalPacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L383" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L380" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L210" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ShortBlockIsTheFinalPacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2348-x-5"><code>RFC2348-x-5</code></a></h3>
 <p>If the amount of data to be transfered is an integral multiple of the blocksize, an extra data packet containing no data is sent to end the transfer. (§Blocksize Option Specification)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Positive TestTFTPReadExact512 asserts the zero-length block 2 after a 512-byte file. The negative claims no extra zero-length packet follows a short final block, but TestTFTPReadLargeFile never reads after block 3, so that polarity asserts nothing. Neither unit negotiates a blksize, so &#39;the blocksize&#39; is only the 512 default.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestTFTPReadLargeFile changed only by losing the retired RFC1350-5-2 tag comment; every assertion is unchanged. TestRFC2348ZeroLengthBlockEndsAnExactMultiple at a negotiated 1024: 2048 must be [1024,1024,0] (red with no empty terminator), and 1500 must be [1024,476] and 512 must be [512], each followed by 1 s of silence (red on an extra empty packet, including one computed against 512 instead of the negotiated size).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L387" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L384" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadLargeFile</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L237" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ZeroLengthBlockEndsAnExactMultiple</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L464" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L459" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPReadExact512</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L234" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2348ZeroLengthBlockEndsAnExactMultiple</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -548,7 +589,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

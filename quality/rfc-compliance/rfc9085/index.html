@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9085 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9085: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing. 11 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9085: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9085 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9085: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing. 11 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9085: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9085 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9085: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing. 11 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9085: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 3 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>9 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>97.8%</strong><b>44 of 45 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>10</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 12 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>72.7%</strong><b>8 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>3</strong><b>of 11 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,8 +161,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,16 +206,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>14</td>
+<td>12</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>11</td>
+<td>9</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>9</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>3</td>
+<td>45</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>3</td>
+<td>45</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>3</td>
+<td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>44</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9085.md</code></td>
@@ -250,18 +252,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP-LS Segment Routing extensions: 3 single-polarity positive (SID/Label 20-bit mask, reserved + undefined flags ignored on receipt) + 8 MUST gaps (SR-SID origination/encode not implemented; decode only). The 2026-09-21 extraction walk lowered RFC9085-2.1-1 to SHOULD, the level the document&#39;s own sentence uses, so the TLV-placement rule is now a SHOULD gap and the MUST count is 11 rather than 12.</p>
+<p>Enrolled: BGP-LS Segment Routing extensions: Ze decodes the SR TLVs and originates them from its IS-IS and OSPF link-state databases. Correction 2026-09-30: the eight transmit rows were recorded as gaps on the belief that no path originated them; the native IS-IS and OSPF BGP-LS exporters do, so those rows now carry origination tests. The 2026-09-21 extraction walk lowered RFC9085-2.1-1 to SHOULD, the level the document&#39;s own sentence uses, and on 2026-09-30 the duplicate rows RFC9085-2.1.2-3 and 2.1.2-4 were merged into RFC9085-2.1.2-2 and 2.1.2-1, so the MUST count is 9 rather than 12.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
-<p><strong>What the ledger says is covered:</strong></p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
 <li>SR TLVs (SID/Label, Prefix-SID, Adj-SID, SR Capabilities, SRGB/SRLB) decode as part of BGP-LS TLV coverage</li>
-<li>the SID/Label 20-bit mask and reserved/undefined-flag fields are ignored on receipt.</li>
+<li>the SID/Label 20-bit mask and reserved/undefined-flag fields are ignored on receipt. The native IS-IS and OSPF BGP-LS exporters originate SR Capabilities (1034), SR-Algorithm (1035), SRLB (1036), Adjacency SID (1099), LAN Adjacency SID (1100), Prefix-SID (1158) and Range (1159) with the SID/Label 20-bit mask applied and the Reserved fields, and the OSPF SR Capabilities and SRLB Flags, set to 0.</li>
 </ul>
-<details class="rfc-fold"><summary>What the ledger says remains</summary>
-Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): the reserved-and-flags-zero-on-transmit rules have dormant encoders but no origination path, and the LAN-Adjacency-SID (TLV 1100) and Range (TLV 1159) TLVs are not implemented at all. The TLV-placement rule <a href="#rfc9085-2.1-1"><code>RFC9085-2.1-1</code></a> is unmet too and is a SHOULD, the level the document states it at.
 </details>
+<p><strong>What the ledger says remains:</strong></p>
+The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or Range (TLV 1159) TLVs; it carries them unparsed, Reserved field included.
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -269,11 +271,11 @@ Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): th
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>9</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>11</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,6 +286,10 @@ Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): th
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -292,11 +298,11 @@ Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): th
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>11</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (11):</strong> <a href="#rfc9085-2.1.2-1"><code>RFC9085-2.1.2-1</code></a>, <a href="#rfc9085-2.1.2-2"><code>RFC9085-2.1.2-2</code></a>, <a href="#rfc9085-2.1.4-1"><code>RFC9085-2.1.4-1</code></a>, <a href="#rfc9085-2.1.4-2"><code>RFC9085-2.1.4-2</code></a>, <a href="#rfc9085-2.2.1-1"><code>RFC9085-2.2.1-1</code></a>, <a href="#rfc9085-2.2.2-1"><code>RFC9085-2.2.2-1</code></a>, <a href="#rfc9085-2.3.1-1"><code>RFC9085-2.3.1-1</code></a>, <a href="#rfc9085-2.3.5-1"><code>RFC9085-2.3.5-1</code></a>, <a href="#rfc9085-2.1.1-1"><code>RFC9085-2.1.1-1</code></a>, <a href="#rfc9085-2.1.2-3"><code>RFC9085-2.1.2-3</code></a>, <a href="#rfc9085-2.1.2-4"><code>RFC9085-2.1.2-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc9085-2.1.2-1"><code>RFC9085-2.1.2-1</code></a>, <a href="#rfc9085-2.1.2-2"><code>RFC9085-2.1.2-2</code></a>, <a href="#rfc9085-2.1.4-1"><code>RFC9085-2.1.4-1</code></a>, <a href="#rfc9085-2.1.4-2"><code>RFC9085-2.1.4-2</code></a>, <a href="#rfc9085-2.2.1-1"><code>RFC9085-2.2.1-1</code></a>, <a href="#rfc9085-2.2.2-1"><code>RFC9085-2.2.2-1</code></a>, <a href="#rfc9085-2.3.1-1"><code>RFC9085-2.3.1-1</code></a>, <a href="#rfc9085-2.3.5-1"><code>RFC9085-2.3.5-1</code></a>, <a href="#rfc9085-2.1.1-1"><code>RFC9085-2.1.1-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -308,108 +314,115 @@ Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): th
 <td>MUST</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> transmit obligation; the LsSRCapabilities encoder writes Flags verbatim and no production path originates an SR Capabilities TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:339; plugin registers decode only at plugin.go:70-71)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L38" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L78" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L929" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L96" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.1.2-2">RFC9085-2.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the encoder hardcodes the reserved octet to 0 but ze originates no SR Capabilities TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:340)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L39" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L78" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedCapabilitiesReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L79" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L939" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L96" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L97" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.1.4-1">RFC9085-2.1.4-1</code></td><td colspan="3"><span class="rfc-subject">The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> transmit obligation; the lsSRLocalBlock encoder writes Flags verbatim and no production path originates an SRLB TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:421)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L40" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L80" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L98" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.1.4-2">RFC9085-2.1.4-2</code></td><td colspan="3"><span class="rfc-subject">Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the encoder hardcodes the reserved octet to 0 but ze originates no SRLB TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:422)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L41" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L79" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedCapabilitiesReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L81" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L97" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L99" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.2.1-1">RFC9085-2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the encoder hardcodes both reserved octets to 0 but ze originates no Adjacency SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:436-437)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L97" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L245" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L68" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L119" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L259" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.2.2-1">RFC9085-2.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L98" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L246" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L104" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L120" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L260" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.3.1-1">RFC9085-2.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L99" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L247" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L69" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L121" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L261" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.3.5-1">RFC9085-2.3.5-1</code></td><td colspan="3"><span class="rfc-subject">Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L100" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L248" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L105" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L122" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L262" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.1.1-1">RFC9085-2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">SID/Label: If the length is set to 3, then the 20 rightmost bits represent a label (the total TLV size is 7), and the 4 leftmost bits are set to 0. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L888" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the decoder enforces the leftmost-4-bits-zero rule on receipt by masking the 3-octet value to its 20 rightmost bits (&amp; 0xFFFFF), clearing rather than rejecting, so only a positive decode assertion is meaningful (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:242)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L112" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OriginatedSRGBLabelTwentyBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L889" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L125" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OriginatedSRGBLabelHighBitsCleared</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.1-1">RFC9085-2.1-1</code></td><td colspan="3"><span class="rfc-subject">These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71)</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.1.2-3">RFC9085-2.1.2-3</code></td><td colspan="3"><span class="rfc-subject">Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>2.1.2</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L938" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every SR decoder skips its reserved octets and never rejects on reserved content, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_node.go:363, attr_link.go:478-479, attr_prefix.go:187-188)</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.1.2-4">RFC9085-2.1.2-4</code></td><td colspan="3"><span class="rfc-subject">The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>2.1.2</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.1.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L928" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> decodeSRCapabilities and decodeSRLocalBlock store the Flags octet without branching on or rejecting any bit, so undefined flags are inherently ignored (internal/component/bgp/plugins/nlri/ls/attr_node.go:367, :439)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_placement_test.go#L64" title="internal/plugins/isis/rfc9085_bgpls_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISCapabilitiesOnOriginatorNode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L271" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFCapabilitiesOnOriginatorNode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_placement_test.go#L89" title="internal/plugins/isis/rfc9085_bgpls_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISCapabilitiesOnNoOtherNLRI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L286" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFCapabilitiesOnNoOtherNLRI</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.2.3-1">RFC9085-2.2.3-1</code></td><td colspan="3"><span class="rfc-subject">The TLV MAY include sub-TLVs that describe attributes associated with the bundle member. (§2.2.3)</span></td></tr>
 <tr><td></td>
@@ -434,125 +447,331 @@ Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): th
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc9085-2.1.2-1"><code>RFC9085-2.1.2-1</code></a> The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2)</td>
-<td>{gap}, no test</td>
-<td>transmit obligation; the LsSRCapabilities encoder writes Flags verbatim and no production path originates an SR Capabilities TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:339; plugin registers decode only at plugin.go:70-71)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.1.2-2"><code>RFC9085-2.1.2-2</code></a> Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)</td>
-<td>{gap}, no test</td>
-<td>the encoder hardcodes the reserved octet to 0 but ze originates no SR Capabilities TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:340)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.1.4-1"><code>RFC9085-2.1.4-1</code></a> The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.4)</td>
-<td>{gap}, no test</td>
-<td>transmit obligation; the lsSRLocalBlock encoder writes Flags verbatim and no production path originates an SRLB TLV (internal/component/bgp/plugins/nlri/ls/attr_node.go:421)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.1.4-2"><code>RFC9085-2.1.4-2</code></a> Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.4)</td>
-<td>{gap}, no test</td>
-<td>the encoder hardcodes the reserved octet to 0 but ze originates no SRLB TLV in production (internal/component/bgp/plugins/nlri/ls/attr_node.go:422)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.2.1-1"><code>RFC9085-2.2.1-1</code></a> Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.1)</td>
-<td>{gap}, no test</td>
-<td>the encoder hardcodes both reserved octets to 0 but ze originates no Adjacency SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:436-437)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.2.2-1"><code>RFC9085-2.2.2-1</code></a> Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.2)</td>
-<td>{gap}, no test</td>
-<td>ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.3.1-1"><code>RFC9085-2.3.1-1</code></a> Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.3.1)</td>
-<td>{gap}, no test</td>
-<td>the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.3.5-1"><code>RFC9085-2.3.5-1</code></a> Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.3.5)</td>
-<td>{gap}, no test</td>
-<td>ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go)</td>
-</tr>
-<tr><td><a href="#rfc9085-2.1-1"><code>RFC9085-2.1-1</code></a> These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.1)</td>
-<td>{gap}</td>
-<td>this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71)</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 9085 declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9085-2.1.2-1"><code>RFC9085-2.1.2-1</code></a></h3>
 <p>The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.1.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): RFC9085-2.1.2-4 merged in (D-2, same §2.1.2 sentence). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV 1034 bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff), duplicate -4 tag lines removed, bodies unchanged; earlier judge targeted break (Flags &lt;- native reserved) turned the negative red. Ignored on receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved and attr_test TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (undefined flag 0x02 stored, I-flag intact, range decodes; retagged from -4), single-polarity by nature (any received value conforms); records observed red (revert decodeSRCapabilities). IS-IS 1034 flags are RFC 8667 flags, outside this OSPF clause.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L96" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L929" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L38" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L78" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.1.2-2"><code>RFC9085-2.1.2-2</code></a></h3>
 <p>Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.1.2-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): RFC9085-2.1.2-3 merged in (D-2, same §2.1.2 sentence). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-, flags ff, range ffffff); duplicate -3 tag lines removed, bodies unchanged; earlier judge targeted breaks turned each negative red. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved and attr_test TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (Reserved ff skipped, range 1000 at 16000; retagged from -3), single-polarity by nature; records observed red.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L96" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L97" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L939" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L39" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L78" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedCapabilitiesReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L79" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.1.4-1"><code>RFC9085-2.1.4-1</code></a></h3>
 <p>The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.1.4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): units changed only by removal of the retired 2.1.2-3/-4 tag lines. Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV 1036 bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native SRLB reserved ff); earlier judge targeted break (Flags &lt;- native reserved) turned the negative red. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved (Flags ff, Reserved ff decode), single-polarity by nature.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L98" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L40" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L80" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.1.4-2"><code>RFC9085-2.1.4-2</code></a></h3>
 <p>Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.1.4-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): units changed only by removal of the retired 2.1.2-3/-4 tag lines. Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-) on the SRLB, exact TLV 1036 bytes. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved, single-polarity by nature.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L97" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L99" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverOriginated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L41" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L79" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedCapabilitiesReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L81" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.2.1-1"><code>RFC9085-2.2.1-1</code></a></h3>
 <p>Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.2.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): owed OSPF half delivered. Set-0: isis TestRFC9085ISISOriginatedSIDReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved (-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1099 = 60 05 0000 005dc1) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native Adj-SID Reserved ff -&gt; 0000, byte-exact); producer bgplsAdjAttribute zero-fills value[2:4]. Receipt: nlri/ls TestRFC9085SIDReceiptIgnoresReserved (Reserved ffff decodes). Records observed red for every unit.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L119" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L259" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L68" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L97" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L245" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.2.2-1"><code>RFC9085-2.2.2-1</code></a></h3>
 <p>Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.2.2-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): both owed items delivered. Set-0: isis SID units (+/-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1100 = 60 06 0000 04040404 005dc2) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native LAN Adj-SID Reserved ff -&gt; 0000). Receipt: nlri/ls TestRFC9085UndecodedSIDReceiptKeepsReserved: a 1100 with Reserved ffff is kept whole as generic-lsid-1100 and the Node Name after it still decodes; this decoder carries 1100 undecoded, so ignoring = not refusing and not interpreting, single-polarity by nature. Records observed red.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L120" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L260" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L104" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L98" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L246" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.3.1-1"><code>RFC9085-2.3.1-1</code></a></h3>
 <p>Reserved: 2 octets that MUST be set to 0 and ignored on receipt. (§2.3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.3.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): owed OSPF half delivered. Set-0: isis SID units (+/-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1158 = 40 01 0000 0000004d) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native Prefix-SID Reserved ff -&gt; 0000); the 1158 nested in the OSPF 1159 is also asserted byte-exact. Receipt: nlri/ls TestRFC9085SIDReceiptIgnoresReserved (decodePrefixSID, Reserved ffff). Records observed red.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L121" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L261" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L69" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDReceiptIgnoresReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L99" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L247" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.3.5-1"><code>RFC9085-2.3.5-1</code></a></h3>
 <p>Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.3.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9085-2.3.5-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (independent): both owed items delivered. Set-0: isis SID units (+/-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1159 = 80 00 0010 0486 0008 40000000 00000064) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native Range Reserved ff ff ff and inner Prefix-SID Reserved ff); judge targeted break (1159 Reserved &lt;- native r.Value[5] in extendedV2Prefix) turned the negative red while the positive stayed green. Receipt: nlri/ls TestRFC9085UndecodedSIDReceiptKeepsReserved (1159 with Reserved ff kept whole as generic-lsid-1159, attribute not refused), single-polarity by nature. Records observed red.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L122" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L262" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFSourceReservedNeverReachesSIDReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go#L105" title="internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go" target="_blank" rel="noopener"><code>TestRFC9085UndecodedSIDReceiptKeepsReserved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_sid_test.go#L100" title="internal/plugins/isis/rfc9085_bgpls_export_sid_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L248" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFOriginatedSIDReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9085-2.1.1-1"><code>RFC9085-2.1.1-1</code></a></h3>
 <p>SID/Label: If the length is set to 3, then the 20 rightmost bits represent a label (the total TLV size is 7), and the 4 leftmost bits are set to 0. (§2.1.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Two clauses. The 20 rightmost bits represent the label: the tagged test decodes 0xF12345 and assert.Equal(0x12345, sl.SID) goes red if the top nibble is folded in. The 4 leftmost bits are set to 0: a transmit duty, and no tagged unit asserts what Ze encodes (Ze originates no BGP-LS, plugin.go registers decode only), so that clause has no assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30: defect fixed (D-8): isis srBlock copied the 3-octet SID/Label verbatim into sub-TLV 1161; it now clears the 4 leftmost bits. isis TestRFC9085OriginatedSRGBLabelTwentyBits (+: 003e80 -&gt; 003e80) and TestRFC9085OriginatedSRGBLabelHighBitsCleared (-: f03e80 -&gt; 003e80) assert the exact TLV 1034; judge break (mask removed) turns the negative red. Receipt: nlri/ls TestRFC9085SIDLabelMasksLeftmostFourBits (0xF12345 -&gt; 0x12345). Marker removed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L125" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OriginatedSRGBLabelHighBitsCleared</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L888" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L889" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SIDLabelMasksLeftmostFourBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_test.go#L112" title="internal/plugins/isis/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OriginatedSRGBLabelTwentyBits</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc9085-2.1.2-3"><code>RFC9085-2.1.2-3</code></a></h3>
-<p>Reserved: 1 octet that MUST be set to 0 and ignored on receipt. (§2.1.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quoted sentence is &#34;Reserved: 1 octet that MUST be set to 0 and ignored on receipt.&#34; Ignored on receipt: TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags sets the octet to 0xFF and require.NoError plus Range 1000 / FirstSID 16000 go red if it is rejected or consumed. Set to 0: no tagged unit asserts the transmitted octet (that duty is RFC9085-2.1.2-2, a gap). The row also claims five other sections&#39; reserved fields (split needed), none exercised here.</p>
+<h3><a href="#rfc9085-2.1-1"><code>RFC9085-2.1-1</code></a></h3>
+<p>These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c28). OSPF exporter as judged 2026-09-30 (+ TestRFC9085OSPFCapabilitiesOnOriginatorNode, - TestRFC9085OSPFCapabilitiesOnNoOtherNLRI, targeted breaks red). IS-IS exporter now driven (new isis/bgpls_export_rfc9085_placement_test.go): two L1 LSPs through the LSDB and bgplsBuilder.build; + TestRFC9085ISISCapabilitiesOnOriginatorNode: 0000.0000.0002 (TLV 242 with sub-TLVs 2/19/22) gets exactly one 1034/1035/1036 with exact bytes; - TestRFC9085ISISCapabilitiesOnNoOtherNLRI: 0000.0000.0003 Node NLRI, both Link and both Prefix NLRIs (presence asserted) carry none. Judge overlay: TLV 242 deferred and applied to the last node built (0000.0000.0003) -&gt; + red (0 TLV 1034) and - red (&#39;node 0000.0000.0003 carries TLV 1034&#39;); author overlays (copy to other node / to every Link and Prefix NLRI) -&gt; - red only. Revert records on capabilities observed. Support remaining sentence &#39;tested on the OSPF exporter only&#39; removed as now false.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L938" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_placement_test.go#L89" title="internal/plugins/isis/rfc9085_bgpls_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISCapabilitiesOnNoOtherNLRI</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc9085-2.1.2-4"><code>RFC9085-2.1.2-4</code></a></h3>
-<p>The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt. (§2.1.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quoted sentence is &#34;The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt.&#34; Ignored on receipt: the same test sets undefined bit 0x02 and require.NoError plus the I-flag assertion go red if the TLV is rejected or the meaningful flag disturbed. Set to 0: no tagged unit asserts transmitted flags (RFC9085-2.1.2-1, a gap). The row also claims §2.1.4 SRLB flags (split needed), not exercised by this unit.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L928" title="internal/component/bgp/plugins/nlri/ls/attr_test.go" target="_blank" rel="noopener"><code>TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L286" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFCapabilitiesOnNoOtherNLRI</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_placement_test.go#L64" title="internal/plugins/isis/rfc9085_bgpls_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISCapabilitiesOnOriginatorNode</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L271" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFCapabilitiesOnOriginatorNode</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -834,7 +1053,7 @@ Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

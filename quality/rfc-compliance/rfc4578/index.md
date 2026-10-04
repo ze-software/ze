@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 20.0% | 1 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 5 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 1 | of 5 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 2 |
-| Tagged units | 2 |
+| Test tags | 4 |
+| Tagged units | 4 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc4578.md` |
 | Requirement shard | `rfc/requirements/rfc4578.md` |
 | RFC text | `rfc/full/rfc4578.txt` |
@@ -96,23 +90,24 @@ No tracked gap in current source anchors.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 4 | one part of the gated population |
+| Annotated (including scoped evidence) | 4 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **5** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC4578-2.1-2`](#rfc4578-2.1-2)
 
-**Annotated instead of tested (4):** [`RFC4578-2.1-1`](#rfc4578-2.1-1), [`RFC4578-2.2-1`](#rfc4578-2.2-1), [`RFC4578-2.3-1`](#rfc4578-2.3-1), [`RFC4578-2.4-1`](#rfc4578-2.4-1)
+**Annotated (including scoped evidence) (4):** [`RFC4578-2.1-1`](#rfc4578-2.1-1), [`RFC4578-2.2-1`](#rfc4578-2.2-1), [`RFC4578-2.3-1`](#rfc4578-2.3-1), [`RFC4578-2.4-1`](#rfc4578-2.4-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC4578-2.1-1` | This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.1) | MUST | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; it reads a received option 93 to select a bootfile (parsePXEArch, internal/plugins/dhcpserver/handler.go:505) but emits no option 93 in its OFFER/ACK replies (appendPXEOptions, internal/plugins/dhcpserver/handler.go:292) and ze has no PXE Boot Server Discovery echo code path -- it sets PXE_DISCOVERY_CONTROL to skip that exchange (internal/plugins/dhcpserver/handler.go:325) |
-| `RFC4578-2.1-2` | Octet "n" gives the number of octets containing "architecture types" (not including the code and len fields). It MUST be an even number greater than zero. (Section 2.1) | MUST | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923). **negative:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926) |
+| `RFC4578-2.1-2` | Octet "n" gives the number of octets containing "architecture types" (not including the code and len fields). It MUST be an even number greater than zero. (Section 2.1) | MUST | 2.1 - Client System Architecture Type Option Definition, option 93 | **positive:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923). **positive:** `unit/verify` [`TestRFC4578ClientArchLengthEvenAndPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc4578_arch_test.go#L61). **negative:** `unit/verify` [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926). **negative:** `unit/verify` [`TestRFC4578ClientArchLengthEvenAndPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc4578_arch_test.go#L76) |
 | `RFC4578-2.2-1` | This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; ze has no option 94 code path -- it neither reads nor emits option 94 anywhere under internal/plugins/dhcpserver/ (grep for 94/UNDI in handler.go finds nothing) |
 | `RFC4578-2.3-1` | This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers. (Section 2.3) | MUST | 2.3 - Client Machine Identifier Option Definition, option 97 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; ze has no option 97 code path -- it neither reads nor emits option 97 (the client machine GUID) anywhere under internal/plugins/dhcpserver/ |
 | `RFC4578-2.4-1` | All compliant PXE clients MUST include a request for DHCP options 128 through 135 in all DHCP and PXE packets (Section 2.4) | MUST | 2.4 - Options Requested by PXE Clients | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DHCP server, not a PXE client; this requirement binds the PXE client to request options 128-135, a role ze never plays |
@@ -145,12 +140,14 @@ No test carries RFC4578-2.1-1, so no unit is bound to it.
 
 Octet "n" gives the number of octets containing "architecture types" (not including the code and len fields). It MUST be an even number greater than zero. (Section 2.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: accepting an option 93 whose Len is odd, or zero. TestParsePXEArch: 'too long' (Len 3) and 'too short' (Len 1) want 0, so the odd clause is enforced, and 'UEFI x64' (Len 2) is the positive. The 'greater than zero' clause has no case: no row carries an option 93 with Len 0 (the 'missing' row omits the option entirely), so a parser that accepted a zero-length option stays green. No even length above 2 is accepted either.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. both earlier gaps closed. positive: lengths 2 and 4 accepted through the handler, type 7 selects the UEFI bootfile (TestRFC4578ClientArchLengthEvenAndPositive) plus TestParsePXEArch Len 2. negative: odd (Len 3, Len 1 in TestParsePXEArch) and now zero: a Len 0 option 93 followed by Pad and code 7 is refused and the BIOS bootfile served, so a parser taking the following octets as a type goes red
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926) | unit/verify | unproven |
-| positive | [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923) | unit/verify | unproven |
+| negative | [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926) | unit/verify | revert, verified |
+| negative | [`TestRFC4578ClientArchLengthEvenAndPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc4578_arch_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestParsePXEArch`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923) | unit/verify | revert, verified |
+| positive | [`TestRFC4578ClientArchLengthEvenAndPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc4578_arch_test.go#L61) | unit/verify | revert, verified |
 
 ### [`RFC4578-2.2-1`](#rfc4578-2.2-1)
 

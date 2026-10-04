@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 9117 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 9117: Revised Validation Procedure for BGP Flow Specifications. 2 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 9117 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 9117: Revised Validation Procedure for BGP Flow Specifications. 2 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 9117 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 9117: Revised Validation Procedure for BGP Flow Specifications. 2 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9117/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc9117/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 9117 - Revised Validation Procedure for BGP Flow Specifications</h1>
+    <p>Every requirement this repository extracted from RFC 9117, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>2 of 2 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>8 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>2</strong><b>of 2 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>2</strong><b>of 5 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 2 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<p>The 8 shares marked as a part above are the whole of the 2 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>5</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>2</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>8</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>8</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>2</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>8</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc9117.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc9117.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc9117.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Revised FlowSpec validation: two MUST-level requirements, both met by flowSpecAuthorized (internal/component/bgp/plugins/rib/rib_flowspec_validation.go) on the received-UPDATE rail. RFC9117-4.1-1 redefines step (b) of RFC 8955 Section 6 (the originator match, or an empty or confederation-only AS_PATH); RFC9117-4.2-1 replaces the RFC 8955 neighboring-AS rule with a comparison against the left-most AS of the best-match unicast route. Both are proven in both polarities by TestFlowSpecAuthorizationFromReceivedUpdates. Enrolled 2026-10-02 so the redefined rule has its own row: RFC8955-6-2, which quoted the replaced sentence, is retired under D-10 (rfc/corrections/rfc8955.md).</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Received IPv4 and IPv6 FlowSpec (SAFI 133/134) rules are feasible through the revised step (b): an originator match with the covering unicast route, or an empty or confederation-only AS_PATH</li>
+<li>an eBGP rule&#39;s left-most AS must equal the covering unicast route&#39;s left-most AS, so FlowSpec crosses a route server that does not prepend its AS. Condition (b.2) is always enabled.</li>
+</ul>
+</details>
+<p><strong>What the ledger says remains:</strong></p>
+No configuration disables condition (b.2) and no policy permits a non-empty AS_PATH (the two Section 4.1 MAYs). No discriminating test yet proves that the covering unicast route compared is the longest-prefix (best-match) one.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>2</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>2</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc9117-4.1-1"><code>RFC9117-4.1-1</code></a>, <a href="#rfc9117-4.2-1"><code>RFC9117-4.2-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9117-4.1-1">RFC9117-4.1-1</code></td><td colspan="3"><span class="rfc-subject">b) One of the following conditions MUST hold true: | | 1. The originator of the Flow Specification matches the | originator of the best-match unicast route for the | destination prefix embedded in the Flow Specification (this | is the unicast route with the longest possible prefix | length covering the destination prefix embedded in the Flow | Specification). | | 2. The AS_PATH attribute of the Flow Specification is empty or | contains only an AS_CONFED_SEQUENCE segment [RFC5065]. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1 - Revision of Route Feasibility</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9117-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L128" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L129" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9117-4.2-1">RFC9117-4.2-1</code></td><td colspan="3"><span class="rfc-subject">BGP Flow Specification implementations MUST enforce that the AS | in the left-most position of the AS_PATH attribute of a Flow | Specification route received via the External Border Gateway | Protocol (eBGP) matches the AS in the left-most position of the | AS_PATH attribute of the best-match unicast route for the | destination prefix embedded in the Flow Specification NLRI. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2 - Revision of AS_PATH Validation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9117-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L130" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L131" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9117-4.1-2">RFC9117-4.1-2</code></td><td colspan="3"><span class="rfc-subject">This condition SHOULD be enabled by default. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1 - Revision of Route Feasibility</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9117-4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9117-4.1-3">RFC9117-4.1-3</code></td><td colspan="3"><span class="rfc-subject">This condition MAY be disabled by explicit | configuration on a BGP speaker. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.1 - Revision of Route Feasibility</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9117-4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9117-4.1-4">RFC9117-4.1-4</code></td><td colspan="3"><span class="rfc-subject">As an extension to this rule, a given non-empty AS_PATH | (besides AS_CONFED_SEQUENCE segments) MAY be permitted | by policy. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.1 - Revision of Route Feasibility</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9117-4.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 9117 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc9117-4.1-1"><code>RFC9117-4.1-1</code></a></h3>
+<p>b) One of the following conditions MUST hold true: | | 1. The originator of the Flow Specification matches the | originator of the best-match unicast route for the | destination prefix embedded in the Flow Specification (this | is the unicast route with the longest possible prefix | length covering the destination prefix embedded in the Flow | Specification). | | 2. The AS_PATH attribute of the Flow Specification is empty or | contains only an AS_CONFED_SEQUENCE segment [RFC5065]. (§4.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9117 Section 4.1: &#39;b) One of the following conditions MUST hold true: 1. The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification). 2. The AS_PATH attribute of the Flow Specification is empty or contains only an AS_CONFED_SEQUENCE segment [RFC5065].&#39; Section 1 adds: &#39;If AS_CONFED_SET segments are also present in the AS_PATH, the same considerations apply to them.&#39; Both tagged functions were read: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates and internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute. The former installs matching ORIGINATOR_ID, empty-path and each confederation-segment control, and refuses nonlocal paths whose transport or ORIGINATOR_ID differs. Shared BGP identifiers cannot substitute for the transport address. The latter now supplies /8 and /16 routes covering a /24, with distinct originators: internal cases change only the rule originator and require exactly the /16 match to authorize. The nonempty internal AS_SEQUENCE prevents condition b.2 masking b.1, and internal peering isolates originator selection from the external-AS check. Both functions assert current-generation eligibility, received-route retention, candidate availability through the real gatherCandidatesLocked producer, and exact selected-event NLRI/actions or no event. Producers read: handleReceivedStructured, reconcileFlowSpecs, flowSpecDestination, flowSpecASPath, flowSpecOriginator and flowSpecAuthorized in the RIB. The /16 comparison cases close the prior weak verdict&#39;s missing longest-prefix clause; selecting /8 instead reverses their exact expectations. Stored revert records establish reach only; this is a source judgment, with no new execution claim. Optional configuration to disable b.2 or permit nonempty paths is outside this MUST and remains absent, not implementation authorization.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L129" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L128" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9117-4.2-1"><code>RFC9117-4.2-1</code></a></h3>
+<p>BGP Flow Specification implementations MUST enforce that the AS | in the left-most position of the AS_PATH attribute of a Flow | Specification route received via the External Border Gateway | Protocol (eBGP) matches the AS in the left-most position of the | AS_PATH attribute of the best-match unicast route for the | destination prefix embedded in the Flow Specification NLRI. (§4.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9117 Section 4.2: &#39;BGP Flow Specification implementations MUST enforce that the AS in the left-most position of the AS_PATH attribute of a Flow Specification route received via the External Border Gateway Protocol (eBGP) matches the AS in the left-most position of the AS_PATH attribute of the best-match unicast route for the destination prefix embedded in the Flow Specification NLRI.&#39; The explanation defines that AS as the last added to an AS_SEQUENCE; Section 7 makes comparison to the session neighbor ASN optional, not this row&#39;s requirement. All tags map to internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates and internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute, both read in full. The former accepts a route-server peer ASN 65100 carrying first AS 65001 matching unicast, and rejects first AS 65002 and an AS_SET-only path while keeping the originator match. The latter places /8 AS65001 and /16 AS65002 over the /24 rule, holds its originator at /16&#39;s, and varies only its first AS; /16 succeeds and /8 fails. Thus originator failure cannot explain the external negative. Both assert eligibility, retained state, real candidate enumeration and exact install/no-install events. Producers read: flowSpecASPath and flowSpecAuthorized through handleReceivedStructured/reconcileFlowSpecs; candidate checks reach gatherCandidatesLocked/gatherKeyCandidatesLocked. Reinstating peer-AS comparison rejects the conforming route-server case; bypassing AS equality accepts isolated negatives; choosing the shorter prefix fails the new /16 pair. The previous weak verdict&#39;s best-match test gap is closed by this added function. Existing revert records prove producer reach, not semantic mutation coverage; no commands were run for this judgment.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L131" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L130" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude (BGP verdict-fix author c35)</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-10-02</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc9117.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>76653fb7d70944f4</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc9117.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>2</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>1</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates Sections 4.1 and 4.2: originator matching is relaxed for rules originated inside the same AS, and AS_PATH validation is revised so eBGP rules can be validated through a route server. No sentence directs a speaker beyond those sections.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative: what RFC 8955 FlowSpec is for, that its validation procedure requires the originator of the rule to match the originator of the best-match unicast route, the centralized route controller inside the Local Domain that this check defeats (Figure 1), and the route server case. No capitalised keyword; the obligations it motivates are stated in Section 4.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Definitions of Terms Used in This Memo: Local Domain, eBGP and iBGP (an eBGP session inside one confederation counts as iBGP). Definitional only. The paragraph also holds the RFC 2119 and RFC 8174 key-words boilerplate, which binds no speaker and is excluded from the site inventory.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Motivation</td>
+<td>0</td>
+<td>walked</td>
+<td>Motivation. Indicative: why step (b) of RFC 8955 Section 6 assumes the rule follows the path of the longest-match unicast route (Figure 2), and where that assumption fails. No keyword.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Revised Validation Procedure</td>
+<td>0</td>
+<td>walked</td>
+<td>Revised Validation Procedure. A heading with no body text; its two subsections carry the sites.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>Revision of Route Feasibility</td>
+<td>1</td>
+<td>walked</td>
+<td>Revision of Route Feasibility. One MUST-level site, 4.1:1, the redefined step (b), mapped to RFC9117-4.1-1. The SHOULD (condition b.2 enabled by default) and the two MAYs (disable b.2 by configuration; permit a non-empty AS_PATH by policy) are rows RFC9117-4.1-2, 4.1-3 and 4.1-4, not gated. The Explanation paragraphs are indicative.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>Revision of AS_PATH Validation</td>
+<td>2</td>
+<td>walked</td>
+<td>Revision of AS_PATH Validation. Site 4.2:1 quotes the RFC 8955 Section 6 sentence this section replaces; site 4.2:2 is the replacement rule, mapped to RFC9117-4.2-1. The Explanation paragraphs are indicative, including the remark that the original rule&#39;s enforcement remains optional per RFC 4271 Section 6.3.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Topology Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Topology Considerations. Indicative: congruent topology between unicast and FlowSpec routes, and how condition (b.2) supports non-congruent topologies inside the Local Domain. The lowercase &#39;should be designed&#39; is advice to network designers, not to a speaker.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>IANA Considerations: no IANA actions</td>
+<td>0</td>
+<td>walked</td>
+<td>IANA Considerations: no IANA actions.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. The capitalised OPTIONAL describes what Section 4.2 did to the RFC 4271 Section 6.3 rule. The SHOULD and SHOULD NOT advise enforcing that optional rule only when configuration indicates the peer is not a route server; both are recommendations about an optional rule, below the MUST-level the inventory counts. No MUST-level keyword.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>References heading</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References heading.</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>Normative References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References.</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>Informative References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>4.2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A quotation: the section opens &#39;Section 6 of [RFC8955] states:&#39; and cites this sentence in order to replace it. This document does not impose it; the replacement is site 4.2:2.</td>
+<td>| BGP implementations MUST also enforce that the AS_PATH | attribute of a route received via the External Border Gateway | Protocol (eBGP) contains the neighboring AS in the left-most | position of the AS_PATH attribute.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 9117, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

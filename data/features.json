@@ -1122,7 +1122,7 @@
           ],
           "bullets": [
             "**PXE** bare-metal provisioning",
-            "Installer **ISO** media",
+            "Current amd64 installation **ISO under 150 MB**",
             "Local **systemd** install and uninstall"
           ]
         },

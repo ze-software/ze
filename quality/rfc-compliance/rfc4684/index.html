@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>33.3%</strong><b>2 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>4 of 4 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>6 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>66.7%</strong><b>4 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>2</strong><b>of 6 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
+<td>8</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4684.md</code></td>
@@ -250,14 +255,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Constrained Route Distribution for BGP/MPLS VPNs (Route Target Constraint): six MUST-level requirements after the 2026-09-21 extraction walk. Four are {gap}, and the two the walk added carry no test: RFC4684-4-1 (the MP_REACH_NLRI Next Hop is read as IPv4 at 4 octets and IPv6 at 16) and RFC4684-5-2 (a speaker that exchanges Route Target membership uses the Multiprotocol Extensions capability to advertise the AFI/SAFI pair). Ze implements RTC as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode) with no encode/origination path and no RT-membership distribution. RFC4684-3.2-1 (Originator/Next-hop when advertising RT membership NLRI) and RFC4684-3.2-2 (best-path/client-path advertisement selection): Ze never advertises RT membership NLRI. RFC4684-3.2-3 (consider all iBGP paths for the outbound route filter): Ze builds no ORF from RT membership. RFC4684-6-1 (bound the End-of-RIB delay for VPN route advertisement): Ze gates no VPN route advertisement on RT-membership state. Disclosed in the docs/features/rfc-status.md RFC 4684 row (Partial). The 6-2/6-3/8-1 SHOULDs and 5-1 MAY are not gated.</p>
+<p>Enrolled: Constrained Route Distribution for BGP/MPLS VPNs (Route Target Constraint): six MUST-level requirements after the 2026-09-21 extraction walk. Four are {gap}, and the two the walk added are tested: RFC4684-4-1 (the MP_REACH_NLRI Next Hop is read as IPv4 at 4 octets and IPv6 at 16) and RFC4684-5-2 (a speaker that exchanges Route Target membership uses the Multiprotocol Extensions capability to advertise the AFI/SAFI pair). Ze implements RTC as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode) with no encode/origination path and no RT-membership distribution. RFC4684-3.2-1 (Originator/Next-hop when advertising RT membership NLRI) and RFC4684-3.2-2 (best-path/client-path advertisement selection): Ze never advertises RT membership NLRI. RFC4684-3.2-3 (consider all iBGP paths for the outbound route filter): Ze builds no ORF from RT membership. RFC4684-6-1 (bound the End-of-RIB delay for VPN route advertisement): Ze gates no VPN route advertisement on RT-membership state. Disclosed in the docs/features/rfc-status.md RFC 4684 row (Partial). The 6-2/6-3/8-1 SHOULDs and 5-1 MAY are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 RTC NLRI decode for display/analysis (<code>ze bgp decode</code>). Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc4684.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc4684.md</code></a>.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Decode-only: no encode/origination path and no RT-membership distribution. Four MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc4684.md" target="_blank" rel="noopener"><code>rfc/short/rfc4684.md</code></a>: Ze does not advertise RT membership NLRI (so no §3.2 Originator/Next-hop or best-path/client-path selection), builds no outbound route filter from RT membership (§3.2), and gates no VPN route advertisement on RT-membership End-of-RIB (§6). Two further MUST rows the 2026-09-21 extraction walk added carry no test: <a href="#rfc4684-4-1"><code>RFC4684-4-1</code></a> (Next Hop length decides IPv4 or IPv6, §4) and <a href="#rfc4684-5-2"><code>RFC4684-5-2</code></a> (advertise the AFI/SAFI pair with the Multiprotocol Extensions capability, §5).
+Decode-only: no encode/origination path and no RT-membership distribution. Four MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc4684.md" target="_blank" rel="noopener"><code>rfc/short/rfc4684.md</code></a>: Ze does not advertise RT membership NLRI (so no §3.2 Originator/Next-hop or best-path/client-path selection), builds no outbound route filter from RT membership (§3.2), and gates no VPN route advertisement on RT-membership End-of-RIB (§6). Two further MUST rows the 2026-09-21 extraction walk added are tested: <a href="#rfc4684-4-1"><code>RFC4684-4-1</code></a> (Next Hop length decides IPv4 or IPv6, §4) and <a href="#rfc4684-5-2"><code>RFC4684-5-2</code></a> (Ze&#39;s OPEN advertises the (1, 132) pair with the Multiprotocol Extensions capability when <code>ipv4/rtc</code> is configured, §5).
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -269,7 +274,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -280,6 +285,10 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -294,7 +303,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc4684-4-1"><code>RFC4684-4-1</code></a>, <a href="#rfc4684-5-2"><code>RFC4684-5-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (4):</strong> <a href="#rfc4684-3.2-1"><code>RFC4684-3.2-1</code></a>, <a href="#rfc4684-3.2-2"><code>RFC4684-3.2-2</code></a>, <a href="#rfc4684-3.2-3"><code>RFC4684-3.2-3</code></a>, <a href="#rfc4684-6-1"><code>RFC4684-6-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc4684-3.2-1"><code>RFC4684-3.2-1</code></a>, <a href="#rfc4684-3.2-2"><code>RFC4684-3.2-2</code></a>, <a href="#rfc4684-3.2-3"><code>RFC4684-3.2-3</code></a>, <a href="#rfc4684-6-1"><code>RFC4684-6-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -342,8 +351,8 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4684-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L28" title="internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L29" title="internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L28" title="internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L29" title="internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4684-5-2">RFC4684-5-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair. (Section 5)</span></td></tr>
@@ -351,7 +360,9 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4684-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L129" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCAdvertisedAsMultiprotocolPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L36" title="internal/core/bgp/capability/rfc4684_rtc_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCFamilyIsAMultiprotocolCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L130" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCAdvertisedAsMultiprotocolPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L74" title="internal/core/bgp/capability/rfc4684_rtc_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily</code></a></span></div>
 </div></td>
 </tr>
@@ -446,12 +457,12 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L29" title="internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L29" title="internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L28" title="internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L28" title="internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCNextHopByLength</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -460,13 +471,23 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 </div>
 <h3><a href="#rfc4684-5-2"><code>RFC4684-5-2</code></a></h3>
 <p>A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair. (Section 5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: a speaker exchanging RT membership without advertising (1, 132) in the Multiprotocol Extensions capability. TestRFC4684RTCFamilyIsAMultiprotocolCapability proves the codec: a Multiprotocol value the test builds encodes as 01 04 00 01 00 84, and Negotiate supports the family from two capability lists the test builds. Nothing asserts that Ze&#39;s own OPEN carries MP(1,132) when ipv4/rtc is configured, which is the obligation. The negative (TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily: the pair under code 200 is not MP) proves the capability parser, a neighbouring rule.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC4684RTCAdvertisedAsMultiprotocolPair reads Ze&#39;s built OPEN: ipv4/rtc configured -&gt; MP (1,132) present and negotiated with a peer offering it; mode disable -&gt; absent and not negotiated. Judge break: disabled-family skip removed turned it red. The codec-level tag is supplementary. Summary prose that said 5-2 carries no test is corrected.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L130" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCAdvertisedAsMultiprotocolPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L74" title="internal/core/bgp/capability/rfc4684_rtc_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L129" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4684RTCAdvertisedAsMultiprotocolPair</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -687,7 +708,7 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

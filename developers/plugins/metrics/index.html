@@ -1080,6 +1080,12 @@ self-LSA lifecycle events, <code>ze_ospf_lsupdates_sent_total{interface}</code> 
 <code>ze_ospf_retransmissions_total{area}</code> counts retransmit-list resends.</p>
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- SetMetrics -->
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, RetransmitTick, sendAck -->
+<p><code>ReceiveUpdate</code> increments the received-packet counter on entry, before interface
+lookup and per-LSA validation. A packet whose LSAs all fail checksum, opaque-body
+alignment, or the registered receive validator still increments this counter.
+Those LSAs are skipped before installation, acknowledgement, or reflooding, so
+the received count is not an accepted-LSA count.</p>
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
 <!-- source: internal/plugins/ospf/instance.go -- setMetrics -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- setUpLocked, runElectionLocked -->
 <!-- source: internal/plugins/ospf/neighbor/table.go -- setStateLocked, recordEventLocked -->
@@ -1230,7 +1236,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

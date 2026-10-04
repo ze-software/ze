@@ -13,8 +13,10 @@ what Ze has
 | Tested both ways | 80.0% | 4 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 20.0% | 1 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 5 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 9 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 40.0% | 6 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 5 | of 5 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,15 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 5 | of 5 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +41,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 9 |
-| Tagged units | 9 |
+| Test tags | 15 |
+| Tagged units | 15 |
 | Recorded audit verdicts | 5 |
-| Discrimination records | 0 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc8203.md` |
 | Requirement shard | `rfc/requirements/rfc8203.md` |
 | RFC text | `rfc/full/rfc8203.txt` |
@@ -96,25 +91,26 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 4 | one part of the gated population |
-| Annotated instead of tested | 1 | one part of the gated population |
+| Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **5** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`RFC8203-2-1`](#rfc8203-2-1), [`RFC8203-2-3`](#rfc8203-2-3), [`RFC8203-6-1`](#rfc8203-6-1), [`RFC8203-2-4`](#rfc8203-2-4)
 
-**Annotated instead of tested (1):** [`RFC8203-2-2`](#rfc8203-2-2)
+**Annotated (including scoped evidence) (1):** [`RFC8203-2-2`](#rfc8203-2-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8203-2-1` | Subcode: the Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370) |
+| `RFC8203-2-1` | Subcode: the Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L21). **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L23). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370) |
 | `RFC8203-2-2` | The length value MUST range from 0 to 128 inclusive. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L393). **negative:** no negative test. **{single-polarity}:** the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert |
-| `RFC8203-2-3` | Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405). **negative:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423) |
-| `RFC8203-6-1` | UTF-8 "Shortest Form" encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6) | MUST | 6 - Security Considerations | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443) |
+| `RFC8203-2-3` | Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L60). **positive:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L62). **negative:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423) |
+| `RFC8203-6-1` | UTF-8 "Shortest Form" encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6) | MUST | 6 - Security Considerations | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441). **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L64). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L66) |
 | `RFC8203-2-4` | A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L425). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L407) |
 | `RFC8203-2-5` | Mechanisms concerning the reporting of information contained in the Shutdown Communication are implementation specific but SHOULD include methods such as Syslog [RFC5424]. (§2) | SHOULD | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
 | `RFC8203-4-1` | If a Shutdown Communication with an invalid Length value, or an invalid UTF-8 sequence is received, a message indicating this event SHOULD be logged for the attention of the operator. (§4) | SHOULD | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
@@ -133,12 +129,14 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Subcode: the Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (§2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence constrains the Cease NOTIFICATION that carries a Shutdown Communication: its subcode MUST be 2 or 4. Forbidden behaviour: Ze sending a Shutdown Communication under any other Cease subcode. The sender gate is session_connection.go (BuildShutdownData only for NotifyCeaseAdminShutdown/NotifyCeaseAdminReset), and no tagged unit asserts it. TestRFC8203Subcode asserts only the receive side: ShutdownMessage extracts for 2 and 4 (require.Equal "hi") and returns empty for subcode 3 (require.Empty). The sender clause has no assertion that goes red.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Sender side: TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4 requires BuildCeaseData to return length+message under subcodes 2 and 4 and nothing under 0,1,3,5..10. BuildCeaseData is the teardown's only Cease-data builder (session_connection.go, behaviour unchanged); other Cease senders (max-prefix, collision, policy) send their own non-shutdown data. Judge break (return the message for every subcode): red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370) | unit/verify | unproven |
+| negative | [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368) | unit/verify | unproven |
+| positive | [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L21) | unit/verify | revert, verified |
 
 ### [`RFC8203-2-2`](#rfc8203-2-2)
 
@@ -154,23 +152,27 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence is a sender duty: the field MUST be encoded using UTF-8. Forbidden behaviour: BuildShutdownData emitting invalid UTF-8, from an invalid input string or from a 128-octet cut inside a multibyte character. BuildShutdownData strips invalid UTF-8 (bytes.ToValidUTF8) and walks back to a character boundary, but no tagged unit feeds it invalid UTF-8 or a multibyte string longer than 128 octets. The positive tag (TestRFC8203UTF8Valid) round-trips valid UTF-8, and the negative tag (TestRFC8203UTF8Invalid) proves receive rejection, which is RFC8203-2-4's rule.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8: valid 2/3/4-octet UTF-8 sent octet-exact; stray octets, overlong, surrogate and a 128-octet cut inside a character each yield a field with a consistent length octet, utf8.Valid and <=128 octets; overlong input sent as 'xy'.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423) | unit/verify | unproven |
+| negative | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L62) | unit/verify | revert, verified |
 | positive | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405) | unit/verify | unproven |
+| positive | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L60) | unit/verify | revert, verified |
 
 ### [`RFC8203-6-1`](#rfc8203-6-1)
 
 UTF-8 "Shortest Form" encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Shortest Form is REQUIRED of the encoding on both sides. Receive side: TestRFC8203ShortestFormUTF8 require.Error on the overlong 0xC0 0xAF goes red if ShutdownMessage accepts it, and 0xC3 0xA9 is accepted. Send side: no tagged unit feeds BuildShutdownData an overlong sequence, so Ze emitting a non-shortest-form Shutdown Communication has no assertion that goes red (ToValidUTF8 would strip it, unasserted).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Same unit: U+00E9 shortest form sent unchanged; the overlong 0xC0 0xAF and surrogate 0xED 0xA0 0x80 never reach the field (utf8.Valid refuses both forms, and the overlong case is asserted exact). Receive side held by the HEAD units.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443) | unit/verify | unproven |
+| negative | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441) | unit/verify | unproven |
+| positive | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC8203-2-4`](#rfc8203-2-4)
 

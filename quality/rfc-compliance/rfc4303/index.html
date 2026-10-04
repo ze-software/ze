@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4303 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 22 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4303 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 22 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4303 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 22 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>27.3%</strong><b>6 of 22 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.1%</strong><b>2 of 22 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30.4%</strong><b>7 of 23 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.2%</strong><b>26 of 36 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>22</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>14</strong><b>of 22 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>63.6%</strong><b>14 of 22 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>23</strong><b>of 26 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>14</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>60.9%</strong><b>14 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 22 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>10</strong><b>of 23 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,8 +165,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
-<tr><td>No test at all</td>
+<tr><td>Partial proof; remaining gap</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -204,16 +210,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>25</td>
+<td>26</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>22</td>
+<td>23</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>14</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>36</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>36</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>9</td>
+<td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>26</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4303.md</code></td>
@@ -250,14 +256,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: IP Encapsulating Security Payload (RFC 4303): 1 MET (SPI 0/reserved never on the wire) + 2 single-polarity positive (32-packet anti-replay window projected, anti-replay never without integrity) + 14 not-applicable (per-packet ESP datapath -- sequence, padding, TFC, SAD lookup, ICV, anti-replay check -- kernel XFRM)</p>
+<p>Enrolled: IP Encapsulating Security Payload (RFC 4303): 1 MET (SPI 0/reserved never on the wire) + 1 single-polarity positive (32-packet anti-replay window projected) + 14 not-applicable (per-packet ESP datapath -- sequence, padding, TFC, SAD lookup, ICV, anti-replay check -- kernel XFRM)</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 ESP SA parameter model, protocol 50, tunnel and transport modes, XFRM installation, OSPFv3 manual ESP.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-No test proves the address-match indication used for the inbound SA lookup (<a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a>: its tagged test checks the traffic selector, not the lookup key). Integrity-only ESP is configurable on OSPFv3 manual SAs but not negotiable in IKEv2, whose ESP vocabulary has no ENCR_NULL (<a href="#rfc4303-1-1"><code>RFC4303-1-1</code></a>). Protocol 50, SPI 0 and anti-replay-needs-integrity are proven on one SA producer each (<a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a>, <a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a>, <a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a>).
+Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1"><code>RFC4303-1-1</code></a>) but not negotiable in IKEv2, whose ESP vocabulary has no ENCR_NULL (<a href="#rfc4303-1-2"><code>RFC4303-1-2</code></a>, gap). SPI 0 and anti-replay-needs-integrity are proven on one SA producer each (<a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a>, <a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a>). Protocol 50 (<a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a>) is proven on the wire for the OSPFv3 manual SAs and at the installed SA for the IKE Child SA; the address-match indication for the inbound SA lookup (<a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a>) is proven against the kernel&#39;s own lookup on both producers.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -266,10 +272,10 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>6</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +287,10 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -289,26 +299,35 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>22</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>23</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc4303-1-1"><code>RFC4303-1-1</code></a>, <a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a>, <a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a>, <a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a>, <a href="#rfc4303-3.2-1"><code>RFC4303-3.2-1</code></a>, <a href="#rfc4303-2.2.1-2"><code>RFC4303-2.2.1-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (16):</strong> <a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a>, <a href="#rfc4303-2.2-2"><code>RFC4303-2.2-2</code></a>, <a href="#rfc4303-2.2-3"><code>RFC4303-2.2-3</code></a>, <a href="#rfc4303-2.4-1"><code>RFC4303-2.4-1</code></a>, <a href="#rfc4303-2.6-1"><code>RFC4303-2.6-1</code></a>, <a href="#rfc4303-2.6-2"><code>RFC4303-2.6-2</code></a>, <a href="#rfc4303-3.3.3-1"><code>RFC4303-3.3.3-1</code></a>, <a href="#rfc4303-3.3.4-1"><code>RFC4303-3.3.4-1</code></a>, <a href="#rfc4303-3.3.4-2"><code>RFC4303-3.3.4-2</code></a>, <a href="#rfc4303-3.4.3-1"><code>RFC4303-3.4.3-1</code></a>, <a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a>, <a href="#rfc4303-3.4.3-3"><code>RFC4303-3.4.3-3</code></a>, <a href="#rfc4303-3.4.2-1"><code>RFC4303-3.4.2-1</code></a>, <a href="#rfc4303-3.4.2-2"><code>RFC4303-3.4.2-2</code></a>, <a href="#rfc4303-3.4.4.1-1"><code>RFC4303-3.4.4.1-1</code></a>, <a href="#rfc4303-3.4.4.2-1"><code>RFC4303-3.4.4.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc4303-1-1"><code>RFC4303-1-1</code></a>, <a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a>, <a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a>, <a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a>, <a href="#rfc4303-3.2-1"><code>RFC4303-3.2-1</code></a>, <a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a>, <a href="#rfc4303-2.2.1-2"><code>RFC4303-2.2.1-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (16):</strong> <a href="#rfc4303-1-2"><code>RFC4303-1-2</code></a>, <a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a>, <a href="#rfc4303-2.2-2"><code>RFC4303-2.2-2</code></a>, <a href="#rfc4303-2.2-3"><code>RFC4303-2.2-3</code></a>, <a href="#rfc4303-2.4-1"><code>RFC4303-2.4-1</code></a>, <a href="#rfc4303-2.6-1"><code>RFC4303-2.6-1</code></a>, <a href="#rfc4303-2.6-2"><code>RFC4303-2.6-2</code></a>, <a href="#rfc4303-3.3.3-1"><code>RFC4303-3.3.3-1</code></a>, <a href="#rfc4303-3.3.4-1"><code>RFC4303-3.3.4-1</code></a>, <a href="#rfc4303-3.3.4-2"><code>RFC4303-3.3.4-2</code></a>, <a href="#rfc4303-3.4.3-1"><code>RFC4303-3.4.3-1</code></a>, <a href="#rfc4303-3.4.3-3"><code>RFC4303-3.4.3-3</code></a>, <a href="#rfc4303-3.4.2-1"><code>RFC4303-3.4.2-1</code></a>, <a href="#rfc4303-3.4.2-2"><code>RFC4303-3.4.2-2</code></a>, <a href="#rfc4303-3.4.4.1-1"><code>RFC4303-3.4.4.1-1</code></a>, <a href="#rfc4303-3.4.4.2-1"><code>RFC4303-3.4.4.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-1-1">RFC4303-1-1</code></td><td colspan="3"><span class="rfc-subject">Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces. (§1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-1-1">RFC4303-1-1</code></td><td colspan="3"><span class="rfc-subject">MUST be configurable via management interfaces. (§1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1 - Introduction</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L127" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L124" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L119" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303IntegrityOnlyESPIsConfigurable</code></a></span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-1-2">RFC4303-1-2</code></td><td colspan="3"><span class="rfc-subject">Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols (§1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>1 - Introduction</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze&#39;s IKEv2 ESP vocabulary has no ENCR_NULL (EncryptionAlgo, internal/component/ike/ipsec/types.go), and the proposal matcher refuses a peer&#39;s ENCR_NULL + integrity proposal (internal/component/ike/crypto/rfc7296_null_negotiation_test.go), so integrity-only ESP is never negotiated. It is offered only through manual configuration of OSPFv3 SAs (RFC4303-1-1)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2-1">RFC4303-2-1</code></td><td colspan="3"><span class="rfc-subject">The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers). (§2)</span></td></tr>
 <tr><td></td>
@@ -316,7 +335,9 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>2 - Packet format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20" title="internal/component/ike/engine/rfc4301_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4301ChildSAIsInstalledAsESP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L175" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPPacketOnTheWireCarriesProtocol50</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L195" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.1-1">RFC4303-2.1-1</code></td><td colspan="3"><span class="rfc-subject">The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.1)</span></td></tr>
@@ -324,10 +345,22 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>MUST NOT</td>
 <td>2.1 - Security Parameters Index</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L250" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L192" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L264" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L186" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L301" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyRequestUsesPeerSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L357" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseUsesPeerSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L256" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L37" title="internal/component/ike/engine/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPISkipsTheReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L189" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_spi_test.go#L21" title="internal/plugins/ospf/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIZeroRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L149" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorUsesPeerSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L211" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderUsesPeerSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L275" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyRequestRefusesPeerSPIZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L329" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseRefusesPeerSPIZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L270" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L36" title="internal/component/ike/engine/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPISkipsTheReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L183" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_spi_test.go#L20" title="internal/plugins/ospf/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIZeroRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L120" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorRefusesPeerSPIZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L189" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderRefusesPeerSPIZero</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.1-2">RFC4303-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§2.1)</span></td></tr>
@@ -335,8 +368,11 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>MUST</td>
 <td>2.1 - Security Parameters Index</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L392" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L398" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24" title="internal/component/ike/engine/rfc4303_inbound_key_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L214" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPMapsByConfiguredDestination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L148" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPSAKeyedOnConfiguredDestination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59" title="internal/component/ike/engine/rfc4303_inbound_key_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L244" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.2-1">RFC4303-2.2-1</code></td><td colspan="3"><span class="rfc-subject">For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2)</span></td></tr>
@@ -398,7 +434,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>MUST NOT</td>
 <td>3.2 - Algorithms</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L131" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L128" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L108" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
 </div></td>
 </tr>
@@ -434,7 +470,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>MUST</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L315" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L321" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects a 64-packet anti-replay window on IKE child SAs (ReplayWin=64) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go:62, :377, :444, internal/component/ike/dataplane/xfrm_linux.go:132-133)</p></td>
 </tr>
@@ -443,9 +479,10 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>MUST NOT</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L341" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s ESP SA model always projects integrity (planStateAlgos returns Crypt+Auth or AEAD for ESP) and the replay window is set only on those integrity-bearing child SAs, so anti-replay is structurally never enabled without integrity (internal/component/ike/dataplane/dataplane.go:53-62, internal/component/ike/engine/child.go:218-261)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L347" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L70" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPReplayWindowCarriesIntegrity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L98" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.3-3">RFC4303-3.4.3-3</code></td><td colspan="3"><span class="rfc-subject">The receive window is updated only if the integrity verification succeeds. (§3.4.3)</span></td></tr>
 <tr><td></td>
@@ -515,7 +552,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>SHOULD</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L318" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L324" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a default value has no conforming negative. The requirement is met or it is not, and there is no input a receiver must refuse, so the sibling rows -3.4.3-1 and -3.4.3-2 carry the same annotation. Proven by the production Child SA path installing ReplayWin=64 on both directions (internal/component/ike/engine/child.go:62, :377, :444)</p></td>
 </tr>
@@ -537,6 +574,10 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
+<tr><td><a href="#rfc4303-1-2"><code>RFC4303-1-2</code></a> Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols (§1)</td>
+<td>{gap}, no test</td>
+<td>Ze&#39;s IKEv2 ESP vocabulary has no ENCR_NULL (EncryptionAlgo, internal/component/ike/ipsec/types.go), and the proposal matcher refuses a peer&#39;s ENCR_NULL + integrity proposal (internal/component/ike/crypto/rfc7296_null_negotiation_test.go), so integrity-only ESP is never negotiated. It is offered only through manual configuration of OSPFv3 SAs (RFC4303-1-1)</td>
+</tr>
 <tr><td><a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a> For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the per-SA sequence counter is kernel XFRM/ESP per-packet state; ze installs the SA but never touches sequence numbers (internal/component/ike/dataplane/dataplane.go:80-108 has no sequence field)</td>
@@ -600,91 +641,180 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4303-1-1"><code>RFC4303-1-1</code></a></h3>
-<p>Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces. (§1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Two clauses. Configurable via management interfaces: forbidden behaviour is refusing an integrity-only ESP configuration; TestIPsecESPRequiresIntegrity (ospf/config_ipsec_test.go) fails via t.Fatalf when validateConfig rejects esp null-cipher + sha256, so that clause is proven. Offered as a service selection option, e.g. negotiable in SA management protocols: no tagged assertion, and Ze&#39;s IKEv2 ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go EncryptionAlgo), so integrity-only ESP is not negotiable. The negative tag (null cipher with no integrity refused) proves the neighbouring RFC4303-3.2-1 rule, not a violation of this one.</p>
+<p>MUST be configurable via management interfaces. (§1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged after the R3 split: the row is now only the Section 1 clause &#39;MUST be configurable via management interfaces&#39; (the IKE negotiation clause is the gap row RFC4303-1-2). Forbidden behaviour: the management interface refusing, or silently altering, an integrity-only ESP configuration. Positive: TestIPsecESPRequiresIntegrity drives esp + null cipher + sha256 through parseOSPFConfig/validateConfig and t.Fatalf on any refusal. Negative (R1(b), inputs pushed toward a refusal): TestRFC4303IntegrityOnlyESPIsConfigurable, for every integrity algorithm in ipsecAuthKeyLen x {cipher leaf omitted, explicit null}, validates and installs and asserts proto 50 (not AH), cipher null with no key, and the configured integrity algorithm and key length, so a validator requiring a cipher for ESP or accepting integrity-only for one algorithm only goes red. The old negative (null cipher with no integrity refused) proved RFC4303-3.2-1 and was removed from this row. Revert records on validateESPConfidentiality for both units observed red (positive recorded by this judge). Only the OSPFv3 manual-SA surface offers integrity-only ESP; IKE&#39;s absence is RFC4303-1-2.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L119" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303IntegrityOnlyESPIsConfigurable</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L127" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L124" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc4303-1-2"><code>RFC4303-1-2</code></a></h3>
+<p>Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols (§1)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. First judgement. The Section 1 clause &#39;Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols&#39; is unmet in Ze&#39;s IKEv2: the ESP encryption vocabulary (ike/ipsec/types.go encryptionNames, ParseEncryptionAlgo) has no null entry, so no configuration can propose ENCR_NULL, and resolveESPTransforms (engine/initiator.go) resolves only registered ciphers; TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher shows the matcher refuses a peer&#39;s null proposal. Integrity-only ESP is offered only by manual OSPFv3 SA configuration (RFC4303-1-1). The {gap} annotation and the Support remaining text disclose it; the row quote is a verbatim span of Section 1, split from RFC4303-1-1 under R3 with a correction paragraph and an extraction unsourced-ids entry.</p>
+<p>No test carries RFC4303-1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a></h3>
 <p>The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers). (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an ESP SA installed so the header preceding ESP carries a value other than 50. TestIPsecSAProtocolNumber (ospf/ipsec_install_test.go) asserts esp.Proto == 50 for the OSPFv3 manual SA only; the IKE Child SA producer (engine/child.go installChildSA, Proto: protoESP) has no tagged assertion. The negative tag (ah SA carries 51) catches a blanket-50 installer, which violates RFC 4302 Section 2, not this sentence, so the negative polarity proves a neighbouring rule. Assertion is at SAParams.Proto; the kernel projection (xfrm_linux.go:149) is outside the unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged (was weak: the IKE Child SA producer was untagged). Both producers Ze fills are now covered. OSPFv3 manual SAs: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, IPv6 Next Header 50 captured on the wire), negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), TestIPsecSAProtocolNumber; ipsecProtoNumber revert records observed red. IKE Child SA: TestRFC4301ChildSAIsInstalledAsESP (tag only, body unchanged, D-15) asserts Proto 50 on the inbound and the outbound SA createFirstChildSA installs; installChildSA is the one SAParams builder of the engine (callers: first Child SA and CREATE_CHILD_SA), revert record observed red. The IKE side is single-polarity by construction: protoESP is a constant and IKEv2 offers no input that selects another protocol, so the row&#39;s negative stays the OSPF one. The SAParams-to-kernel step (dataplane xfrmStateFromParams) is shared by both producers and proven on the wire by the OSPF probe; the VPP backend is asserted only at the SAParams boundary Ze owns.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L195" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20" title="internal/component/ike/engine/rfc4301_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4301ChildSAIsInstalledAsESP</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L175" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPPacketOnTheWireCarriesProtocol50</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a></h3>
 <p>The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: SPI 0 on the wire. OSPF: TestIPsecSPIBoundary tests spi 255 (refused) and 256 (accepted) but never spi 0; removing the whole guard reddens it, a guard that admitted 0 alone would not. IKE: TestGenerateESPSPI checks 100 random draws for spi == 0; with the spi != 0 loop in generateESPSPI (engine/child.go:211) removed the chance of a red run is about 100/2^32, so the assertion cannot fail on the break (question 2). The outbound SPI Ze sends on the wire is the peer&#39;s; the refusals of a peer SPI 0 (child.go:287, responder.go:924, rekey.go:321, :495) have no tagged assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-29 after RFC3948-2.1-1 tag lines were added above six units of rfc4303_peer_spi_test.go; no assertion changed. Every producer of an SPI Ze sends is now proven, both polarities. Ze&#39;s own SPI (SAi2/SAr2/rekey inbound): TestGenerateESPSPISkipsTheReservedZero scripts three zero draws and pins the first non-zero, discriminated by the spi != 0 mutant. The peer&#39;s SPI Ze sends on (rfc4303_peer_spi_test.go): initiator SAr2, responder SAi2, rekey request, rekey response each refuse 0 (no establish, no Child SA, no ESP state) through the real encrypted exchange, and each positive pins the exact peer SPI 0x0a0b0c0d on the outbound state; the same edited message on both sides isolates the SPI. Initiator negative also catches removal of the createFirstChildSA refusal (it asserts initiatorFirstChildSA fails with no ESP state). Responder negative&#39;s outSPI^1 break is the silent-substitution defect the initiator had; deleting either redundant refusal alone leaves it green, removing both reddens it. OSPF: TestIPsecSPIZeroRefused refuses spi 0 and accepts 4294967295. Caveats, not gaps: TestGenerateESPSPI (100 random draws, P(0)~2^-32) cannot fail on its own, and TestIPsecSPIBoundary&#39;s 255/256 pair tests the IANA 1..255 reservation, a neighbouring rule; both are redundant with the discriminating tests above.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L264" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L270" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L186" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L275" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyRequestRefusesPeerSPIZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L329" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseRefusesPeerSPIZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L120" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorRefusesPeerSPIZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L189" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderRefusesPeerSPIZero</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L36" title="internal/component/ike/engine/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPISkipsTheReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L183" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_spi_test.go#L20" title="internal/plugins/ospf/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIZeroRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L256" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L250" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L301" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyRequestUsesPeerSPI</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L357" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseUsesPeerSPI</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L149" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorUsesPeerSPI</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L211" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderUsesPeerSPI</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L37" title="internal/component/ike/engine/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPISkipsTheReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L189" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L192" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_spi_test.go#L21" title="internal/plugins/ospf/rfc4303_spi_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIZeroRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a></h3>
 <p>The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§2.1)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. The sentence governs the SA identifier used for the inbound SAD lookup: whether destination, or destination and source, addresses are matched in addition to the SPI. TestIPsecSAAddressMatchIndication (ospf/ipsec_install_test.go) asserts the state&#39;s traffic selector (sa.Sel non-nil, Src /0, UpperProto 89), which restricts which inner traffic may use the SA after lookup (RFC 4301 traffic selectors). It asserts nothing about the lookup key (SAParams Dst/SPI identity) or about which address-match indication the manual configuration sets; a change that made the lookup key also match the source, or dropped the destination, stays green. The unit proves a neighbouring rule. Sibling agent reached the same reading; confirmed independently.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged (was weak: the negotiation branch, the IKE Child SA, had no test). Manual-configuration branch unchanged: OSPFv3 TestRFC4303InboundESPSAKeyedOnConfiguredDestination plus the netns pair TestRFC4303InboundESPMapsByConfiguredDestination / TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA, buildIPsecSA revert records observed red. Negotiation branch: positive TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress (the single inbound SA carries the negotiated ChildInboundSPI, proto 50 and Dst = the negotiated local address, so a Src/Dst swap goes red); negative TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA on real XFRM in a rootless netns (control to negotiated 10.250.0.1: delivered, XfrmInNoStates +0; same SPI and packet to 10.250.0.3: not delivered, XfrmInNoStates +1). Judge re-ran it once under -race: body ran in the child namespace and passed; judge mutation (negative packet aimed at the negotiated address) went red on the not-delivered assertion, so the negative is not vacuous. installChildSA revert records observed red for both. The indication itself (destination matched, source not) is XFRM&#39;s (daddr, spi, proto) state lookup keyed on what Ze negotiated, so both branches are proven for every role Ze fills; VPP backend inbound lookup is asserted only at the SAParams boundary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L398" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59" title="internal/component/ike/engine/rfc4303_inbound_key_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L244" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L392" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24" title="internal/component/ike/engine/rfc4303_inbound_key_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L214" title="internal/plugins/ospf/rfc4303_esp_probe_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPMapsByConfiguredDestination</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L148" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303InboundESPSAKeyedOnConfiguredDestination</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -715,7 +845,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <p>No test carries RFC4303-2.6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4303-3.2-1"><code>RFC4303-3.2-1</code></a></h3>
 <p>Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL. (§3.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: an ESP SA with both encryption and integrity NULL. Negative: TestIPsecESPRequiresIntegrity requires validateConfig(esp, encryption-algorithm null, no integrity) to return ErrIPsecAuthAlgo, t.Fatalf otherwise, so accepting the forbidden pair goes red. Positive: null cipher + sha256 accepted (exactly one service). The only producer that admits a NULL cipher is the OSPFv3 manual path; the IKE ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go), so every IKE Child SA carries encryption. Both clauses (at least one selected; not both NULL) are the same obligation and both are covered.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged: TestIPsecESPRequiresIntegrity changed only by removing the RFC4303-1-1 negative comment; its assertions are unchanged. Forbidden behaviour: an ESP SA with both encryption and integrity NULL. Negative: validateConfig(esp, encryption-algorithm null, no integrity) must return ErrIPsecAuthAlgo, t.Fatalf otherwise. Positive: null cipher + sha256 accepted (exactly one service). The only producer that admits a NULL cipher is the OSPFv3 manual path; the IKE ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go encryptionNames), so every IKE Child SA carries encryption. Both clauses are the same obligation and both are covered.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -726,7 +856,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L131" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L128" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -753,7 +883,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L315" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L321" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -762,15 +892,25 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 </div>
 <h3><a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a></h3>
 <p>This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden behaviour: an SA with anti-replay enabled and no ESP integrity. IKE: TestChildSAReplayRequiresIntegrity asserts every installed SA with ReplayWin &gt; 0 has AEAD or AuthAlgo+AuthKey, red if integrity were dropped. OSPFv3 manual SAs also enable anti-replay from the replay-window leaf (buildIPsecSA, TestIPsecSAReplayWindow); that producer is guarded only by the integrity-required validation, which no RFC4303-3.4.3-2-tagged unit asserts (a replay-window + null cipher + no integrity ESP interface is never tested under this tag).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged. {single-polarity} rightly dropped: the OSPFv3 producer has a refusal path. Positive: TestRFC4303ESPReplayWindowCarriesIntegrity installs replay-window 64 with null and aes128 ciphers and asserts every SA has ReplayWin 64, AuthAlgo sha256 and a 32-octet key; IKE: TestChildSAReplayRequiresIntegrity asserts every installed Child SA with ReplayWin &gt; 0 is AEAD or carries AuthAlgo+AuthKey (non-AEAD proposals always resolve an integrity transform, resolveESPTransforms). Negative: TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused, replay-window 64 with no integrity under no cipher, null and aes128, each refused ErrIPsecAuthAlgo by validateConfig, so anti-replay without integrity never reaches the installer. The refusal comes from the integrity-always-required check, which is exactly how Ze meets this MUST NOT; the input enables anti-replay without integrity, so it violates this requirement. Records: buildIPsecSA (positive) and validateIPsecInterface (negative) reverts observed red. Supplementary gap: the IKE negative (a non-AEAD proposal with no INTEG never installed) is structural, not tested.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L341" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L98" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L347" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayRequiresIntegrity</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L70" title="internal/plugins/ospf/rfc4303_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4303ESPReplayWindowCarriesIntegrity</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -823,7 +963,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L318" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L324" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAReplayWindowDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -884,7 +1024,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
 <td>Introduction</td>
 <td>2</td>
 <td>walked</td>
-<td>Introduction. It states the service model and the three service combinations, and its two sites carry the integrity-only obligation this walk declares as RFC4303-1-1. The RFC 2119 key-words paragraph sits here too and binds nobody, which is why the derivation excludes it from the site inventory.</td>
+<td>Introduction. It states the service model and the three service combinations, and its two sites carry the integrity-only obligation this walk declares as RFC4303-1-1. The RFC 2119 key-words paragraph sits here too and binds nobody, which is why the derivation excludes it from the site inventory. Site 1:1 was split on 2026-09-30 (rfc/corrections/rfc4303.md): its negotiable-in-SA-management-protocols clause is RFC4303-1-2, which shares the site and so is declared unsourced here.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>Packet format</td>
@@ -1410,7 +1550,7 @@ No test proves the address-match indication used for the inbound SA lookup (<a h
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

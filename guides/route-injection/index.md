@@ -179,7 +179,11 @@ Encoding.
 On any other session the route is left out of the announcement toward that peer
 and the skip is logged, which is what Section 4 asks for when no conformant next
 hop is left: "the BGP route MUST not be advertised to its peer". Enable it with
-`session capability link-local-nexthop` on the peer or its group.
+`session capability link-local-nexthop` on the peer or its group, together with
+`session link-local <fe80::...>` on the peer or the group: ze refuses the
+capability without that address, at commit and at startup, because the draft
+requires a directly connected route's next hop to include ze's own Link-Local.
+<!-- source: internal/component/bgp/plugins/llnh/llnh.go -- refuseLinkLocalCapabilityWithoutAddress -->
 <!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopPermitted -->
 
 ### A Peer Never Receives Its Own Address as Next Hop
@@ -193,12 +197,26 @@ op-queue drain, the announce batch, and the RFC 9494 stale re-advertise.
 The route is withheld from that one peer, and the refusal logs the peer, the next
 hop and the section. Ze does not rewrite the address: rewriting would invent a
 next hop nobody configured. Other peers matched by the same selector still
-receive the route, and withdrawals in the same UPDATE still reach the withheld
-peer.
+receive the route. A relayed route refused this way is withdrawn from the
+withheld peer instead, together with the withdrawals in the same UPDATE, so the
+peer drops any earlier copy.
 
 The same question is asked of a relayed route, where the address arrives as the
 third-party next hop Section 5.1.3 case 2 permits.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn -->
+
+### A Default Route Ze Cannot Build
+
+`default-originate` sends `0.0.0.0/0` or `::/0` with the session's local address
+as next hop. An IPv4 default route whose only local address is IPv6, on a session
+that did not negotiate Extended Next Hop (RFC 8950), has no NEXT_HOP Ze can
+write, and RFC 4271 Section 5 makes NEXT_HOP mandatory for an UPDATE that
+carries NLRI. Ze then sends nothing for that family and logs a warning,
+`default-originate: route refused, not sent`, naming the peer, the prefix, the
+family, the next hop and the error. The line is limited to one per second for
+each peer; `suppressed-since-last` counts the refusals the limit swallowed.
+Give the peer an IPv4 `local ip`, or negotiate Extended Next Hop.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendDefaultOriginateRoutes, warnDefaultOriginateRefused -->
 
 ### A Withdrawal Needs a Session That Advertised Something
 

@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>5 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>3.8%</strong><b>1 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>34.6%</strong><b>9 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -132,7 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -158,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -230,7 +236,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1997.md</code></td>
@@ -268,7 +274,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -279,6 +285,10 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -304,11 +314,11 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>MUST NOT</td>
 <td>Well</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1997-Well-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L197" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSkipsExternalPeerOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L34" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportRefusesExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L364" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportStillWithdrawsFromExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L223" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWithoutNoExportReachesExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L48" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportAllowsInternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L204" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSkipsExternalPeerOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L34" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportRefusesExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L380" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportStillWithdrawsFromExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L230" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWithoutNoExportReachesExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L48" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportAllowsInternalPeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L1" title="test/plugin/wellknown-no-export-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-egress.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L7" title="test/plugin/wellknown-no-export-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-egress.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-withdraw-egress.ci#L1" title="test/plugin/wellknown-no-export-withdraw-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-withdraw-egress.ci</code></a></span></div>
@@ -321,9 +331,9 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>MUST NOT</td>
 <td>Well</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1997-Well-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L242" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoAdvertiseSkipsEveryPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L59" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseRefusesEveryPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L72" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L249" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoAdvertiseSkipsEveryPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L59" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseRefusesEveryPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L72" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L1" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L5" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></span></div>
 </div></td>
@@ -333,9 +343,9 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>MUST NOT</td>
 <td>Well</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1997-Well-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L259" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSubconfedSkipsExternalPeerOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L83" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedRefusesExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L95" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedAllowsInternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L266" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSubconfedSkipsExternalPeerOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L83" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedRefusesExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L95" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedAllowsInternalPeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L8" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L12" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></span></div>
 </div></td>
@@ -354,10 +364,10 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>SHALL</td>
 <td>Well</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1997-Well-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L279" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWellKnownNeedsNoOperatorPolicy</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L104" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownAllThreeOperationsImplemented</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L297" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardOtherReservedCommunitiesReachExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L122" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownIgnoresOtherReservedCommunities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L286" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWellKnownNeedsNoOperatorPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L104" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownAllThreeOperationsImplemented</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L304" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardOtherReservedCommunitiesReachExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L122" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownIgnoresOtherReservedCommunities</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-aggregation-1">RFC1997-Aggregation-1</code></td><td colspan="3"><span class="rfc-subject">If a range of routes is to be aggregated and the resultant aggregates attribute section does not carry the ATOMIC_AGGREGATE attribute, then the resulting aggregate should have a COMMUNITIES path attribute which contains all communities from all of the aggregated routes. (§Aggregation)</span></td></tr>
@@ -407,23 +417,23 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc1997-well-1"><code>RFC1997-Well-1</code></a></h3>
 <p>NO_EXPORT (0xFFFFFF01) All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself). (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence&#39;s own parenthesis defines. Forbidden: a received NO_EXPORT route advertised to an external peer. TestWellKnownNoExportRefusesExternalPeer asserts AllowsEgressTo(false) is false; TestForwardNoExportSkipsExternalPeerOnly asserts NotContains the eBGP address on the forward rail; wellknown-no-export-egress.ci covers the daemon wire. Negatives: the same route still reaches an internal peer (TestWellKnownNoExportAllowsInternalPeer, Contains iBGP), so a speaker that advertises to nobody goes red. Enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of the repaired functional carriers. RFC 1997, Well-known Communities, NO_EXPORT: &#39;All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself).&#39; All 4 positive and 6 negative tagged covers were read, including both tags on checkNoExportBoundary. Q1: the prohibition is on announcements, not withdrawals; the corrected .ci does not mistake a withdrawal for a leak. Q2: test/plugin/wellknown-no-export-egress.ci requires 180A0000 in the external Withdrawn Routes field, forbids it in announced NLRI, requires the same NO_EXPORT route announced internally, and requires the ordinary-community fence announced externally. test/plugin/wellknown-no-export-withdraw-egress.ci separately requires 18C63364 and 180A0000 withdrawn externally, forbids external announcement of 180A0000, and requires the original withdrawal, permitted announcement and fence internally. A blanket drop loses the required withdrawals/fence; a leak fails the announcement rejection; overbroad suppression loses the internal announcement. internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go tests TestForwardNoExportSkipsExternalPeerOnly, TestForwardWithoutNoExportReachesExternalPeer and TestForwardNoExportStillWithdrawsFromExternalPeer inspect separated announcement/withdrawal bytes; the mixed test checks the exact concatenated external withdrawal and exact internal halves. internal/component/bgp/wireu/rfc1997_wellknown_test.go tests TestWellKnownNoExportRefusesExternalPeer and TestWellKnownNoExportAllowsInternalPeer pin the predicate. internal/le/interoplab/bgp/check_rfc.go checkNoExportBoundary requires the control at both observers, NO_EXPORT internally (assertion 6), no NO_EXPORT externally alongside the control (7), and surviving sessions. Q3: ordinary communities and permitted peers supply real controls; external source avoids iBGP split-horizon confounding; the mixed fixture uses one three-connection peer and await_eor. Q4: Ze&#39;s existing non-confederation capability boundary makes its AS the RFC&#39;s explicitly specified stand-alone confederation boundary; no new confederation support is claimed. Producers: internal/component/bgp/wireu/wellknown.go ScanWellKnown/AllowsEgressTo; internal/component/bgp/reactor/reactor_api_forward.go source-community scan and per-destination gate; internal/component/bgp/reactor/forward_build.go buildWithdrawalPayload. The peer consumer uses internal/test/peer/checker_update_fields.go matchUpdateField/rejectedUpdateField; its new inbound and linger rejection regressions distinguish a permitted withdrawal from a subsequently forbidden announcement. Source verdict only: this audit ran no tests and minted no observed-red record; runtime proof is the integrator&#39;s separate prerequisite.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L364" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportStillWithdrawsFromExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L380" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportStillWithdrawsFromExternalPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L230" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWithoutNoExportReachesExternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L223" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWithoutNoExportReachesExternalPeer</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L48" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportAllowsInternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L48" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportAllowsInternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -435,20 +445,20 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L7" title="test/plugin/wellknown-no-export-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-withdraw-egress.ci#L1" title="test/plugin/wellknown-no-export-withdraw-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-withdraw-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L197" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSkipsExternalPeerOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L204" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSkipsExternalPeerOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L34" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportRefusesExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L34" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportRefusesExternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -460,77 +470,77 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L1" title="test/plugin/wellknown-no-export-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1997-well-2"><code>RFC1997-Well-2</code></a></h3>
 <p>NO_ADVERTISE (0xFFFFFF02) All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers. (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence&#39;s own parenthesis defines. Forbidden: a received NO_ADVERTISE route advertised to any peer. TestWellKnownNoAdvertiseRefusesEveryPeer asserts AllowsEgressTo false for internal and external; TestForwardNoAdvertiseSkipsEveryPeer asserts the forward set is empty; wellknown-no-advertise-egress.ci on the wire. Negative TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer asserts an ordinary community reaches both. Enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment. RFC 1997, Well-known Communities, NO_ADVERTISE: &#39;All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers.&#39; All 3 positive and 2 negative tagged covers were read. Q1: both internal and external announcements are forbidden, not withdrawals. Q2: internal/component/bgp/wireu/rfc1997_wellknown_test.go TestWellKnownNoAdvertiseRefusesEveryPeer checks false for both peer types; TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer checks true for both with an ordinary community. internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go TestForwardNoAdvertiseSkipsEveryPeer checks the announced-destination set, not all UPDATE delivery. test/plugin/wellknown-no-advertise-egress.ci requires 180A0100 withdrawn at BOTH destinations and rejects it only in announced fields (lines 46/52 and 60/65); the ordinary-community fence is positively announced on both sessions (50/63). A rule that leaks, loses withdrawals, or forwards nothing cannot satisfy this combination. Q3: the source supplies valid, separate well-known-community routes followed by a fence; distinct prefixes separate NO_ADVERTISE from NO_EXPORT_SUBCONFED. internal/test/fixture/plugin_fixture_16.go plugin16WellknownCounts quiesces and checks exact outgoing counts; counts are synchronization controls, not the normative assertion, which remains in peer field-scoped expectations/rejections. Q4: &#39;other BGP peers&#39; is unqualified and both peer classes are covered; no confederation exception is invented. Producers: internal/component/bgp/wireu/wellknown.go ScanWellKnown/AllowsEgressTo and internal/component/bgp/reactor/reactor_api_forward.go suppression-to-withdrawal path with forward_build.go buildWithdrawalPayload. internal/test/peer/checker_update_fields.go separates legacy/MP announcement and withdrawal fields; checker_update_fields_test.go includes real inbound and linger negative-consumer regressions. No newly identified semantic gap within the historical capability scope. Source verdict only, not a claim that this worker executed or renewed runtime proof.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L72" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L72" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L5" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L242" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoAdvertiseSkipsEveryPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L249" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoAdvertiseSkipsEveryPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L59" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseRefusesEveryPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L59" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoAdvertiseRefusesEveryPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L1" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1997-well-3"><code>RFC1997-Well-3</code></a></h3>
 <p>NO_EXPORT_SUBCONFED (0xFFFFFF03) All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation). (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence&#39;s own parenthesis defines. Forbidden: a received NO_EXPORT_SUBCONFED route advertised to an external peer. TestWellKnownNoExportSubconfedRefusesExternalPeer asserts AllowsEgressTo(false) false and TestForwardNoExportSubconfedSkipsExternalPeerOnly asserts NotContains eBGP; the negative asserts an internal peer still receives it. The parenthesis extends &#39;external&#39; to member-AS peers of a confederation, and with no confederation configurable no such peer exists apart from the external peers already asserted. Enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment. RFC 1997, Well-known Communities, NO_EXPORT_SUBCONFED: &#39;All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation).&#39; All 3 positive and 2 negative tagged covers were read. Q1: the restriction covers external announcements, with withdrawal delivery still permitted. Q2: internal/component/bgp/wireu/rfc1997_wellknown_test.go TestWellKnownNoExportSubconfedRefusesExternalPeer and TestWellKnownNoExportSubconfedAllowsInternalPeer check opposite predicate outcomes for the same community. internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go TestForwardNoExportSubconfedSkipsExternalPeerOnly requires the internal announced destination and excludes the external one. test/plugin/wellknown-no-advertise-egress.ci requires 180A0200 announced internally (48), requires that prefix withdrawn externally (61), and rejects external announcement (67); the ordinary-community fence must reach both destinations. Missing gate, blanket suppression and withdrawal loss therefore produce different failing assertions rather than interchangeable greens. Q3: the internal allowed-peer control uses the very same received route; separate 180A0100 NO_ADVERTISE input cannot satisfy the 180A0200 assertions. Q4: the parenthesis is retained: a confederation member-AS peer would also be external, but Ze&#39;s historical scope has no configurable confederation/member-AS role. No confederation implementation or expanded support is inferred from these tests. Producers: internal/component/bgp/wireu/wellknown.go ScanWellKnown/AllowsEgressTo, internal/component/bgp/reactor/reactor_api_forward.go and forward_build.go buildWithdrawalPayload. The updated peer matcher and its inbound/linger negative-consumer regressions distinguish announcement from withdrawal instead of banning every UPDATE containing the prefix. Source judgment only; parent must supply its actual runtime evidence before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L95" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedAllowsInternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L95" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedAllowsInternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L12" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L259" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSubconfedSkipsExternalPeerOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L266" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSubconfedSkipsExternalPeerOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L83" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedRefusesExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L83" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownNoExportSubconfedRefusesExternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-advertise-egress.ci#L8" title="test/plugin/wellknown-no-advertise-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-advertise-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -563,22 +573,22 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L297" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardOtherReservedCommunitiesReachExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L304" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardOtherReservedCommunitiesReachExternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L122" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownIgnoresOtherReservedCommunities</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L122" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownIgnoresOtherReservedCommunities</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_wellknown_test.go#L279" title="internal/component/bgp/reactor/forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWellKnownNeedsNoOperatorPolicy</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L286" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardWellKnownNeedsNoOperatorPolicy</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wellknown_test.go#L104" title="internal/component/bgp/wireu/wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownAllThreeOperationsImplemented</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc1997_wellknown_test.go#L104" title="internal/component/bgp/wireu/rfc1997_wellknown_test.go" target="_blank" rel="noopener"><code>TestWellKnownAllThreeOperationsImplemented</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -684,7 +694,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>71.0%</strong><b>22 of 31 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.7%</strong><b>3 of 31 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>15.4%</strong><b>8 of 52 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>26.7%</strong><b>16 of 60 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.5%</strong><b>2 of 31 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>23</strong><b>of 31 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>52</td>
+<td>60</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>52</td>
+<td>60</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>23</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>16</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8666.md</code></td>
@@ -271,7 +276,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td><strong>22</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>9</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -282,6 +287,10 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -296,7 +305,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (22):</strong> <a href="#rfc8666-5-2"><code>RFC8666-5-2</code></a>, <a href="#rfc8666-5-7"><code>RFC8666-5-7</code></a>, <a href="#rfc8666-6-1"><code>RFC8666-6-1</code></a>, <a href="#rfc8666-6-2"><code>RFC8666-6-2</code></a>, <a href="#rfc8666-6-3"><code>RFC8666-6-3</code></a>, <a href="#rfc8666-6-4"><code>RFC8666-6-4</code></a>, <a href="#rfc8666-6-5"><code>RFC8666-6-5</code></a>, <a href="#rfc8666-6-6"><code>RFC8666-6-6</code></a>, <a href="#rfc8666-6-7"><code>RFC8666-6-7</code></a>, <a href="#rfc8666-6-8"><code>RFC8666-6-8</code></a>, <a href="#rfc8666-6-9"><code>RFC8666-6-9</code></a>, <a href="#rfc8666-6-11"><code>RFC8666-6-11</code></a>, <a href="#rfc8666-6-12"><code>RFC8666-6-12</code></a>, <a href="#rfc8666-6-13"><code>RFC8666-6-13</code></a>, <a href="#rfc8666-6-14"><code>RFC8666-6-14</code></a>, <a href="#rfc8666-7.1-1"><code>RFC8666-7.1-1</code></a>, <a href="#rfc8666-7.1-2"><code>RFC8666-7.1-2</code></a>, <a href="#rfc8666-7.2-1"><code>RFC8666-7.2-1</code></a>, <a href="#rfc8666-8.2-1"><code>RFC8666-8.2-1</code></a>, <a href="#rfc8666-8.4.1-1"><code>RFC8666-8.4.1-1</code></a>, <a href="#rfc8666-10-1"><code>RFC8666-10-1</code></a>, <a href="#rfc8666-11-1"><code>RFC8666-11-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (9):</strong> <a href="#rfc8666-5-1"><code>RFC8666-5-1</code></a>, <a href="#rfc8666-5-3"><code>RFC8666-5-3</code></a>, <a href="#rfc8666-5-4"><code>RFC8666-5-4</code></a>, <a href="#rfc8666-6-10"><code>RFC8666-6-10</code></a>, <a href="#rfc8666-7.1-3"><code>RFC8666-7.1-3</code></a>, <a href="#rfc8666-7.2-2"><code>RFC8666-7.2-2</code></a>, <a href="#rfc8666-8.1-1"><code>RFC8666-8.1-1</code></a>, <a href="#rfc8666-8.1-2"><code>RFC8666-8.1-2</code></a>, <a href="#rfc8666-8.1-3"><code>RFC8666-8.1-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (9):</strong> <a href="#rfc8666-5-1"><code>RFC8666-5-1</code></a>, <a href="#rfc8666-5-3"><code>RFC8666-5-3</code></a>, <a href="#rfc8666-5-4"><code>RFC8666-5-4</code></a>, <a href="#rfc8666-6-10"><code>RFC8666-6-10</code></a>, <a href="#rfc8666-7.1-3"><code>RFC8666-7.1-3</code></a>, <a href="#rfc8666-7.2-2"><code>RFC8666-7.2-2</code></a>, <a href="#rfc8666-8.1-1"><code>RFC8666-8.1-1</code></a>, <a href="#rfc8666-8.1-2"><code>RFC8666-8.1-2</code></a>, <a href="#rfc8666-8.1-3"><code>RFC8666-8.1-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -308,7 +317,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L357" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666ExtPrefixRangeSizeWithinPrefixLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L399" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666ExtPrefixRangeSizeWithinPrefixLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the only producer of an IPv6 Extended Prefix Range TLV is the ABR inter-area propagation, which advertises one prefix per TLV with a hardcoded Range Size of 1 (v6EInterAreaPrefixBody, sr_interarea_v6.go:50), so the advertised size is always within what the Prefix Length can satisfy. A negative is not meaningful: ze has no code path that can compute an oversize Range Size to be rejected, and the RFC constrains the sender only</p></td>
 </tr>
@@ -326,8 +335,8 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-5-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L189" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L221" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L189" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L221" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-5-3">RFC8666-5-3</code></td><td colspan="3"><span class="rfc-subject">If the OSPFv3 Extended Prefix Range TLVs advertising the exact same range appears in multiple LSAs of the same type, originated by the same OSPFv3 router, the LSA with the numerically smallest Instance ID MUST be used (§5)</span></td></tr>
@@ -398,8 +407,8 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-6-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L59" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SIDWidthFromVL</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L32" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3PrefixSIDCodec</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L59" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SIDWidthFromVL</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L32" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3PrefixSIDCodec</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-7">RFC8666-6-7</code></td><td colspan="3"><span class="rfc-subject">If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored. (§6)</span></td></tr>
@@ -408,8 +417,10 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-6-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L107" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_duplicate_install_test.go#L51" title="internal/plugins/ospf/rfc8666_duplicate_install_test.go" target="_blank" rel="noopener"><code>TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L99" title="internal/plugins/ospf/rfc8666_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8666PrefixSIDsKeyedByAlgorithm</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L123" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_duplicate_install_test.go#L42" title="internal/plugins/ospf/rfc8666_duplicate_install_test.go" target="_blank" rel="noopener"><code>TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L109" title="internal/plugins/ospf/rfc8666_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8666PrefixSIDsKeyedByAlgorithm</code></a></span></div>
 </div></td>
 </tr>
@@ -418,6 +429,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-6-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L363" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L320" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666OutgoingLabelUsesNextHopRouter</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L339" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666TransitHopIgnoresOriginatorPHPFlags</code></a></span></div>
 </div></td>
@@ -427,8 +439,8 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-6-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L19" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L21" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L19" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L21" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-10">RFC8666-6-10</code></td><td colspan="3"><span class="rfc-subject">The NP-Flag (No-PHP) MUST be set and the E-Flag MUST be clear for Prefix-SIDs allocated to redistributed prefixes, unless the redistributed prefix is directly attached to the advertising ASBR. (§6)</span></td></tr>
@@ -499,7 +511,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-7.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L381" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L423" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s Adj-SID allocation is deliberately non-persistent -- the SRLB label is taken when the neighbor reaches Full and returned to the allocator when it leaves (srAdjManager.neighborFull, sr_adjsid.go:50-74; neighborLost, sr_adjsid.go:92-104) -- and the advertised flags are correspondingly V/L only, never P (sr_adjsid.go:63). A negative is not meaningful: no code path can advertise P, so there is no P-set advertisement whose persistence could be violated</p></td>
 </tr>
@@ -517,7 +529,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-7.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L385" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L427" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the LAN form shares the allocation path and the flags octet with the Adj-SID (srAdjManager.neighborFull sets IsLAN on the same sr.AdjSID, sr_adjsid.go:62-69, and v6AdjSubTLV picks the LAN sub-TLV from it, sr_origination_v6.go:177-182), so it is equally non-persistent and equally never sets P. A negative is not meaningful for the same reason as RFC8666-7.1-3</p></td>
 </tr>
@@ -553,8 +565,8 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>8.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-8.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L38" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L41" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L38" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L41" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.4.1-1">RFC8666-8.4.1-1</code></td><td colspan="3"><span class="rfc-subject">If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Advertisement MUST be withdrawn from the area. (§8.4.1)</span></td></tr>
@@ -562,8 +574,9 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>8.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-8.4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L426" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_origination_v6_test.go#L21" title="internal/plugins/ospf/sr_origination_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ERouterBodyCarriesAdjSID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L468" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_adjsid_fsm_test.go#L78" title="internal/plugins/ospf/rfc8666_adjsid_fsm_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_origination_v6_test.go#L21" title="internal/plugins/ospf/rfc8666_sr_origination_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ERouterBodyCarriesAdjSID</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-10-1">RFC8666-10-1</code></td><td colspan="3"><span class="rfc-subject">For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored. (§10)</span></td></tr>
@@ -571,10 +584,14 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L82" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDLengthInvalidIgnoredByReader</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L148" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8666LengthBeforeFlagsIgnoresLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L71" title="internal/plugins/ospf/rfc8666_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L127" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666SIDLabelLengthInvalidIgnoresLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L98" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDLengthInvalidIgnoredByReader</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L163" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8666LengthBeforeFlagsIgnoresLSA</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L81" title="internal/plugins/ospf/rfc8666_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L137" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666SIDLabelLengthInvalidIgnoresLSA</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-11-1">RFC8666-11-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST ensure that malformed TLVs and sub-TLVs defined in this document are detected and that they do not provide a vulnerability for attackers to crash the OSPFv3 router or routing process. (§11)</span></td></tr>
@@ -582,9 +599,9 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8666-11-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_reception_v6_test.go#L169" title="internal/plugins/ospf/sr_reception_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ReceptionMalformedNoPanic</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L127" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SRTLVMalformed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L96" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ExtPrefixRangeTLVRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_reception_v6_test.go#L169" title="internal/plugins/ospf/rfc8666_sr_reception_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ReceptionMalformedNoPanic</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L127" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SRTLVMalformed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L96" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ExtPrefixRangeTLVRoundTrip</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-5-5">RFC8666-5-5</code></td><td colspan="3"><span class="rfc-subject">Reserved: SHOULD be set to 0 on transmission (§5)</span></td></tr>
@@ -868,7 +885,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L357" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666ExtPrefixRangeSizeWithinPrefixLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L399" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666ExtPrefixRangeSizeWithinPrefixLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -903,12 +920,12 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L221" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L221" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L189" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L189" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1031,12 +1048,12 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L32" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3PrefixSIDCodec</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L32" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3PrefixSIDCodec</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L59" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SIDWidthFromVL</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L59" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SIDWidthFromVL</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1045,11 +1062,16 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </div>
 <h3><a href="#rfc8666-6-7"><code>RFC8666-6-7</code></a></h3>
 <p>If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored. (§6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8666 Section 6 (rfc8666.txt:380-381): &#39;If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.&#39; Proven clauses: one router&#39;s repeated Prefix-SID, equal (TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored positive, two sub-TLVs and two LSAs) or differing (TestRFC8666PrefixSIDsKeyedByAlgorithm positive), each asserting rs.Duplicate; scope limits prefix, algorithm, router and area kept in the negative cases. Topology: the RFC 8666 Prefix-SID sub-TLV carries Flags, Algorithm, Reserved and SID only (s6 figure), so there is no second topology value to test. Weak because no tagged unit proves the consequence &#39;ignored&#39;: every assertion stops at the Duplicate marker. Removing `|| rs.Duplicate` from the installer (sr_install.go:80) leaves every RFC8666-6-7 unit green (only the RFC8665-tagged TestRFC8665DuplicatePrefixSIDsAllIgnored goes red), and removing it from srTILFAResolver.PrefixSIDLabel (sr_tilfa.go:40) leaves them green too (work/agents/RA-OSPF2/mutation.log). The cross-router tests TestRFC8666DuplicatePrefixSIDsDetectedAndIgnored and TestOSPFv3ReceptionSameSIDNotDuplicate no longer carry this tag, correctly: they prove Ze policy.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c12). Section 6: &#39;If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.&#39; The consequence gap (every unit asserted rs.Duplicate at the detector, none that nothing is installed) is closed: TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing feeds real LSAs through srRemotePrefixSIDsV6 into installRoutes: - one Prefix-SID from 5.5.5.5 installs a forwarding entry (scope limit, same fixture); + the same Prefix-SID repeated in two LSAs installs none. Author overlay removing &#39;|| rs.Duplicate&#39; from sr_install.go reds it (&#39;installed 1 forwarding entries, want none&#39;); judge read the diff and the log. Records +/- revert on installRoutes observed. Detector-level units (TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored, TestRFC8666PrefixSIDsKeyedByAlgorithm) keep their tags.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_duplicate_install_test.go#L42" title="internal/plugins/ospf/rfc8666_duplicate_install_test.go" target="_blank" rel="noopener"><code>TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L109" title="internal/plugins/ospf/rfc8666_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8666PrefixSIDsKeyedByAlgorithm</code></a></td>
 <td>unit/verify</td>
@@ -1057,6 +1079,11 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_prefix_sid_per_router_test.go#L123" title="internal/plugins/ospf/sr_prefix_sid_per_router_test.go" target="_blank" rel="noopener"><code>TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_duplicate_install_test.go#L51" title="internal/plugins/ospf/rfc8666_duplicate_install_test.go" target="_blank" rel="noopener"><code>TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1075,7 +1102,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </div>
 <h3><a href="#rfc8666-6-8"><code>RFC8666-6-8</code></a></h3>
 <p>When calculating the outgoing label for the prefix, the router MUST take into account, as described below, the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. (§6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. tagged positive proves the label is taken from the next-hop router&#39;s SRGB (20009), which is not the flag obligation; the negative shows a non-originator next hop does not apply the originator&#39;s PHP. No unit tagged 6-8 shows the flags applied when the next hop did advertise the SID (TestRFC8666PHPPopsPrefixSID does, but is tagged 6-11/6-1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 5). Positive: new TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel, next hop = SID advertiser, four flag settings each give the Section 6 outcome: NP clear -&gt; no push and PHP pop of 18009; NP -&gt; push 16009; NP+E -&gt; push IPv6 Explicit NULL; M+E with NP clear -&gt; push 16009 (M makes NP and E ignored, distinguishable from the NP-clear pop). Negative: TestRFC8666TransitHopIgnoresOriginatorPHPFlags, a non-advertising next hop does not apply the originator&#39;s NP=0; judge overlay applying the flags unconditionally in forwarding (sr_install.go) reds it. Revert record on forwarding observed red for the positive. TestRFC8666OutgoingLabelUsesNextHopRouter stays tagged as supplementary (next hop&#39;s SRGB).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1084,6 +1111,11 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L339" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666TransitHopIgnoresOriginatorPHPFlags</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L363" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L320" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666OutgoingLabelUsesNextHopRouter</code></a></td>
@@ -1101,12 +1133,12 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L21" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L21" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L19" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L19" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3InterAreaPrefixSIDRule</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1245,7 +1277,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L381" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L423" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1280,7 +1312,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L385" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L427" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1307,12 +1339,12 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L41" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L41" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L38" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L38" title="internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1321,18 +1353,23 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </div>
 <h3><a href="#rfc8666-8.4.1-1"><code>RFC8666-8.4.1-1</code></a></h3>
 <p>If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Advertisement MUST be withdrawn from the area. (§8.4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops calls srAdjManager.neighborLost directly; no tagged unit drives a neighbor state change below 2-Way through the FSM hook (engine.srAdjNeighborLost, sr_adjsid.go), so removing that call stays green</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 6, judge): the weak finding (no FSM-driven withdrawal) is closed. TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay drives an OSPFv3 neighbor to Full through the real table (Hello + DD), then a Hello not listing this router moves it to Init; the Adj-SID leaves the manager and the origination store, the E-Router-LSA body no longer carries it, and the mpls-fib pop entry is removed. Revert record on srAdjNeighborLost observed red. Negative: sr_origination_v6_test.go keeps the Adj-SID while the neighbor is up (pre-existing, unproven record). Setup nit: the test allocates the Adj-SID itself if Full did not, which weakens nothing about the withdrawal assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_origination_v6_test.go#L21" title="internal/plugins/ospf/sr_origination_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ERouterBodyCarriesAdjSID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_origination_v6_test.go#L21" title="internal/plugins/ospf/rfc8666_sr_origination_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ERouterBodyCarriesAdjSID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L426" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_adjsid_fsm_test.go#L78" title="internal/plugins/ospf/rfc8666_adjsid_fsm_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L468" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1341,7 +1378,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </div>
 <h3><a href="#rfc8666-10-1"><code>RFC8666-10-1</code></a></h3>
 <p>For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored. (§10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8666 Section 10 (rfc8666.txt, s10): &#39;For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.&#39; Kept weak; DF-OSPF-E&#39;s gaps confirmed. Proven through the IPv6 Prefix-SID reader (srRemotePrefixSIDsV6, len(sids) != 0 goes red): Prefix-SID one octet too long (TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA), too short, length-and-flags, Extended Prefix Range carrying a length-and-flags-invalid Prefix-SID (TestRFC8666LengthBeforeFlagsIgnoresLSA), with positive polarity for well-formed and flag-only cases. Unproven: the Adj-SID and LAN Adj-SID clauses are asserted only on the gate srV3ExtendedLengthInvalid, never on a reader that ignores the LSA; LAN Adj-SID too short has no case; the SID/Label sub-TLV (s3.1) has no LSA-level case.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. RFC 8666 s10 read: &#39;if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.&#39; The three gaps of the 2026-09-27 audit are closed. Adj-SID and LAN Adj-SID at a reader: TestRFC8666AdjSIDLengthInvalidIgnoredByReader installs real E-Router-LSAs and reads the BGP-LS export (sentinel LSA proves the snapshot is current): + well-formed Adj-SID/LAN Adj-SID exported with attr 1099/1100; - each one octet long or two short exports no link from the router (records on srV3ExtendedLengthInvalid). SID/Label (s3.1 &#39;Length: 3 or 4 octets&#39;): D-8 defect fixed in sr_malformed.go srV3SubTLVLengthInvalid (type 7 had no case); TestRFC8666SIDLabelLengthInvalidIgnoresLSA + length 3/4 keeps the Prefix-SID, - length 2/5 yields none (red before the fix; records on srV3SubTLVLengthInvalid). Prefix-SID and Extended Prefix Range stay on rfc8666_malformed_test and sr_length_before_flags_test with records.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1352,12 +1389,32 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L98" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDLengthInvalidIgnoredByReader</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L137" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666SIDLabelLengthInvalidIgnoresLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_length_before_flags_test.go#L163" title="internal/plugins/ospf/sr_length_before_flags_test.go" target="_blank" rel="noopener"><code>TestRFC8666LengthBeforeFlagsIgnoresLSA</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L71" title="internal/plugins/ospf/rfc8666_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L82" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666AdjSIDLengthInvalidIgnoredByReader</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L127" title="internal/plugins/ospf/rfc8666_reader_ignore_test.go" target="_blank" rel="noopener"><code>TestRFC8666SIDLabelLengthInvalidIgnoresLSA</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1377,17 +1434,17 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L96" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ExtPrefixRangeTLVRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L96" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ExtPrefixRangeTLVRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L127" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SRTLVMalformed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_reception_v6_test.go#L169" title="internal/plugins/ospf/rfc8666_sr_reception_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ReceptionMalformedNoPanic</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_reception_v6_test.go#L169" title="internal/plugins/ospf/sr_reception_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ReceptionMalformedNoPanic</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L127" title="internal/plugins/ospf/sr/rfc8666_codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3SRTLVMalformed</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1643,7 +1700,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

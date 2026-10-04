@@ -217,6 +217,18 @@ error rather than reading empty. A file literally named <code>-</code> is addres
 <code>ze config rollback</code>, <code>ze config history</code>) reject <code>-</code> because they need a TTY or
 on-disk revision history that a pipe does not have.</p>
 <!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
+<p>MRT analysis (<code>le mrt show</code>, <code>density</code>, and content filters) derives mixed-family
+ADD-PATH decoding from both actual directional OPEN messages in the same input.
+Missing or ambiguous negotiation is an explicit decoding error, not a successful
+partial count or filter nonmatch. Input files never inherit another file's
+session context. Replay, inject and serve do not negotiate ADD-PATH; they refuse
+Path-Identifier-bearing or ambiguous UPDATEs before writing them. Empty EOR
+messages remain safe to replay even under an ADD-PATH MRT subtype.
+An empty MP family still counts when deciding whether a mixed UPDATE needs
+both OPENs. BGP4MP replay also refuses trailing bytes beyond the declared BGP
+length and structurally truncated attributes, even with complete OPEN context.</p>
+<!-- source: internal/mrt/context.go — SessionContexts, BGPMessage.updateContext -->
+<!-- source: internal/analyze/replay_context.go — checkReplayUpdate -->
 <h2 id="shell-commands">Shell Commands</h2>
 <p>Run directly from the terminal. No daemon required (except <code>ze signal</code>, <code>ze status</code>,
 <code>ze cli</code>, and daemon-targeted <code>ze show</code> subcommands).
@@ -623,6 +635,10 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.<
 </tr>
 </tbody>
 </table>
+<p>An IPv4 unicast route needs an IPv4 <code>next-hop</code>. <code>encode</code> refuses any other
+next hop, and exits 1 with an error that names the requirement, rather than
+print an UPDATE whose NLRI has no NEXT_HOP attribute.</p>
+<!-- source: internal/component/bgp/message/update_build.go -- checkInlineNextHop -->
 <h3 id="ze-show-warnings-ze-show-errors">ze show warnings / ze show errors</h3>
 <p>Operational report bus. A single place for Ze subsystems to surface
 operator-visible issues. Warnings are state-based (a condition is currently
@@ -3375,7 +3391,7 @@ answered a different peer on each call.</p>
 <p>The peer selector comes first (<code>peer &lt;sel&gt;</code>, matching <code>show bgp peer &lt;sel&gt; ...</code>), then the direction (<code>import</code>/<code>export</code>), then optional <code>filter &lt;NAME&gt;</code>, then <code>update &lt;HEX&gt;</code>.</p>
 <p><code>&lt;HEX&gt;</code> is a hex-encoded full BGP UPDATE message (including the 19-byte header). The <code>0x</code> prefix is optional.</p>
 <p>Optional: <code>source-asn4 false</code> to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.</p>
-<p>Output is structured JSON with fields: <code>direction</code>, <code>peer</code>, <code>action</code> (accept/reject/modify), <code>trace</code> (per-filter decisions), <code>text-before</code>, <code>text-after</code>, <code>changed-attrs</code>, and <code>wire-changes</code> (wire-level attribute ops such as <code>AS4_PATH suppressed</code> that the flat filter text cannot express).</p>
+<p>Output is structured JSON with fields: <code>direction</code>, <code>peer</code>, <code>action</code> (accept/reject/modify), <code>trace</code> (per-filter decisions), <code>text-before</code>, <code>text-after</code>, <code>changed-attrs</code>, and <code>wire-changes</code> (wire-level attribute ops such as <code>AS4_PATH suppressed</code> that the flat filter text cannot express). An export dry-run toward an internal peer lists no <code>AS_PATH</code> operation, because the export chain applies no <code>as-path-prepend</code> or <code>remove-private</code> toward one (RFC 4271 Section 5.1.2).</p>
 <p><code>text-before</code> and <code>text-after</code> name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: <code>origin</code>, <code>med</code>, <code>local-preference</code>,
 <code>atomic-aggregate</code> and <code>cluster-list</code>. The renderer named a Go type no parser
@@ -4625,7 +4641,7 @@ reaches, where the daemon expands the chain.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

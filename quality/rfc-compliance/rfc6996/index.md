@@ -13,8 +13,10 @@ what Ze has
 | Tested both ways | 100.0% | 1 of 1 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 1 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 1 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 1 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 1 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 66.7% | 4 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 1 | of 1 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,15 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 1 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 1 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 1 | of 1 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 1 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 1 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +41,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 2 |
-| Tagged units | 2 |
+| Test tags | 6 |
+| Tagged units | 6 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc6996.md` |
 | Requirement shard | `rfc/requirements/rfc6996.md` |
 | RFC text | `rfc/full/rfc6996.txt` |
@@ -88,9 +83,10 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **1** | every gated MUST falls in exactly one bucket above |
@@ -101,7 +97,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6996-4-1` | If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC6996StripsPrivateUseASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L47). **negative:** `unit/verify` [`TestRFC6996KeepsPublicASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L56) |
+| `RFC6996-4-1` | If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L35). **positive:** `unit/verify` [`TestRFC6996StripRemovesPrivateUseASNsFromAS4Path`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L32). **positive:** `unit/verify` [`TestRFC6996StripsPrivateUseASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L47). **negative:** `unit/verify` [`TestRFC6996KeepsASNsOutsideThePrivateUseRanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L62). **negative:** `unit/verify` [`TestRFC6996KeepsPublicASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L56). **negative:** `unit/verify` [`TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L48) |
 | `RFC6996-4-2` | Operators SHOULD ensure that all External Border Gateway Protocol (EBGP) speakers support the extensions described in [RFC6793] and that implementation-specific features that recognize Private Use ASNs have been updated to recognize both ranges prior to making use of the newer, numerically higher range of Private Use ASNs in the four-octet AS number space. (Section 4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6996-4-3` | Normal AS path filtering MAY also be used to prevent prefixes originating from Private Use ASNs from being advertised to the global Internet (Section 4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
 
@@ -117,12 +113,16 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet. (Section 4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Only the two-octet range in AS_PATH is exercised (64512 stripped, public kept). The sentence's '(including AS4_PATH if utilizing a four-octet AS number space)' clause and the four-octet Private Use range 4200000000-4294967294 have no tagged assertion, nor do the range boundaries (64511/64512/65534/65535).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Both clauses, both polarities, at the range edges. Positive: plugin TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes rewrites AS_PATH [64496 64512 65534 4200000000 4294967294 64497] to [64496 64497] and draws the strip directive for an AS4_PATH holding 4294967294; reactor TestRFC6996StripRemovesPrivateUseASNsFromAS4Path asserts the exact AS4_PATH rewrite to [64496 64497]. Negative: 64511/65535/4199999999/4294967295 kept in AS_PATH and AS4_PATH at both tiers (accept, zero ops), so an off-by-one bound in either range goes red. All four new units carry observed-red revert records (isPrivateASN, isRFC6996PrivateASN). The two older private_as_test.go units are subsets with no record.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6996KeepsPublicASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L56) | unit/verify | unproven |
-| positive | [`TestRFC6996StripsPrivateUseASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L47) | unit/verify | unproven |
+| negative | [`TestRFC6996KeepsASNsOutsideThePrivateUseRanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L62) | unit/verify | revert, verified |
+| negative | [`TestRFC6996KeepsPublicASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L56) | unit/verify | unproven |
+| negative | [`TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L48) | unit/verify | revert, verified |
+| positive | [`TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L35) | unit/verify | revert, verified |
+| positive | [`TestRFC6996StripsPrivateUseASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L47) | unit/verify | unproven |
+| positive | [`TestRFC6996StripRemovesPrivateUseASNsFromAS4Path`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L32) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

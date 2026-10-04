@@ -23,7 +23,7 @@ Route Server
 ## Used by
 
 - Required dependency for: None
-- Optional dependency for: None
+- Optional dependency for: [`bgp-gr`](../bgp-gr/index.md)
 
 ## Repository artifacts
 

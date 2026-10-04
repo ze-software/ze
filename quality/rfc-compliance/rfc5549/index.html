@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>3 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>50.0%</strong><b>3 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>34.6%</strong><b>9 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 6 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>26</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>26</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5549.md</code></td>
@@ -268,7 +269,7 @@ Main public claim uses RFC 8950.
 <td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -279,6 +280,10 @@ Main public claim uses RFC 8950.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -293,7 +298,7 @@ Main public claim uses RFC 8950.
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc5549-4-1"><code>RFC5549-4-1</code></a>, <a href="#rfc5549-3-1"><code>RFC5549-3-1</code></a>, <a href="#rfc5549-4-4"><code>RFC5549-4-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc5549-4-2"><code>RFC5549-4-2</code></a>, <a href="#rfc5549-4-3"><code>RFC5549-4-3</code></a>, <a href="#rfc5549-5-1"><code>RFC5549-5-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc5549-4-2"><code>RFC5549-4-2</code></a>, <a href="#rfc5549-4-3"><code>RFC5549-4-3</code></a>, <a href="#rfc5549-5-1"><code>RFC5549-5-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -307,8 +312,12 @@ Main public claim uses RFC 8950.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1151" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L287" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1182" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L326" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHopMismatch</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-2">RFC5549-4-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)</span></td></tr>
@@ -318,6 +327,7 @@ Main public claim uses RFC 8950.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L541" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L574" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go#L62" title="internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC8950PeerSupportDecidedPerPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze advertises and parses the Extended Next Hop Encoding capability exclusively through the RFC 5492 capability TLV framework (internal/core/bgp/capability/capability.go:644 WriteTo, :667 parseExtendedNextHop). There is no non-RFC-5492 signalling path in ze, so no wrong-procedure case exists to assert as a negative; the peer-support-not-ascertained negative is covered by RFC5549-4-1</p></td>
 </tr>
@@ -348,7 +358,7 @@ Main public claim uses RFC 8950.
 <td>MUST NOT</td>
 <td>5 - Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L237" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesExtendedNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L258" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesExtendedNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop</p></td>
 </tr>
@@ -358,8 +368,12 @@ Main public claim uses RFC 8950.
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-2">RFC5549-5-2</code></td><td colspan="3"><span class="rfc-subject">By default, if a particular BGP session is running over IPvx (where IPvx is IPv4 or IPv6), and if the BGP speaker sending an update is putting its own address in as the next hop, then the next hop address SHOULD be specified as an IPvx address, using the encoding rules specified in the AFI/SAFI definition of the NLRI being updated. (§5)</span></td></tr>
@@ -400,7 +414,7 @@ Main public claim uses RFC 8950.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5549-4-1"><code>RFC5549-4-1</code></a></h3>
 <p>A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Forbidden: sending an IPv6 next hop for IPv4 NLRI to a peer that did not advertise the tuple; red on it: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and the absent-tuple assert in TestNegotiateExtendedNextHopMismatch. Unproven clauses: VPN-IPv4 NLRI (no unit drives SAFI 128), and the per-pair clause (no unit shows a tuple negotiated for IPv4/unicast does not license VPN-IPv4 or the reverse). The units test the canUseNextHopFor helper, not the UPDATE build path.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Superseded row restating RFC8950-4-1; same judgement. The explicit-next-hop gap is closed by TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair (AnnounceNLRIBatch over a live session: IPv4 unicast sent only with &lt;1/1, IPv6&gt;, refused with ErrNextHopIncompatible and no UPDATE otherwise; VPN-IPv4 resolved only with &lt;1/128, IPv6&gt;), next-hop self by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair, and the negotiated intersection by the capability units. The forward-rail half is proven under RFC8950-4-1 by TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, which carries only RFC8950 tags. Observed-red records on canUseNextHopFor both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -409,6 +423,16 @@ Main public claim uses RFC 8950.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1182" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L326" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHopMismatch</code></a></td>
@@ -421,6 +445,16 @@ Main public claim uses RFC 8950.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L287" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
@@ -430,7 +464,7 @@ Main public claim uses RFC 8950.
 </div>
 <h3><a href="#rfc5549-4-2"><code>RFC5549-4-2</code></a></h3>
 <p>A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: MUST use RFC 5492 Capability Advertisement with the Extended Next Hop Encoding capability to establish whether the peer supports this for the NLRI AFI/SAFI pair(s). The 4-2-tagged units (TestExtendedNextHopCapability, TestExtendedNextHopRoundTrip) prove only the capability TLV encodes and parses. The clause &#39;to establish whether its peer supports this&#39; (support decided from the peer&#39;s advertised capability) has no 4-2-tagged assertion; the negotiation units that would prove it carry only 4-1 and RFC8950 tags.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Row single-polarity positive, superseded by RFC8950-4-2. TestRFC8950PeerSupportDecidedPerPair proves peer support is decided per NLRI pair through the Extended Next Hop capability negotiation (Negotiated and EncodingCaps). The negative tag moved off the RFC8950 negative (approval D-15), consistent with the row&#39;s single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -444,6 +478,11 @@ Main public claim uses RFC 8950.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L574" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go#L62" title="internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC8950PeerSupportDecidedPerPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -511,7 +550,7 @@ Main public claim uses RFC 8950.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L237" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesExtendedNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L258" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesExtendedNextHop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -520,7 +559,7 @@ Main public claim uses RFC 8950.
 </div>
 <h3><a href="#rfc5549-4-4"><code>RFC5549-4-4</code></a></h3>
 <p>A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Same sentence as RFC5549-4-1 (MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair). Red on the IPv4/unicast case: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and TestCanUseNextHopFor_NilSendCtx. Unproven: VPN-IPv4 NLRI and the per-pair clause, and only the canUseNextHopFor helper is driven. The tag prose still calls the row &#39;the MUST NOT&#39;, which the quoted sentence no longer says.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Superseded row, the negative spelling of RFC8950-4-1; same judgement as RFC5549-4-1. The explicit next hop to a peer lacking the pair is now refused at the announce entry point with no UPDATE on the wire (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair), and next-hop self per pair by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor both polarities. The tag prose on TestCanUseNextHopFor_ExtendedNH still says &#39;the MUST NOT&#39;.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -535,10 +574,30 @@ Main public claim uses RFC 8950.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -778,7 +837,7 @@ Main public claim uses RFC 8950.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

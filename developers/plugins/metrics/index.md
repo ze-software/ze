@@ -297,6 +297,13 @@ self-LSA lifecycle events, `ze_ospf_lsupdates_sent_total{interface}` and
 `ze_ospf_retransmissions_total{area}` counts retransmit-list resends.
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- SetMetrics -->
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, RetransmitTick, sendAck -->
+
+`ReceiveUpdate` increments the received-packet counter on entry, before interface
+lookup and per-LSA validation. A packet whose LSAs all fail checksum, opaque-body
+alignment, or the registered receive validator still increments this counter.
+Those LSAs are skipped before installation, acknowledgement, or reflooding, so
+the received count is not an accepted-LSA count.
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
 <!-- source: internal/plugins/ospf/instance.go -- setMetrics -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- setUpLocked, runElectionLocked -->
 <!-- source: internal/plugins/ospf/neighbor/table.go -- setStateLocked, recordEventLocked -->

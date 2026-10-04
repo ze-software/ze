@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 22.5% | 16 of 71 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8.5% | 6 of 71 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 71 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 70.2% | 33 of 47 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 25.3% | 19 of 75 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 8.0% | 6 of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 75 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 90.4% | 66 of 73 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +22,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 71 | of 76 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 71 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 71 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 1.4% | 1 of 71 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 71 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 75 | of 80 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 75 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 75 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 1.3% | 1 of 75 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 75 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,10 +34,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 67.6% | 48 of 71 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 16 | of 71 gated MUSTs judged | 11 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| No test at all | 65.3% | 49 of 75 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 71 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 75 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -60,17 +61,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 76 |
-| Gated MUST-level | 71 |
+| Requirements | 80 |
+| Gated MUST-level | 75 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 48 |
+| Declared gaps | 49 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 51 |
-| Tagged units | 47 |
-| Recorded audit verdicts | 16 |
-| Discrimination records | 33 |
+| Test tags | 77 |
+| Tagged units | 73 |
+| Recorded audit verdicts | 19 |
+| Discrimination records | 66 |
 | Summary | `rfc/short/rfc2205.md` |
 | Requirement shard | `rfc/requirements/rfc2205.md` |
 | RFC text | `rfc/full/rfc2205.txt` |
@@ -91,35 +92,36 @@ Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). Th
 
 **What the ledger says remains**
 
-Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message checks, ResvErr/ResvTear, local address-based policy and native transport are implemented. Complete requirement-level proof remains open. Missing enforcement includes refresh synchronization avoidance, the lifetime floor, bounded period increases and non-RSVP-hop detection. Received-interface loop checks and reverse-interface retention also remain absent. IntServ host reservations, multicast/WF signaling, authenticated POLICY_DATA interpretation and UDP encapsulation are absent capabilities, not implementation authorization. The baseline records bounded native Ze-to-Ze evidence separately from full conformance and independent-peer interoperability.
+Forty-nine MUST rows carry {gap}. Checksum validation, supported FF/SE message checks, ResvErr/ResvTear, local address-based policy and native transport are implemented. Complete requirement-level proof remains open. Missing enforcement includes refresh synchronization avoidance, the lifetime floor, bounded period increases and non-RSVP-hop detection. Received-interface loop checks and reverse-interface retention also remain absent. IntServ host reservations, multicast/WF signaling, authenticated POLICY_DATA interpretation and UDP encapsulation are absent capabilities, not implementation authorization. The baseline records bounded native Ze-to-Ze evidence separately from full conformance and independent-peer interoperability.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 16 | one part of the gated population |
-| Annotated instead of tested | 55 | one part of the gated population |
+| Positive and negative tests | 19 | one part of the gated population |
+| Annotated (including scoped evidence) | 56 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **71** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **75** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (16):** [`RFC2205-3.1-1`](#rfc2205-3.1-1), [`RFC2205-3.1.2-1`](#rfc2205-3.1.2-1), [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1), [`RFC2205-x-1`](#rfc2205-x-1), [`RFC2205-3.10-1`](#rfc2205-3.10-1), [`RFC2205-2-1`](#rfc2205-2-1), [`RFC2205-2-2`](#rfc2205-2-2), [`RFC2205-2-3`](#rfc2205-2-3), [`RFC2205-2-4`](#rfc2205-2-4), [`RFC2205-2.3-1`](#rfc2205-2.3-1), [`RFC2205-2-7`](#rfc2205-2-7), [`RFC2205-3-1`](#rfc2205-3-1), [`RFC2205-3-2`](#rfc2205-3-2), [`RFC2205-3-12`](#rfc2205-3-12), [`RFC2205-3-14`](#rfc2205-3-14), [`RFC2205-4-4`](#rfc2205-4-4)
+**Positive and negative tests (19):** [`RFC2205-3.1-1`](#rfc2205-3.1-1), [`RFC2205-3.1.2-1`](#rfc2205-3.1.2-1), [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1), [`RFC2205-3.1.1-1`](#rfc2205-3.1.1-1), [`RFC2205-x-1`](#rfc2205-x-1), [`RFC2205-3.10-1`](#rfc2205-3.10-1), [`RFC2205-2-1`](#rfc2205-2-1), [`RFC2205-2-2`](#rfc2205-2-2), [`RFC2205-2-3`](#rfc2205-2-3), [`RFC2205-2-4`](#rfc2205-2-4), [`RFC2205-2.3-1`](#rfc2205-2.3-1), [`RFC2205-2-7`](#rfc2205-2-7), [`RFC2205-3-1`](#rfc2205-3-1), [`RFC2205-3-2`](#rfc2205-3-2), [`RFC2205-3-12`](#rfc2205-3-12), [`RFC2205-3.1.5-1`](#rfc2205-3.1.5-1), [`RFC2205-3.1.6-1`](#rfc2205-3.1.6-1), [`RFC2205-3-14`](#rfc2205-3-14), [`RFC2205-4-4`](#rfc2205-4-4)
 
-**Annotated instead of tested (55):** [`RFC2205-3.1-2`](#rfc2205-3.1-2), [`RFC2205-3.1-3`](#rfc2205-3.1-3), [`RFC2205-1-1`](#rfc2205-1-1), [`RFC2205-1-2`](#rfc2205-1-2), [`RFC2205-1-3`](#rfc2205-1-3), [`RFC2205-1-4`](#rfc2205-1-4), [`RFC2205-2-5`](#rfc2205-2-5), [`RFC2205-2-6`](#rfc2205-2-6), [`RFC2205-2-8`](#rfc2205-2-8), [`RFC2205-2-9`](#rfc2205-2-9), [`RFC2205-2-10`](#rfc2205-2-10), [`RFC2205-2-11`](#rfc2205-2-11), [`RFC2205-2-12`](#rfc2205-2-12), [`RFC2205-3-3`](#rfc2205-3-3), [`RFC2205-3-4`](#rfc2205-3-4), [`RFC2205-3-5`](#rfc2205-3-5), [`RFC2205-3-6`](#rfc2205-3-6), [`RFC2205-3-7`](#rfc2205-3-7), [`RFC2205-3-8`](#rfc2205-3-8), [`RFC2205-3-9`](#rfc2205-3-9), [`RFC2205-3-10`](#rfc2205-3-10), [`RFC2205-3-11`](#rfc2205-3-11), [`RFC2205-3-13`](#rfc2205-3-13), [`RFC2205-3-16`](#rfc2205-3-16), [`RFC2205-3-17`](#rfc2205-3-17), [`RFC2205-3-18`](#rfc2205-3-18), [`RFC2205-3-19`](#rfc2205-3-19), [`RFC2205-3-20`](#rfc2205-3-20), [`RFC2205-3-21`](#rfc2205-3-21), [`RFC2205-3-22`](#rfc2205-3-22), [`RFC2205-3-23`](#rfc2205-3-23), [`RFC2205-3-24`](#rfc2205-3-24), [`RFC2205-3-25`](#rfc2205-3-25), [`RFC2205-3-26`](#rfc2205-3-26), [`RFC2205-3-27`](#rfc2205-3-27), [`RFC2205-3-28`](#rfc2205-3-28), [`RFC2205-3-29`](#rfc2205-3-29), [`RFC2205-3-30`](#rfc2205-3-30), [`RFC2205-3-31`](#rfc2205-3-31), [`RFC2205-3-32`](#rfc2205-3-32), [`RFC2205-3-33`](#rfc2205-3-33), [`RFC2205-3-34`](#rfc2205-3-34), [`RFC2205-3-35`](#rfc2205-3-35), [`RFC2205-3-36`](#rfc2205-3-36), [`RFC2205-3-37`](#rfc2205-3-37), [`RFC2205-3-38`](#rfc2205-3-38), [`RFC2205-3-39`](#rfc2205-3-39), [`RFC2205-3-40`](#rfc2205-3-40), [`RFC2205-3-41`](#rfc2205-3-41), [`RFC2205-3-42`](#rfc2205-3-42), [`RFC2205-3-43`](#rfc2205-3-43), [`RFC2205-4-1`](#rfc2205-4-1), [`RFC2205-4-2`](#rfc2205-4-2), [`RFC2205-4-3`](#rfc2205-4-3), [`RFC2205-4-5`](#rfc2205-4-5)
+**Annotated (including scoped evidence) (56):** [`RFC2205-3.1-2`](#rfc2205-3.1-2), [`RFC2205-1-1`](#rfc2205-1-1), [`RFC2205-1-2`](#rfc2205-1-2), [`RFC2205-1-3`](#rfc2205-1-3), [`RFC2205-1-4`](#rfc2205-1-4), [`RFC2205-2-5`](#rfc2205-2-5), [`RFC2205-2-6`](#rfc2205-2-6), [`RFC2205-2-8`](#rfc2205-2-8), [`RFC2205-2-9`](#rfc2205-2-9), [`RFC2205-2.5-1`](#rfc2205-2.5-1), [`RFC2205-2-10`](#rfc2205-2-10), [`RFC2205-2-11`](#rfc2205-2-11), [`RFC2205-2-12`](#rfc2205-2-12), [`RFC2205-3-3`](#rfc2205-3-3), [`RFC2205-3-4`](#rfc2205-3-4), [`RFC2205-3-5`](#rfc2205-3-5), [`RFC2205-3-6`](#rfc2205-3-6), [`RFC2205-3-7`](#rfc2205-3-7), [`RFC2205-3-8`](#rfc2205-3-8), [`RFC2205-3-9`](#rfc2205-3-9), [`RFC2205-3-10`](#rfc2205-3-10), [`RFC2205-3-11`](#rfc2205-3-11), [`RFC2205-3-13`](#rfc2205-3-13), [`RFC2205-3-16`](#rfc2205-3-16), [`RFC2205-3-17`](#rfc2205-3-17), [`RFC2205-3-18`](#rfc2205-3-18), [`RFC2205-3-19`](#rfc2205-3-19), [`RFC2205-3-20`](#rfc2205-3-20), [`RFC2205-3-21`](#rfc2205-3-21), [`RFC2205-3-22`](#rfc2205-3-22), [`RFC2205-3-23`](#rfc2205-3-23), [`RFC2205-3-24`](#rfc2205-3-24), [`RFC2205-3-25`](#rfc2205-3-25), [`RFC2205-3-26`](#rfc2205-3-26), [`RFC2205-3-27`](#rfc2205-3-27), [`RFC2205-3-28`](#rfc2205-3-28), [`RFC2205-3-29`](#rfc2205-3-29), [`RFC2205-3-30`](#rfc2205-3-30), [`RFC2205-3-31`](#rfc2205-3-31), [`RFC2205-3-32`](#rfc2205-3-32), [`RFC2205-3-33`](#rfc2205-3-33), [`RFC2205-3-34`](#rfc2205-3-34), [`RFC2205-3.9-1`](#rfc2205-3.9-1), [`RFC2205-3-35`](#rfc2205-3-35), [`RFC2205-3-36`](#rfc2205-3-36), [`RFC2205-3-37`](#rfc2205-3-37), [`RFC2205-3-38`](#rfc2205-3-38), [`RFC2205-3-39`](#rfc2205-3-39), [`RFC2205-3-40`](#rfc2205-3-40), [`RFC2205-3-41`](#rfc2205-3-41), [`RFC2205-3-42`](#rfc2205-3-42), [`RFC2205-3-43`](#rfc2205-3-43), [`RFC2205-4-1`](#rfc2205-4-1), [`RFC2205-4-2`](#rfc2205-4-2), [`RFC2205-4-3`](#rfc2205-4-3), [`RFC2205-4-5`](#rfc2205-4-5)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2205-3.1-1` | Protocol version number.  This is version 1. (§3.1.1) | MUST | 3.1.1 | **positive:** `unit/verify` [`TestRSVPHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L409). **negative:** `unit/verify` [`TestRSVPDecodeHeaderBadVersion`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L443) |
-| `RFC2205-3.1-2` | All unused fields should be sent as zero and ignored on receipt. (§A) | MUST | A - Appendix A | **positive:** `unit/verify` [`TestRSVPReservedByteZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L585). **negative:** no negative test. **{single-polarity}:** ze sets the reserved byte to 0 on send (internal/plugins/rsvpte/wire.go:177) and the RFC does not require receivers to reject a nonzero reserved field, so no negative case exists |
-| `RFC2205-3.1.2-1` | A 16-bit field containing the total object length in bytes.  Must always be a multiple of 4 (§3.1.2) | MUST | 3.1.2 | **positive:** `unit/verify` [`TestRSVPObjectLengthMultipleOfFour`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L606). **negative:** `unit/verify` [`TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L48) |
-| `RFC2205-3.1.3-1` | Similarly, each node is required to verify the correct construction of each RSVP message it receives.  Should a programming error allow an RSVP to create a malformed message, the error is not generally reported to end systems in an ERROR_SPEC object; instead, the error is simply logged locally, and perhaps reported through network management mechanisms. (§B) | MUST | B - Appendix B | **positive:** `unit/verify` [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L90). **positive:** `unit/verify` [`TestEnginePathWithTimeValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L139). **negative:** `unit/verify` [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L98). **negative:** `unit/verify` [`TestEnginePathWithoutTimeValuesDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L120) |
-| `RFC2205-3.1-3` | The choice of message formatting errors that an RSVP may detect and log locally is implementation-specific, but it will typically include the following: o Wrong-length message: RSVP Length field does not match message length. o Unknown or unsupported RSVP version. o Bad RSVP checksum (§B) | MUST | B - Appendix B | **positive:** no positive test. **negative:** no negative test. **{gap}:** DecodeMessage in internal/plugins/rsvpte/wire.go verifies the declared message when its checksum is nonzero and handlePacket drops decode errors. Section 3.1.1 permits zero to mean no checksum was transmitted. Complete requirement-level proof remains open. |
-| `RFC2205-x-1` | RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. (§3.11.5) | MUST | 3.11.5 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L390). **negative:** `unit/verify` [`TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L14) |
-| `RFC2205-3.10-1` | Class-Num = 0bbbbbbb The entire message should be rejected and an "Unknown Object Class" error returned. (§3.10) | MUST | 3.10 | **positive:** `unit/verify` [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L724). **negative:** `unit/verify` [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L731). **negative:** `unit/verify` [`TestEnginePathWithIgnorableObjectAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L949) |
+| `RFC2205-3.1-1` | Protocol version number.  This is version 1. (§3.1.1) | MUST | 3.1.1 | **positive:** `unit/verify` [`TestRFC2205EmittedVersionIsOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L20). **positive:** `unit/verify` [`TestRSVPHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L409). **negative:** `unit/verify` [`TestRSVPDecodeHeaderBadVersion`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L443) |
+| `RFC2205-3.1-2` | All unused fields should be sent as zero and ignored on receipt. (§A) | MUST | A - Appendix A | **positive:** `unit/verify` [`TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L35). **positive:** `unit/verify` [`TestRSVPReservedByteZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L585). **negative:** no negative test. **{single-polarity}:** ze sets the reserved byte to 0 on send (internal/plugins/rsvpte/wire.go:177) and the RFC does not require receivers to reject a nonzero reserved field, so no negative case exists |
+| `RFC2205-3.1.2-1` | A 16-bit field containing the total object length in bytes.  Must always be a multiple of 4 (§3.1.2) | MUST | 3.1.2 | **positive:** `unit/verify` [`TestRSVPObjectLengthMultipleOfFour`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L606). **negative:** `unit/verify` [`TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L48) |
+| `RFC2205-3.1.3-1` | Similarly, each node is required to verify the correct construction of each RSVP message it receives.  Should a programming error allow an RSVP to create a malformed message, the error is not generally reported to end systems in an ERROR_SPEC object; instead, the error is simply logged locally, and perhaps reported through network management mechanisms. (§B) | MUST | B - Appendix B | **positive:** `unit/verify` [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L90). **positive:** `unit/verify` [`TestEnginePathWithTimeValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L139). **positive:** `unit/verify` [`TestRFC2205WellFormedMessageNotLogged`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L212). **negative:** `unit/verify` [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L98). **negative:** `unit/verify` [`TestEnginePathWithoutTimeValuesDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L120). **negative:** `unit/verify` [`TestRFC2205MalformedMessageLoggedLocally`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L196) |
+| `RFC2205-3.1.1-1` | An all-zero value means that no checksum was transmitted. (§3.1.1) | MUST | 3.1.1 | **positive:** `unit/verify` [`TestRFC2205ZeroChecksumMeansNoneTransmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L515). **negative:** `unit/verify` [`TestRFC2205NonzeroChecksumStillVerified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L533) |
+| `RFC2205-x-1` | RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. (§3.11.5) | MUST | 3.11.5 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L390). **negative:** `unit/verify` [`TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L14). **negative:** `unit/verify` [`TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L400) |
+| `RFC2205-3.10-1` | Class-Num = 0bbbbbbb The entire message should be rejected and an "Unknown Object Class" error returned. (§3.10) | MUST | 3.10 | **positive:** `unit/verify` [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L724). **negative:** `unit/verify` [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L731). **negative:** `unit/verify` [`TestEnginePathWithIgnorableObjectAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L949). **negative:** `unit/verify` [`TestRFC2205UnknownClassPathRejectedWithError`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L230). **negative:** `unit/verify` [`TestRFC2205UnknownClassResvRejectedWithError`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L250) |
 | `RFC2205-3.7-1` | For this reason, the refresh timer should be randomly set to a value in the range [0.5R, 1.5R]. (§3.7) | SHOULD | 3.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2205-x-2` | For this reason, the refresh timer should be randomly set to a value in the range [0.5R, 1.5R]. (§3.7) | SHOULD | 3.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2205-3.10-2` | Class-Num = 10bbbbbb The node should ignore the object, neither forwarding it nor sending an error message. (§3.10) | MAY | 3.10 | **positive:** no positive test. **negative:** no negative test |
@@ -128,21 +130,22 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 | `RFC2205-1-2` | If the link-layer technology implements its own QoS management capability, then RSVP must negotiate with the link layer to obtain the requested QoS. (§1) | MUST | 1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | `RFC2205-1-3` | More importantly, reservations from different downstream branches of the multicast tree(s) from the same sender (or set of senders) must be " merged" as reservations travel upstream. (§1) | MUST | 1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | `RFC2205-1-4` | In an explicit sender-selection reservation, each filter spec must match exactly one sender (§1) | MUST | 1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** acceptReservation in internal/plugins/rsvpte/reservation.go resolves each supported tunnel filter to sender state before admission. Complete requirement-level proof remains open. |
-| `RFC2205-2-1` | These messages must follow exactly the reverse of the path(s) the data packets will use, upstream to all the sender hosts included in the sender selection. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205ResvSentToPreviousHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L91). **negative:** `unit/verify` [`TestRFC2205ResvWithoutPathStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L105) |
-| `RFC2205-2-2` | Resv messages must finally be delivered to the sender hosts themselves (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205ResvDeliveredToSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L122). **negative:** `unit/verify` [`TestRFC2205ResvForUnknownSenderIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L139) |
-| `RFC2205-2-3` | A Path message is required to carry a Sender Template (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205PathCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L61). **negative:** `unit/verify` [`TestRFC2205PathWithoutSenderTemplateDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L80) |
-| `RFC2205-2-4` | A Path message is required to carry a Sender Tspec (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205PathCarriesSenderTSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L71). **negative:** `unit/verify` [`TestRFC2205PathWithoutSenderTSpecDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L121). **negative:** `unit/verify` [`TestRFC2205PathWithoutSenderTSpecRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/path_rfc2205_test.go#L13) |
+| `RFC2205-2-1` | These messages must follow exactly the reverse of the path(s) the data packets will use, upstream to all the sender hosts included in the sender selection. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205ResvFollowsEachSendersReversePath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L376). **positive:** `unit/verify` [`TestRFC2205ResvSentToPreviousHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L91). **negative:** `unit/verify` [`TestRFC2205ResvNeverTakesAnotherSendersPath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L392). **negative:** `unit/verify` [`TestRFC2205ResvWithoutPathStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L105) |
+| `RFC2205-2-2` | Resv messages must finally be delivered to the sender hosts themselves (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205ResvDeliveredToSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L122). **negative:** `unit/verify` [`TestRFC2205ResvForUnknownSenderIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L139) |
+| `RFC2205-2-3` | A Path message is required to carry a Sender Template (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205PathCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L61). **negative:** `unit/verify` [`TestRFC2205PathWithoutSenderTemplateDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L80) |
+| `RFC2205-2-4` | A Path message is required to carry a Sender Tspec (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205PathCarriesSenderTSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L71). **negative:** `unit/verify` [`TestRFC2205PathWithoutSenderTSpecDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L121). **negative:** `unit/verify` [`TestRFC2205PathWithoutSenderTSpecRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_path_test.go#L13) |
 | `RFC2205-2-5` | If this update results in modification of state to be forwarded in refresh messages, these refresh messages must be generated and forwarded immediately, so that state changes can be propagated end-to-end without delay. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handlePathTransit and acceptReservation relay supported state immediately; forwarding is not confined to refresh ticks. Proof covering every required state-update case remains open. |
-| `RFC2205-2.3-1` | RSVP soft state is created and periodically refreshed by Path and Resv messages. The state is deleted if no matching refresh messages arrive before the expiration of a "cleanup timeout" interval. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRefreshResendsPathAndResv`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L56). **negative:** `unit/verify` [`TestRefreshDoesNotStampEgressPSB`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L21) |
+| `RFC2205-2.3-1` | RSVP soft state is created and periodically refreshed by Path and Resv messages. The state is deleted if no matching refresh messages arrive before the expiration of a "cleanup timeout" interval. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC2205PathStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L68). **positive:** `unit/verify` [`TestRFC2205RefreshRecursEachTick`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L54). **positive:** `unit/verify` [`TestRFC2205ResvStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L128). **positive:** `unit/verify` [`TestRefreshResendsPathAndResv`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_test.go#L56). **negative:** `unit/verify` [`TestRFC2205RefreshedPathStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L81). **negative:** `unit/verify` [`TestRFC2205RefreshedResvStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L167). **negative:** `unit/verify` [`TestRefreshDoesNotStampEgressPSB`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_test.go#L21) |
 | `RFC2205-2-6` | Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
-| `RFC2205-2-7` | Once initiated, a teardown request must be forwarded hop-by-hop without delay (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205TransitPathTearRelayedWithoutDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L166). **negative:** `unit/verify` [`TestRFC2205PathTearWithoutStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L181) |
+| `RFC2205-2-7` | Once initiated, a teardown request must be forwarded hop-by-hop without delay (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205TransitPathTearRelayedWithoutDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L166). **negative:** `unit/verify` [`TestRFC2205PathTearWithoutStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L181) |
 | `RFC2205-2-8` | Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** reservation.go and reservation_build.go now produce and relay ResvErr for supported tunnel reservations. Complete receiver coverage and requirement-level proof remain open. |
 | `RFC2205-2-9` | The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
+| `RFC2205-2.5-1` | This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1. (§2.5) | MUST NOT | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | `RFC2205-2-10` | When a new reservation is requested, each node must answer two questions: "Are enough resources available to meet this request?" and "Is this user allowed to make this reservation?" These two decisions are termed the "admission control" decision and the "policy control" decision, respectively, and both must be favorable in order for RSVP to make a reservation. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** acceptReservation in internal/plugins/rsvpte/reservation.go requires local address-based policy and bandwidth admission before native installation. Authenticated POLICY_DATA interpretation is a separate absent capability; complete requirement-level proof remains open. |
 | `RFC2205-2-11` | RSVP must therefore provide correct protocol operation even when two RSVP-capable routers are joined by an arbitrary "cloud" of non-RSVP routers. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** receive IP TTL is available, but non-RSVP-cloud detection and state are not implemented; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
 | `RFC2205-2-12` | If the destination address does not match any local interface and the message is not a Path or PathTear, the message must be forwarded without further processing by this node. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ResvConf is relayed toward its receiver, but other nonlocal message types lack this forwarding path; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
-| `RFC2205-3-1` | An RSVP implementation must recognize the following classes: (§3.1.2) | MUST | 3.1.2 | **positive:** `unit/verify` [`TestRFC2205KnownClassesRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L64). **positive:** `unit/verify` [`TestRFC2205NullObjectRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L94). **negative:** `unit/verify` [`TestRFC2205NullObjectNotRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L107). **negative:** `unit/verify` [`TestRFC2205UnlistedClassNotRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L124) |
-| `RFC2205-3-2` | The IP source address of a Path message must be an address of the sender it describes, while the destination address must be the DestAddress for the session. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205PathIPAddressesAreSenderAndSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L93). **negative:** `unit/verify` [`TestRFC2205PathIPAddressesNeverHopAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L106) |
+| `RFC2205-3-1` | An RSVP implementation must recognize the following classes: (§3.1.2) | MUST | 3.1.2 | **positive:** `unit/verify` [`TestRFC2205ErrorSpecClassRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L132). **positive:** `unit/verify` [`TestRFC2205KnownClassesRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L64). **positive:** `unit/verify` [`TestRFC2205NullObjectRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L94). **negative:** `unit/verify` [`TestRFC2205NullObjectNotRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L107). **negative:** `unit/verify` [`TestRFC2205UnlistedClassNotRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L124) |
+| `RFC2205-3-2` | The IP source address of a Path message must be an address of the sender it describes, while the destination address must be the DestAddress for the session. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205PathIPAddressesAreSenderAndSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L93). **negative:** `unit/verify` [`TestRFC2205PathIPAddressesNeverHopAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L106) |
 | `RFC2205-3-3` | If the INTEGRITY object is present, it must immediately follow the common header. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** checkObjectPlacement in internal/plugins/rsvpte/message_validation.go enforces this position. Complete requirement-level proof remains open. |
 | `RFC2205-3-4` | Path state and reservation state for the same DestAddress and ProtocolId must each have DstPort values that are all zero or all non-zero.  Violation of this condition in a node is a "Conflicting Dest Ports" error.  2.   Destination ports rule.  If DstPort in a session definition is zero, all SrcPort fields used for that session must also be zero.  The assumption here is that the protocol does not have UDP/TCP- like ports.   Violation of this condition in a node is a "Bad Src Ports" error.  3.   Source Ports must be consistent.  A sender host must not send path state both with and without a zero SrcPort. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | `RFC2205-3-5` | Multicast routing allows a stable distribution tree in which Path messages from the same sender arrive from more than one PHOP, and RSVP must be prepared to maintain all such path state. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
@@ -152,9 +155,11 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 | `RFC2205-3-9` | Whenever a Resv message with wildcard sender selection is forwarded to more than one previous hop, a SCOPE object must be included in the message (see Section 3.4 below); in this case, the scope for forwarding the reservation is constrained to just the sender IP addresses explicitly listed in the SCOPE object. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | `RFC2205-3-10` | Matching state must have match the SESSION, SENDER_TEMPLATE, and PHOP objects. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handlePathTear in internal/plugins/rsvpte/engine.go now matches tunnel/sender identity and the stored RSVP_HOP before removal. Complete requirement-level proof remains open. |
 | `RFC2205-3-11` | A unicast PathTear must not be forwarded if there is path state for the same (session, sender) pair but a different PHOP (§3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handlePathTear now rejects a different stored hop for ordinary and merged tunnel state. Complete requirement-level proof remains open. |
-| `RFC2205-3-12` | A PathTear message must be routed exactly like the corresponding Path message. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205PathTearRoutedLikePath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L118). **negative:** `unit/verify` [`TestRFC2205PathTearNotAddressedHopByHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L132) |
+| `RFC2205-3-12` | A PathTear message must be routed exactly like the corresponding Path message. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205PathTearRouteEqualsPathRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L277). **positive:** `unit/verify` [`TestRFC2205PathTearRoutedLikePath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L118). **negative:** `unit/verify` [`TestRFC2205PathTearNotAddressedHopByHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L132) |
+| `RFC2205-3.1.5-1` | Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down. (§3.1.5) | MUST | 3.1.5 | **positive:** `unit/verify` [`TestRFC2205PathTearAddressedFromSenderToSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L300). **negative:** `unit/verify` [`TestRFC2205PathTearSourceNotTakenFromCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L324) |
 | `RFC2205-3-13` | A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5) | MUST | 3.1.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** DecodeMessage now skips PathTear TSPEC/ADSPEC bodies and ResvTear handling exists. Complete proof of the stated ignored-object cases remains open. |
-| `RFC2205-3-14` | Deletion of path state as the result of a PathTear message or a timeout must also adjust related reservation state as required to maintain consistency in the local node. (§3.1.5) | MUST | 3.1.5 | **positive:** `unit/verify` [`TestRFC2205PathTearReleasesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L206). **negative:** `unit/verify` [`TestRFC2205PathTearForOtherLSPLeavesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L217) |
+| `RFC2205-3.1.6-1` | A ResvTear message may include a SCOPE object, but it must be ignored. (§3.1.6) | MUST | 3.1.6 | **positive:** `unit/verify` [`TestRFC2205ResvTearWithScopeTearsDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L455). **negative:** `unit/verify` [`TestRFC2205ResvTearScopeNotObeyed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L481) |
+| `RFC2205-3-14` | Deletion of path state as the result of a PathTear message or a timeout must also adjust related reservation state as required to maintain consistency in the local node. (§3.1.5) | MUST | 3.1.5 | **positive:** `unit/verify` [`TestRFC2205PathStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L69). **positive:** `unit/verify` [`TestRFC2205PathTearReleasesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L206). **negative:** `unit/verify` [`TestRFC2205PathTearForOtherLSPLeavesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L217). **negative:** `unit/verify` [`TestRFC2205RefreshedPathStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L82) |
 | `RFC2205-3-15` | These reservation changes should not trigger an immediate Resv refresh message, since the PathTear message has already made the required changes upstream. (§3.1.5) | SHOULD NOT | 3.1.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2205-3-16` | Matching reservation state must match the SESSION, STYLE, and FILTER_SPEC objects as well as the LIH in the RSVP_HOP object. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleResvTear in internal/plugins/rsvpte/reservation.go now checks supported tunnel identity, style and the stored RSVP_HOP. Complete requirement-level proof remains open. |
 | `RFC2205-3-17` | A ResvTear message must be routed like the corresponding Resv message (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** removeReservation relays ResvTear toward stored previous hops. The received-interface retention gap and complete requirement-level proof remain open. |
@@ -175,26 +180,26 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 | `RFC2205-3-32` | The RSVP process must be aware of the default, and if an application sets a specific interface, it must also pass that information to RSVP. o Sending Data (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | `RFC2205-3-33` | The RSVP process must determine which case holds by examining the path state, to decide which incoming interface to use for sending Resv messages. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** PSB retains PHOP but not the received interface index, and RESV relies on a route lookup toward PHOP; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
 | `RFC2205-3-34` | The path state on Iapp should only match a reservation from the local application; it must be marked "Local_only" by the RSVP process. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
+| `RFC2205-3.9-1` | When Path and PathTear messages are forwarded, path state marked "Local_Only" must be ignored. (§3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | `RFC2205-3-35` | The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type. (§3.10) | MUST | 3.10 | **positive:** no positive test. **negative:** no negative test. **{gap}:** receive-side placement checks now exist in message_validation.go; full proof of forwarded unknown-object placement remains open. |
 | `RFC2205-3-36` | At each such replication point, RSVP must merge reservation requests from the corresponding next hops by computing the "maximum" of their flowspecs. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
-| `RFC2205-3-37` | To forward Path and PathTear messages, an RSVP process must be able to query the routing process(s) for routes. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L478). **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L391). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration tests show the RSVP process resolving native routes for PATH and PathTear |
+| `RFC2205-3-37` | To forward Path and PathTear messages, an RSVP process must be able to query the routing process(s) for routes. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L478). **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L391). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration tests show the RSVP process resolving native routes for PATH and PathTear |
 | `RFC2205-3-38` | RSVP must be able to learn what real and virtual interfaces are active, with their IP addresses (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** rawTransport.LocalAddresses in internal/plugins/rsvpte/transport_linux.go joins native addresses to interface index, state and MTU. Complete requirement-level proof, including virtual interfaces, remains open. |
-| `RFC2205-3-39` | Packets received for IP protocol 46 but not addressed to the node must be diverted to the RSVP program for processing, without being forwarded (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L479). **negative:** no negative test. **{single-polarity}:** the integration test shows a nonlocal PATH diverted to the RSVP receiver. The "without being forwarded" half is Linux behavior: a packet delivered to an IP_ROUTER_ALERT raw socket (internal/plugins/rsvpte/transport_linux.go openSockets) is consumed by the kernel router-alert chain before ip_forward, and no value at Ze's boundary decides it, so a negative case at that boundary would assert the kernel, not Ze |
-| `RFC2205-3-40` | On a router or multi-homed host, the identity of the interface (real or virtual) on which a diverted message is received, as well as the IP source address and IP TTL with which it arrived, must also be available to the RSVP process. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L392). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the receiver observing the arrival interface, IP source and IP TTL of a diverted message |
-| `RFC2205-3-41` | RSVP must be able to force a (multicast) datagram to be sent on a specific outgoing real or virtual link, bypassing the normal routing mechanism. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L393). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows SendPath pinning the explicit hop link through IP_PKTINFO against the ordinary route |
-| `RFC2205-3-42` | RSVP must be able to specify the IP source address and IP TTL to be used when sending Path messages (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L394). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the requested source and Send_TTL in the captured IPv4 header |
+| `RFC2205-3-39` | Packets received for IP protocol 46 but not addressed to the node must be diverted to the RSVP program for processing, without being forwarded (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L479). **negative:** no negative test. **{single-polarity}:** the integration test shows a nonlocal PATH diverted to the RSVP receiver. The "without being forwarded" half is Linux behavior: a packet delivered to an IP_ROUTER_ALERT raw socket (internal/plugins/rsvpte/transport_linux.go openSockets) is consumed by the kernel router-alert chain before ip_forward, and no value at Ze's boundary decides it, so a negative case at that boundary would assert the kernel, not Ze |
+| `RFC2205-3-40` | On a router or multi-homed host, the identity of the interface (real or virtual) on which a diverted message is received, as well as the IP source address and IP TTL with which it arrived, must also be available to the RSVP process. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L392). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the receiver observing the arrival interface, IP source and IP TTL of a diverted message |
+| `RFC2205-3-41` | RSVP must be able to force a (multicast) datagram to be sent on a specific outgoing real or virtual link, bypassing the normal routing mechanism. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L393). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows SendPath pinning the explicit hop link through IP_PKTINFO against the ordinary route |
+| `RFC2205-3-42` | RSVP must be able to specify the IP source address and IP TTL to be used when sending Path messages (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L394). **negative:** no negative test. **{single-polarity}:** a capability obligation ("must be able to"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the requested source and Send_TTL in the captured IPv4 header |
 | `RFC2205-3-43` | In order to manipulate these objects, RSVP process must have available to it the following service-dependent routines. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | `RFC2205-4-1` | This field must be non-zero. (§A) | MUST | A - Appendix A | **positive:** no positive test. **negative:** no negative test. **{gap}:** decodeSessionIPv4 in internal/plugins/rsvpte/wire.go rejects an unspecified tunnel endpoint. Complete requirement-level proof remains open. |
 | `RFC2205-4-2` | This field must be non-zero. (§A) | MUST | A - Appendix A | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | `RFC2205-4-3` | The addresses must be listed in ascending numerical order. (§A) | MUST | A - Appendix A | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
-| `RFC2205-4-4` | Similarly, each node is required to verify the correct construction of each RSVP message it receives. (§B) | MUST | B - Appendix B | **positive:** `unit/verify` [`TestRFC2205WellFormedMessageVerified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L133). **positive:** `unit/verify` [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L249). **negative:** `unit/verify` [`TestRFC2205MissingRequiredObjectRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L142). **negative:** `unit/verify` [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L280) |
+| `RFC2205-4-4` | Similarly, each node is required to verify the correct construction of each RSVP message it receives. (§B) | MUST | B - Appendix B | **positive:** `unit/verify` [`TestRFC2205EachMessageTypeConstructionAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L200). **positive:** `unit/verify` [`TestRFC2205WellFormedMessageVerified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L133). **positive:** `unit/verify` [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L249). **negative:** `unit/verify` [`TestRFC2205EachMessageTypeMalformedRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L209). **negative:** `unit/verify` [`TestRFC2205MissingRequiredObjectRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L142). **negative:** `unit/verify` [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L280) |
 | `RFC2205-4-5` | However, some important classes of host systems may not support raw network I/O.  To use RSVP, such hosts must encapsulate RSVP messages in UDP.  The basic UDP encapsulation scheme makes two assumptions:  1.   All hosts are capable of sending and receiving multicast packets if multicast destinations are to be supported.  2.   The first/last-hop routers are RSVP-capable.  A method of relaxing the second assumption is given later.  Let Hu be a "UDP-only" host that requires UDP encapsulation, and Hr a host that can do raw network I/O.  The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers. (§C) | MUST | C - Appendix C | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze fills no host-without-raw-I/O role; plan/spec-rsvp-udp-encapsulation.md |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2205-3.1-3`](#rfc2205-3.1-3) The choice of message formatting errors that an RSVP may detect and log locally is implementation-specific, but it will typically include the following: o Wrong-length message: RSVP Length field does not match message length. o Unknown or unsupported RSVP version. o Bad RSVP checksum (§B) | {gap}, no test | DecodeMessage in internal/plugins/rsvpte/wire.go verifies the declared message when its checksum is nonzero and handlePacket drops decode errors. Section 3.1.1 permits zero to mean no checksum was transmitted. Complete requirement-level proof remains open. |
 | [`RFC2205-1-1`](#rfc2205-1-1) Because the UDP/TCP port numbers are used for packet classification, each router must be able to examine these fields. (§1) | {gap}, no test | Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | [`RFC2205-1-2`](#rfc2205-1-2) If the link-layer technology implements its own QoS management capability, then RSVP must negotiate with the link layer to obtain the requested QoS. (§1) | {gap}, no test | Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | [`RFC2205-1-3`](#rfc2205-1-3) More importantly, reservations from different downstream branches of the multicast tree(s) from the same sender (or set of senders) must be " merged" as reservations travel upstream. (§1) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
@@ -203,6 +208,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 | [`RFC2205-2-6`](#rfc2205-2-6) Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*. (§2) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | [`RFC2205-2-8`](#rfc2205-2-8) Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2) | {gap}, no test | reservation.go and reservation_build.go now produce and relay ResvErr for supported tunnel reservations. Complete receiver coverage and requirement-level proof remain open. |
 | [`RFC2205-2-9`](#rfc2205-2-9) The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
+| [`RFC2205-2.5-1`](#rfc2205-2.5-1) This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1. (§2.5) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | [`RFC2205-2-10`](#rfc2205-2-10) When a new reservation is requested, each node must answer two questions: "Are enough resources available to meet this request?" and "Is this user allowed to make this reservation?" These two decisions are termed the "admission control" decision and the "policy control" decision, respectively, and both must be favorable in order for RSVP to make a reservation. (§2) | {gap}, no test | acceptReservation in internal/plugins/rsvpte/reservation.go requires local address-based policy and bandwidth admission before native installation. Authenticated POLICY_DATA interpretation is a separate absent capability; complete requirement-level proof remains open. |
 | [`RFC2205-2-11`](#rfc2205-2-11) RSVP must therefore provide correct protocol operation even when two RSVP-capable routers are joined by an arbitrary "cloud" of non-RSVP routers. (§2) | {gap}, no test | receive IP TTL is available, but non-RSVP-cloud detection and state are not implemented; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
 | [`RFC2205-2-12`](#rfc2205-2-12) If the destination address does not match any local interface and the message is not a Path or PathTear, the message must be forwarded without further processing by this node. (§2) | {gap}, no test | ResvConf is relayed toward its receiver, but other nonlocal message types lack this forwarding path; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
@@ -235,6 +241,7 @@ Forty-eight MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 | [`RFC2205-3-32`](#rfc2205-3-32) The RSVP process must be aware of the default, and if an application sets a specific interface, it must also pass that information to RSVP. o Sending Data (§3) | {gap}, no test | Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | [`RFC2205-3-33`](#rfc2205-3-33) The RSVP process must determine which case holds by examining the path state, to decide which incoming interface to use for sending Resv messages. (§3) | {gap}, no test | PSB retains PHOP but not the received interface index, and RESV relies on a route lookup toward PHOP; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
 | [`RFC2205-3-34`](#rfc2205-3-34) The path state on Iapp should only match a reservation from the local application; it must be marked "Local_only" by the RSVP process. (§3) | {gap}, no test | Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
+| [`RFC2205-3.9-1`](#rfc2205-3.9-1) When Path and PathTear messages are forwarded, path state marked "Local_Only" must be ignored. (§3.9) | {gap}, no test | Ze reserves for LSP tunnels, not IntServ flows; plan/spec-rsvp-intserv-host-flows.md |
 | [`RFC2205-3-35`](#rfc2205-3-35) The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type. (§3.10) | {gap}, no test | receive-side placement checks now exist in message_validation.go; full proof of forwarded unknown-object placement remains open. |
 | [`RFC2205-3-36`](#rfc2205-3-36) At each such replication point, RSVP must merge reservation requests from the corresponding next hops by computing the "maximum" of their flowspecs. (§3) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | [`RFC2205-3-38`](#rfc2205-3-38) RSVP must be able to learn what real and virtual interfaces are active, with their IP addresses (§3) | {gap}, no test | rawTransport.LocalAddresses in internal/plugins/rsvpte/transport_linux.go joins native addresses to interface index, state and MTU. Complete requirement-level proof, including virtual interfaces, remains open. |
@@ -252,22 +259,24 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Protocol version number.  This is version 1. (§3.1.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: a header sent or accepted with Vers other than 1. Receive: TestRSVPDecodeHeaderBadVersion rejects Vers 2 only (DecodeHeader compares to rsvpVersion). Send: TestRSVPHeaderRoundTrip asserts decoded.Version == hdr.Version where hdr.Version is rsvpVersion itself, never the literal 1; with rsvpVersion changed to 3 the round trip stays green and the Vers-2 negative still rejects, so a node sending version 3 turns nothing red.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Send: TestRFC2205EmittedVersionIsOne reads the literal 1 in the Vers nibble of a PATH and a RESV the builders encode, and DecodeHeader accepts 0x10; a wrong rsvpVersion now goes red. Receive negative TestRSVPDecodeHeaderBadVersion rejects Vers 2. Both polarities hold.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRSVPDecodeHeaderBadVersion`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L443) | unit/verify | unproven |
-| positive | [`TestRSVPHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L409) | unit/verify | unproven |
+| negative | [`TestRSVPDecodeHeaderBadVersion`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L443) | unit/verify | revert, verified |
+| positive | [`TestRFC2205EmittedVersionIsOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L20) | unit/verify | revert, verified |
+| positive | [`TestRSVPHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L409) | unit/verify | revert, verified |
 
 ### [`RFC2205-3.1-2`](#rfc2205-3.1-2)
 
 All unused fields should be sent as zero and ignored on receipt. (§A)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Quote: unused fields sent as zero and ignored on receipt. Send clause: TestRSVPReservedByteZeroOnSend asserts raw[5] == 0 on a built PATH. Receive clause ('ignored on receipt'): no tagged unit feeds a nonzero reserved octet and asserts the message is still accepted, so a decoder that rejected it would stay green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Single-polarity row, both clauses covered: send, TestRSVPReservedByteZeroOnSend (raw[5]==0) plus the Flags nibble sent zero in TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt; receive, the same unit feeds Reserved 0xA5 and all four Flags bits set, re-checksummed, and the egress still installs state and answers with a RESV. Covers the common-header unused fields only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRSVPReservedByteZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L585) | unit/verify | unproven |
+| positive | [`TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L35) | unit/verify | revert, verified |
+| positive | [`TestRSVPReservedByteZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L585) | unit/verify | revert, verified |
 
 ### [`RFC2205-3.1.2-1`](#rfc2205-3.1.2-1)
 
@@ -277,52 +286,60 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L48) | unit/verify | revert, verified |
+| negative | [`TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L48) | unit/verify | revert, verified |
 | positive | [`TestRSVPObjectLengthMultipleOfFour`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L606) | unit/verify | unproven |
 
 ### [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1)
 
 Similarly, each node is required to verify the correct construction of each RSVP message it receives.  Should a programming error allow an RSVP to create a malformed message, the error is not generally reported to end systems in an ERROR_SPEC object; instead, the error is simply logged locally, and perhaps reported through network management mechanisms. (§B)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Verify clause: TestDecodeMandatoryObjects requires DecodeMessage to fail for each message type missing a required object, and TestEnginePathWithoutTimeValuesDropped asserts no state. Not-reported-in-ERROR_SPEC clause: the same test asserts no PathErr and no RESV. 'Logged locally' clause: no tagged unit asserts a log record for the malformed message, so a silent drop stays green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Verify clause: TestDecodeMandatoryObjects and the engine TIME_VALUES pair. Not-in-ERROR_SPEC and logged-locally clauses: TestRFC2205MalformedMessageLoggedLocally asserts a WARN "decode failed" record naming the source and the error, nothing sent, no state; TestRFC2205WellFormedMessageNotLogged asserts no WARN for a conforming PATH.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L98) | unit/verify | mutant, verified |
-| negative | [`TestEnginePathWithoutTimeValuesDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L120) | unit/verify | revert, verified |
-| positive | [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L90) | unit/verify | mutant, verified |
-| positive | [`TestEnginePathWithTimeValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L139) | unit/verify | revert, verified |
+| negative | [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L98) | unit/verify | mutant, verified |
+| negative | [`TestEnginePathWithoutTimeValuesDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L120) | unit/verify | revert, verified |
+| negative | [`TestRFC2205MalformedMessageLoggedLocally`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L196) | unit/verify | revert, verified |
+| positive | [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L90) | unit/verify | mutant, verified |
+| positive | [`TestEnginePathWithTimeValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L139) | unit/verify | revert, verified |
+| positive | [`TestRFC2205WellFormedMessageNotLogged`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L212) | unit/verify | revert, verified |
 
-### [`RFC2205-3.1-3`](#rfc2205-3.1-3)
+### [`RFC2205-3.1.1-1`](#rfc2205-3.1.1-1)
 
-The choice of message formatting errors that an RSVP may detect and log locally is implementation-specific, but it will typically include the following: o Wrong-length message: RSVP Length field does not match message length. o Unknown or unsupported RSVP version. o Bad RSVP checksum (§B)
+An all-zero value means that no checksum was transmitted. (§3.1.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ZeroChecksumMeansNoneTransmitted: an all-zero checksum over a body that would fail verification is accepted at handlePacket (PSB installed, PATH relayed). Negative TestRFC2205NonzeroChecksumStillVerified bounds the rule: a nonzero failing checksum is dropped. Records break the whole DecodeMessage; a targeted mutant of the zero test would be sharper.
 
-No test carries RFC2205-3.1-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205NonzeroChecksumStillVerified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L533) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ZeroChecksumMeansNoneTransmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L515) | unit/verify | revert, verified |
 
 ### [`RFC2205-x-1`](#rfc2205-x-1)
 
 RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. (§3.11.5)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak (agrees with blind reader). Forbidden: Path, PathTear or ResvConf leaving without Router Alert. TestIntegrationRSVPPathCarriage proves only that Transport.SendPath writes option 94040000 for a hand-built ResvConf the test passes it. The engine's own ResvConf emission (confirmation.go originate and handleResvConf relay, both e.transport.SendPath) is in no tagged unit: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier's scenario emits no ResvConf and never asserts seen[MsgTypeResvConf], so its ResvConf switch arm is vacuous and switching ResvConf to Send stays green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestIntegrationRSVPPathCarriage proves SendPath writes Router Alert. Negatives: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier for Path/PathTear and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier for both the originated and the relayed ResvConf going through SendPath, closing the vacuous ResvConf arm.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L14) | unit/verify | revert, verified |
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L390) | unit/verify | unproven |
+| negative | [`TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L14) | unit/verify | revert, verified |
+| negative | [`TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L400) | unit/verify | revert, verified |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L390) | unit/verify | revert, verified |
 
 ### [`RFC2205-3.10-1`](#rfc2205-3.10-1)
 
 Class-Num = 0bbbbbbb The entire message should be rejected and an "Unknown Object Class" error returned. (§3.10)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Reject clause: TestDecodeUnknownObjectClass asserts only that DecodeMessage flags HasUnknownObject for 0bbbbbbb classes; no tagged unit asserts the engine discards the message. Error clause: no tagged unit asserts an 'Unknown Object Class' (code 13) error is returned; the untagged assertion at frr_test.go:909 does, under another tag.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Reject and error clauses at the engine: TestRFC2205UnknownClassPathRejectedWithError (no PSB, no RESV, PathErr code 13, value Class<<8|C-Type to the PHOP) and TestRFC2205UnknownClassResvRejectedWithError (no relay, no RSB, ResvErr 13; unknown object placed before STYLE so no placement error confounds it).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEnginePathWithIgnorableObjectAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L949) | unit/verify | unproven |
-| negative | [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L731) | unit/verify | unproven |
-| positive | [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L724) | unit/verify | unproven |
+| negative | [`TestEnginePathWithIgnorableObjectAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L949) | unit/verify | revert, verified |
+| negative | [`TestRFC2205UnknownClassPathRejectedWithError`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L230) | unit/verify | revert, verified |
+| negative | [`TestRFC2205UnknownClassResvRejectedWithError`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L250) | unit/verify | revert, verified |
+| negative | [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L731) | unit/verify | revert, verified |
+| positive | [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L724) | unit/verify | revert, verified |
 
 ### [`RFC2205-1-1`](#rfc2205-1-1)
 
@@ -360,12 +377,14 @@ No test carries RFC2205-1-4, so no unit is bound to it.
 
 These messages must follow exactly the reverse of the path(s) the data packets will use, upstream to all the sender hosts included in the sender selection. (§2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Reverse-path clause: TestRFC2205ResvSentToPreviousHop asserts the egress RESV goes to the PATH's previous hop, one hop only. 'Upstream to all the sender hosts included in the sender selection': no tagged unit follows the RESV hop by hop to the sender or covers a sender selection with more than one sender. The negative (no relay without path state) proves a neighbouring rule.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ResvFollowsEachSendersReversePath: two senders of one session through two PHOPs each get their RESV at their own PHOP, and a transit relays the RESV on to the ingress. Negative TestRFC2205ResvNeverTakesAnotherSendersPath asserts neither sender's reservation leaves on the other's hop. Both records observed red (sendResv, handlePathEgress).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205ResvWithoutPathStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L105) | unit/verify | mutant, verified |
-| positive | [`TestRFC2205ResvSentToPreviousHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L91) | unit/verify | revert, verified |
+| negative | [`TestRFC2205ResvWithoutPathStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L105) | unit/verify | mutant, verified |
+| negative | [`TestRFC2205ResvNeverTakesAnotherSendersPath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L392) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvSentToPreviousHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L91) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvFollowsEachSendersReversePath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L376) | unit/verify | revert, verified |
 
 ### [`RFC2205-2-2`](#rfc2205-2-2)
 
@@ -375,8 +394,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205ResvForUnknownSenderIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L139) | unit/verify | mutant, verified |
-| positive | [`TestRFC2205ResvDeliveredToSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L122) | unit/verify | mutant, verified |
+| negative | [`TestRFC2205ResvForUnknownSenderIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L139) | unit/verify | mutant, verified |
+| positive | [`TestRFC2205ResvDeliveredToSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L122) | unit/verify | mutant, verified |
 
 ### [`RFC2205-2-3`](#rfc2205-2-3)
 
@@ -386,8 +405,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205PathWithoutSenderTemplateDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L80) | unit/verify | revert, verified |
-| positive | [`TestRFC2205PathCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L61) | unit/verify | revert, verified |
+| negative | [`TestRFC2205PathWithoutSenderTemplateDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L80) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L61) | unit/verify | revert, verified |
 
 ### [`RFC2205-2-4`](#rfc2205-2-4)
 
@@ -397,9 +416,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205PathWithoutSenderTSpecRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/path_rfc2205_test.go#L13) | unit/verify | revert, verified |
 | negative | [`TestRFC2205PathWithoutSenderTSpecDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L121) | unit/verify | revert, verified |
-| positive | [`TestRFC2205PathCarriesSenderTSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L71) | unit/verify | revert, verified |
+| negative | [`TestRFC2205PathWithoutSenderTSpecRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_path_test.go#L13) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathCarriesSenderTSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L71) | unit/verify | revert, verified |
 
 ### [`RFC2205-2-5`](#rfc2205-2-5)
 
@@ -413,12 +432,17 @@ No test carries RFC2205-2-5, so no unit is bound to it.
 
 RSVP soft state is created and periodically refreshed by Path and Resv messages. The state is deleted if no matching refresh messages arrive before the expiration of a "cleanup timeout" interval. (§2.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Positive: TestRefreshResendsPathAndResv proves one refreshPaths tick re-sends a PATH for an ingress LSP and a RESV for an egress or transit LSP, not that refresh recurs periodically. Negative: TestRefreshDoesNotStampEgressPSB proves an unrefreshed PSB becomes eligible in expiredPSBs, not that the state is deleted at cleanup timeout, and nothing asserts Resv state expiry.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Refresh: TestRFC2205RefreshRecursEachTick (three refreshPaths ticks, three PATHs) and TestRefreshResendsPathAndResv (RESV re-sent). Deletion: TestRFC2205PathStateDeletedAtCleanupTimeout (PSB) and TestRFC2205ResvStateDeletedAtCleanupTimeout (transit RSB dropped with ResvTear, ingress RSB dropped Up->PathSent, PSB kept). Negatives keep refreshed PSB and RSB. D-1 producer read: cleanupTick withdraws expiredRSBs through removeReservation.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRefreshDoesNotStampEgressPSB`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L21) | unit/verify | revert, verified |
-| positive | [`TestRefreshResendsPathAndResv`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/softstate_test.go#L56) | unit/verify | revert, verified |
+| negative | [`TestRefreshDoesNotStampEgressPSB`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_test.go#L21) | unit/verify | revert, verified |
+| negative | [`TestRFC2205RefreshedPathStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L81) | unit/verify | revert, verified |
+| negative | [`TestRFC2205RefreshedResvStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L167) | unit/verify | revert, verified |
+| positive | [`TestRefreshResendsPathAndResv`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L68) | unit/verify | revert, verified |
+| positive | [`TestRFC2205RefreshRecursEachTick`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L54) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC2205-2-6`](#rfc2205-2-6)
 
@@ -436,8 +460,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205PathTearWithoutStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L181) | unit/verify | revert, verified |
-| positive | [`TestRFC2205TransitPathTearRelayedWithoutDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L166) | unit/verify | revert, verified |
+| negative | [`TestRFC2205PathTearWithoutStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L181) | unit/verify | revert, verified |
+| positive | [`TestRFC2205TransitPathTearRelayedWithoutDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L166) | unit/verify | revert, verified |
 
 ### [`RFC2205-2-8`](#rfc2205-2-8)
 
@@ -454,6 +478,14 @@ The blockade state in each downstream router must not remove the state or preven
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2205-2-9, so no unit is bound to it.
+
+### [`RFC2205-2.5-1`](#rfc2205-2.5-1)
+
+This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1. (§2.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2205-2.5-1, so no unit is bound to it.
 
 ### [`RFC2205-2-10`](#rfc2205-2-10)
 
@@ -483,14 +515,15 @@ No test carries RFC2205-2-12, so no unit is bound to it.
 
 An RSVP implementation must recognize the following classes: (§3.1.2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Quote: must recognize the following classes (NULL, SESSION, RSVP_HOP, TIME_VALUES, STYLE, FLOWSPEC, FILTER_SPEC, SENDER_TEMPLATE, SENDER_TSPEC, ADSPEC, ERROR_SPEC, POLICY_DATA, INTEGRITY, SCOPE, RESV_CONFIRM). Tagged units assert recognition of NULL, INTEGRITY, POLICY_DATA, ADSPEC, SCOPE, RESV_CONFIRM and the PATH/RESV mandatory set; ERROR_SPEC is in no 3-1 tagged unit, so classifying it unknown stays green here.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). The missing ERROR_SPEC is now proven: TestRFC2205ErrorSpecClassRecognized decodes a PathErr with no unknown object and the error node, code and value intact. Other listed classes are covered by TestRFC2205KnownClassesRecognized and the NULL tests; negative TestRFC2205UnlistedClassNotRecognized. Class numbers are compared through the package constants, as for every other class in this row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2205NullObjectNotRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L107) | unit/verify | revert, verified |
-| negative | [`TestRFC2205UnlistedClassNotRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L124) | unit/verify | revert, verified |
+| negative | [`TestRFC2205UnlistedClassNotRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L124) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ErrorSpecClassRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L132) | unit/verify | revert, verified |
 | positive | [`TestRFC2205NullObjectRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L94) | unit/verify | revert, verified |
-| positive | [`TestRFC2205KnownClassesRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L64) | unit/verify | mutant, verified |
+| positive | [`TestRFC2205KnownClassesRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L64) | unit/verify | mutant, verified |
 
 ### [`RFC2205-3-2`](#rfc2205-3-2)
 
@@ -500,8 +533,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205PathIPAddressesNeverHopAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L106) | unit/verify | revert, verified |
-| positive | [`TestRFC2205PathIPAddressesAreSenderAndSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L93) | unit/verify | revert, verified |
+| negative | [`TestRFC2205PathIPAddressesNeverHopAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L106) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathIPAddressesAreSenderAndSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L93) | unit/verify | revert, verified |
 
 ### [`RFC2205-3-3`](#rfc2205-3-3)
 
@@ -579,12 +612,24 @@ No test carries RFC2205-3-11, so no unit is bound to it.
 
 A PathTear message must be routed exactly like the corresponding Path message. (§3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Forbidden: a PathTear routed differently from its PATH. TestRFC2205PathTearRoutedLikePath compares only Source, Destination and NextHop of the relayed PathTear's PathRoute with the PATH's; PathRoute also carries TableID, IfIndex and Lookup (transport.go), so a PathTear handed a different table, interface or loose-hop lookup than its PATH stays green. Only a transit relay is exercised: a PathTear the ingress originates at teardown is in no tagged unit. The negative (not via Send, source not the transit) proves a neighbouring addressing rule.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). TestRFC2205PathTearRouteEqualsPathRoute compares the whole PathRoute of the relayed and the ingress-originated PathTear with the PATH's, closing both earlier gaps. Negative TestRFC2205PathTearNotAddressedHopByHop: a PathTear sent hop-by-hop through Send would not follow the PATH route, which is this rule.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205PathTearNotAddressedHopByHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L132) | unit/verify | revert, verified |
-| positive | [`TestRFC2205PathTearRoutedLikePath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/carrier_rfc2205_test.go#L118) | unit/verify | revert, verified |
+| negative | [`TestRFC2205PathTearNotAddressedHopByHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L132) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathTearRoutedLikePath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L118) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathTearRouteEqualsPathRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L277) | unit/verify | revert, verified |
+
+### [`RFC2205-3.1.5-1`](#rfc2205-3.1.5-1)
+
+Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down. (§3.1.5)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive: relayed and ingress-originated PathTear both carry IP dst = session endpoint and IP src = sender address. Negative TestRFC2205PathTearSourceNotTakenFromCarrier: a PathTear arriving from another source is still relayed from the sender address, not the carrier or the router ID.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205PathTearSourceNotTakenFromCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L324) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathTearAddressedFromSenderToSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L300) | unit/verify | revert, verified |
 
 ### [`RFC2205-3-13`](#rfc2205-3-13)
 
@@ -594,16 +639,29 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2205-3-13, so no unit is bound to it.
 
+### [`RFC2205-3.1.6-1`](#rfc2205-3.1.6-1)
+
+A ResvTear message may include a SCOPE object, but it must be ignored. (§3.1.6)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive: a ResvTear with a SCOPE naming the sender tears the RSB, keeps the PSB, draws no ResvErr and goes upstream. Negative TestRFC2205ResvTearScopeNotObeyed: a SCOPE that lists only another sender does not narrow the tear, so a node obeying SCOPE goes red.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205ResvTearScopeNotObeyed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L481) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvTearWithScopeTearsDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L455) | unit/verify | revert, verified |
+
 ### [`RFC2205-3-14`](#rfc2205-3-14)
 
 Deletion of path state as the result of a PathTear message or a timeout must also adjust related reservation state as required to maintain consistency in the local node. (§3.1.5)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. PathTear clause: TestRFC2205PathTearReleasesReservation asserts the reservation bandwidth is released and TestRFC2205PathTearForOtherLSPLeavesReservation that an unmatched tear leaves it. Timeout clause: no tagged unit expires path state by timeout and asserts the reservation is adjusted.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). PathTear clause: TestRFC2205PathTearReleasesReservation / ...ForOtherLSPLeavesReservation. Timeout clause: TestRFC2205PathStateDeletedAtCleanupTimeout asserts the reservation bandwidth released with the expired path state; TestRFC2205RefreshedPathStateKept keeps it for refreshed state.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205PathTearForOtherLSPLeavesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L217) | unit/verify | mutant, verified |
-| positive | [`TestRFC2205PathTearReleasesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/engine_rfc2205_test.go#L206) | unit/verify | mutant, verified |
+| negative | [`TestRFC2205PathTearForOtherLSPLeavesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L217) | unit/verify | mutant, verified |
+| negative | [`TestRFC2205RefreshedPathStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L82) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathTearReleasesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L206) | unit/verify | mutant, verified |
+| positive | [`TestRFC2205PathStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L69) | unit/verify | revert, verified |
 
 ### [`RFC2205-3-16`](#rfc2205-3-16)
 
@@ -757,6 +815,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2205-3-34, so no unit is bound to it.
 
+### [`RFC2205-3.9-1`](#rfc2205-3.9-1)
+
+When Path and PathTear messages are forwarded, path state marked "Local_Only" must be ignored. (§3.9)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2205-3.9-1, so no unit is bound to it.
+
 ### [`RFC2205-3-35`](#rfc2205-3-35)
 
 The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type. (§3.10)
@@ -781,8 +847,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L478) | unit/verify | unproven |
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L391) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L478) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L391) | unit/verify | unproven |
 
 ### [`RFC2205-3-38`](#rfc2205-3-38)
 
@@ -800,7 +866,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L479) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L479) | unit/verify | unproven |
 
 ### [`RFC2205-3-40`](#rfc2205-3-40)
 
@@ -810,7 +876,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L392) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L392) | unit/verify | unproven |
 
 ### [`RFC2205-3-41`](#rfc2205-3-41)
 
@@ -820,7 +886,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L393) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L393) | unit/verify | unproven |
 
 ### [`RFC2205-3-42`](#rfc2205-3-42)
 
@@ -830,7 +896,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/transport_integration_linux_test.go#L394) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L394) | unit/verify | unproven |
 
 ### [`RFC2205-3-43`](#rfc2205-3-43)
 
@@ -868,13 +934,15 @@ No test carries RFC2205-4-3, so no unit is bound to it.
 
 Similarly, each node is required to verify the correct construction of each RSVP message it receives. (§B)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. RA33 strict re-audit: weak. Quote obliges verifying the construction of EACH RSVP message received. Tagged negatives cover a PATH without SESSION (errObjectAbsent) and RESV object-order violations (wire_rfc3209_test.go); no tagged unit feeds a malformed PathTear, ResvTear, PathErr, ResvErr or ResvConf, so dropping construction checks for those types stays green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Each message type is now covered: TestRFC2205EachMessageTypeConstructionAccepted decodes a conformant PathTear, ResvTear, PathErr, ResvErr and ResvConf; TestRFC2205EachMessageTypeMalformedRefused omits each unbracketed BNF object in turn, asserts DecodeMessage refuses it (errObjectAbsent except STYLE), and that a transit with matching path state sends nothing and keeps its state. PATH and RESV are covered by the existing units.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2205MissingRequiredObjectRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L142) | unit/verify | revert, verified |
+| negative | [`TestRFC2205EachMessageTypeMalformedRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L209) | unit/verify | revert, verified |
+| negative | [`TestRFC2205MissingRequiredObjectRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L142) | unit/verify | revert, verified |
 | negative | [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L280) | unit/verify | mutant, verified |
-| positive | [`TestRFC2205WellFormedMessageVerified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc2205_test.go#L133) | unit/verify | revert, verified |
+| positive | [`TestRFC2205EachMessageTypeConstructionAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L200) | unit/verify | revert, verified |
+| positive | [`TestRFC2205WellFormedMessageVerified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_wire_test.go#L133) | unit/verify | revert, verified |
 | positive | [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L249) | unit/verify | mutant, verified |
 
 ### [`RFC2205-4-5`](#rfc2205-4-5)
@@ -895,8 +963,8 @@ No test carries RFC2205-4-5, so no unit is bound to it.
 | Source | rfc/full/rfc2205.txt |
 | Source fingerprint | 81606f8d5072deae |
 | Record | rfc/extraction/rfc2205.json |
-| Mapped sentences | 67 |
-| Declined as scope | 56 |
+| Mapped sentences | 71 |
+| Declined as scope | 52 |
 | Relocated to a spec, which Ze OWES | 0 |
 | Unclassified | 0 |
 
@@ -925,7 +993,6 @@ No test carries RFC2205-4-5, so no unit is bound to it.
 | `1:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the worked example of Figure 5 restating the merging obligation for forwarding upstream | (2) The reservations on the interfaces (c) and (d) must be merged in order to forward the reservation requests upstream; as a result, the larger flowspec 4B is forwarded upstream to each previous hop. \| Sends \| Reserves Receives \| \| _______ WF( *{4B} ) <- (a) \| (c) \| * {4B}\| (c) <- WF( *{4B} ) \| \|_______\| \| -----------------------\|---------------------------------------- \| _______ WF( *{4B} ) <- (b) \| (d) \| * {3B}\| (d) <- WF( *{3B} ) \| \|_______\| <- WF( *{2B} ) |
 | `2:5` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | the sentence sends the obligation outside this RFC: flowspecs are opaque to RSVP and the comparison rules are defined by the integrated services specifications, not here | Since flowspecs are opaque to RSVP, the actual rules for comparing flowspecs must be defined and implemented outside RSVP proper. |
 | `2:6` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | the obligation binds the service-specific merging routines that site 2:5 places outside RSVP proper; the least upper bound is defined by the integrated services specification | In such a case, instead of taking the larger, the service-specific merging routines must be able to return a third flowspec that is at least as large as each; mathematically, this is the "least upper bound" (LUB). |
-| `2:12` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same blockade state rule, stated for a different receiver establishing a smaller reservation | This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1. |
 | `2:13` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same blockade state rule, stated for the downstream routers' state and its refresh | The blockade state in each downstream router must not remove the state or prevent its immediate refresh. |
 | `2:14` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a deployment observation that back pressure 'will generally be required on users'; it names no protocol behaviour | To prevent abuse, some form of back pressure will generally be required on users who make reservations. |
 | `2:15` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a definition of the term policy control | The term "policy control" is used for the mechanisms required to support access policies and back pressure for RSVP reservations. |
@@ -943,8 +1010,6 @@ No test carries RFC2205-4-5, so no unit is bound to it.
 | `3:15` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the INTEGRITY placement rule restated for the Resv message | If the INTEGRITY object is present, it must immediately follow the common header. |
 | `3:17` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a field description of the RSVP_HOP object; 'the reservation is required' names the logical interface, it imposes nothing | The NHOP (i.e., the RSVP_HOP) object contains the IP address of the interface through which the Resv message was sent and the LIH for the logical interface on which the reservation is required. |
 | `3:19` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same pointer at the Section 3.2 port rules, for filter spec matching | This match must follow the rules of Section 3.2. o Wildcard sender selection |
-| `3:24` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the addressing consequence of routing a PathTear exactly like its Path, in the same paragraph | Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down. |
-| `3:30` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same ignore-on-receipt rule for an object a teardown message may carry, stated for SCOPE in ResvTear | A ResvTear message may include a SCOPE object, but it must be ignored. |
 | `3:34` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the heading of the destination port consistency rule the row carries | Destination ports must be consistent. |
 | `3:35` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the all-zero or all-non-zero DstPort rule of the same Section 3.2 port usage rules | Path state and reservation state for the same DestAddress and ProtocolId must each have DstPort values that are all zero or all non-zero. |
 | `3:36` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the zero DstPort implies zero SrcPort rule of the same Section 3.2 port usage rules | If DstPort in a session definition is zero, all SrcPort fields used for that session must also be zero. |
@@ -957,7 +1022,6 @@ No test carries RFC2205-4-5, so no unit is bound to it.
 | `3:54` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | 'other means must sometimes be used' names no mechanism and no addressee; the mechanisms are the sentences that follow, sites 3:55 and 3:56 | However, the TTL is not always a reliable indicator of non-RSVP hops, and other means must sometimes be used. |
 | `3:56` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a fallback statement that manual configuration will be required where no automatic mechanism works; it binds the operator, not the protocol | If no automatic mechanism will work, manual configuration will be required. |
 | `3:58` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the parameter description of the same application-set interface rule | If it is set by the application, this parameter must be the interface address for sending the data packets; otherwise, the system default interface is implied. |
-| `3:61` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the forwarding half of the same Local_Only rule | When Path and PathTear messages are forwarded, path state marked "Local_Only" must be ignored. |
 | `3:63` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | advice to whoever defines a new object class, about examining scaling limitations before deployment | Forwarding objects with unknown class enables incremental deployment of new objects; however, the scaling limitations of doing so must be carefully examined before a new object class is deployed with both high bits on. |
 | `3:64` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates why merging is required, which the Section 1 merging row carries | Merging of RSVP reservations is required because of multicast data delivery, which replicates data packets for delivery to different next-hop nodes. |
 | `3:66` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same merging rule for reservations on corresponding outgoing interfaces | In this case, RSVP must merge the reservations that are in place on the corresponding outgoing interfaces in order to forward a request upstream. |

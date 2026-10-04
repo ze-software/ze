@@ -10,11 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 66.7% | 4 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 33.3% | 2 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 83.3% | 5 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 16.7% | 1 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 13.6% | 3 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 42.4% | 14 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 7 | of 6 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -28,15 +30,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 6 | of 6 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +41,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +62,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 22 |
-| Tagged units | 22 |
-| Recorded audit verdicts | 6 |
-| Discrimination records | 3 |
+| Test tags | 33 |
+| Tagged units | 33 |
+| Recorded audit verdicts | 7 |
+| Discrimination records | 14 |
 | Summary | `rfc/short/rfc4760.md` |
 | Requirement shard | `rfc/requirements/rfc4760.md` |
 | RFC text | `rfc/full/rfc4760.txt` |
@@ -95,28 +90,29 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 4 | one part of the gated population |
-| Annotated instead of tested | 2 | one part of the gated population |
+| Positive and negative tests | 5 | one part of the gated population |
+| Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (4):** [`RFC4760-3-2`](#rfc4760-3-2), [`RFC4760-3-3`](#rfc4760-3-3), [`RFC4760-3-4`](#rfc4760-3-4), [`RFC4760-7-1`](#rfc4760-7-1)
+**Positive and negative tests (5):** [`RFC4760-3-2`](#rfc4760-3-2), [`RFC4760-3-3`](#rfc4760-3-3), [`RFC4760-3-4`](#rfc4760-3-4), [`RFC4760-7-1`](#rfc4760-7-1), [`RFC4760-8-1`](#rfc4760-8-1)
 
-**Annotated instead of tested (2):** [`RFC4760-3-1`](#rfc4760-3-1), [`RFC4760-8-1`](#rfc4760-8-1)
+**Annotated (including scoped evidence) (1):** [`RFC4760-3-1`](#rfc4760-3-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC4760-3-1` | A 1 octet field that MUST be set to 0 (Section 3) | MUST | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** `unit/verify` [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L12). **positive:** `unit/verify` [`TestRFC4760ReservedIsWrittenNotInherited`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L37). **positive:** `unit/verify` [`TestRFC4760ReservedSurvivesBufferReuse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L122). **negative:** no negative test. **{single-polarity}:** MPReachNLRI.WriteTo writes the Reserved octet as 0 unconditionally, so there is no non-zero form to reject (internal/core/bgp/attribute/mpnlri.go:182) |
-| `RFC4760-3-2` | If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol. (Section 3) | MUST | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** `unit/verify` [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L155). **positive:** `unit/verify` [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L16). **positive:** `unit/verify` [`TestMPReachNextHopLengthCountsTheOctetsWritten`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L39). **positive:** `unit/verify` [`TestParseMPReachNLRI`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L128). **negative:** `unit/verify` [`TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go#L50). **negative:** `unit/verify` [`TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L69). **negative:** `unit/verify` [`TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L124). **negative:** `unit/verify` [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498) |
-| `RFC4760-3-3` | An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges). (Section 3) | MUST | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** `unit/verify` [`TestRFC4760MPReachRequiresOriginAndASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L85). **negative:** `unit/verify` [`TestRFC4760MPReachRequiresOriginAndASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L88) |
-| `RFC4760-3-4` | Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3) | MUST | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** `unit/verify` [`TestRFC4760IBGPMPReachCarriesLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L149). **negative:** `unit/verify` [`TestRFC4760IBGPMPReachCarriesLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L153) |
-| `RFC4760-7-1` | If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7) | MUST | 7 - Error Handling | **positive:** `unit/verify` [`TestHandleState_PeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L299). **positive:** `unit/verify` [`TestRFC4760IncorrectMPAttributeResetsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L240). **positive:** `unit/verify` [`TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L102). **positive:** `unit/verify` [`TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L139). **negative:** `unit/verify` [`TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L171). **negative:** `unit/verify` [`TestRFC4760IncorrectMPAttributeResetsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L244) |
-| `RFC4760-8-1` | To have a bi-directional exchange of routing information for a particular <AFI, SAFI> between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular <AFI, SAFI> route. (Section 8) | MUST | 8 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestParseCapabilities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L65). **negative:** no negative test. **{single-polarity}:** the obligation is to advertise a well-formed Multiprotocol capability per AFI/SAFI, enforced by the fixed 4-octet AFI/Reserved/SAFI wire form (internal/core/bgp/capability/capability.go:299-318); there is no malformed-advertisement counter-case distinct from RFC 5492 TLV framing |
+| `RFC4760-3-2` | If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol. (Section 3) | MUST | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** `unit/verify` [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L155). **positive:** `unit/verify` [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L16). **positive:** `unit/verify` [`TestMPReachNextHopLengthCountsTheOctetsWritten`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L39). **positive:** `unit/verify` [`TestParseMPReachNLRI`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L128). **negative:** `unit/verify` [`TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go#L50). **negative:** `unit/verify` [`TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L69). **negative:** `unit/verify` [`TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L124). **negative:** `unit/verify` [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498) |
+| `RFC4760-3-3` | An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges). (Section 3) | MUST | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** `unit/verify` [`TestRFC4760MPReachRequiresOriginAndASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L85). **positive:** `unit/verify` [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L22). **negative:** `unit/verify` [`TestRFC4760MPReachRequiresOriginAndASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L88). **negative:** `unit/verify` [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L24) |
+| `RFC4760-3-4` | Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3) | MUST | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** `unit/verify` [`TestRFC4760IBGPMPReachCarriesLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L149). **positive:** `unit/verify` [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L26). **negative:** `unit/verify` [`TestRFC4760IBGPMPReachCarriesLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L153). **negative:** `unit/verify` [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L28) |
+| `RFC4760-7-1` | If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7) | MUST | 7 - Error Handling | **positive:** `unit/verify` [`TestHandleState_PeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L307). **positive:** `unit/verify` [`TestRFC4760IncorrectMPAttributeResetsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L240). **positive:** `unit/verify` [`TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L102). **positive:** `unit/verify` [`TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L214). **positive:** `unit/verify` [`TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L139). **positive:** `unit/verify` [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L48). **negative:** `unit/verify` [`TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L171). **negative:** `unit/verify` [`TestRFC4760CorrectMPReachRaisesNoPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L256). **negative:** `unit/verify` [`TestRFC4760IncorrectMPAttributeResetsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L244) |
+| `RFC4760-8-1` | To have a bi-directional exchange of routing information for a particular <AFI, SAFI> between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular <AFI, SAFI> route. (Section 8) | MUST | 8 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestParseCapabilities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L65). **positive:** `unit/verify` [`TestRFC4760OpenAdvertisesEveryConfiguredFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L88). **negative:** `unit/verify` [`TestRFC4760FamilyNotAdvertisedIsNotExchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L111) |
 | `RFC4760-3-5` | A 1 octet field that MUST be set to 0, and SHOULD be ignored upon receipt. (Section 3) | SHOULD | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** no positive test. **negative:** no negative test |
 | `RFC4760-3-6` | The next hop information carried in the MP_REACH_NLRI path attribute defines the Network Layer address of the router that SHOULD be used as the next hop to the destinations listed in the MP_NLRI attribute in the UPDATE message. (Section 3) | SHOULD | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** no positive test. **negative:** no negative test |
 | `RFC4760-3-7` | An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute. (Section 3) | SHOULD NOT | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** no positive test. **negative:** no negative test |
@@ -124,7 +120,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 | `RFC4760-3-9` | An UPDATE message SHOULD NOT include the same address prefix (of the same <AFI, SAFI>) in more than one of the following fields: WITHDRAWN ROUTES field, Network Reachability Information fields, MP_REACH_NLRI field, and MP_UNREACH_NLRI field. (Section 3) | SHOULD NOT | 3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14) | **positive:** no positive test. **negative:** no negative test |
 | `RFC4760-7-2` | For the duration of the BGP session over which the UPDATE message was received, the speaker then SHOULD ignore all the subsequent routes with that AFI/SAFI received over that session. (Section 7) | SHOULD | 7 - Error Handling | **positive:** no positive test. **negative:** no negative test |
 | `RFC4760-7-3` | The session SHOULD be terminated with the Notification message code/subcode indicating "UPDATE Message Error"/"Optional Attribute Error". (Section 7) | SHOULD | 7 - Error Handling | **positive:** no positive test. **negative:** no negative test |
-| `RFC4760-8-2` | A BGP speaker that uses Multiprotocol Extensions SHOULD use the Capability Advertisement procedures [BGP-CAP] to determine whether the speaker could use Multiprotocol Extensions with a particular peer. (Section 8) | SHOULD | 8 - Use of BGP Capability Advertisement | **positive:** no positive test. **negative:** no negative test |
+| `RFC4760-8-2` | A BGP speaker that uses Multiprotocol Extensions SHOULD use the Capability Advertisement procedures [BGP-CAP] to determine whether the speaker could use Multiprotocol Extensions with a particular peer. (Section 8) | SHOULD | 8 - Use of BGP Capability Advertisement | **positive:** `unit/verify` [`TestMUPSessionNegotiatesBothAFIs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L38). **negative:** `unit/verify` [`TestMUPSessionMissingAFIIsNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L69) |
 | `RFC4760-8-3` | Reserved (8 bit) field. SHOULD be set to 0 by the sender and ignored by the receiver. (Section 8) | SHOULD | 8 - Use of BGP Capability Advertisement | **positive:** no positive test. **negative:** no negative test |
 | `RFC4760-7-4` | In addition, the speaker MAY terminate the BGP session over which the UPDATE message was received. (Section 7) | MAY | 7 - Error Handling | **positive:** no positive test. **negative:** no negative test |
 | `RFC4760-6-1` | An implementation MAY support all, some, or none of the Subsequent Address Family Identifier values defined in this document. (Section 6) | MAY | 6 - Subsequent Address Family Identifier | **positive:** no positive test. **negative:** no negative test |
@@ -157,49 +153,56 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go#L50) | unit/verify | revert, verified |
-| negative | [`TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L69) | unit/verify | revert, verified |
-| negative | [`TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L124) | unit/verify | unproven |
+| negative | [`TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go#L50) | unit/verify | revert, verified |
+| negative | [`TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L69) | unit/verify | revert, verified |
 | negative | [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498) | unit/verify | unproven |
-| positive | [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L155) | unit/verify | revert, verified |
-| positive | [`TestMPReachNextHopLengthCountsTheOctetsWritten`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L39) | unit/verify | unproven |
+| negative | [`TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L124) | unit/verify | unproven |
+| positive | [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L155) | unit/verify | revert, verified |
 | positive | [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L16) | unit/verify | unproven |
 | positive | [`TestParseMPReachNLRI`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L128) | unit/verify | unproven |
+| positive | [`TestMPReachNextHopLengthCountsTheOctetsWritten`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L39) | unit/verify | unproven |
 
 ### [`RFC4760-3-3`](#rfc4760-3-3)
 
 An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges). (Section 3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The sentence binds the SENDER: an UPDATE carrying MP_REACH_NLRI MUST carry ORIGIN and AS_PATH, on eBGP and iBGP. (a) forbidden: Ze emitting an MP_REACH_NLRI UPDATE without ORIGIN or AS_PATH. (b) no tagged unit asserts it: TestRFC4760MPReachRequiresOriginAndASPath drives only the RECEIVE validator ValidateUpdateRFC7606 (treat-as-withdraw on a missing attribute, which is RFC 7606 Section 3(d) handling), and never inspects an UPDATE Ze builds. The eBGP/iBGP clause is not exercised on either side.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the R43 signature change (assertions unchanged, re-recorded red). TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref: BuildUnicast of an IPv6 route stating ORIGIN, and a bare route stating neither ORIGIN nor AS_PATH, on eBGP and iBGP, always carries MP_REACH_NLRI with ORIGIN and AS_PATH (genuine negative, R1b). BuildUnicast rail; CommitService/RIB-replay rails not driven.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L24) | unit/verify | revert, verified |
 | negative | [`TestRFC4760MPReachRequiresOriginAndASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L88) | unit/verify | unproven |
+| positive | [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestRFC4760MPReachRequiresOriginAndASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L85) | unit/verify | unproven |
 
 ### [`RFC4760-3-4`](#rfc4760-3-4)
 
 Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an iBGP UPDATE carrying MP_REACH_NLRI with no LOCAL_PREF. (b) TestRFC4760IBGPMPReachCarriesLocalPref "ibgp includes local_pref" asserts codes[5] on UpdateBuilder.BuildUnicast for an IPv6 route, which goes red on that builder. Weak because the negative tag proves a neighbouring rule: "ebgp omits local_pref" is RFC 4271 Section 5.1.5 (LOCAL_PREF not sent to external peers), and no input in it violates this requirement; the row has no single-polarity marker. Only the BuildUnicast rail is covered; the CommitService and RIB-replay rails that also emit MP_REACH are not.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the R43 signature change (assertions unchanged, re-recorded red). Same unit: every iBGP MP_REACH UPDATE carries LOCAL_PREF, including the bare route with no LOCAL_PREF value (genuine negative); the HEAD eBGP-omits unit stays as a neighbour. BuildUnicast rail.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L28) | unit/verify | revert, verified |
 | negative | [`TestRFC4760IBGPMPReachCarriesLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L153) | unit/verify | unproven |
+| positive | [`TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L26) | unit/verify | revert, verified |
 | positive | [`TestRFC4760IBGPMPReachCarriesLocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L149) | unit/verify | unproven |
 
 ### [`RFC4760-7-1`](#rfc4760-7-1)
 
 If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: after an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, routes of that AFI/SAFI from the neighbor stay installed. Ze answers with session reset (RFC 7606 Section 3(j)). (b) The trigger is asserted: TestRFC4760IncorrectMPAttributeResetsTheSession (RFC7606ActionSessionReset for a bad next-hop length and a short MP_UNREACH), TestRFC4760IncorrectMPReach/MPUnreachDeletesTheNeighborsRoutes (session reaches Idle, NOTIFICATION code 3), negatives keep Established. The deletion is asserted separately: TestHandleState_PeerDown deletes the PeerRIB on a hand-built state "down" event. No tagged unit asserts the link between them, that the reset session delivers the peer-down event which clears the RIB, so a reactor that goes Idle without notifying the RIB keeps the routes and every tagged unit stays green. The reactor tests assert Idle and assume it deletes routes.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-01 (c8 judge): the RIB unit changed only by two added RFC4271-8.2.2-12/-14 tag comments; body and assertions unchanged. The link the earlier weak verdict named is now asserted end to end. Reactor: TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB runs a whole Peer over TCP, sends an MP_REACH_NLRI whose NLRI overruns the attribute, and asserts the run loop reports THAT peer closed to its lifecycle observers (the apiStateObserver feed that becomes the SessionStateDown event), NOTIFICATION code 3 on the wire, and no consumer dispatch; observed red with notifyPeerClosed broken. Negative TestRFC4760CorrectMPReachRaisesNoPeerDown: the well-formed attribute is dispatched, no peer-down, still Established (red with enforceRFC7606 broken). RIB: TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes drives handleStructuredState down and asserts the offender's Adj-RIB-In is gone while a bystander's IPv4 unicast route stays (red with handleStructuredState broken); TestHandleState_PeerDown covers the JSON rail. Session and message units pin the SessionReset trigger for bad MP_REACH next-hop length and short MP_UNREACH. Ze deletes all AFI/SAFIs of the neighbor via session reset (RFC 7606 3(j)), a superset of the MUST. Not asserted: the plugin dispatcher's translation of OnPeerStateChange into the RIB's structured state event, which is the shared peer-state path every plugin uses.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4760IncorrectMPAttributeResetsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L244) | unit/verify | unproven |
+| negative | [`TestRFC4760CorrectMPReachRaisesNoPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L256) | unit/verify | revert, verified |
 | negative | [`TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L171) | unit/verify | unproven |
 | positive | [`TestRFC4760IncorrectMPAttributeResetsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L240) | unit/verify | unproven |
-| positive | [`TestHandleState_PeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L299) | unit/verify | unproven |
+| positive | [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L48) | unit/verify | revert, verified |
+| positive | [`TestHandleState_PeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L307) | unit/verify | unproven |
+| positive | [`TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L102) | unit/verify | unproven |
 | positive | [`TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L139) | unit/verify | unproven |
 
@@ -207,11 +210,24 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 To have a bi-directional exchange of routing information for a particular <AFI, SAFI> between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular <AFI, SAFI> route. (Section 8)
 
-Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. (a) forbidden: Ze exchanging routes of an <AFI, SAFI> with a peer without having advertised the Multiprotocol capability for that <AFI, SAFI> in its OPEN. (b) none: TestParseCapabilities only parses a received Code 1 capability into AFI/SAFI. It proves the parser (a neighbouring rule, the Section 8 wire layout), not that Ze advertises a capability for each family it exchanges; it never inspects an OPEN Ze builds or a family Ze sends.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Now reads Ze's own built OPEN (parsePeerFromTree -> buildOpen -> ParseFromOptionalParams). Positive: three configured families each get one Multiprotocol capability, all negotiated against a peer offering them. Negative: ipv6/unicast mode disable -> no MP capability for it, and Negotiate against a peer offering it leaves it unsupported, so no exchange without Ze's advertisement. Judge break: the disabled-family skip in parseFamiliesFromTree removed turned the negative red. Old parse-level TestParseCapabilities tag is supplementary. Single-polarity marker removal is correct.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC4760FamilyNotAdvertisedIsNotExchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L111) | unit/verify | revert, verified |
+| positive | [`TestRFC4760OpenAdvertisesEveryConfiguredFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L88) | unit/verify | revert, verified |
 | positive | [`TestParseCapabilities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L65) | unit/verify | unproven |
+
+### [`RFC4760-8-2`](#rfc4760-8-2)
+
+A BGP speaker that uses Multiprotocol Extensions SHOULD use the Capability Advertisement procedures [BGP-CAP] to determine whether the speaker could use Multiprotocol Extensions with a particular peer. (Section 8)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. capability.Negotiate is the determination the sentence names: TestMUPSessionNegotiatesBothAFIs shows both families usable when both speakers advertise MP(1,85) and MP(2,85); TestMUPSessionMissingAFIIsNotNegotiated shows a family the peer did not advertise is not usable (v4-only peer drops ipv6/mup, no-MUP peer drops both). Exercised for SAFI 85 only; the gating of sends and receives on SupportsFamily is outside these units. Both records red on Negotiate
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMUPSessionMissingAFIIsNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L69) | unit/verify | revert, verified |
+| positive | [`TestMUPSessionNegotiatesBothAFIs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L38) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

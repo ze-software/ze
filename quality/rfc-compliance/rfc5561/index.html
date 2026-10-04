@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,6 +120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5.9%</strong><b>1 of 17 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>2 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
@@ -135,7 +137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>94.1%</strong><b>16 of 17 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -161,6 +163,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -269,7 +275,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -280,6 +286,10 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -294,7 +304,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc5561-6-4"><code>RFC5561-6-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (16):</strong> <a href="#rfc5561-3-1"><code>RFC5561-3-1</code></a>, <a href="#rfc5561-4-2"><code>RFC5561-4-2</code></a>, <a href="#rfc5561-3-2"><code>RFC5561-3-2</code></a>, <a href="#rfc5561-3-5"><code>RFC5561-3-5</code></a>, <a href="#rfc5561-4-1"><code>RFC5561-4-1</code></a>, <a href="#rfc5561-6-1"><code>RFC5561-6-1</code></a>, <a href="#rfc5561-6-2"><code>RFC5561-6-2</code></a>, <a href="#rfc5561-6-3"><code>RFC5561-6-3</code></a>, <a href="#rfc5561-8-1"><code>RFC5561-8-1</code></a>, <a href="#rfc5561-8-2"><code>RFC5561-8-2</code></a>, <a href="#rfc5561-8-3"><code>RFC5561-8-3</code></a>, <a href="#rfc5561-8-4"><code>RFC5561-8-4</code></a>, <a href="#rfc5561-9-1"><code>RFC5561-9-1</code></a>, <a href="#rfc5561-9-2"><code>RFC5561-9-2</code></a>, <a href="#rfc5561-9-3"><code>RFC5561-9-3</code></a>, <a href="#rfc5561-10-1"><code>RFC5561-10-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (16):</strong> <a href="#rfc5561-3-1"><code>RFC5561-3-1</code></a>, <a href="#rfc5561-4-2"><code>RFC5561-4-2</code></a>, <a href="#rfc5561-3-2"><code>RFC5561-3-2</code></a>, <a href="#rfc5561-3-5"><code>RFC5561-3-5</code></a>, <a href="#rfc5561-4-1"><code>RFC5561-4-1</code></a>, <a href="#rfc5561-6-1"><code>RFC5561-6-1</code></a>, <a href="#rfc5561-6-2"><code>RFC5561-6-2</code></a>, <a href="#rfc5561-6-3"><code>RFC5561-6-3</code></a>, <a href="#rfc5561-8-1"><code>RFC5561-8-1</code></a>, <a href="#rfc5561-8-2"><code>RFC5561-8-2</code></a>, <a href="#rfc5561-8-3"><code>RFC5561-8-3</code></a>, <a href="#rfc5561-8-4"><code>RFC5561-8-4</code></a>, <a href="#rfc5561-9-1"><code>RFC5561-9-1</code></a>, <a href="#rfc5561-9-2"><code>RFC5561-9-2</code></a>, <a href="#rfc5561-9-3"><code>RFC5561-9-3</code></a>, <a href="#rfc5561-10-1"><code>RFC5561-10-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -324,8 +334,8 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-6-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L74" title="internal/plugins/ldp/capability_rfc5561_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetIsIgnored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L112" title="internal/plugins/ldp/capability_rfc5561_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L74" title="internal/plugins/ldp/rfc5561_capability_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L112" title="internal/plugins/ldp/rfc5561_capability_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-4-2">RFC5561-4-2</code></td><td colspan="3"><span class="rfc-subject">An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message. (§7)</span></td></tr>
@@ -548,18 +558,18 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <p>No test carries RFC5561-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5561-6-4"><code>RFC5561-6-4</code></a></h3>
 <p>If the U-bit is 1, then the speaker MUST silently ignore the Capability Parameter and allow the session to be established. (§6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviours: (1) reacting to an unsupported U=1 Capability Parameter (e.g. sending a Notification) instead of silently ignoring it, (2) refusing the session because of it. (1): TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification fails on processMessages returning an error and on expectNoPDU seeing any PDU on the pipe. (2): TestRFC5561UnknownCapabilityWithUBitSetIsIgnored requires rx.State() == StateOperational and the peer&#39;s 30s keepalive negotiated, and that DecodeInit still reads the Common Session Parameters beside the parameter. Every capabilityCases code point runs both.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC5561 section 6 requires silently ignoring unsupported U=1 Capability Parameters and allowing establishment. Both dynamic-capability-announcement and unassigned code point fixtures encode U=1, F=0, S=1 beside valid Common Session Parameters. Positive checks decoded parameters, processes Initialization plus KeepAlive to Operational and pins 30s; negative requires nil processMessages error and strict deadline-timeout silence, rejecting EOF as well as Notification. Reviewed DecodeInit/skipTLV and the new common initialization message-type guard: an unknown TLV inside an expected Initialization remains accepted, unlike an unknown message during initialization. Native producer-halt evidence is supplemental, not the semantic verdict.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L112" title="internal/plugins/ldp/capability_rfc5561_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L112" title="internal/plugins/ldp/rfc5561_capability_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L74" title="internal/plugins/ldp/capability_rfc5561_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetIsIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L74" title="internal/plugins/ldp/rfc5561_capability_test.go" target="_blank" rel="noopener"><code>TestRFC5561UnknownCapabilityWithUBitSetIsIgnored</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -854,7 +864,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

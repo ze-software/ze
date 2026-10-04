@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.8%</strong><b>7 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>22.2%</strong><b>2 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>5.6%</strong><b>1 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 9 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>18</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8956.md</code></td>
@@ -276,7 +277,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -287,6 +288,10 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -301,7 +306,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc8956-3.1-1"><code>RFC8956-3.1-1</code></a>, <a href="#rfc8956-3.1-2"><code>RFC8956-3.1-2</code></a>, <a href="#rfc8956-3.6-1"><code>RFC8956-3.6-1</code></a>, <a href="#rfc8956-3.6-2"><code>RFC8956-3.6-2</code></a>, <a href="#rfc8956-3.6-3"><code>RFC8956-3.6-3</code></a>, <a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a>, <a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc8956-2-1"><code>RFC8956-2-1</code></a>, <a href="#rfc8956-2-2"><code>RFC8956-2-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (2):</strong> <a href="#rfc8956-2-1"><code>RFC8956-2-1</code></a>, <a href="#rfc8956-2-2"><code>RFC8956-2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -332,8 +337,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L12" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-2">RFC8956-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Padding bits MUST be 0 on encoding and MUST be ignored on decoding. (§3.1)</span></td></tr>
@@ -341,8 +346,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-1">RFC8956-3.6-1</code></td><td colspan="3"><span class="rfc-subject">The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00). (§3.6)</span></td></tr>
@@ -350,8 +355,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L10" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L10" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-2">RFC8956-3.6-2</code></td><td colspan="3"><span class="rfc-subject">0: MUST be set to 0 on NLRI encoding (§3.6)</span></td></tr>
@@ -359,8 +364,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L46" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L46" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-3">RFC8956-3.6-3</code></td><td colspan="3"><span class="rfc-subject">0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6)</span></td></tr>
@@ -368,8 +373,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L69" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L70" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L69" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L70" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-3">RFC8956-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset &lt; length &lt; 129 or the component is malformed. (§3.1)</span></td></tr>
@@ -377,8 +382,9 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L44" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L44" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26" title="internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go" target="_blank" rel="noopener"><code>TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-5-1">RFC8956-5-1</code></td><td colspan="3"><span class="rfc-subject">item a) of the validation procedure should now read as follows: | a) A destination prefix component with offset=0 is embedded in | the Flow Specification (§5)</span></td></tr>
@@ -386,8 +392,8 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L283" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L284" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L285" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L286" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.3-1">RFC8956-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.3)</span></td></tr>
@@ -487,12 +493,12 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L12" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -507,12 +513,12 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -527,12 +533,12 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L10" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L10" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -547,12 +553,12 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L46" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L46" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -567,12 +573,12 @@ Linux firewall packet verification requires the privileged integration carrier. 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L70" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L70" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L69" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go#L69" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -581,38 +587,43 @@ Linux firewall packet verification requires the privileged integration carrier. 
 </div>
 <h3><a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a></h3>
 <p>If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset &lt; length &lt; 129 or the component is malformed. (§3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Out-of-range clause enforced: TestIPv6FlowPrefixRejectsMalformedBounds requires ParseFlowSpec errors for length0/offset1, 64/64, 63/64 and 129/0, and accepts 80/64. The first clause, length = 0 and offset = 0 matches every address, has no assertion in the tagged unit: 0/0 acceptance appears only in TestIPv6FlowPrefixPatternAndPadding (tagged 3.1-1/3.1-2) and nothing asserts it matches every address.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c31 judge). RFC 8956 Section 3.1: &#34;If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset &lt; length &lt; 129 or the component is malformed.&#34; First clause: flowspec-firewall rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress parses wire 03 01 00 00 and 03 02 00 00 through ParseFlowSpec and requires the firewall matches MatchDestinationAddress{::/0} and MatchSourceAddress{::/0} exactly (its address-containment loop asserts on the ::/0 constant and adds nothing; the require.Equal on the match is the proof). Second clause: HEAD TestIPv6FlowPrefixRejectsMalformedBounds refuses 0/1, 64/64, 63/64, 129/0 and accepts 80/64. Judge overlay: extractPrefix refusing a 0-bit prefix turns the new positive red; revert record on extractPrefix.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L44" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L44" title="internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26" title="internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go" target="_blank" rel="noopener"><code>TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a></h3>
 <p>item a) of the validation procedure should now read as follows: | a) A destination prefix component with offset=0 is embedded in | the Flow Specification (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-compliant: a destination with nonzero offset authorizing a FlowSpec route. TestFlowSpecVPNValidationSeparatesAFIAndRD receives an IPv6 VPN FlowSpec with offset 32 under a same-RD covering default and asserts RouteEligible false and no candidates (Fatal &#39;nonzero destination offset passed IPv6 validation&#39;); the offset-0 destination is authorized by same-RD VPN unicast. The offset check in flowSpecDestination (rib_flowspec_validation.go:118) is shared by SAFI 133 and 134.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8956 Section 5: &#39;The validation procedure is the same as specified in Section 6 of [RFC8955] with the exception that item a) of the validation procedure should now read as follows: a) A destination prefix component with offset=0 is embedded in the Flow Specification&#39;. The unchanged historical ID is retained. ADD-PATH commit d029f58129 changed the tagged internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD from the removed gatherCandidates wrapper to gatherCandidatesHeld, so this is an affected stale unit rather than another session&#39;s row. Both tagged polarities belong to that function, which was read in full with its receive fixture and producers. The IPv6 positive sends a well-formed /64 destination with offset zero and receives exactly the same-NLRI selected event only after same-RD VPN unicast arrives; global unicast and another RD cannot authorize it. The negative supplies a legal four-octet /64 pattern at offset 32, confirms route retention, and asserts both RouteEligible false and zero candidates, with no extra selected event. A same-RD default route prevents missing coverage from masquerading as the offset refusal. The two cases differ in the condition being checked, not merely in names. Producers: rib_flowspec_validation.go::flowSpecDestination parses the family codec and requires Offset()==0; flowSpecAuthorized rejects its invalid destination; reconcileFlowSpecs publishes only feasible rules. The candidate assertion reaches rib_commands.go::gatherCandidatesLocked/gatherKeyCandidatesLocked through rib_test.go::gatherCandidatesHeld. Removing the offset guard admits the retained nonzero-offset rule under the covering default and contradicts exact assertions. No discrimination record exists for this changed function; that proof is owed separately and was not run here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L284" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L286" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L283" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L285" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -894,7 +905,7 @@ Linux firewall packet verification requires the privileged integration carrier. 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

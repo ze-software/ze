@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14.3%</strong><b>2 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>14.3%</strong><b>2 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.0%</strong><b>3 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>35.7%</strong><b>5 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>3</strong><b>of 14 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>10</td>
+<td>13</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>9</td>
+<td>12</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9136.md</code></td>
@@ -270,7 +275,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>12</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +286,10 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -295,7 +304,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc9136-3.1-1"><code>RFC9136-3.1-1</code></a>, <a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (12):</strong> <a href="#rfc9136-3.1-2"><code>RFC9136-3.1-2</code></a>, <a href="#rfc9136-3.1-3"><code>RFC9136-3.1-3</code></a>, <a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a>, <a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a>, <a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a>, <a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a>, <a href="#rfc9136-3.1-8"><code>RFC9136-3.1-8</code></a>, <a href="#rfc9136-3.1-9"><code>RFC9136-3.1-9</code></a>, <a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a>, <a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a>, <a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a>, <a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (12):</strong> <a href="#rfc9136-3.1-2"><code>RFC9136-3.1-2</code></a>, <a href="#rfc9136-3.1-3"><code>RFC9136-3.1-3</code></a>, <a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a>, <a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a>, <a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a>, <a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a>, <a href="#rfc9136-3.1-8"><code>RFC9136-3.1-8</code></a>, <a href="#rfc9136-3.1-9"><code>RFC9136-3.1-9</code></a>, <a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a>, <a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a>, <a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a>, <a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -309,7 +318,10 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L142" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L177" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L22" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go" target="_blank" rel="noopener"><code>TestRFC9136IPPrefixRouteSentWithLength34Or58</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L205" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5InvalidLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L53" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go" target="_blank" rel="noopener"><code>TestRFC9136IPPrefixRouteNeverSentWithAnotherLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L71" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go" target="_blank" rel="noopener"><code>TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-2">RFC9136-3.1-2</code></td><td colspan="3"><span class="rfc-subject">IP prefix and gateway IP address MUST be from the same IP address family (S3.1)</span></td></tr>
@@ -317,8 +329,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L849" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv4</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L880" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L852" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L883" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv6</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the single Length field fixes both prefix and gateway to one family on decode and encode, so a cross-family pair is unrepresentable on the wire and has no negative case to reject (internal/component/bgp/plugins/nlri/evpn/types.go:780-800)</p></td>
 </tr>
@@ -542,15 +554,30 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9136-3.1-1"><code>RFC9136-3.1-1</code></a></h3>
 <p>* The Length field of the BGP EVPN NLRI for an EVPN IP Prefix route MUST be either 34 (if IPv4 addresses are carried) or 58 (if IPv6 addresses are carried). (S3.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Receive half only. (a) forbidden: accepting an RT-5 whose Length is neither 34 nor 58; (b) TestEVPNType5InvalidLength require.Error on a 33-octet RT-5 goes red if the len(data)!=34&amp;&amp;!=58 guard in parseEVPNType5 is removed (the parser then slices past the buffer). But the assertion is a generic require.Error, not ErrEVPNInvalidAddress, and only one wrong length is driven. The positives decode 34 as IPv4 and 58 as IPv6. The send half (ze&#39;s encoder writes Length 34 for IPv4 and 58 for IPv6) has no tagged assertion, so an encoder writing any other Length stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c31 judge). RFC 9136 Section 3.1: &#34;The Length field of the BGP EVPN NLRI for an EVPN IP Prefix route MUST be either 34 (if IPv4 addresses are carried) or 58 (if IPv6 addresses are carried).&#34; Send: evpn rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58 (EncodeNLRIHex type5, IPv4 with and without label -&gt; 05 22 + 34 octets, IPv6 -&gt; 05 3A + 58) and ::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength (two labels refused, nothing encoded). Receive: ::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused (Length 33/35/57/59 -&gt; ErrorIs ErrEVPNInvalidAddress) beside the HEAD 34/58 decode positives. The InProcessRouteEncoder path (encode.go EncodeRoute) builds type 5 with exactly one label and shares (*EVPNType5).WriteTo, so the same Length holds there by construction; it is not driven by these units. Judge overlay: the parse guard reduced to `len(data) &lt; 34` turns only the receive negative red. Records on buildEVPNFromParams (+/-) and parseEVPNType5 (-).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L53" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go" target="_blank" rel="noopener"><code>TestRFC9136IPPrefixRouteNeverSentWithAnotherLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L71" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go" target="_blank" rel="noopener"><code>TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L205" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5InvalidLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L22" title="internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go" target="_blank" rel="noopener"><code>TestRFC9136IPPrefixRouteSentWithLength34Or58</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L142" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></td>
@@ -573,12 +600,12 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L849" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv4</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L852" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv4</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L880" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv6</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L883" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv6</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -890,7 +917,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

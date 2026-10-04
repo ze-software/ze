@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2759 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2759: Microsoft PPP CHAP Extensions, Version 2. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2759: Microsoft PPP CHAP Extensions, Version 2. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2759 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2759: Microsoft PPP CHAP Extensions, Version 2. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2759: Microsoft PPP CHAP Extensions, Version 2. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2759 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2759: Microsoft PPP CHAP Extensions, Version 2. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2759: Microsoft PPP CHAP Extensions, Version 2. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>72.7%</strong><b>8 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 20 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>88.9%</strong><b>8 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>1 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>85.3%</strong><b>29 of 34 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>11</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 13 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 13 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>11</strong><b>of 11 gated MUSTs judged</b><p>8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -207,7 +209,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>13</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>11</td>
+<td>9</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>20</td>
+<td>34</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>20</td>
+<td>34</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>11</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>29</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2759.md</code></td>
@@ -269,8 +271,8 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><strong>8</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>3</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -281,6 +283,10 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -289,12 +295,12 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>11</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc2759-x-1"><code>RFC2759-x-1</code></a>, <a href="#rfc2759-x-2"><code>RFC2759-x-2</code></a>, <a href="#rfc2759-x-3"><code>RFC2759-x-3</code></a>, <a href="#rfc2759-x-4"><code>RFC2759-x-4</code></a>, <a href="#rfc2759-x-6"><code>RFC2759-x-6</code></a>, <a href="#rfc2759-x-7"><code>RFC2759-x-7</code></a>, <a href="#rfc2759-x-10"><code>RFC2759-x-10</code></a>, <a href="#rfc2759-x-12"><code>RFC2759-x-12</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc2759-x-5"><code>RFC2759-x-5</code></a>, <a href="#rfc2759-x-8"><code>RFC2759-x-8</code></a>, <a href="#rfc2759-x-9"><code>RFC2759-x-9</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc2759-x-5"><code>RFC2759-x-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -306,8 +312,10 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4 - Response Packet</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L43" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L63" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L43" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L92" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L63" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L114" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-2">RFC2759-x-2</code></td><td colspan="3"><span class="rfc-subject">The Flag field is reserved for future use and MUST be zero. (§4)</span></td></tr>
@@ -315,8 +323,10 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4 - Response Packet</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L45" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L76" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L45" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L99" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L76" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L122" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-3">RFC2759-x-3</code></td><td colspan="3"><span class="rfc-subject">However, the Value field is sub-formatted differently as follows: 16 octets: Peer-Challenge 8 octets: Reserved, must be zero 24 octets: NT-Response 1 octet : Flags (§4)</span></td></tr>
@@ -324,8 +334,10 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4 - Response Packet</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L47" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L89" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L47" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L72" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L89" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L106" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-4">RFC2759-x-4</code></td><td colspan="3"><span class="rfc-subject">When computing the NT-Response field contents, only the user name is used, without any associated Windows NT domain name. This is true regardless of whether a Windows NT domain name is present in the Name field (see below). (§4)</span></td></tr>
@@ -333,8 +345,10 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>4 - Response Packet</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L164" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L175" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L164" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L132" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759NTResponseUsesTheBareUserName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L175" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L150" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759NTResponseUsesTheBareUserName</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-5">RFC2759-x-5</code></td><td colspan="3"><span class="rfc-subject">The hexadecimal digits A-F (if present) MUST be uppercase. (§5)</span></td></tr>
@@ -342,7 +356,7 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>5 - Success Packet</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L108" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2SuccessUppercaseHex</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L108" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2SuccessUppercaseHex</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the authenticator only emits S= and forces uppercase via strings.ToUpper, and no code path can emit lowercase, so only the positive assertion is reachable (internal/core/eap/eap_mschapv2.go:148)</p></td>
 </tr>
@@ -366,20 +380,22 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-8">RFC2759-x-8</code></td><td colspan="3"><span class="rfc-subject">MS-CHAP-V2 authenticators send an 16-octet challenge Value field. Peers need not duplicate Microsoft&#39;s algorithm for selecting the 16- octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§3)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>SHOULD</td>
 <td>3 - Challenge Packet</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L140" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2AuthChallengeRandom16</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L140" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2AuthChallengeRandom16</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L219" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759AuthenticatorChallengeComesFromCryptoRand</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the authenticator fills a [16]byte from crypto/rand, so length and source are assertable but randomness quality has no falsifying negative test (internal/core/eap/eap_mschapv2.go:49)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-9">RFC2759-x-9</code></td><td colspan="3"><span class="rfc-subject">The Peer-Challenge field is a 16-octet random number. As the name implies, it is generated by the peer and is used in the calculation of the NT-Response field, below. Peers need not duplicate Microsoft&#39;s algorithm for selecting the 16-octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§4)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>SHOULD</td>
 <td>4 - Response Packet</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-9">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L330" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2PeerChallengeRandom16</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_peer_challenge_test.go#L37" title="internal/core/eap/rfc2759_peer_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerChallengeComesFromCryptoRand</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L191" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerChallengeEntersTheNTResponse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the peer fills a [16]byte from crypto/rand, assertable for length and source but not falsifiable for randomness quality (internal/core/eap/peer.go:195)</p></td>
 </tr>
@@ -388,8 +404,10 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>9.2 - Hash Example</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L29" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L37" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L29" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L161" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PasswordHashVector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L37" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L176" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PasswordHashVector</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-12">RFC2759-x-12</code></td><td colspan="3"><span class="rfc-subject">Peer Response/Challenge -&gt; &lt;- Failure (E=691 R=0) (Authenticator disconnects) (§9.1.3)</span></td></tr>
@@ -398,7 +416,9 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>9.1.3 - Failed authentication with no retry allowed</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2759-x-12">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L104" title="internal/core/eap/rfc2759_failure_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2759AuthenticatorRefusesWithErrorCode691</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L238" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759FailureInvitesNoRetry</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L171" title="internal/core/eap/rfc2759_failure_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2759AuthenticatorAcceptsMatchingNTResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L255" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759FailureInvitesNoRetry</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2759-x-13">RFC2759-x-13</code></td><td colspan="3"><span class="rfc-subject">The &#34;vvvvvvvvvv&#34; is the ASCII representation of a decimal version code (need not be 10 digits) indicating the password changing protocol version supported on the server. For MS-CHAP-V2, this value SHOULD always be 3. (§6)</span></td></tr>
@@ -430,80 +450,120 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2759-x-1"><code>RFC2759-x-1</code></a></h3>
 <p>8 octets: Reserved, must be zero (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The unit proves only the authenticator rejecting a Response whose FIRST Reserved octet is 1 (bad[21]=0x01, res.Err==nil fails); octets 22-28 are never set, so a check of td[21] alone stays green, and the obligation on the sender (Ze peer building the Response, peer.go) has no assertion at all. Positive only asserts a valid Response is accepted.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sender: the Response Value ze&#39;s peer emits has 8 zero Reserved octets (td[21:29]). Receiver: each of the 8 Reserved octets set to 1, each on a fresh copy of the authenticator at the Challenge, is refused through mschapv2Method.Process, so a check of the first octet only goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L63" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L114" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L63" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L43" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L92" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L43" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2759-x-2"><code>RFC2759-x-2</code></a></h3>
 <p>The Flag field is reserved for future use and MUST be zero. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The forbidden behaviour is a Response whose Flags octet is non-zero. The unit asserts the authenticator REJECTS such a Response (bad[53]=0x01, res.Err==nil fails), a receive-side check the sentence does not state; no assertion goes red if Ze peer emits a non-zero Flags octet (peer.go MS-CHAPv2 Response builder).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sender: the Flags octet ze&#39;s peer emits is 0 (td[53]). Receiver: Flags 1 on a fresh authenticator copy is refused through Process.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L76" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L122" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L76" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L45" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L99" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L45" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2759-x-3"><code>RFC2759-x-3</code></a></h3>
 <p>However, the Value field is sub-formatted differently as follows: 16 octets: Peer-Challenge 8 octets: Reserved, must be zero 24 octets: NT-Response 1 octet : Flags (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote is the 49-octet sub-format (16 Peer-Challenge, 8 Reserved, 24 NT-Response, 1 Flags). The unit asserts only Value-Size: 49 accepted, 50 rejected (res.Err==nil fails). Field offsets are exercised only implicitly through the test helper that builds the valid Response, and the layout Ze peer emits is not asserted in this unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The layout ze&#39;s peer emits is read field by field: Value-Size 49, octets 0-15 equal the peer&#39;s Peer-Challenge, octets 24-47 the NT-Response over the authenticator&#39;s real Start challenge, Name after the 49 octets. Negative: Value-Size 48 and 50 each refused on a fresh copy.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L89" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L106" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L89" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L47" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L72" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerSendsTheResponseValueLayout</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L47" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2ResponseFieldValidation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2759-x-4"><code>RFC2759-x-4</code></a></h3>
 <p>When computing the NT-Response field contents, only the user name is used, without any associated Windows NT domain name. This is true regardless of whether a Windows NT domain name is present in the Name field (see below). (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The unit asserts stripDomain(&#34;DOMAIN\\User&#34;)==&#34;User&#34; and that challengeHash/verifyNTResponse over the unstripped name differ. It calls stripDomain directly: removing the stripDomain call from handleResponse (eap_mschapv2.go:167) or from the peer (peer.go:273) leaves every assertion green, so the NT-Response computation on the real path is not proven to use the bare user name.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Real path both roles: with Name DOMAIN\user the peer sends the full Name and an NT-Response equal to the one over the bare &#39;user&#39;, and the authenticator accepts it; the same Response with the NT-Response computed over the domain-qualified Name is refused through Process. Removing stripDomain from either side goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L175" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L150" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759NTResponseUsesTheBareUserName</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L175" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L164" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L132" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759NTResponseUsesTheBareUserName</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L164" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestChallengeHashExcludesDomainPrefix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -516,7 +576,7 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L108" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2SuccessUppercaseHex</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L108" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2SuccessUppercaseHex</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -565,22 +625,27 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 </div>
 <h3><a href="#rfc2759-x-8"><code>RFC2759-x-8</code></a></h3>
 <p>MS-CHAP-V2 authenticators send an 16-octet challenge Value field. Peers need not duplicate Microsoft&#39;s algorithm for selecting the 16- octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: 16-octet Value; the SHOULD on standard randomness guidelines. TestMSCHAPv2AuthChallengeRandom16 fails if the Challenge Value-Size (TypeData[4]) is not 16, the challenge is all-zero, or two sessions draw the same value. No assertion pins the source: rand.Read in mschapv2Method.Start could be replaced by a math/rand or time-seeded generator and every assertion stays green, so the randomness clause the {single-polarity} marker claims assertable is not asserted (the peer side, RFC2759-x-9, substitutes crypto/rand.Reader; this unit does not).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Row re-levelled MUST-&gt;SHOULD (only keyword in the span is SHOULD; correction 2026-09-28 in rfc/corrections/rfc2759.md). Single-polarity positive: with crypto/rand.Reader substituted, the Challenge from mschapv2Method.Start carries Value-Size 16 and exactly the substituted octets, so a math/rand or time-seeded source goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_mschapv2_test.go#L140" title="internal/core/eap/eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2AuthChallengeRandom16</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L219" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759AuthenticatorChallengeComesFromCryptoRand</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L140" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2AuthChallengeRandom16</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2759-x-9"><code>RFC2759-x-9</code></a></h3>
 <p>The Peer-Challenge field is a 16-octet random number. As the name implies, it is generated by the peer and is used in the calculation of the NT-Response field, below. Peers need not duplicate Microsoft&#39;s algorithm for selecting the 16-octet value, but the standard guidelines on randomness [1,2,7] SHOULD be observed. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: the Peer-Challenge is a 16-octet random number; it is generated by the peer and used in the calculation of the NT-Response; the standard randomness guidelines SHOULD be observed. Asserted: the peer draws its 16 octets from crypto/rand.Reader (reader substituted, peerChallenge != marker fails), puts them at Response offset 5 (td[5:21] != marker fails), and two sessions differ. The used-in-the-NT-Response clause has no assertion in either tagged unit: a peer computing NT-Response without its Peer-Challenge stays green. Re-judged after the blind reader&#39;s enforced: the quoted span carries that clause, and no tagged assertion reaches it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Row re-levelled MUST-&gt;SHOULD (same correction). The source clause is on the crypto/rand.Reader substitution unit; the used-in-NT-Response clause now on TestRFC2759PeerChallengeEntersTheNTResponse: the wire NT-Response equals the one over the sent Peer-Challenge, and flipping one Peer-Challenge octet makes the authenticator refuse it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -588,52 +653,77 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L330" title="internal/core/eap/peer_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2PeerChallengeRandom16</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L191" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerChallengeEntersTheNTResponse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_peer_challenge_test.go#L37" title="internal/core/eap/rfc2759_peer_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerChallengeComesFromCryptoRand</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2759-x-10"><code>RFC2759-x-10</code></a></h3>
 <p>0-to-256-unicode-char Password: 63 00 6C 00 69 00 65 00 6E 00 74 00 50 00 61 00 73 00 73 00 (§9.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The row is the Section 9.2 vector: a 0-to-256-unicode-char password, clientPass as UTF-16LE (63 00 6C 00 ...). The unit asserts a different known answer (ntPasswordHash(&#34;Password&#34;)), which does go red on a UTF-8 encoder, but the 9.2 bytes are never asserted, the 256-character bound has no assertion, and the negative computes md4Sum over raw bytes against a constant, so it exercises no Ze producer.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: ntPasswordHash(&#34;clientPass&#34;) equals the Section 9.2 PasswordHash vector and the MD4 of the exact 9.2 unicode octets. Negative: ntPasswordHash(&#34;é&#34;) is the MD4 of E9 00, not of the UTF-8 C3 A9, exercising the producer. The 0-to-256-unicode-char label is a parameter type with no behaviour to assert.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L37" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L176" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PasswordHashVector</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L37" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2_test.go#L29" title="internal/core/eap/mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L161" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759PasswordHashVector</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_mschapv2_test.go#L29" title="internal/core/eap/rfc2759_mschapv2_test.go" target="_blank" rel="noopener"><code>TestNtPasswordHash</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2759-x-12"><code>RFC2759-x-12</code></a></h3>
 <p>Peer Response/Challenge -&gt; &lt;- Failure (E=691 R=0) (Authenticator disconnects) (§9.1.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote is the 9.1.3 flow: Failure (E=691 R=0), then the authenticator disconnects. Asserted: OpCode Failure, E= is 691, no success, no MSK, EAP-Failure follows the ack and nothing after it; the negative shows a verified NT-Response draws Success and no E=691. The R=0 field is never read (failureField &#34;R=&#34; absent), so a Failure advertising R=1 stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: a wrong password draws an MS-CHAPv2 Failure whose E= is 691 and R= is 0 (both fields read), and the peer&#39;s answer draws EAP-Failure (the disconnect). Negative: a verified NT-Response ends in EAP-Success, so the Failure is the verdict, not a constant.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L255" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759FailureInvitesNoRetry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L171" title="internal/core/eap/rfc2759_failure_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2759AuthenticatorAcceptsMatchingNTResponse</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_clause_test.go#L238" title="internal/core/eap/rfc2759_clause_test.go" target="_blank" rel="noopener"><code>TestRFC2759FailureInvitesNoRetry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L104" title="internal/core/eap/rfc2759_failure_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2759AuthenticatorRefusesWithErrorCode691</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -969,7 +1059,7 @@ No MUST gap remains gated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

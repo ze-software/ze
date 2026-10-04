@@ -80,7 +80,10 @@
 </ol></li>
 <li><a href="#security-policy-database-entries">Security Policy Database entries</a>
 <ol>
-<li><a href="#the-catch-all-entry">The catch-all entry</a></li>
+<li><a href="#the-catch-all-entry">The catch-all entry</a>
+<ol>
+<li><a href="#when-the-entry-is-not-there">When the entry is not there</a></li>
+</ol></li>
 </ol></li>
 <li><a href="#both-esp-wire-forms">Both ESP wire forms</a></li>
 <li><a href="#traffic-selectors-and-narrowing">Traffic selectors and narrowing</a></li>
@@ -248,7 +251,7 @@ come up.</p>
 </tr>
 <tr>
 <td>Proposals</td>
-<td>AES-CBC, AES-GCM 128/256, and ChaCha20-Poly1305; MODP 2048/3072/4096/8192 and ECP 256/384/521 DH groups; SHA-256/384/512 PRFs</td>
+<td>AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an <code>esp-group</code>; DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names <code>chacha20poly1305</code> and <code>3des</code>, which no build implements, so a proposal naming either is refused at commit</td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -1165,13 +1168,68 @@ leaf:</p>
 </table>
 <p>The default is <code>bypass</code> because a router's own control plane (BGP, SSH, DNS)
 crosses the IPsec boundary in the clear, and a default of <code>discard</code> would stop
-it the moment <code>vpn ipsec</code> was configured. With <code>discard</code>, write a <code>bypass</code>
+it the moment <code>vpn ipsec</code> was configured. That default deviates from RFC 4301
+Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
+anything that is otherwise unmatched, and discards it." With <code>bypass</code>, the
+final entry passes that traffic instead, so Ze does not meet the SHOULD out of
+the box and the RFC 4301 page lists it as a gap. <code>set vpn ipsec unmatched discard</code> gives the behavior the section asks for. With <code>discard</code>, write a <code>bypass</code>
 entry under <code>policy</code> for every flow that must still cross in the clear. The IKE
 control-plane bypass at order 100 is installed either way, so the tunnels can
 still be negotiated. The entry is re-asserted on every apply and removed when
 the engine stops.</p>
+<h4 id="when-the-entry-is-not-there">When the entry is not there</h4>
+<p>A <code>discard</code> entry that is not installed would let the kernel pass exactly the
+traffic you asked it to drop, so Ze never reports such a configuration as
+applied:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th><code>discard</code></th>
+<th><code>bypass</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM</td>
+<td>Refused at commit</td>
+<td>Accepted; no entry is installed, and the kernel passes the traffic</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>Refused at commit</td>
+<td>Accepted; no entry is installed</td>
+</tr>
+<tr>
+<td>The install itself fails when the configuration is applied, which includes a daemon without <code>CAP_NET_ADMIN</code>: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install</td>
+<td>The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error</td>
+<td>Logged as a warning; the kernel passes the traffic</td>
+</tr>
+<tr>
+<td>Before the first configuration is applied, and after the engine stops</td>
+<td class="cell-no">✕</td>
+<td>Same</td>
+</tr>
+</tbody>
+</table>
+<p>The catch-all is installed before the <code>policy</code> entries, the peers and the
+cookie threshold of the same configuration, so a refused apply leaves the
+previous entries and threshold in place.</p>
+<p>That order has a cost with <code>discard</code>. Between the catch-all install and the
+install of your <code>bypass</code> entries, traffic those entries are meant to pass
+matches only the catch-all and is dropped. This happens on the first apply,
+and on every reload that adds or changes a <code>bypass</code> entry, for the flows that
+entry covers (a changed entry is removed and installed again). An entry the
+reload leaves unchanged stays installed throughout. The window lasts as long as the apply takes to install the <code>policy</code>
+entries. When you first turn <code>discard</code> on, commit the <code>bypass</code> entries while
+<code>unmatched</code> is still <code>bypass</code>, then set <code>unmatched discard</code> in a later commit:
+the entries are then already installed when the catch-all starts dropping. A
+<code>bypass</code> entry added or changed once <code>discard</code> is in force always crosses the
+window.</p>
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
-<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable -->
+<!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
@@ -1469,7 +1527,9 @@ exactly one request id.</p>
 <p>The <code>child-sa</code> object of <code>show vpn ipsec sa</code> describes the Child SA as installed.
 <code>esp-encryption</code> and <code>esp-integrity</code> name the proposal the peer accepted: with two
 proposals in the <code>esp-group</code> and a peer that accepts only the second, the payload names
-the second. <code>mode</code> is <code>tunnel</code> or <code>transport</code>, <code>udp-encapsulation</code> says the SA receives
+the second. If Ze cannot resolve that proposal's transforms, which only a Ze defect
+produces, <code>esp-integrity</code> is absent and <code>esp-transform-error</code> says why. <code>mode</code> is
+<code>tunnel</code> or <code>transport</code>, <code>udp-encapsulation</code> says the SA receives
 ESP inside UDP on port 4500, and <code>remote-address</code> is the endpoint the SA was installed
 on, which behind a NAT differs from the configured <code>remote-address</code> of the peer. Those
 three, with the transform, are what size an ESP packet on the tunnel.</p>
@@ -1611,7 +1671,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

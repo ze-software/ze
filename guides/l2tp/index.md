@@ -108,8 +108,10 @@ Capabilities AVP`. The reply goes out with Tunnel ID 0, because the peer
 supplied no tunnel id ze can address it by, and no tunnel entry is created for
 it.
 
-An SCCRQ carrying a vendor-specific AVP ze does not recognize with the M-bit
-set is answered on the same path, with Error Code 8 rather than 3: RFC 2661
+An SCCRQ carrying an AVP ze does not recognize with the M-bit set is answered
+on the same path, with Error Code 8 rather than 3. That AVP is a
+vendor-specific AVP, or an IETF AVP whose Attribute Type RFC 2661 does not
+define. An AVP with a reserved flag bit set gets Error Code 3. RFC 2661
 Section 4.4.2 gives that code to a "tunnel was shutdown due to receipt of an
 unknown AVP with the M-bit set", and Section 4.2 says the same AVP with the
 M-bit clear is ignored and the message accepted, which is what ze does. Each
@@ -327,6 +329,12 @@ the no-auth accounting path. Set `allow-no-auth true` only for lab peers
 or explicit no-auth deployments; `auth-method none` is rejected unless
 that opt-in is present.
 
+With `auth-method pap`, the first Configure-Request still offers CHAP-MD5.
+Ze offers PAP only after the peer sends a Configure-Nak that suggests PAP,
+because RFC 1334 Section 2 requires an implementation that includes CHAP to
+offer it before PAP.
+<!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
+
 Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is
 configured, and `l2tp-auth-local` keeps it otherwise. Both transports resolve
@@ -387,7 +395,11 @@ An Access-Accept naming a Service-Type other than Framed-User is treated as an
 Access-Reject, and the session is denied with `unsupported Service-Type`. The
 LNS provides framed PPP access and asks for it by name, so an Accept authorizing
 anything else authorizes a service ze cannot bring up (RFC 2865 Sections 5.6
-and 1.1).
+and 1.1). The same holds for the framing: an Access-Accept whose Framed-Protocol
+is anything but PPP (SLIP, ARAP, X.75, the other framings RFC 2865 lists, or
+a value it does not define) is treated as an Access-Reject, and the session is
+denied with `unsupported Framed-Protocol`, because L2TP carries PPP frames only. An Accept
+with no Framed-Protocol is honored.
 
 For MS-CHAPv2 the Accept must also carry a readable MS-CHAP2-Success, and one
 that does not is denied with `no MS-CHAP2-Success in Access-Accept`. RFC 2759
@@ -436,7 +448,9 @@ The Stop record adds Acct-Terminate-Cause (type 49), and no other record
 carries it. RFC 2866 Section 5.10: "This attribute indicates how the session was
 terminated, and can only be present in Accounting-Request records where the
 Acct-Status-Type is set to Stop." The value is one of that section's integers:
-User Request (1) when LCP reaches Closed or Stopped, Lost Carrier (2) for
+User Request (1) when LCP reaches Closed or Stopped (a subscriber's LCP
+Terminate-Request reaches Stopped one Restart time after ze's Terminate-Ack,
+and ze then sends the CDN), Lost Carrier (2) for
 unanswered LCP echo probes and for a peer that stops answering at the tunnel
 level, Lost Service (3) for every session on a tunnel the peer ended, Idle
 Timeout (4) and Session Timeout (5) for the
@@ -615,8 +629,19 @@ a NAK carrying an Error-Cause.
 | Event-Timestamp is within 5 minutes | Discarded when stale, NAK 404 when absent |
 | CoA-Request carries no Service-Type | NAK 405 |
 | Every attribute is one Ze supports | NAK 401 |
+| Every fixed-length attribute (NAS-Port, NAS-IP-Address, Acct-Terminate-Cause and others) has its length | NAK 407 |
+| CoA-Request: every Filter-Id and Vendor-Specific is a rate or a CoS profile Ze applies, with at most one of each | NAK 407 |
 | The identification attributes match exactly one session | NAK 503 for none, NAK 508 for several |
+| Every part of the requested change can be carried out (a CoS profile needs an access interface) | NAK 506 |
 | The requested change reached the shaper | NAK 506 |
+| Disconnect-Request: the matched session was torn down (NAK 504 when its teardown fails, or when the L2TP service stopped after the match) | NAK 504 |
+
+A CoA-Request is atomic, as RFC 5176 Section 2.3 requires. Ze makes every check
+before the first change leaves, so a NAK never follows a partial change. A
+Disconnect-Request carries identification attributes, plus the Reply-Message,
+Class and Acct-Terminate-Cause the RFC 5176 Section 3.6 table admits. Ze reads
+no Vendor-Specific attribute in one, so it answers a Disconnect-Request that
+carries one with NAK 401.
 
 One of these is stricter than RFC 5176, deliberately. Section 6.3 makes the
 Event-Timestamp a SHOULD and lets an implementation be configurable about its
@@ -650,7 +675,7 @@ packet the finished Message-Authenticator is part of. A client that inverts the
 two is refused.
 
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, oneSession -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, unsupportedAttrValue, readCoAChange, applySubscriberCoA, oneSession -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- startCoAListener -->
 <!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 
@@ -700,6 +725,10 @@ Address allocation prefers RADIUS metadata when present. `Framed-Pool`
 selects a named pool for gateway and DNS values; an unknown named pool rejects
 the IPCP request. `Framed-IP-Address` then bypasses bitmap allocation and uses
 the selected pool's gateway and DNS with the RADIUS-assigned peer address.
+The two special values of RFC 2865 Section 5.8 name no address:
+`255.255.255.254` ("the NAS should select an address for the user") and
+`255.255.255.255` (the user selects) leave the choice to the pool, so the
+accounting records report the address the pool gave (RFC 2866 Section 4.1).
 `Framed-IP-Netmask` is parsed into session metadata, but the current IPv4 IPCP
 response has no netmask field to apply.
 
@@ -781,9 +810,12 @@ CQM data feeds:
 - The web UI streams new buckets via SSE for live chart updates
 
 Echo interval for CQM: `ze.l2tp.cqm.echo-interval` (env var, default
-derived from LCP echo configuration).
+`1s`). It applies only when CQM is enabled, where it overrides the PPP
+LCP echo interval used for sampling. An invalid or
+non-positive value logs a warning and falls back to `1s`.
 
 <!-- source: internal/component/l2tp/observer.go -->
+<!-- source: internal/component/l2tp/subsystem.go -- cqmEchoInterval -->
 <!-- source: internal/component/l2tp/cqm.go -->
 
 ## Prometheus metrics

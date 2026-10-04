@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>72.0%</strong><b>18 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 42 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>27.3%</strong><b>15 of 55 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>5 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>19</strong><b>of 25 gated MUSTs judged</b><p>8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>19</strong><b>of 25 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>42</td>
+<td>55</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>42</td>
+<td>55</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>19</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>15</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9494.md</code></td>
@@ -270,7 +276,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td><strong>18</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +287,10 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -295,7 +305,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (18):</strong> <a href="#rfc9494-3.1-1"><code>RFC9494-3.1-1</code></a>, <a href="#rfc9494-4.1-1"><code>RFC9494-4.1-1</code></a>, <a href="#rfc9494-3.1-2"><code>RFC9494-3.1-2</code></a>, <a href="#rfc9494-4-1"><code>RFC9494-4-1</code></a>, <a href="#rfc9494-4.2-1"><code>RFC9494-4.2-1</code></a>, <a href="#rfc9494-4.2-2"><code>RFC9494-4.2-2</code></a>, <a href="#rfc9494-4.2-3"><code>RFC9494-4.2-3</code></a>, <a href="#rfc9494-4.2-4"><code>RFC9494-4.2-4</code></a>, <a href="#rfc9494-4.2-5"><code>RFC9494-4.2-5</code></a>, <a href="#rfc9494-4.2-6"><code>RFC9494-4.2-6</code></a>, <a href="#rfc9494-4.2-8"><code>RFC9494-4.2-8</code></a>, <a href="#rfc9494-4.3-1"><code>RFC9494-4.3-1</code></a>, <a href="#rfc9494-4.4-1"><code>RFC9494-4.4-1</code></a>, <a href="#rfc9494-4.5-1"><code>RFC9494-4.5-1</code></a>, <a href="#rfc9494-4.6-1"><code>RFC9494-4.6-1</code></a>, <a href="#rfc9494-4.6-2"><code>RFC9494-4.6-2</code></a>, <a href="#rfc9494-4.6-3"><code>RFC9494-4.6-3</code></a>, <a href="#rfc9494-5-1"><code>RFC9494-5-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc9494-4.2-7"><code>RFC9494-4.2-7</code></a>, <a href="#rfc9494-4.2-9"><code>RFC9494-4.2-9</code></a>, <a href="#rfc9494-4.3-2"><code>RFC9494-4.3-2</code></a>, <a href="#rfc9494-4.7.2-1"><code>RFC9494-4.7.2-1</code></a>, <a href="#rfc9494-4.7.2-2"><code>RFC9494-4.7.2-2</code></a>, <a href="#rfc9494-5-2"><code>RFC9494-5-2</code></a>, <a href="#rfc9494-4.2-10"><code>RFC9494-4.2-10</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (7):</strong> <a href="#rfc9494-4.2-7"><code>RFC9494-4.2-7</code></a>, <a href="#rfc9494-4.2-9"><code>RFC9494-4.2-9</code></a>, <a href="#rfc9494-4.3-2"><code>RFC9494-4.3-2</code></a>, <a href="#rfc9494-4.7.2-1"><code>RFC9494-4.7.2-1</code></a>, <a href="#rfc9494-4.7.2-2"><code>RFC9494-4.7.2-2</code></a>, <a href="#rfc9494-5-2"><code>RFC9494-5-2</code></a>, <a href="#rfc9494-4.2-10"><code>RFC9494-4.2-10</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -316,8 +326,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L658" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenLLGRNoGR</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L745" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenGRPlusLLGR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L658" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenLLGRNoGR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L745" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenGRPlusLLGR</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-3.1-2">RFC9494-3.1-2</code></td><td colspan="3"><span class="rfc-subject">The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (§3.1)</span></td></tr>
@@ -344,7 +354,10 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L592" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestLLSTTimerExpiry_LastFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L133" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494RestartTimeThenLongLivedStaleTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L63" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L490" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestOnTimerExpired_WithoutLLGR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L97" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494BothTimesZeroRetainsNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.2-2">RFC9494-4.2-2</code></td><td colspan="3"><span class="rfc-subject">* For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long- Lived Stale Time. (§4.2)</span></td></tr>
@@ -353,7 +366,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L455" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestOnTimerExpired_WithLLGR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L134" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494RestartTimeThenLongLivedStaleTime</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L654" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestOnSessionDown_ZeroGR_ZeroLLST</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L98" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494BothTimesZeroRetainsNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.2-3">RFC9494-4.2-3</code></td><td colspan="3"><span class="rfc-subject">If the timer for the Long-Lived Stale Time for a given AFI/SAFI expires before the session is re-established, the helper MUST delete all stale routes of that AFI/SAFI from the neighbor that it is retaining. (§4.2)</span></td></tr>
@@ -362,7 +377,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L548" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestLLSTTimerExpiry_SingleFamily</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L163" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L162" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L172" title="internal/component/bgp/plugins/gr/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_NoLLSTExpiryAfterReestablish</code></a></span></div>
 </div></td>
 </tr>
@@ -371,7 +386,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_gr_test.go#L618" title="internal/component/bgp/plugins/rib/rib_gr_test.go" target="_blank" rel="noopener"><code>TestAttachCommunity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go#L618" title="internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go" target="_blank" rel="noopener"><code>TestAttachCommunity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L64" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L34" title="internal/component/bgp/plugins/rib/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_FreshRoutesDoNotGetLLGRStale</code></a></span></div>
 </div></td>
 </tr>
@@ -380,8 +396,13 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST NOT</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_gr_test.go#L659" title="internal/component/bgp/plugins/rib/rib_gr_test.go" target="_blank" rel="noopener"><code>TestDeleteWithCommunity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go#L659" title="internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go" target="_blank" rel="noopener"><code>TestDeleteWithCommunity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go#L79" title="internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC9494NoLLGRSweepWithdrawsTheBestPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L65" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go#L99" title="internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L63" title="internal/component/bgp/plugins/rib/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_StaleRouteWithoutNoLLGRRetained</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/llgr-import-no-llgr.ci#L6" title="test/plugin/llgr-import-no-llgr.ci" target="_blank" rel="noopener"><code>llgr-import-no-llgr.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/llgr-import-no-llgr.ci#L7" title="test/plugin/llgr-import-no-llgr.ci" target="_blank" rel="noopener"><code>llgr-import-no-llgr.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.2-6">RFC9494-4.2-6</code></td><td colspan="3"><span class="rfc-subject">* The helper router MUST perform the procedures listed in Section 4.3. (§4.2, §4.3)</span></td></tr>
@@ -425,8 +446,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L812" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_LLGRStale</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L844" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L811" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_LLGRStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L843" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.3-2">RFC9494-4.3-2</code></td><td colspan="3"><span class="rfc-subject">The LLGR_STALE community MUST NOT be removed when the route is further advertised (§4.3)</span></td></tr>
@@ -443,8 +464,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L743" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_LLGRStaleDepreference</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L771" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_BothLLGRStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L746" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_LLGRStaleDepreference</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L774" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_BothLLGRStale</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.5-1">RFC9494-4.5-1</code></td><td colspan="3"><span class="rfc-subject">If the LLGR Capability is received without an accompanying GR Capability, the LLGR Capability MUST be ignored, that is, the implementation MUST behave as though no LLGR Capability has been received. (§4.5)</span></td></tr>
@@ -452,8 +473,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L327" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR_NoGR</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L288" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L327" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR_NoGR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L288" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.6-1">RFC9494-4.6-1</code></td><td colspan="3"><span class="rfc-subject">The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors. (§4.6)</span></td></tr>
@@ -461,8 +482,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L430" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L400" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_EBGPNonLLGR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L430" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L400" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_EBGPNonLLGR</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.6-2">RFC9494-4.6-2</code></td><td colspan="3"><span class="rfc-subject">* The NO_EXPORT community [RFC1997] MUST be attached to the stale routes. (§4.6)</span></td></tr>
@@ -470,9 +491,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L434" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L183" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L370" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L434" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L183" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L370" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.6-3">RFC9494-4.6-3</code></td><td colspan="3"><span class="rfc-subject">* The stale routes MUST have their LOCAL_PREF set to zero. (§4.6)</span></td></tr>
@@ -480,9 +501,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST</td>
 <td>4.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L437" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L187" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L374" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L437" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L187" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L374" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9494-4.7.2-1">RFC9494-4.7.2-1</code></td><td colspan="3"><span class="rfc-subject">In addition to including the path attributes derived from the ATTR_SET attribute in the advertised route as per [RFC6368], the PE router MUST also include the LLGR_STALE community if it is present in the path attributes of the imported route, even if it is not present in the ATTR_SET attribute. (§4.7.2)</span></td></tr>
@@ -508,7 +529,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>MUST NOT</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go#L115" title="internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go" target="_blank" rel="noopener"><code>TestRFC9494HelperProceduresOnPerConfiguredFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L123" title="internal/component/bgp/plugins/gr/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_LLGRNotEnabledByDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go#L80" title="internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go" target="_blank" rel="noopener"><code>TestRFC9494HelperProceduresOffWithoutLocalConfig</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L148" title="internal/component/bgp/plugins/gr/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_LLGREnabledByExplicitConfig</code></a></span></div>
 </div></td>
 </tr>
@@ -544,8 +567,8 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>SHOULD NOT</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9494-4.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L157" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateWithdrawsEBGP</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L341" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L157" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateWithdrawsEBGP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L341" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/llgr-egress-state-unloaded.ci#L18" title="test/plugin/llgr-egress-state-unloaded.ci" target="_blank" rel="noopener"><code>llgr-egress-state-unloaded.ci</code></a></span></div>
 </div></td>
 </tr>
@@ -701,12 +724,12 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L745" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenGRPlusLLGR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L745" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenGRPlusLLGR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L658" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenLLGRNoGR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L658" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleStructuredOpenLLGRNoGR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -755,7 +778,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc9494-4.2-1"><code>RFC9494-4.2-1</code></a></h3>
 <p>After the session goes down, and before the session is re- established, the stale routes for an AFI/SAFI MUST be retained. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: purging the stale routes before re-establishment while the Restart Time plus LLST have not elapsed. TestLLSTTimerExpiry_LastFamily only waits (Eventually) for onLLGRComplete and then asserts the peer inactive: a manager that completed at once on session down would satisfy the Eventually on its first poll, so no assertion checks the peer is still retained during the window (the comment claims it, the body does not). The negative TestOnTimerExpired_WithoutLLGR proves a GR-only purge happens, not retention.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 9494 §4.2: &#34;After the session goes down, and before the session is re-established, the stale routes for an AFI/SAFI MUST be retained.&#34; Context: &#34;The interval for which they are retained is limited by the sum of the Restart Time in the received Graceful Restart Capability and the Long-Lived Stale Time in the received Long-Lived Graceful Restart Capability.&#34; The same section specifies zero/nonzero periods and GR then LLGR when both are nonzero. Read all five tagged carriers: internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily and TestOnTimerExpired_WithoutLLGR; internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, TestRFC9494RestartTimeThenLongLivedStaleTime and TestRFC9494BothTimesZeroRetainsNothing. Three positive and two negative tags. Real-RIB cases now check actual received-route level 1 -&gt; level 2 -&gt; deletion, both DOWN event rails for RT=0/LLST&gt;0 and both-zero, plus no-LLGR GR expiry. These assertions are correctly isolated for those inputs and stronger than dispatch-only evidence. Whole obligation is not proven: every positive includes its family in GR; §4.2 also says &#34;If the Graceful Restart Capability that was received does not list all AFIs/SAFIs supported by the session, then the GR Restart Time shall be deemed zero for those AFIs/SAFIs that are not listed.&#34; gr_state.go::onSessionDownDeferred builds staleFamilies solely from cap.Families and returns false on the empty set; gr.go::retainPeerFamilies likewise limits the RIB to GR-listed families. Source-traced valid GR-empty/LLGR-IPv4 input reaches that branch and rib.go::handleState deletes routes on DOWN: a reachable implemented-LLGR transition defect [INFERENCE from source, not runtime-observed], not an absent-feature authorization. Further, 1s/1s tagged Eventually checks establish stage order and eventual removal but not full elapsed duration or remote versus local timer provenance. Untagged test/plugin/llgr-peer-stale-time-drives-timer.ci and internal/test/fixture/plugin_fixture_llgr_lifecycle.go::llgrLifecycle add remote 3s versus 60s controls with local 3600s and real wire withdrawal fences, but are supplementary source evidence, not fingerprinted tags for this row. Existing LLGR synchronization/consecutive-restart gaps remain. No runtime renewal performed. Post-lint independent source rejudgment of all five tagged carriers: received/down now bind the same testPeer internally, and checked mux.Close adds cleanup-error reporting only. Both JSON and structured zero-RT cases still require actual level-2 retained storage; both-zero still requires empty storage and inactive state; the serial timer case still requires level 1, then level 2 with community, then absence. No assertion establishes omitted-GR-family retention or exact elapsed LLST. Current onSessionDownDeferred still returns false for empty GR Families and enterLLGRLocked still iterates only GR staleFamilies. Therefore the prior weak judgment and GR-empty/LLGR-family source-inferred gap remain unchanged. No implementation or scope expansion is authorized, and a native producer halt will not close this semantic gap.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -765,17 +788,32 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L97" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494BothTimesZeroRetainsNothing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L592" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestLLSTTimerExpiry_LastFamily</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L133" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494RestartTimeThenLongLivedStaleTime</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L63" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9494-4.2-2"><code>RFC9494-4.2-2</code></a></h3>
 <p>* For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long- Lived Stale Time. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: no LLST timer for a family with a nonzero LLST. TestOnTimerExpired_WithLLGR asserts onLLGREnter fired for ipv4/unicast, no purge, peer still active; it ignores the llst argument and nothing asserts a timer is armed or its duration, so an enterLLGRLocked that never arms the timer (routes retained forever) stays green. The expiry itself is asserted only under RFC9494-4.2-3 tags. Negative (LLST 0 leaves no LLGR state) is asserted.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 9494 §4.2: &#34;For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long-Lived Stale Time.&#34; Precondition: &#34;Once the Restart Time period ends (including the case in which the Restart Time is zero), the LLGR period is said to have begun and the following procedures MUST be performed:&#34; Read all four tagged carriers: internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR observes LLGR callback and active state but ignores callback llst; TestOnSessionDown_ZeroGR_ZeroLLST observes no active state; internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime sees a timer-map key and actual retained route followed by deletion, while TestRFC9494BothTimesZeroRetainsNothing requires immediate route removal and inactive state on both event rails. Two positive, two negative tags, genuinely distinct nonzero versus zero LLST inputs. Producers gr.go::extractGRCaps/handleOpenEvent -&gt; gr_llgr.go::decodeLLGR/llgrResultToPeerCap -&gt; gr_llgr_exchange.go::exchangedLLGRLocked preserve the RECEIVED LLST; local configuration controls advertised family membership, not the received duration. gr_state.go::enterLLGRLocked uses that duration in time.AfterFunc. Nevertheless the tagged 1-second case can pass for another short positive duration and covers only IPv4 with a matching GR tuple; no tagged assertion distinguishes received LLST from a substituted local value or requires a timer for an LLGR-only family. The latter is a source-traced reachable defect: onSessionDownDeferred never adds families absent from GR, and enterLLGRLocked iterates only staleFamilies. The untagged live peer-timer .ci has remote 3s/60s versus local 3600s and fences observed route states and exact expiry withdrawals, but is supplementary rather than native tagged proof, and does not cover missing-GR families. Whole for-each/duration obligation remains unproven, not repaired by a producer halt record. No runtime renewal performed. Post-lint independent source rejudgment of all four tagged carriers: the same nonzero/zero LLST inputs and current testPeer reach onSessionDownDeferred, handleTimerExpired and enterLLGRLocked after constant-argument removal. The eventual deletion check and family-map membership remain exact for the tested transition, but do not pin the received duration against another short duration or start timers for LLGR-only families omitted from GR. The prior weak judgment, omitted-GR-family finding and timer-provenance limitations remain. Cleanup Close errors are now reported, not hidden, and no feature implementation was made.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -785,10 +823,20 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L98" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494BothTimesZeroRetainsNothing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L455" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestOnTimerExpired_WithLLGR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L134" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494RestartTimeThenLongLivedStaleTime</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -811,7 +859,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L163" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L162" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -820,7 +868,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc9494-4.2-4"><code>RFC9494-4.2-4</code></a></h3>
 <p>* The helper router MUST attach the LLGR_STALE community to the stale routes being retained. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The rib half is asserted: TestAttachCommunity fails unless attach-community appends the community to the stale route and raises StaleLevel, TestRFC9494_FreshRoutesDoNotGetLLGRStale fails if a fresh route gains it. No tagged unit asserts that entering the LLGR period dispatches &#39;request bgp rib attach-community &lt;peer&gt; &lt;family&gt; ffff0006&#39; (gr.go): emptying that dispatch leaves every tagged unit green, which is the exact hole TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes closed for RFC9494-4.2-3.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9494 §4.2: &#34;The helper router MUST attach the LLGR_STALE community to the stale routes being retained.&#34; Read all three tagged carriers: internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod exercises production wireStateCallbacks on JSON and structured DOWN, real registered RIB commands, and requires retained received route 198.51.100.0/24 at level 2 with community 0xffff0006. internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity checks the actual stored bundle contains that exact value; internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale requires zero attachments, unchanged fresh level and no community for a fresh route. Two positive and one negative tags. gr.go::wireStateCallbacks dispatches deletion of NO_LLGR before attach-community, then raises stale level and triggers per-family readvertisement; rib_commands_community.go::attachCommunityCommand filters fresh entries and attachCommunity updates the bundle and clears the original-wire fingerprint. Removing marker attachment or attaching it to fresh routes breaks different assertions. The RFC note &#34;Note that this requirement implies that the routes would need to be readvertised in order to disseminate the modified community&#34; is traced to wireStateCallbacks::onLLGREntryDone; tagged units establish the attachment obligation at storage, not a destination-wire guarantee. Supplementary untagged test/plugin/llgr-peer-stale-time-drives-timer.ci waits for a destination LLGR_STALE UPDATE before acknowledging the phase. This verdict does not erase RFC9494-4.3-2 further-advertisement protection gap or claim every LLGR activation case is implemented (see 4.2-1/-2). No runtime renewal performed. Post-lint independent source rejudgment: the changed zero-Restart-Time tagged unit still compares the retained route community to literal 0xffff0006 on both event rails after real RIB DOWN; removing testPeer helper arguments leaves bytes and peer identity identical. Re-read TestAttachCommunity and the fresh-route negative as well as wireStateCallbacks: delete NO_LLGR, attach LLGR_STALE, raise level, then readvertise. The distinct fresh-route input must remain unmarked. Enforced attachment judgment is unchanged; cleanup now reports mux.Close failures. Destination-wire dissemination and missing-GR-family activation are not newly proven by this lint repair.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -831,7 +879,12 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_gr_test.go#L618" title="internal/component/bgp/plugins/rib/rib_gr_test.go" target="_blank" rel="noopener"><code>TestAttachCommunity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L64" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go#L618" title="internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go" target="_blank" rel="noopener"><code>TestAttachCommunity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -840,20 +893,45 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </div>
 <h3><a href="#rfc9494-4.2-5"><code>RFC9494-4.2-5</code></a></h3>
 <p>* If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271]. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The rib command is asserted: TestDeleteWithCommunity fails unless delete-with-community ffff0007 removes the stale route, TestRFC9494_StaleRouteWithoutNoLLGRRetained fails if a route without NO_LLGR is removed. Not asserted: that LLGR entry dispatches the NO_LLGR sweep at all (gr.go), the &#39;result of a configured policy&#39; clause, and removal &#39;as per the normal operation of RFC4271&#39; (the withdrawal propagated downstream).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9494 §4.2: &#34;If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271].&#34; Read all seven tagged carriers (four positive, three negative): internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod deletes a real received NO_LLGR route while its otherwise eligible sibling survives on both DOWN rails; internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity checks exact storage deletion; internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained retains an LLGR_STALE-only route. internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath additionally requires exactly one best-change batch, IPv4/unicast, exactly one Withdraw for 10.0.0.0/24; TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR uses a nonmatching real community 65001:100 and requires unchanged route count and no event. Both tags in test/plugin/llgr-import-no-llgr.ci are distinct route outcomes: wire UPDATEs initially lack communities, only marked receives import modify:NO-LLGR; internal/test/fixture/plugin_fixture_llgr_import.go::llgrImportNoLLGR checks policy-added 65535:7 on 10.0.0.0/24 and its absence from 10.0.1.0/24 before releasing TCP closes, then requires marked absent and plain retained with 65535:6. The stderr success fence is emitted only after these checks. The previous configured-policy evidence hole is therefore closed in current source. Producer chain: filter_modify config.go::parseCommOps and modify.go::buildDynamicDelta, GR wireStateCallbacks, then rib_commands_community.go::deleteWithCommunityCommand removes matching stale routes, reconciles sent-source state and recomputes/publishes best-path changes. Peer-added and policy-added clauses plus normal best-path removal are covered compositionally; the import fixture itself reads received RIB, not a downstream socket, and no destination-wire observation or runtime green is claimed here. Distinct matching/nonmatching community inputs isolate the rule. Existing unrelated LLGR gaps remain. Native red records over changed unit/producer require parent renewal before stamping. Post-lint independent source rejudgment: the same changed zero-RT unit supplies a received 0xffff0007 route and an otherwise eligible sibling, requires the marked route absent and the sibling retained with 0xffff0006 after actual DOWN on both rails. Re-read all other carriers, including the .ci and its llgrImportNoLLGR observer: policy attachment is checked before a wire fence releases TCP closes; marked absence and unmarked LLGR_STALE precede the success fence. The RIB best-change pair requires one exact withdrawal versus no event for nonmatching community. Constant-peer removal and checked cleanup preserve these assertions. Preserve enforced and every prior planned producer-change renewal, including functional citations; no new functional run is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go#L99" title="internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L63" title="internal/component/bgp/plugins/rib/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_StaleRouteWithoutNoLLGRRetained</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/llgr-import-no-llgr.ci#L7" title="test/plugin/llgr-import-no-llgr.ci" target="_blank" rel="noopener"><code>llgr-import-no-llgr.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_gr_test.go#L659" title="internal/component/bgp/plugins/rib/rib_gr_test.go" target="_blank" rel="noopener"><code>TestDeleteWithCommunity</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L65" title="internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go" target="_blank" rel="noopener"><code>TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go#L79" title="internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC9494NoLLGRSweepWithdrawsTheBestPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go#L659" title="internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go" target="_blank" rel="noopener"><code>TestDeleteWithCommunity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/llgr-import-no-llgr.ci#L6" title="test/plugin/llgr-import-no-llgr.ci" target="_blank" rel="noopener"><code>llgr-import-no-llgr.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -908,18 +986,18 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>No test carries RFC9494-4.2-9, so no unit is bound to it.</p>
 <h3><a href="#rfc9494-4.3-1"><code>RFC9494-4.3-1</code></a></h3>
 <p>A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2: * Treat the route as the least preferred in route selection (see below). (§4.3, §4.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestComparePair_LLGRStale does not isolate the rule: normal (10.0.0.1) and stale (10.0.0.2) have equal LOCAL_PREF, so the lower peer address wins on the final tie-break with or without the Step-0 stale comparison, and both ComparePair assertions stay green if it is removed (the third assertion in the same unit shows the lower-address tie-break). Neither the receive path (a route arriving with LLGR_STALE gets StaleLevel 2) nor the self-attached path is asserted.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-02 (BGP c25 judge): TestComparePair_LLGRStale&#39;s body is unchanged (only the RFC4724-4.2-5 tag lines left its doc comment), so the finding stands. It does not isolate the rule: normal (10.0.0.1) and stale (10.0.0.2) have equal LOCAL_PREF, so the lower peer address wins on the final tie-break with or without the Step-0 stale comparison, and both ComparePair assertions stay green if it is removed (the third assertion in the same unit shows the lower-address tie-break). Neither the receive path (a route arriving with LLGR_STALE gets StaleLevel 2) nor the self-attached path is asserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L844" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L843" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_GRStaleCompetesNormally</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L812" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_LLGRStale</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L811" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_LLGRStale</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -938,12 +1016,12 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L771" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_BothLLGRStale</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L774" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_BothLLGRStale</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L743" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_LLGRStaleDepreference</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L746" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestSelectBest_LLGRStaleDepreference</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -958,12 +1036,12 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L288" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L288" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_event_test.go#L327" title="internal/component/bgp/plugins/gr/gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR_NoGR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L327" title="internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go" target="_blank" rel="noopener"><code>TestHandleEventOpenLLGR_NoGR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -978,12 +1056,12 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L400" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_EBGPNonLLGR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L400" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_EBGPNonLLGR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L430" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L430" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -998,17 +1076,17 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L370" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L370" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L434" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L434" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L183" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L183" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1023,17 +1101,17 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L374" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L374" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_LLGRPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L437" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L437" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_IBGPPartial</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L187" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L187" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateDepreferencesIBGP</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1050,20 +1128,30 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>No test carries RFC9494-4.7.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9494-5-1"><code>RFC9494-5-1</code></a></h3>
 <p>Implementations MUST NOT enable these procedures by default. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The speaker side is asserted: TestRFC9494_LLGRNotEnabledByDefault fails if GR-only config declares code 71 or if the YANG leaf long-lived-stale-time carries a default; TestRFC9494_LLGREnabledByExplicitConfig shows explicit config emits it. The helper side is not: the Section 4.2 procedures run on any received code 71 (gr.go stores it in peerLLGRCaps and hands it to onSessionDown) with no tagged assertion that they stay off when the local peer has no long-lived-stale-time configured, i.e. when the capability was not exchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c28 judge, c27 test defect fixed). Speaker side unchanged: TestRFC9494_LLGRNotEnabledByDefault fails if GR-only config declares code 71 or the YANG leaf long-lived-stale-time gains a default; TestRFC9494_LLGREnabledByExplicitConfig shows explicit config emits it (parseLLGRCapValue revert records +/-). Helper side: the gr plugin records the families of Ze&#39;s own sent code 71 and exchangedLLGRLocked hands session-down/up only received families Ze declared. The shared fixture rfc9494Opens now lists IPv4 AND IPv6 unicast in both GR Capabilities (TLV and JSON 00000001018000020180), so IPv6 reaches the LLGR decision. Negative TestRFC9494HelperProceduresOffWithoutLocalConfig (no code 71, or IPv6 only): no ffff0007/ffff0006 for ipv4. Positive TestRFC9494HelperProceduresOnPerConfiguredFamily (Ze declares IPv4, peer IPv4+IPv6): both LLGR commands for ipv4/unicast, exactly neither delete-with-community ffff0007 nor attach-community ffff0006 for ipv6/unicast, and purge-stale ipv6/unicast. Judge overlay (exchangedLLGRLocked returning every received family) now reds the positive on BOTH event paths with all three new assertions, and all four negative subcases; before the fixture change it left the positive green. Records: exchangedLLGRLocked revert +/-, re-recorded. Residual: the per-AFI/SAFI configuration clause is RFC9494-5-2, still a {gap} (LLGR configured per peer).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go#L80" title="internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go" target="_blank" rel="noopener"><code>TestRFC9494HelperProceduresOffWithoutLocalConfig</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L148" title="internal/component/bgp/plugins/gr/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_LLGREnabledByExplicitConfig</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go#L115" title="internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go" target="_blank" rel="noopener"><code>TestRFC9494HelperProceduresOnPerConfiguredFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L123" title="internal/component/bgp/plugins/gr/rfc9494_test.go" target="_blank" rel="noopener"><code>TestRFC9494_LLGRNotEnabledByDefault</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1084,12 +1172,12 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L341" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L341" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_egress_test.go#L157" title="internal/component/bgp/plugins/gr/gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateWithdrawsEBGP</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L157" title="internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go" target="_blank" rel="noopener"><code>TestLLGREgressFilter_NilStateWithdrawsEBGP</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1378,7 +1466,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

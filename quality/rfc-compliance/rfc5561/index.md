@@ -13,6 +13,7 @@ what Ze has
 | Tested both ways | 5.9% | 1 of 17 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 17 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 17 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 17 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Proven by a recorded break | 100.0% | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -35,7 +36,7 @@ what Ze owes
 |---|---:|---|---|
 | No test at all | 94.1% | 16 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,6 +47,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -95,16 +97,17 @@ Every one of the 17 MUST-level rows is a `{gap}` scheduled by one of two specs. 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 16 | one part of the gated population |
+| Annotated (including scoped evidence) | 16 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **17** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC5561-6-4`](#rfc5561-6-4)
 
-**Annotated instead of tested (16):** [`RFC5561-3-1`](#rfc5561-3-1), [`RFC5561-4-2`](#rfc5561-4-2), [`RFC5561-3-2`](#rfc5561-3-2), [`RFC5561-3-5`](#rfc5561-3-5), [`RFC5561-4-1`](#rfc5561-4-1), [`RFC5561-6-1`](#rfc5561-6-1), [`RFC5561-6-2`](#rfc5561-6-2), [`RFC5561-6-3`](#rfc5561-6-3), [`RFC5561-8-1`](#rfc5561-8-1), [`RFC5561-8-2`](#rfc5561-8-2), [`RFC5561-8-3`](#rfc5561-8-3), [`RFC5561-8-4`](#rfc5561-8-4), [`RFC5561-9-1`](#rfc5561-9-1), [`RFC5561-9-2`](#rfc5561-9-2), [`RFC5561-9-3`](#rfc5561-9-3), [`RFC5561-10-1`](#rfc5561-10-1)
+**Annotated (including scoped evidence) (16):** [`RFC5561-3-1`](#rfc5561-3-1), [`RFC5561-4-2`](#rfc5561-4-2), [`RFC5561-3-2`](#rfc5561-3-2), [`RFC5561-3-5`](#rfc5561-3-5), [`RFC5561-4-1`](#rfc5561-4-1), [`RFC5561-6-1`](#rfc5561-6-1), [`RFC5561-6-2`](#rfc5561-6-2), [`RFC5561-6-3`](#rfc5561-6-3), [`RFC5561-8-1`](#rfc5561-8-1), [`RFC5561-8-2`](#rfc5561-8-2), [`RFC5561-8-3`](#rfc5561-8-3), [`RFC5561-8-4`](#rfc5561-8-4), [`RFC5561-9-1`](#rfc5561-9-1), [`RFC5561-9-2`](#rfc5561-9-2), [`RFC5561-9-3`](#rfc5561-9-3), [`RFC5561-10-1`](#rfc5561-10-1)
 
 ## Requirements
 
@@ -112,7 +115,7 @@ Every one of the 17 MUST-level rows is a `{gap}` scheduled by one of two specs. 
 |---|---|---|---|---|
 | `RFC5561-3-1` | F-bit: Forward unknown TLV bit, as described in [RFC5036]. The value of this bit MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-9-4` | The Dynamic Capability Announcement Parameter MAY be included by an LDP speaker in an Initialization message to signal its peer that the speaker is capable of processing Capability messages. (§9) | MAY | 9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5561-6-4` | If the U-bit is 1, then the speaker MUST silently ignore the Capability Parameter and allow the session to be established. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5561UnknownCapabilityWithUBitSetIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L74). **negative:** `unit/verify` [`TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L112) |
+| `RFC5561-6-4` | If the U-bit is 1, then the speaker MUST silently ignore the Capability Parameter and allow the session to be established. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5561UnknownCapabilityWithUBitSetIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L74). **negative:** `unit/verify` [`TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L112) |
 | `RFC5561-4-2` | An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message. (§7) | MUST NOT | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-3-2` | An LDP speaker MUST NOT include more than one instance of a Capability Parameter (as identified by the same TLV code point) in an Initialization or Capability message. (§3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md |
 | `RFC5561-3-5` | If an LDP speaker receives more than one instance of the same Capability Parameter type in a message, it SHOULD send a Notification message to the peer before terminating the session with the peer. The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md |
@@ -166,12 +169,12 @@ No test carries RFC5561-3-1, so no unit is bound to it.
 
 If the U-bit is 1, then the speaker MUST silently ignore the Capability Parameter and allow the session to be established. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviours: (1) reacting to an unsupported U=1 Capability Parameter (e.g. sending a Notification) instead of silently ignoring it, (2) refusing the session because of it. (1): TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification fails on processMessages returning an error and on expectNoPDU seeing any PDU on the pipe. (2): TestRFC5561UnknownCapabilityWithUBitSetIsIgnored requires rx.State() == StateOperational and the peer's 30s keepalive negotiated, and that DecodeInit still reads the Common Session Parameters beside the parameter. Every capabilityCases code point runs both.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC5561 section 6 requires silently ignoring unsupported U=1 Capability Parameters and allowing establishment. Both dynamic-capability-announcement and unassigned code point fixtures encode U=1, F=0, S=1 beside valid Common Session Parameters. Positive checks decoded parameters, processes Initialization plus KeepAlive to Operational and pins 30s; negative requires nil processMessages error and strict deadline-timeout silence, rejecting EOF as well as Notification. Reviewed DecodeInit/skipTLV and the new common initialization message-type guard: an unknown TLV inside an expected Initialization remains accepted, unlike an unknown message during initialization. Native producer-halt evidence is supplemental, not the semantic verdict.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L112) | unit/verify | revert, verified |
-| positive | [`TestRFC5561UnknownCapabilityWithUBitSetIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/capability_rfc5561_test.go#L74) | unit/verify | revert, verified |
+| negative | [`TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L112) | unit/verify | revert, verified |
+| positive | [`TestRFC5561UnknownCapabilityWithUBitSetIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5561_capability_test.go#L74) | unit/verify | revert, verified |
 
 ### [`RFC5561-4-2`](#rfc5561-4-2)
 

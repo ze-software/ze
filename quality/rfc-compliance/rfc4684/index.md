@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 33.3% | 2 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 100.0% | 6 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 66.7% | 4 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 2 | of 6 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,17 +68,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tagged units | 4 |
+| Test tags | 8 |
+| Tagged units | 6 |
 | Recorded audit verdicts | 2 |
-| Discrimination records | 4 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc4684.md` |
 | Requirement shard | `rfc/requirements/rfc4684.md` |
 | RFC text | `rfc/full/rfc4684.txt` |
 
 ## Enrolment
 
-Enrolled: Constrained Route Distribution for BGP/MPLS VPNs (Route Target Constraint): six MUST-level requirements after the 2026-09-21 extraction walk. Four are {gap}, and the two the walk added carry no test: RFC4684-4-1 (the MP_REACH_NLRI Next Hop is read as IPv4 at 4 octets and IPv6 at 16) and RFC4684-5-2 (a speaker that exchanges Route Target membership uses the Multiprotocol Extensions capability to advertise the AFI/SAFI pair). Ze implements RTC as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode) with no encode/origination path and no RT-membership distribution. RFC4684-3.2-1 (Originator/Next-hop when advertising RT membership NLRI) and RFC4684-3.2-2 (best-path/client-path advertisement selection): Ze never advertises RT membership NLRI. RFC4684-3.2-3 (consider all iBGP paths for the outbound route filter): Ze builds no ORF from RT membership. RFC4684-6-1 (bound the End-of-RIB delay for VPN route advertisement): Ze gates no VPN route advertisement on RT-membership state. Disclosed in the docs/features/rfc-status.md RFC 4684 row (Partial). The 6-2/6-3/8-1 SHOULDs and 5-1 MAY are not gated.
+Enrolled: Constrained Route Distribution for BGP/MPLS VPNs (Route Target Constraint): six MUST-level requirements after the 2026-09-21 extraction walk. Four are {gap}, and the two the walk added are tested: RFC4684-4-1 (the MP_REACH_NLRI Next Hop is read as IPv4 at 4 octets and IPv6 at 16) and RFC4684-5-2 (a speaker that exchanges Route Target membership uses the Multiprotocol Extensions capability to advertise the AFI/SAFI pair). Ze implements RTC as a DECODE-ONLY NLRI codec for display/analysis (internal/component/bgp/plugins/nlri/rtc/rtc.go DecodeNLRIHex/RunDecode) with no encode/origination path and no RT-membership distribution. RFC4684-3.2-1 (Originator/Next-hop when advertising RT membership NLRI) and RFC4684-3.2-2 (best-path/client-path advertisement selection): Ze never advertises RT membership NLRI. RFC4684-3.2-3 (consider all iBGP paths for the outbound route filter): Ze builds no ORF from RT membership. RFC4684-6-1 (bound the End-of-RIB delay for VPN route advertisement): Ze gates no VPN route advertisement on RT-membership state. Disclosed in the docs/features/rfc-status.md RFC 4684 row (Partial). The 6-2/6-3/8-1 SHOULDs and 5-1 MAY are not gated.
 
 ## What the public ledger says
 
@@ -89,23 +90,24 @@ RTC NLRI decode for display/analysis (`ze bgp decode`). Tests bound per requirem
 
 **What the ledger says remains**
 
-Decode-only: no encode/origination path and no RT-membership distribution. Four MUST gaps gated in [`rfc/short/rfc4684.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4684.md): Ze does not advertise RT membership NLRI (so no §3.2 Originator/Next-hop or best-path/client-path selection), builds no outbound route filter from RT membership (§3.2), and gates no VPN route advertisement on RT-membership End-of-RIB (§6). Two further MUST rows the 2026-09-21 extraction walk added carry no test: [`RFC4684-4-1`](#rfc4684-4-1) (Next Hop length decides IPv4 or IPv6, §4) and [`RFC4684-5-2`](#rfc4684-5-2) (advertise the AFI/SAFI pair with the Multiprotocol Extensions capability, §5).
+Decode-only: no encode/origination path and no RT-membership distribution. Four MUST gaps gated in [`rfc/short/rfc4684.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4684.md): Ze does not advertise RT membership NLRI (so no §3.2 Originator/Next-hop or best-path/client-path selection), builds no outbound route filter from RT membership (§3.2), and gates no VPN route advertisement on RT-membership End-of-RIB (§6). Two further MUST rows the 2026-09-21 extraction walk added are tested: [`RFC4684-4-1`](#rfc4684-4-1) (Next Hop length decides IPv4 or IPv6, §4) and [`RFC4684-5-2`](#rfc4684-5-2) (Ze's OPEN advertises the (1, 132) pair with the Multiprotocol Extensions capability when `ipv4/rtc` is configured, §5).
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the gated population |
-| Annotated instead of tested | 4 | one part of the gated population |
+| Annotated (including scoped evidence) | 4 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC4684-4-1`](#rfc4684-4-1), [`RFC4684-5-2`](#rfc4684-5-2)
 
-**Annotated instead of tested (4):** [`RFC4684-3.2-1`](#rfc4684-3.2-1), [`RFC4684-3.2-2`](#rfc4684-3.2-2), [`RFC4684-3.2-3`](#rfc4684-3.2-3), [`RFC4684-6-1`](#rfc4684-6-1)
+**Annotated (including scoped evidence) (4):** [`RFC4684-3.2-1`](#rfc4684-3.2-1), [`RFC4684-3.2-2`](#rfc4684-3.2-2), [`RFC4684-3.2-3`](#rfc4684-3.2-3), [`RFC4684-6-1`](#rfc4684-6-1)
 
 ## Requirements
 
@@ -115,8 +117,8 @@ Decode-only: no encode/origination path and no RT-membership distribution. Four 
 | `RFC4684-3.2-2` | When advertising an RT membership NLRI to a non-client peer, if the best path as selected by the path selection procedure described in Section 9.1 of the base BGP specification [4] is a route received from a non-client peer, and if there is an alternative path to the same destination from a client, the attributes of the client path are advertised to the peer. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not advertise RT membership NLRI at all (its RTC support is a decode-only NLRI codec, internal/component/bgp/plugins/nlri/rtc/rtc.go, with no origination path), so it implements none of the Section 3.2 best-path/client-path advertisement selection. Disclosed in docs/features/rfc-status.md. |
 | `RFC4684-3.2-3` | When processing RT membership NLRIs received from internal iBGP peers, it is necessary to consider all available iBGP paths for a given RT prefix, for building the outbound route filter, and not just the best path. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze builds no outbound route filter from RT membership -- its RTC support is a decode-only NLRI codec (internal/component/bgp/plugins/nlri/rtc/rtc.go) with no ORF construction or RT-membership-driven VPN route filtering. Disclosed in docs/features/rfc-status.md. |
 | `RFC4684-6-1` | If a BGP speaker chooses to delay the advertisement of BGP VPN route updates until it receives this End-of-RIB marker, it MUST limit that delay to an upper bound. (Section 6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not gate VPN route advertisement on RT-membership state -- it has no RTC-driven VPN route distribution (the RTC codec is decode-only, internal/component/bgp/plugins/nlri/rtc/rtc.go), so there is no such End-of-RIB delay for Ze to bound. Disclosed in docs/features/rfc-status.md. |
-| `RFC4684-4-1` | The Next Hop field of MP_REACH_NLRI attribute shall be interpreted as an IPv4 address whenever the length of NextHop address is 4 octets, and as a IPv6 address whenever the length of the NextHop address is 16 octets. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L28). **negative:** `unit/verify` [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L29) |
-| `RFC4684-5-2` | A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair. (Section 5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4684RTCFamilyIsAMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L36). **negative:** `unit/verify` [`TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L74) |
+| `RFC4684-4-1` | The Next Hop field of MP_REACH_NLRI attribute shall be interpreted as an IPv4 address whenever the length of NextHop address is 4 octets, and as a IPv6 address whenever the length of the NextHop address is 16 octets. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L28). **negative:** `unit/verify` [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L29) |
+| `RFC4684-5-2` | A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair. (Section 5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4684RTCAdvertisedAsMultiprotocolPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L129). **positive:** `unit/verify` [`TestRFC4684RTCFamilyIsAMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L36). **negative:** `unit/verify` [`TestRFC4684RTCAdvertisedAsMultiprotocolPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L130). **negative:** `unit/verify` [`TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L74) |
 | `RFC4684-6-2` | As a hint that initial RT membership exchange is complete, implementations SHOULD generate an End-of-RIB marker, as defined in [8], for the Route Target membership (afi, safi), regardless of whether graceful-restart is enabled on the BGP session. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4684-6-3` | A BGP speaker should generate the minimum set of BGP VPN route updates (advertisements and/or withdrawls) necessary to transition between the previous and current state of the route distribution graph that is derived from Route Target membership information. (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4684-8-1` | Implementations SHOULD also provide means to filter RT membership information. (§8) | SHOULD | 8 | **positive:** no positive test. **negative:** no negative test |
@@ -175,18 +177,20 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L29) | unit/verify | revert, verified |
-| positive | [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go#L28) | unit/verify | revert, verified |
+| negative | [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L29) | unit/verify | revert, verified |
+| positive | [`TestRFC4684RTCNextHopByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go#L28) | unit/verify | revert, verified |
 
 ### [`RFC4684-5-2`](#rfc4684-5-2)
 
 A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair. (Section 5)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. SB-3 strict re-read 2026-09-27. Forbidden: a speaker exchanging RT membership without advertising (1, 132) in the Multiprotocol Extensions capability. TestRFC4684RTCFamilyIsAMultiprotocolCapability proves the codec: a Multiprotocol value the test builds encodes as 01 04 00 01 00 84, and Negotiate supports the family from two capability lists the test builds. Nothing asserts that Ze's own OPEN carries MP(1,132) when ipv4/rtc is configured, which is the obligation. The negative (TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily: the pair under code 200 is not MP) proves the capability parser, a neighbouring rule.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4684RTCAdvertisedAsMultiprotocolPair reads Ze's built OPEN: ipv4/rtc configured -> MP (1,132) present and negotiated with a peer offering it; mode disable -> absent and not negotiated. Judge break: disabled-family skip removed turned it red. The codec-level tag is supplementary. Summary prose that said 5-2 carries no test is corrected.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC4684RTCAdvertisedAsMultiprotocolPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L130) | unit/verify | revert, verified |
 | negative | [`TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L74) | unit/verify | revert, verified |
+| positive | [`TestRFC4684RTCAdvertisedAsMultiprotocolPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L129) | unit/verify | revert, verified |
 | positive | [`TestRFC4684RTCFamilyIsAMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4684_rtc_test.go#L36) | unit/verify | revert, verified |
 
 ## Extraction sign-off

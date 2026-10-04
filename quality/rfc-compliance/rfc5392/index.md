@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 41.7% | 5 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 25.0% | 3 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 15.4% | 2 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 38.5% | 5 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 23.1% | 3 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 35.7% | 5 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +22,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 30 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 13 | of 31 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 13 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,10 +34,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 33.3% | 4 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 8 | of 12 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| No test at all | 38.5% | 5 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 9 | of 13 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,6 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -60,17 +62,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 30 |
-| Gated MUST-level | 12 |
+| Requirements | 31 |
+| Gated MUST-level | 13 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
+| Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 13 |
-| Tagged units | 13 |
-| Recorded audit verdicts | 8 |
-| Discrimination records | 2 |
+| Test tags | 14 |
+| Tagged units | 14 |
+| Recorded audit verdicts | 9 |
+| Discrimination records | 5 |
 | Summary | `rfc/short/rfc5392.md` |
 | Requirement shard | `rfc/requirements/rfc5392.md` |
 | RFC text | `rfc/full/rfc5392.txt` |
@@ -92,40 +94,42 @@ Enrolled: OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6; 3 MET (Remote-AS re
 
 **What the ledger says remains**
 
-Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemented, so the U-bit=1 rule ([`RFC5392-3.1.2-1`](#rfc5392-3.1.2-1)), the v3 Neighbor-ID prohibition ([`RFC5392-3.2.1-2`](#rfc5392-3.2.1-2)), and the v3 IPv6/IPv4 Remote-ASBR-ID inclusion rules ([`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1), [`RFC5392-3.3.3-2`](#rfc5392-3.3.3-2)) have no v3 carrier to bind.
+Five MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemented, so the U-bit=1 rule ([`RFC5392-3.1.2-1`](#rfc5392-3.1.2-1)), the v3 Neighbor-ID prohibition ([`RFC5392-3.2.1-2`](#rfc5392-3.2.1-2)), the v3 Remote-AS-Number inclusion rule ([`RFC5392-3.2.1-5`](#rfc5392-3.2.1-5)), and the v3 IPv6/IPv4 Remote-ASBR-ID inclusion rules ([`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1), [`RFC5392-3.3.3-2`](#rfc5392-3.3.3-2)) have no v3 carrier to bind.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 5 | one part of the gated population |
-| Annotated instead of tested | 7 | one part of the gated population |
+| Annotated (including scoped evidence) | 8 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (5):** [`RFC5392-3.2.1-4`](#rfc5392-3.2.1-4), [`RFC5392-3.2.1-1`](#rfc5392-3.2.1-1), [`RFC5392-4-1`](#rfc5392-4-1), [`RFC5392-4-2`](#rfc5392-4-2), [`RFC5392-4-3`](#rfc5392-4-3)
 
-**Annotated instead of tested (7):** [`RFC5392-3.3.1-1`](#rfc5392-3.3.1-1), [`RFC5392-3.1.2-1`](#rfc5392-3.1.2-1), [`RFC5392-3.2.1-2`](#rfc5392-3.2.1-2), [`RFC5392-3.3.2-1`](#rfc5392-3.3.2-1), [`RFC5392-3.3.2-2`](#rfc5392-3.3.2-2), [`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1), [`RFC5392-3.3.3-2`](#rfc5392-3.3.3-2)
+**Annotated (including scoped evidence) (8):** [`RFC5392-3.3.1-1`](#rfc5392-3.3.1-1), [`RFC5392-3.1.2-1`](#rfc5392-3.1.2-1), [`RFC5392-3.2.1-2`](#rfc5392-3.2.1-2), [`RFC5392-3.2.1-5`](#rfc5392-3.2.1-5), [`RFC5392-3.3.2-1`](#rfc5392-3.3.2-1), [`RFC5392-3.3.2-2`](#rfc5392-3.3.2-2), [`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1), [`RFC5392-3.3.3-2`](#rfc5392-3.3.3-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5392-3.2.1-4` | The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1) -- Ze, v2 only: `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21; spec-ospf-ext-2 | MUST | 3.2.1 | **positive:** `unit/verify` [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L250). **negative:** `unit/verify` [`TestTEReceiveType6MissingRemoteASSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_test.go#L73) |
-| `RFC5392-3.3.1-1` | When only two octets are used for the AS number, as in current deployments, the left (high- order) two octets MUST be set to zero. (§3.3.1) -- Ze encodes the 4-octet field big-endian from a uint32, so a 2-byte ASN is zero-extended | MUST | 3.3.1 | **positive:** `unit/verify` [`TestInterAsTERemoteAsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/te_interas_test.go#L29). **negative:** no negative test. **{single-polarity}:** ze stores remote-as as a uint32 and encodes it big-endian into the fixed 4-octet field, so a 2-byte ASN is zero-extended by construction and no code path can set the high octets non-zero (internal/plugins/ospf/packet/te_interas.go:36, te_lsa.go:133) |
+| `RFC5392-3.2.1-4` | The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA (§3.2.1) -- Ze: `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21 in every Inter-AS-TE-v2 Link TLV, and a received type-6 Link TLV without it is skipped; the Inter-AS-TE-v3 clause is RFC5392-3.2.1-5; spec-ospf-ext-2 | MUST | 3.2.1 | **positive:** `unit/verify` [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L250). **negative:** `unit/verify` [`TestTEReceiveType6MissingRemoteASSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L73) |
+| `RFC5392-3.3.1-1` | When only two octets are used for the AS number, as in current deployments, the left (high- order) two octets MUST be set to zero. (§3.3.1) -- Ze encodes the 4-octet field big-endian from a uint32, so a 2-byte ASN is zero-extended | MUST | 3.3.1 | **positive:** `unit/verify` [`TestInterAsTERemoteAsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L29). **negative:** no negative test. **{single-polarity}:** ze stores remote-as as a uint32 and encodes it big-endian into the fixed 4-octet field, so a 2-byte ASN is zero-extended by construction and no code path can set the high octets non-zero (internal/plugins/ospf/packet/te_interas.go:36, te_lsa.go:133) |
 | `RFC5392-3.1.2-1` | The U-bit is always set to 1 to indicate that an OSPFv3 router MUST flood the LSA at its defined flooding scope even if it does not recognize the LS type. (§3.1.2) | MUST | 3.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze originates inter-AS TE only as the OSPFv2 Opaque-type-6 LSA; the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is not implemented, so there is no LS Type or U-bit to set (internal/plugins/ospf/te.go:88-91) |
-| `RFC5392-3.2.1-1` | The Link ID sub-TLV [OSPF-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v2 LSA (§3.2.1) -- Ze never emits sub-TLV 2 for an inter-AS link, and a received type-6 Link TLV carrying it is skipped by validateReceivedTELink | MUST NOT | 3.2.1 | **positive:** `unit/verify` [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L245). **negative:** `unit/verify` [`TestTEReceiveMalformedNoEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_test.go#L52) |
+| `RFC5392-3.2.1-1` | The Link ID sub-TLV [OSPF-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v2 LSA (§3.2.1) -- Ze never emits sub-TLV 2 for an inter-AS link, and a received type-6 Link TLV carrying it is skipped by validateReceivedTELink | MUST NOT | 3.2.1 | **positive:** `unit/verify` [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L245). **negative:** `unit/verify` [`TestTEReceiveMalformedNoEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L52) |
 | `RFC5392-3.2.1-2` | the Neighbor ID sub-TLV [OSPF-V3-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1) | MUST NOT | 3.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so there is no v3 inter-AS Link TLV in which a Neighbor ID sub-TLV could be emitted or prohibited (internal/plugins/ospf/te.go:88-91) |
-| `RFC5392-3.3.2-1` | In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv4 address. (§3.3.2) -- Ze: `remote-asbr-ipv4` leaf emitted as sub-TLV 22; validateConfig requires at least one remote-asbr; spec-ospf-ext-2 | MUST | 3.3.2 | **positive:** `unit/verify` [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L252). **negative:** no negative test. **{single-polarity}:** ze emits sub-TLV 22 whenever the operator configures remote-asbr-ipv4; the remote ASBR's addresses are proxied from config, so ze cannot independently detect an IPv4 address and there is no adversarial negative (internal/plugins/ospf/packet/te_interas.go:38-39) |
-| `RFC5392-3.3.2-2` | If the neighboring ASBR does not have an IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.2) | MUST | 3.3.2 | **positive:** `unit/verify` [`TestInterAsTEIPv6AsbrIdType24`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/te_interas_test.go#L91). **negative:** no negative test. **{single-polarity}:** validateConfig requires at least one Remote ASBR ID, so a v4-less inter-AS link carries the IPv6 Remote ASBR ID sub-TLV 24; the selection is operator config and the only enforced rejection is neither-present (internal/plugins/ospf/te_config.go:163, packet/te_interas.go:41-44) |
+| `RFC5392-3.2.1-5` | The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1) | MUST | 3.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Inter-AS-TE-v3 clause only (the Inter-AS-TE-v2 clause is RFC5392-3.2.1-4, met): ze implements no OSPFv3 Inter-AS-TE-v3 LSA (function code 13), so there is no v3 inter-AS Link TLV in which to include the Remote-AS-Number sub-TLV (internal/plugins/ospf/te.go:88-91) |
+| `RFC5392-3.3.2-1` | In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv4 address. (§3.3.2) -- Ze: `remote-asbr-ipv4` leaf emitted as sub-TLV 22; validateConfig requires at least one remote-asbr; spec-ospf-ext-2 | MUST | 3.3.2 | **positive:** `unit/verify` [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L252). **negative:** no negative test. **{single-polarity}:** ze emits sub-TLV 22 whenever the operator configures remote-asbr-ipv4; the remote ASBR's addresses are proxied from config, so ze cannot independently detect an IPv4 address and there is no adversarial negative (internal/plugins/ospf/packet/te_interas.go:38-39) |
+| `RFC5392-3.3.2-2` | If the neighboring ASBR does not have an IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.2) | MUST | 3.3.2 | **positive:** `unit/verify` [`TestInterAsTEIPv6AsbrIdType24`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L91). **positive:** `unit/verify` [`TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go#L15). **negative:** no negative test. **{single-polarity}:** validateConfig requires at least one Remote ASBR ID, so a v4-less inter-AS link carries the IPv6 Remote ASBR ID sub-TLV 24; the selection is operator config and the only enforced rejection is neither-present (internal/plugins/ospf/te_config.go:163, packet/te_interas.go:41-44) |
 | `RFC5392-3.3.3-1` | In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv6 address. (§3.3.3) | MUST | 3.3.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** OSPFv3 inter-AS TE (function code 13) is not implemented, so ze originates no OSPFv3 advertisement in which to require the IPv6 Remote ASBR ID (the type-24 codec exists but is only ever emitted into a v2 LSA) (internal/plugins/ospf/te.go:88-91) |
 | `RFC5392-3.3.3-2` | If the neighboring ASBR does not have an IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.3) | MUST | 3.3.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so the v3 IPv4-fallback rule has no origination path to bind (internal/plugins/ospf/te.go:88-91) |
-| `RFC5392-4-1` | Hellos MUST NOT be exchanged over the inter-AS link (§4) -- an interface carrying an `inter-as` block is forced passive at config parse by parseInterface in internal/plugins/ospf/config.go, so no Hello is sent on it | MUST NOT | 4 | **positive:** `unit/verify` [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L278). **negative:** `unit/verify` [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L33) |
-| `RFC5392-4-2` | Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF adjacency MUST NOT be formed. (§4) -- the forced-passive interface is not an active interface, so no neighbor FSM runs and no adjacency forms on it | MUST NOT | 4 | **positive:** `unit/verify` [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L281). **negative:** `unit/verify` [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L36) |
-| `RFC5392-4-3` | the ASBR MUST take precautions against excessive re- advertisements as described in [OSPF-TE]. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_originate_test.go#L143). **negative:** `unit/verify` [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_originate_test.go#L153) |
+| `RFC5392-4-1` | Hellos MUST NOT be exchanged over the inter-AS link (§4) -- an interface carrying an `inter-as` block is forced passive at config parse by parseInterface in internal/plugins/ospf/config.go, so no Hello is sent on it | MUST NOT | 4 | **positive:** `unit/verify` [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L278). **negative:** `unit/verify` [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L33) |
+| `RFC5392-4-2` | Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF adjacency MUST NOT be formed. (§4) -- the forced-passive interface is not an active interface, so no neighbor FSM runs and no adjacency forms on it | MUST NOT | 4 | **positive:** `unit/verify` [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L281). **negative:** `unit/verify` [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L36) |
+| `RFC5392-4-3` | the ASBR MUST take precautions against excessive re- advertisements as described in [OSPF-TE]. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L143). **negative:** `unit/verify` [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L153) |
 | `RFC5392-3.1.1-1` | The inter-AS TE link advertisement SHOULD be carried in a Type 10 Opaque LSA [RFC5250] if the flooding scope is to be limited to within the single IGP area to which the ASBR belongs (§3.1.1) -- Ze: `inter-as scope area`, the default, originates a Type 10 opaque LSA | SHOULD | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5392-3.1.1-2` | The choice between the use of a Type 10 (area-scoped) or Type 11 (AS-scoped) Opaque LSA is an AS-wide policy choice, and configuration control of it SHOULD be provided in ASBR implementations that support the advertisement of inter-AS TE links. (§3.1.1) -- Ze: the `inter-as scope { area \| as }` leaf selects Type 10 vs Type 11 per link | SHOULD | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5392-3.1.2-2` | For the Inter-AS-TE-v3-LSA, the S2 and S1 bits SHOULD be set to 01 to indicate that the flooding scope is to be limited to within the single IGP area to which the ASBR belongs (§3.1.2) | SHOULD | 3.1.2 | **positive:** no positive test. **negative:** no negative test |
@@ -151,6 +155,7 @@ Four MUST gaps: the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is unimplemente
 |---|---|---|
 | [`RFC5392-3.1.2-1`](#rfc5392-3.1.2-1) The U-bit is always set to 1 to indicate that an OSPFv3 router MUST flood the LSA at its defined flooding scope even if it does not recognize the LS type. (§3.1.2) | {gap}, no test | ze originates inter-AS TE only as the OSPFv2 Opaque-type-6 LSA; the OSPFv3 Inter-AS-TE-v3 LSA (function code 13) is not implemented, so there is no LS Type or U-bit to set (internal/plugins/ospf/te.go:88-91) |
 | [`RFC5392-3.2.1-2`](#rfc5392-3.2.1-2) the Neighbor ID sub-TLV [OSPF-V3-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA (§3.2.1) | {gap}, no test | ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so there is no v3 inter-AS Link TLV in which a Neighbor ID sub-TLV could be emitted or prohibited (internal/plugins/ospf/te.go:88-91) |
+| [`RFC5392-3.2.1-5`](#rfc5392-3.2.1-5) The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1) | {gap}, no test | the Inter-AS-TE-v3 clause only (the Inter-AS-TE-v2 clause is RFC5392-3.2.1-4, met): ze implements no OSPFv3 Inter-AS-TE-v3 LSA (function code 13), so there is no v3 inter-AS Link TLV in which to include the Remote-AS-Number sub-TLV (internal/plugins/ospf/te.go:88-91) |
 | [`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1) In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv6 address. (§3.3.3) | {gap}, no test | OSPFv3 inter-AS TE (function code 13) is not implemented, so ze originates no OSPFv3 advertisement in which to require the IPv6 Remote ASBR ID (the type-24 codec exists but is only ever emitted into a v2 LSA) (internal/plugins/ospf/te.go:88-91) |
 | [`RFC5392-3.3.3-2`](#rfc5392-3.3.3-2) If the neighboring ASBR does not have an IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.3) | {gap}, no test | ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so the v3 IPv4-fallback rule has no origination path to bind (internal/plugins/ospf/te.go:88-91) |
 
@@ -160,14 +165,14 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5392-3.2.1-4`](#rfc5392-3.2.1-4)
 
-The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1) -- Ze, v2 only: `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21; spec-ospf-ext-2
+The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA (§3.2.1) -- Ze: `remote-as` mandatory in YANG + validateConfig; emitted as sub-TLV 21 in every Inter-AS-TE-v2 Link TLV, and a received type-6 Link TLV without it is skipped; the Inter-AS-TE-v3 clause is RFC5392-3.2.1-5; spec-ospf-ext-2
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The quoted sentence has two clauses: the Remote-AS-Number sub-TLV MUST be in the Link TLV of the Inter-AS-TE-v2 LSA, and of the Inter-AS-TE-v3 LSA. v2 clause: forbidden is a type-6 Link TLV without sub-TLV 21; TestInterAsTEOriginateScopePolicy asserts `!l.HasRemoteAS || l.RemoteAS != 65001` fatal, and TestTEReceiveType6MissingRemoteASSkipped asserts reception stores no TED link without it. v3 clause: ze originates no Inter-AS-TE-v3 LSA (function code 13 unimplemented, internal/plugins/ospf/te.go:88-91), so no assertion goes red on a v3 Link TLV lacking sub-TLV 21. One clause unproven, so weak; the v3 clause is a gap like RFC5392-3.2.1-2 and wants its own row.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Row now quotes the verbatim span ending at 'the Inter-AS-TE-v2 LSA' (R3 split; the v3 clause is RFC5392-3.2.1-5, verified against rfc/full/rfc5392.txt lines 528-529). The obligation binds the originator: + TestInterAsTEOriginateScopePolicy fails unless every originated Inter-AS-TE-v2 Link TLV carries sub-TLV 21 with the configured AS 65001 (record on buildInterASTELink observed red); - per owner ruling 2, the handling of a peer's Link TLV lacking it: TestTEReceiveType6MissingRemoteASSkipped encodes an otherwise well-formed type-6 Link TLV (Link Type, IPv4 Remote ASBR ID) without sub-TLV 21 and asserts no TED link is stored (validateReceivedTELink's !HasRemoteAS branch; record observed red). Buffer isolated: Link Type present and no Link ID, so only the missing sub-TLV 21 can trip.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestTEReceiveType6MissingRemoteASSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_test.go#L73) | unit/verify | unproven |
-| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L250) | unit/verify | unproven |
+| negative | [`TestTEReceiveType6MissingRemoteASSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L73) | unit/verify | revert, verified |
+| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L250) | unit/verify | revert, verified |
 
 ### [`RFC5392-3.3.1-1`](#rfc5392-3.3.1-1)
 
@@ -177,7 +182,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestInterAsTERemoteAsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/te_interas_test.go#L29) | unit/verify | unproven |
+| positive | [`TestInterAsTERemoteAsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L29) | unit/verify | unproven |
 
 ### [`RFC5392-3.1.2-1`](#rfc5392-3.1.2-1)
 
@@ -195,8 +200,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestTEReceiveMalformedNoEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_test.go#L52) | unit/verify | unproven |
-| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L245) | unit/verify | unproven |
+| negative | [`TestTEReceiveMalformedNoEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L52) | unit/verify | unproven |
+| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L245) | unit/verify | unproven |
 
 ### [`RFC5392-3.2.1-2`](#rfc5392-3.2.1-2)
 
@@ -206,6 +211,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC5392-3.2.1-2, so no unit is bound to it.
 
+### [`RFC5392-3.2.1-5`](#rfc5392-3.2.1-5)
+
+The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA. (§3.2.1)
+
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. The Inter-AS-TE-v3 clause of the §3.2.1 sentence: ze registers inter-AS TE only as the OSPFv2 Opaque type-6 consumer (registerTEConsumer, te.go) and implements no OSPFv3 Inter-AS-TE-v3 LSA (function code 13), so there is no v3 inter-AS Link TLV in which to include sub-TLV 21. Absent feature, recorded as a {gap}; the v2 clause is RFC5392-3.2.1-4. Disclosed on the Support remaining text (Five MUST gaps).
+
+No test carries RFC5392-3.2.1-5, so no unit is bound to it.
+
 ### [`RFC5392-3.3.2-1`](#rfc5392-3.3.2-1)
 
 In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv4 address. (§3.3.2) -- Ze: `remote-asbr-ipv4` leaf emitted as sub-TLV 22; validateConfig requires at least one remote-asbr; spec-ospf-ext-2
@@ -214,17 +227,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L252) | unit/verify | unproven |
+| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L252) | unit/verify | unproven |
 
 ### [`RFC5392-3.3.2-2`](#rfc5392-3.3.2-2)
 
 If the neighboring ASBR does not have an IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an OSPFv2 inter-AS advertisement for a neighbor ASBR with no IPv4 address that lacks the IPv6 Remote ASBR ID sub-TLV. The only tagged unit, TestInterAsTEIPv6AsbrIdType24 (internal/plugins/ospf/packet/te_interas_test.go), hand-builds a TELSA with HasRemoteASBRv6 and checks the ENCODER writes sub-TLV 24 and no 22. It never drives origination (buildInterASTELink / teOriginateType6) from a v6-only inter-as config, so a defect that drops remote-asbr-ipv6 when building the originated Link TLV, or originates a v4-less link without it, stays green. The tag prose says 'origination emits', which the unit does not exercise.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Origination now driven: v6-only inter-as config (remote-as 65001, remote-asbr-ipv6 2001:db8::9) through teOriginateType6/buildInterASTELink; originated body holds the literal sub-TLV 00 18 00 10 + address, decode shows v6 ID present, no v4 ID, Remote AS 65001. Judge overlay dropping HasRemoteASBRv6 in buildInterASTELink turns it red. {single-polarity: positive} on the row; record observed red on buildInterASTELink.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestInterAsTEIPv6AsbrIdType24`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/te_interas_test.go#L91) | unit/verify | unproven |
+| positive | [`TestInterAsTEIPv6AsbrIdType24`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L91) | unit/verify | unproven |
+| positive | [`TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go#L15) | unit/verify | revert, verified |
 
 ### [`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1)
 
@@ -251,7 +265,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L33) | unit/verify | revert, verified |
-| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L278) | unit/verify | unproven |
+| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L278) | unit/verify | unproven |
 
 ### [`RFC5392-4-2`](#rfc5392-4-2)
 
@@ -262,7 +276,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/te_originate_test.go#L281) | unit/verify | unproven |
+| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L281) | unit/verify | unproven |
 
 ### [`RFC5392-4-3`](#rfc5392-4-3)
 
@@ -272,8 +286,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_originate_test.go#L153) | unit/verify | unproven |
-| positive | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/opaque_originate_test.go#L143) | unit/verify | unproven |
+| negative | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L153) | unit/verify | unproven |
+| positive | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L143) | unit/verify | unproven |
 
 ## Extraction sign-off
 

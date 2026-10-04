@@ -60,6 +60,15 @@ build, and mounts it at `/usr/local/bin/le` in the sender container, where
 <!-- source: internal/test/perfrunner/run.go -- buildLinuxBinary -->
 <!-- source: internal/test/perfrunner/run.go -- runPerf -->
 
+A Go test process is a new fixture boundary, not a continuation of the named
+le build. Native test environments remove every spelling of the outer build
+name and checkout root. Fixture binaries receive their own explicit environment;
+functional suite binaries likewise drop the outer build name but retain their
+selected checkout. These boundaries do not change `refuseWrongBuildName`: an
+explicit wrong identity still refuses the child.
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment -->
+<!-- source: internal/le/test/functional/binaries.go -- BinarySet.Environment -->
+
 
 Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal `ze` build imports no `internal/le` package,

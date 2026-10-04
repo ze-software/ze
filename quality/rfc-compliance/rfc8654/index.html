@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,11 +117,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>8 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>16.7%</strong><b>2 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>9 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.3%</strong><b>1 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>4.0%</strong><b>1 of 25 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>29.4%</strong><b>10 of 34 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 12 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>25</td>
+<td>34</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>25</td>
+<td>34</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>10</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8654.md</code></td>
@@ -265,11 +266,11 @@ No tracked gap in current source anchors.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>8</strong></td>
+<td><strong>9</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>4</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -279,6 +280,10 @@ No tracked gap in current source anchors.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -292,8 +297,8 @@ No tracked gap in current source anchors.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc8654-3-1"><code>RFC8654-3-1</code></a>, <a href="#rfc8654-4-1"><code>RFC8654-4-1</code></a>, <a href="#rfc8654-4-2"><code>RFC8654-4-2</code></a>, <a href="#rfc8654-4-3"><code>RFC8654-4-3</code></a>, <a href="#rfc8654-6-1"><code>RFC8654-6-1</code></a>, <a href="#rfc8654-5-1"><code>RFC8654-5-1</code></a>, <a href="#rfc8654-5-2"><code>RFC8654-5-2</code></a>, <a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (4):</strong> <a href="#rfc8654-3-2"><code>RFC8654-3-2</code></a>, <a href="#rfc8654-3-3"><code>RFC8654-3-3</code></a>, <a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a>, <a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc8654-3-1"><code>RFC8654-3-1</code></a>, <a href="#rfc8654-3-3"><code>RFC8654-3-3</code></a>, <a href="#rfc8654-4-1"><code>RFC8654-4-1</code></a>, <a href="#rfc8654-4-2"><code>RFC8654-4-2</code></a>, <a href="#rfc8654-4-3"><code>RFC8654-4-3</code></a>, <a href="#rfc8654-6-1"><code>RFC8654-6-1</code></a>, <a href="#rfc8654-5-1"><code>RFC8654-5-1</code></a>, <a href="#rfc8654-5-2"><code>RFC8654-5-2</code></a>, <a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc8654-3-2"><code>RFC8654-3-2</code></a>, <a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a>, <a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -306,7 +311,9 @@ No tracked gap in current source anchors.
 <td>3 - BGP Extended Message Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L229" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeLengthConflictTreatAsWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L231" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-3-2">RFC8654-3-2</code></td><td colspan="3"><span class="rfc-subject">The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 (§3)</span></td></tr>
@@ -315,6 +322,7 @@ No tracked gap in current source anchors.
 <td>3 - BGP Extended Message Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L29" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityCodeConstants</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L26" title="internal/core/bgp/capability/rfc8654_extended_message_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageWireIsCode6Length0</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the capability-code assignment is a single fixed value, so the only falsifiable check is that CodeExtendedMessage encodes as 6; there is no distinct rejection behavior for a negative case to exercise</p></td>
 </tr>
@@ -324,8 +332,9 @@ No tracked gap in current source anchors.
 <td>3 - BGP Extended Message Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the capability&#39;s value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L27" title="internal/core/bgp/capability/rfc8654_extended_message_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageWireIsCode6Length0</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L52" title="internal/core/bgp/capability/rfc8654_extended_message_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageNonZeroLengthRefused</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-4-1">RFC8654-4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation that advertises the BGP Extended Message Capability MUST be capable of receiving a message with a length up to and including 65,535 octets (§4)</span></td></tr>
 <tr><td></td>
@@ -346,7 +355,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L394" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendPluginRoutesTracksTheNegotiatedMaximum</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L187" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendUpdateWithSplitLeavesAFittingPayloadWhole</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L224" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendUpdateWithSplitTracksTheNegotiatedMaximum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_split_test.go#L1416" title="internal/component/bgp/message/update_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdate_VPNChunksFitMaxMessageSize</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_update_split_test.go#L1416" title="internal/component/bgp/message/rfc8654_update_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdate_VPNChunksFitMaxMessageSize</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1585" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_TooLarge</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L330" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendPluginRoutesBoundsAnOversizeGroup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L143" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendUpdateWithSplitBoundsAnOversizePayload</code></a></span></div>
@@ -366,7 +375,9 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>6 - Changes to RFC 4271</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L35" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L253" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L38" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L248" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
 </div></td>
 </tr>
@@ -403,6 +414,8 @@ No tracked gap in current source anchors.
 <td>5 - Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-5-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L41" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27" title="internal/component/bgp/reactor/rfc8654_bad_length_session_test.go" target="_blank" rel="noopener"><code>TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
 </div></td>
 </tr>
@@ -476,7 +489,7 @@ No tracked gap in current source anchors.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8654-3-1"><code>RFC8654-3-1</code></a></h3>
 <p>Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: an extended-message peer whose malformed UPDATE resets the session instead of RFC 7606 handling. The tagged units call ValidateUpdateRFC7606 directly with no session and no Extended Message negotiation: the positive asserts a well-formed MP_REACH gets ActionNone, the negative that a COMMUNITY length conflict is treat-as-withdraw. They prove RFC 7606 behaviour in isolation, not that the extended-message session path applies it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. New unit TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling runs on a live session that negotiated Extended Message (asserted) with UPDATEs over 4096 octets (1100 /24s). Positive: malformed ORIGIN length -&gt; RFC 7606 treat-as-withdraw: no error, Established, no NOTIFICATION, all 1100 routes dispatched as withdrawn with no attributes. Negative: Total Attribute Length overruns the message -&gt; RFC 7606 Section 3 b (&#34;the Error Subcode MUST be set to Malformed Attribute List&#34;): NOTIFICATION 3/1, Idle, nothing dispatched. Observed-red records: + revert enforceRFC7606, - revert rfc7606SessionReset. Replaces the old weak finding that only isolated ValidateUpdateRFC7606 calls were tagged; those stay as supplementary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -486,17 +499,27 @@ No tracked gap in current source anchors.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L231" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L229" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8654-3-2"><code>RFC8654-3-2</code></a></h3>
 <p>The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Non-compliant: the capability advertised with a code other than 6. The tagged case asserts uint8(CodeExtendedMessage) == 6 only; no tagged assertion reads the code octet an ExtendedMessage capability writes or requires parse of code 6 to yield ExtendedMessage, so a Code() method or parser mapping another value stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Code 6 is the whole obligation; row single-polarity positive (a fixed code has no refusal form). TestRFC8654ExtendedMessageWireIsCode6Length0 reads the octet WriteTo puts at a non-zero offset (06), Code()==6, and Parse(06 00) yields *ExtendedMessage: a code drift in WriteTo or in Parse&#39;s dispatch goes red. The old TestCapabilityCodeConstants tag (constant only) is supplementary. Judge 2026-09-30.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -506,20 +529,35 @@ No tracked gap in current source anchors.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L26" title="internal/core/bgp/capability/rfc8654_extended_message_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageWireIsCode6Length0</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8654-3-3"><code>RFC8654-3-3</code></a></h3>
 <p>The BGP Extended Message Capability is a new BGP capability [RFC5492] defined with Capability Code 6 and Capability Length 0. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote carries Code 6 and Length 0. The tagged round-trip case packs ExtendedMessage with WriteTo, parses it and asserts only that the parsed Code() equals the original Code(); nothing asserts packed length 2 or a Cap Len octet of 0, so a non-zero-length encoding that Parse accepts stays green, and the code value 6 is not asserted in this unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: WriteTo writes exactly 06 00 with Len 2 and nothing beyond, Parse(06 00) accepted. Negative: TestRFC8654ExtendedMessageNonZeroLengthRefused sends code 6 with length 1 and 4 and requires ErrInvalidLength and no capability. Judge break: parseZeroLengthCapability accepting a non-zero length (len&gt;8 guard) turned the negative red. Single-polarity marker removal is correct: a refusal path exists.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L52" title="internal/core/bgp/capability/rfc8654_extended_message_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageNonZeroLengthRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L27" title="internal/core/bgp/capability/rfc8654_extended_message_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageWireIsCode6Length0</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -567,14 +605,14 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_update_split_test.go#L1416" title="internal/component/bgp/message/rfc8654_update_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdate_VPNChunksFitMaxMessageSize</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1613" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestBuildUnicast_MaxSize_Fits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_split_test.go#L1416" title="internal/component/bgp/message/update_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdate_VPNChunksFitMaxMessageSize</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L366" title="internal/component/bgp/reactor/rfc8654_max_message_size_test.go" target="_blank" rel="noopener"><code>TestSendPluginRoutesLeavesAFittingGroupWhole</code></a></td>
@@ -621,7 +659,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc8654-6-1"><code>RFC8654-6-1</code></a></h3>
 <p>[RFC4271] states &#34;The value of the Length field MUST always be at least 19 and no greater than 4096.&#34; This document changes the latter number to 65,535 for all messages except for OPEN and KEEPALIVE messages. Section 6.1 of [RFC4271] specifies raising an error if the length of a message is over 4,096 octets. For all messages except for OPEN and KEEPALIVE messages, if the receiver has advertised the BGP Extended Message Capability, this document raises that limit to 65,535. (§6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The quote carries the lower bound 19 and the upper bound 4096/65535 by type and advertisement. Upper bounds are asserted in TestValidateLengthWithMax (UPDATE/NOTIFICATION/ROUTE-REFRESH 4097 rejected without extended, 65535 accepted with; OPEN capped). No tagged case has a length below 19; the negative tag is KEEPALIVE of 20, the RFC 4271 per-type rule, a neighbouring obligation.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC8654LengthBoundsPerTypeAndCapability: per-type floors accepted in both capability states, 0 and 18 refused for every type, 4096 accepted and 4097 refused without the capability, 65535 accepted for UPDATE/NOTIFICATION/ROUTE-REFRESH with it, OPEN 4097/65535 refused with it; every refusal Bad Message Length with the erroneous Length as Data. KEEPALIVE&#39;s cap is held by its exact-19 per-type check (HEAD unit).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -631,10 +669,20 @@ No tracked gap in current source anchors.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L38" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L253" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L35" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -685,7 +733,7 @@ No tracked gap in current source anchors.
 <p>No test carries RFC8654-5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></h3>
 <p>Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 4271 error handling for a bad length is a NOTIFICATION Message Header Error / Bad Message Length whose Data carries the erroneous Length field, followed by closing the connection. The tagged unit asserts only ErrorCode and ErrorSubcode on the returned error; the Data field and the send-and-close are unasserted, and no session-level test is tagged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 handling proven end to end: TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling on an established session without Extended Message sends an UPDATE header Length 4097 and requires NOTIFICATION 1/2 with Data 0x1001 on the wire, ReadAndProcess erroring, and the connection closed (EOF). The bounds unit asserts code/subcode/Data; positive on the HEAD TestValidateLengthWithMax.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -694,6 +742,16 @@ No tracked gap in current source anchors.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L41" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27" title="internal/component/bgp/reactor/rfc8654_bad_length_session_test.go" target="_blank" rel="noopener"><code>TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></td>
@@ -898,7 +956,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

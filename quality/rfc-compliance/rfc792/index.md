@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 60.0% | 6 of 10 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 40.0% | 4 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 70.0% | 7 of 10 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 30.0% | 3 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 10 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 54.5% | 12 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 8 | of 10 gated MUSTs judged | 5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,17 +61,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 18 |
-| Tagged units | 18 |
+| Test tags | 22 |
+| Tagged units | 22 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 0 |
+| Discrimination records | 12 |
 | Summary | `rfc/short/rfc792.md` |
 | Requirement shard | `rfc/requirements/rfc792.md` |
 | RFC text | `rfc/full/rfc792.txt` |
 
 ## Enrolment
 
-Enrolled: ICMP is part of Ze's whole Linux stack: Go constructs diagnostic Echo Requests, while Linux responds to local Echo Requests, emits ICMP errors, and enforces IPv4 gateway discard requirements. The gateway and unused-field requirements are exercised at Ze's netlink/packet boundary in internal/plugins/vrrp/gateway_icmp_integration_linux_test.go.
+Enrolled: ICMP is part of Ze's whole Linux stack: Go constructs diagnostic Echo Requests, while Linux responds to local Echo Requests, emits ICMP errors, and enforces IPv4 gateway discard requirements. The gateway and unused-field requirements are exercised at Ze's netlink/packet boundary in internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go.
 
 ## What the public ledger says
 
@@ -87,32 +81,33 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 6 | one part of the gated population |
-| Annotated instead of tested | 4 | one part of the gated population |
+| Positive and negative tests | 7 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **10** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (6):** [`RFC792-Echo-3`](#rfc792-echo-3), [`RFC792-Echo-5`](#rfc792-echo-5), [`RFC792-Echo-6`](#rfc792-echo-6), [`RFC792-Unreachable-1`](#rfc792-unreachable-1), [`RFC792-TimeExceeded-1`](#rfc792-timeexceeded-1), [`RFC792-ParamProblem-1`](#rfc792-paramproblem-1)
+**Positive and negative tests (7):** [`RFC792-Echo-1`](#rfc792-echo-1), [`RFC792-Echo-3`](#rfc792-echo-3), [`RFC792-Echo-5`](#rfc792-echo-5), [`RFC792-Echo-6`](#rfc792-echo-6), [`RFC792-Unreachable-1`](#rfc792-unreachable-1), [`RFC792-TimeExceeded-1`](#rfc792-timeexceeded-1), [`RFC792-ParamProblem-1`](#rfc792-paramproblem-1)
 
-**Annotated instead of tested (4):** [`RFC792-Echo-1`](#rfc792-echo-1), [`RFC792-Echo-2`](#rfc792-echo-2), [`RFC792-Echo-4`](#rfc792-echo-4), [`RFC792-Format-1`](#rfc792-format-1)
+**Annotated (including scoped evidence) (3):** [`RFC792-Echo-2`](#rfc792-echo-2), [`RFC792-Echo-4`](#rfc792-echo-4), [`RFC792-Format-1`](#rfc792-format-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC792-Echo-1` | Type 8 for echo message; 0 for echo reply message. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L194). **negative:** no negative test. **{single-polarity}:** the diagnostic request callers choose Type 8 and Linux icmp_echo assigns Type 0 to an Echo Reply; this is a transmitted-field requirement |
-| `RFC792-Echo-2` | Type 8 for echo message; 0 for echo reply message. Code 0 (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestRFC792EchoRequestCode`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L201). **negative:** no negative test. **{single-polarity}:** ze emits Code 0 and never varies it, so there is no non-zero-code echo it produces to assert against |
-| `RFC792-Echo-3` | The checksum is the 16-bit ones's complement of the one's complement sum of the ICMP message starting with the ICMP Type. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestRFC792ChecksumValid`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L208). **negative:** `unit/verify` [`TestRFC792ChecksumRejectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L218) |
-| `RFC792-Echo-4` | If the total length is odd, the received data is padded with one octet of zeros for computing the checksum. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L229). **negative:** no negative test. **{single-polarity}:** the zero pad is an internal step of a correct computation and ze rejects nothing on this basis, so only the positive direction is assertable |
-| `RFC792-Echo-5` | The data received in the echo message must be returned in the echo reply message. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L392). **negative:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L393) |
-| `RFC792-Echo-6` | To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L394). **negative:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L395) |
-| `RFC792-Format-1` | Any field labeled "unused" is reserved for later extensions and must be zero when sent (§Format) | MUST | Format | **positive:** `unit/verify` [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L320). **positive:** `unit/verify` [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L368). **positive:** `unit/verify` [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L344). **negative:** no negative test. **{single-polarity}:** Linux builds every ICMP error the gateway emits and ze writes no octet of it, so no input to ze yields an error with a nonzero unused field; the positive tags already contrast the zero unused octets with the nonzero assigned fields (pointer, next-hop MTU, RFC 4884 length) |
-| `RFC792-Unreachable-1` | Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don't Fragment flag is on. In this case the gateway must discard the datagram and may return a destination unreachable message. (§Unreachable) | MUST | Unreachable | **positive:** `unit/verify` [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L318). **negative:** `unit/verify` [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L319) |
-| `RFC792-TimeExceeded-1` | If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. (§TimeExceeded) | MUST | TimeExceeded | **positive:** `unit/verify` [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L342). **negative:** `unit/verify` [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L343) |
-| `RFC792-ParamProblem-1` | If the gateway or host processing a datagram finds a problem with the header parameters such that it cannot complete processing the datagram it must discard the datagram (§ParamProblem) | MUST | ParamProblem | **positive:** `unit/verify` [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L366). **negative:** `unit/verify` [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L367) |
+| `RFC792-Echo-1` | Type 8 for echo message; 0 for echo reply message. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L392). **positive:** `unit/verify` [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L198). **negative:** `unit/verify` [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L199) |
+| `RFC792-Echo-2` | Type 8 for echo message; 0 for echo reply message. Code 0 (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L393). **positive:** `unit/verify` [`TestRFC792EchoRequestCode`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L226). **negative:** no negative test. **{single-polarity}:** ze emits Code 0 and never varies it, so there is no non-zero-code echo it produces to assert against |
+| `RFC792-Echo-3` | The checksum is the 16-bit ones's complement of the one's complement sum of the ICMP message starting with the ICMP Type. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L394). **positive:** `unit/verify` [`TestRFC792ChecksumValid`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L233). **negative:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L395) |
+| `RFC792-Echo-4` | If the total length is odd, the received data is padded with one octet of zeros for computing the checksum. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L252). **negative:** no negative test. **{single-polarity}:** the zero pad is an internal step of a correct computation and ze rejects nothing on this basis, so only the positive direction is assertable |
+| `RFC792-Echo-5` | The data received in the echo message must be returned in the echo reply message. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L396). **negative:** `unit/verify` [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L470) |
+| `RFC792-Echo-6` | To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo) | MUST | Echo | **positive:** `unit/verify` [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L397). **negative:** `unit/verify` [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L471) |
+| `RFC792-Format-1` | Any field labeled "unused" is reserved for later extensions and must be zero when sent (§Format) | MUST | Format | **positive:** `unit/verify` [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L320). **positive:** `unit/verify` [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L368). **positive:** `unit/verify` [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L344). **negative:** no negative test. **{single-polarity}:** Linux builds every ICMP error the gateway emits and ze writes no octet of it, so no input to ze yields an error with a nonzero unused field; the positive tags already contrast the zero unused octets with the nonzero assigned fields (pointer, next-hop MTU, RFC 4884 length) |
+| `RFC792-Unreachable-1` | Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don't Fragment flag is on. In this case the gateway must discard the datagram and may return a destination unreachable message. (§Unreachable) | MUST | Unreachable | **positive:** `unit/verify` [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L318). **negative:** `unit/verify` [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L319) |
+| `RFC792-TimeExceeded-1` | If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. (§TimeExceeded) | MUST | TimeExceeded | **positive:** `unit/verify` [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L342). **negative:** `unit/verify` [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L343) |
+| `RFC792-ParamProblem-1` | If the gateway or host processing a datagram finds a problem with the header parameters such that it cannot complete processing the datagram it must discard the datagram (§ParamProblem) | MUST | ParamProblem | **positive:** `unit/verify` [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L366). **negative:** `unit/verify` [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L367) |
 | `RFC792-Echo-7` | For computing the checksum , the checksum field should be zero. (§Echo) | SHOULD | Echo | **positive:** no positive test. **negative:** no negative test |
 | `RFC792-Echo-8` | If code = 0, an identifier to aid in matching echos and replies, may be zero. (§Echo) | MAY | Echo | **positive:** no positive test. **negative:** no negative test |
 | `RFC792-Echo-9` | If code = 0, a sequence number to aid in matching echos and replies, may be zero. (§Echo) | MAY | Echo | **positive:** no positive test. **negative:** no negative test |
@@ -130,32 +125,36 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Type 8 for echo message; 0 for echo reply message. (§Echo)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: Type 8 for echo message; 0 for echo reply. TestRFC792EchoRequestType passes the literal 8 to BuildICMPEcho and asserts byte 0 is 8, so it proves the builder copies its argument, not that ze's callers (icmpEcho constant in ping, traceroute) send 8. The reply clause (Type 0) has no Echo-1-tagged assertion; the marker says Linux builds replies, and TestGatewayICMPEchoReply checks it only under Echo-6.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze's netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L194) | unit/verify | unproven |
+| negative | [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L199) | unit/verify | revert, verified |
+| positive | [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L198) | unit/verify | revert, verified |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L392) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-2`](#rfc792-echo-2)
 
 Type 8 for echo message; 0 for echo reply message. Code 0 (§Echo)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Span ends 'Code 0': the code is 0 for echo and echo reply. TestRFC792EchoRequestCode asserts byte 1 of a built request is 0, which goes red if the builder wrote a non-zero code. The reply's Code 0 is not asserted by any Echo-2-tagged unit.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Code 0 on both messages: probe TestRFC792EchoRequestCode pins byte 1 of the request Ze builds, vrrp TestGatewayICMPEchoReply pins Code 0 on the reply the stack forms for the gateway address Ze installs. {single-polarity} holds: Ze never varies the code, so no non-zero-code echo exists to refuse. vrrp record breaks AddAddress (reachability of the stack reply); the request-side assertion is exact.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC792EchoRequestCode`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L201) | unit/verify | unproven |
+| positive | [`TestRFC792EchoRequestCode`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L226) | unit/verify | revert, verified |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L393) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-3`](#rfc792-echo-3)
 
 The checksum is the 16-bit ones's complement of the one's complement sum of the ICMP message starting with the ICMP Type. (§Echo)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: checksum is the one's complement of the one's complement sum from the Type field. Positive TestRFC792ChecksumValid goes red on a wrong ze checksum (checksumOnesFold != 0xffff). The negative TestRFC792ChecksumRejectsCorruption corrupts a built packet and checks that the TEST helper notices, which exercises no ze code, and the row has no single-polarity marker, so the polarity pair is incomplete.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged c18 (2026-10-02): TestRFC792ChecksumValid changed only by losing its RFC1071-1-5 tag (moved off under D-15/R1, 1-5 now proven on ospf VerifyPacketChecksum); its body and RFC792-Echo-3 claim are unchanged, so the finding stands. Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze's own request checksum folds to 0xffff) and the stack reply's checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one's complement sum is never answered, beside the valid control. The rejecting branch is Linux's on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC792ChecksumRejectsCorruption`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L218) | unit/verify | unproven |
-| positive | [`TestRFC792ChecksumValid`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L208) | unit/verify | unproven |
+| negative | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L395) | unit/verify | revert, verified |
+| positive | [`TestRFC792ChecksumValid`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L233) | unit/verify | revert, verified |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L394) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-4`](#rfc792-echo-4)
 
@@ -165,29 +164,29 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L229) | unit/verify | unproven |
+| positive | [`TestRFC792ChecksumOddLength`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L252) | unit/verify | unproven |
 
 ### [`RFC792-Echo-5`](#rfc792-echo-5)
 
 The data received in the echo message must be returned in the echo reply message. (§Echo)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. First verdict 2026-09-27 (QF-2). Forbidden: an echo reply whose data differs from the request's. TestGatewayICMPEchoReply asserts bytes.Equal(answer[4:], icmp[4:]) on an odd-length request, which goes red on changed data. The negative tag rides the same unit and asserts a corrupt-checksum request is not reflected, the checksum rule (RFC792-Echo-6's negative), a neighbouring rule. Weak: one polarity proves the row.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: odd-length data returned byte-for-byte (TestGatewayICMPEchoReply). Negative: TestGatewayICMPEchoReplyToTheQueriedAddress sends 1, 333 and 1400 data octets with distinct bytes, and each reply must carry exactly its own data (bytes.Equal against its own request, no pad, truncation or cross-over), and every request must be answered. Linux forms the reply; the records break Ze's AddAddress, so they prove the units observe the stack answer Ze configures, and the data clause itself rests on the exact assertion. Counted under the whole-stack rule (ai/rules/rfc-compliance.md): Ze fills the gateway role and the stack performs the obligation on its behalf.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L393) | unit/verify | unproven |
-| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L392) | unit/verify | unproven |
+| negative | [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L470) | unit/verify | revert, verified |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L396) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-6`](#rfc792-echo-6)
 
 To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: to form a reply, reverse the addresses, change the type to 0, recompute the checksum. The positive in TestGatewayICMPEchoReply asserts all three (address compare, answer[0]==0, gatewayChecksum(answer)==0). The negative (a corrupt-checksum request draws no reply) proves a neighbouring rule, discarding a bad request, not a malformed reply, and the row has no single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: reply reverses addresses, Type 0, recomputed checksum verifies (TestGatewayICMPEchoReply). Negative: a request to the secondary 192.0.2.253 is answered from .253 to the request's source, never from the primary .254 a route-picked source would use (TestGatewayICMPEchoReplyToTheQueriedAddress). Records break AddAddress (stack reply reachability); the address clause is discriminated by the secondary-address design. Whole-stack rule applies as for Echo-5.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L395) | unit/verify | unproven |
-| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L394) | unit/verify | unproven |
+| negative | [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L471) | unit/verify | revert, verified |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L397) | unit/verify | revert, verified |
 
 ### [`RFC792-Format-1`](#rfc792-format-1)
 
@@ -197,9 +196,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L320) | unit/verify | unproven |
-| positive | [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L368) | unit/verify | unproven |
-| positive | [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L344) | unit/verify | unproven |
+| positive | [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L320) | unit/verify | unproven |
+| positive | [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L368) | unit/verify | unproven |
+| positive | [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L344) | unit/verify | unproven |
 
 ### [`RFC792-Unreachable-1`](#rfc792-unreachable-1)
 
@@ -209,8 +208,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L319) | unit/verify | unproven |
-| positive | [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L318) | unit/verify | unproven |
+| negative | [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L319) | unit/verify | unproven |
+| positive | [`TestGatewayICMPDFDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L318) | unit/verify | unproven |
 
 ### [`RFC792-TimeExceeded-1`](#rfc792-timeexceeded-1)
 
@@ -220,8 +219,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Firs
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L343) | unit/verify | unproven |
-| positive | [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L342) | unit/verify | unproven |
+| negative | [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L343) | unit/verify | unproven |
+| positive | [`TestGatewayICMPTTLDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L342) | unit/verify | unproven |
 
 ### [`RFC792-ParamProblem-1`](#rfc792-paramproblem-1)
 
@@ -231,8 +230,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L367) | unit/verify | unproven |
-| positive | [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/gateway_icmp_integration_linux_test.go#L366) | unit/verify | unproven |
+| negative | [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L367) | unit/verify | unproven |
+| positive | [`TestGatewayICMPHeaderDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L366) | unit/verify | unproven |
 
 ## Extraction sign-off
 

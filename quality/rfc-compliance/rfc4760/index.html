@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,11 +117,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>4 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>33.3%</strong><b>2 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>83.3%</strong><b>5 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>16.7%</strong><b>1 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>13.6%</strong><b>3 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.4%</strong><b>14 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 6 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 6 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>22</td>
+<td>33</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>22</td>
+<td>33</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>6</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>3</td>
+<td>14</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4760.md</code></td>
@@ -265,11 +267,11 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>4</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>2</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -279,6 +281,10 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -292,8 +298,8 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc4760-3-2"><code>RFC4760-3-2</code></a>, <a href="#rfc4760-3-3"><code>RFC4760-3-3</code></a>, <a href="#rfc4760-3-4"><code>RFC4760-3-4</code></a>, <a href="#rfc4760-7-1"><code>RFC4760-7-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc4760-3-1"><code>RFC4760-3-1</code></a>, <a href="#rfc4760-8-1"><code>RFC4760-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc4760-3-2"><code>RFC4760-3-2</code></a>, <a href="#rfc4760-3-3"><code>RFC4760-3-3</code></a>, <a href="#rfc4760-3-4"><code>RFC4760-3-4</code></a>, <a href="#rfc4760-7-1"><code>RFC4760-7-1</code></a>, <a href="#rfc4760-8-1"><code>RFC4760-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc4760-3-1"><code>RFC4760-3-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -316,13 +322,13 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>MUST</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L155" title="internal/component/bgp/rib/commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitVPNAnnounceCarriesTheRFC4364NextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L155" title="internal/component/bgp/rib/rfc4760_commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitVPNAnnounceCarriesTheRFC4364NextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L16" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestMPReachNLRI_WriteTo</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L39" title="internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachNextHopLengthCountsTheOctetsWritten</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L39" title="internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachNextHopLengthCountsTheOctetsWritten</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L128" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go#L50" title="internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L69" title="internal/component/bgp/rib/commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L124" title="internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go#L50" title="internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L69" title="internal/component/bgp/rib/rfc4760_commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L124" title="internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_InvalidNextHopLength</code></a></span></div>
 </div></td>
 </tr>
@@ -332,7 +338,9 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L85" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachRequiresOriginAndASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L22" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L88" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachRequiresOriginAndASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L24" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-4">RFC4760-3-4</code></td><td colspan="3"><span class="rfc-subject">Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3)</span></td></tr>
@@ -341,7 +349,9 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L149" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IBGPMPReachCarriesLocalPref</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L26" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L153" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IBGPMPReachCarriesLocalPref</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L28" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-7-1">RFC4760-7-1</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7)</span></td></tr>
@@ -349,11 +359,14 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>MUST</td>
 <td>7 - Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L299" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L307" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L240" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPAttributeResetsTheSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L102" title="internal/component/bgp/reactor/rfc4760_section7_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L214" title="internal/component/bgp/reactor/rfc4760_peer_down_link_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L139" title="internal/component/bgp/reactor/rfc4760_section7_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L48" title="internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go" target="_blank" rel="noopener"><code>TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L171" title="internal/component/bgp/reactor/rfc4760_section7_test.go" target="_blank" rel="noopener"><code>TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L256" title="internal/component/bgp/reactor/rfc4760_peer_down_link_test.go" target="_blank" rel="noopener"><code>TestRFC4760CorrectMPReachRaisesNoPeerDown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L244" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPAttributeResetsTheSession</code></a></span></div>
 </div></td>
 </tr>
@@ -363,8 +376,9 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>8 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L65" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseCapabilities</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to advertise a well-formed Multiprotocol capability per AFI/SAFI, enforced by the fixed 4-octet AFI/Reserved/SAFI wire form (internal/core/bgp/capability/capability.go:299-318); there is no malformed-advertisement counter-case distinct from RFC 5492 TLV framing</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L88" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4760OpenAdvertisesEveryConfiguredFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L111" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4760FamilyNotAdvertisedIsNotExchanged</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-5">RFC4760-3-5</code></td><td colspan="3"><span class="rfc-subject">A 1 octet field that MUST be set to 0, and SHOULD be ignored upon receipt. (Section 3)</span></td></tr>
 <tr><td></td>
@@ -434,8 +448,8 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>SHOULD</td>
 <td>8 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-8-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L38" title="internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go" target="_blank" rel="noopener"><code>TestMUPSessionNegotiatesBothAFIs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L69" title="internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go" target="_blank" rel="noopener"><code>TestMUPSessionMissingAFIIsNotNegotiated</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-8-3">RFC4760-8-3</code></td><td colspan="3"><span class="rfc-subject">Reserved (8 bit) field. SHOULD be set to 0 by the sender and ignored by the receiver. (Section 8)</span></td></tr>
@@ -507,34 +521,29 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go#L50" title="internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go#L50" title="internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L69" title="internal/component/bgp/rib/commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L69" title="internal/component/bgp/rib/rfc4760_commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L124" title="internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_InvalidNextHopLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L155" title="internal/component/bgp/rib/commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitVPNAnnounceCarriesTheRFC4364NextHop</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go#L39" title="internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachNextHopLengthCountsTheOctetsWritten</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L124" title="internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L155" title="internal/component/bgp/rib/rfc4760_commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitVPNAnnounceCarriesTheRFC4364NextHop</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L16" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestMPReachNLRI_WriteTo</code></a></td>
@@ -546,20 +555,35 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L39" title="internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go" target="_blank" rel="noopener"><code>TestMPReachNextHopLengthCountsTheOctetsWritten</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4760-3-3"><code>RFC4760-3-3</code></a></h3>
 <p>An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges). (Section 3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The sentence binds the SENDER: an UPDATE carrying MP_REACH_NLRI MUST carry ORIGIN and AS_PATH, on eBGP and iBGP. (a) forbidden: Ze emitting an MP_REACH_NLRI UPDATE without ORIGIN or AS_PATH. (b) no tagged unit asserts it: TestRFC4760MPReachRequiresOriginAndASPath drives only the RECEIVE validator ValidateUpdateRFC7606 (treat-as-withdraw on a missing attribute, which is RFC 7606 Section 3(d) handling), and never inspects an UPDATE Ze builds. The eBGP/iBGP clause is not exercised on either side.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the R43 signature change (assertions unchanged, re-recorded red). TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref: BuildUnicast of an IPv6 route stating ORIGIN, and a bare route stating neither ORIGIN nor AS_PATH, on eBGP and iBGP, always carries MP_REACH_NLRI with ORIGIN and AS_PATH (genuine negative, R1b). BuildUnicast rail; CommitService/RIB-replay rails not driven.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L24" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L88" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachRequiresOriginAndASPath</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L22" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L85" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachRequiresOriginAndASPath</code></a></td>
@@ -571,15 +595,25 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </div>
 <h3><a href="#rfc4760-3-4"><code>RFC4760-3-4</code></a></h3>
 <p>Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: an iBGP UPDATE carrying MP_REACH_NLRI with no LOCAL_PREF. (b) TestRFC4760IBGPMPReachCarriesLocalPref &#34;ibgp includes local_pref&#34; asserts codes[5] on UpdateBuilder.BuildUnicast for an IPv6 route, which goes red on that builder. Weak because the negative tag proves a neighbouring rule: &#34;ebgp omits local_pref&#34; is RFC 4271 Section 5.1.5 (LOCAL_PREF not sent to external peers), and no input in it violates this requirement; the row has no single-polarity marker. Only the BuildUnicast rail is covered; the CommitService and RIB-replay rails that also emit MP_REACH are not.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the R43 signature change (assertions unchanged, re-recorded red). Same unit: every iBGP MP_REACH UPDATE carries LOCAL_PREF, including the bare route with no LOCAL_PREF value (genuine negative); the HEAD eBGP-omits unit stays as a neighbour. BuildUnicast rail.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L28" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L153" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IBGPMPReachCarriesLocalPref</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L26" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L149" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IBGPMPReachCarriesLocalPref</code></a></td>
@@ -591,7 +625,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </div>
 <h3><a href="#rfc4760-7-1"><code>RFC4760-7-1</code></a></h3>
 <p>If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. (a) forbidden: after an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, routes of that AFI/SAFI from the neighbor stay installed. Ze answers with session reset (RFC 7606 Section 3(j)). (b) The trigger is asserted: TestRFC4760IncorrectMPAttributeResetsTheSession (RFC7606ActionSessionReset for a bad next-hop length and a short MP_UNREACH), TestRFC4760IncorrectMPReach/MPUnreachDeletesTheNeighborsRoutes (session reaches Idle, NOTIFICATION code 3), negatives keep Established. The deletion is asserted separately: TestHandleState_PeerDown deletes the PeerRIB on a hand-built state &#34;down&#34; event. No tagged unit asserts the link between them, that the reset session delivers the peer-down event which clears the RIB, so a reactor that goes Idle without notifying the RIB keeps the routes and every tagged unit stays green. The reactor tests assert Idle and assume it deletes routes.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-01 (c8 judge): the RIB unit changed only by two added RFC4271-8.2.2-12/-14 tag comments; body and assertions unchanged. The link the earlier weak verdict named is now asserted end to end. Reactor: TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB runs a whole Peer over TCP, sends an MP_REACH_NLRI whose NLRI overruns the attribute, and asserts the run loop reports THAT peer closed to its lifecycle observers (the apiStateObserver feed that becomes the SessionStateDown event), NOTIFICATION code 3 on the wire, and no consumer dispatch; observed red with notifyPeerClosed broken. Negative TestRFC4760CorrectMPReachRaisesNoPeerDown: the well-formed attribute is dispatched, no peer-down, still Established (red with enforceRFC7606 broken). RIB: TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes drives handleStructuredState down and asserts the offender&#39;s Adj-RIB-In is gone while a bystander&#39;s IPv4 unicast route stays (red with handleStructuredState broken); TestHandleState_PeerDown covers the JSON rail. Session and message units pin the SessionReset trigger for bad MP_REACH next-hop length and short MP_UNREACH. Ze deletes all AFI/SAFIs of the neighbor via session reset (RFC 7606 3(j)), a superset of the MUST. Not asserted: the plugin dispatcher&#39;s translation of OnPeerStateChange into the RIB&#39;s structured state event, which is the shared peer-state path every plugin uses.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -600,6 +634,11 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L244" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPAttributeResetsTheSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L256" title="internal/component/bgp/reactor/rfc4760_peer_down_link_test.go" target="_blank" rel="noopener"><code>TestRFC4760CorrectMPReachRaisesNoPeerDown</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L171" title="internal/component/bgp/reactor/rfc4760_section7_test.go" target="_blank" rel="noopener"><code>TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes</code></a></td>
@@ -612,9 +651,19 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L299" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L48" title="internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go" target="_blank" rel="noopener"><code>TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L307" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L214" title="internal/component/bgp/reactor/rfc4760_peer_down_link_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L102" title="internal/component/bgp/reactor/rfc4760_section7_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes</code></a></td>
@@ -631,15 +680,45 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </div>
 <h3><a href="#rfc4760-8-1"><code>RFC4760-8-1</code></a></h3>
 <p>To have a bi-directional exchange of routing information for a particular &lt;AFI, SAFI&gt; between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular &lt;AFI, SAFI&gt; route. (Section 8)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. (a) forbidden: Ze exchanging routes of an &lt;AFI, SAFI&gt; with a peer without having advertised the Multiprotocol capability for that &lt;AFI, SAFI&gt; in its OPEN. (b) none: TestParseCapabilities only parses a received Code 1 capability into AFI/SAFI. It proves the parser (a neighbouring rule, the Section 8 wire layout), not that Ze advertises a capability for each family it exchanges; it never inspects an OPEN Ze builds or a family Ze sends.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Now reads Ze&#39;s own built OPEN (parsePeerFromTree -&gt; buildOpen -&gt; ParseFromOptionalParams). Positive: three configured families each get one Multiprotocol capability, all negotiated against a peer offering them. Negative: ipv6/unicast mode disable -&gt; no MP capability for it, and Negotiate against a peer offering it leaves it unsupported, so no exchange without Ze&#39;s advertisement. Judge break: the disabled-family skip in parseFamiliesFromTree removed turned the negative red. Old parse-level TestParseCapabilities tag is supplementary. Single-polarity marker removal is correct.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L111" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4760FamilyNotAdvertisedIsNotExchanged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L88" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4760OpenAdvertisesEveryConfiguredFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L65" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseCapabilities</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc4760-8-2"><code>RFC4760-8-2</code></a></h3>
+<p>A BGP speaker that uses Multiprotocol Extensions SHOULD use the Capability Advertisement procedures [BGP-CAP] to determine whether the speaker could use Multiprotocol Extensions with a particular peer. (Section 8)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. capability.Negotiate is the determination the sentence names: TestMUPSessionNegotiatesBothAFIs shows both families usable when both speakers advertise MP(1,85) and MP(2,85); TestMUPSessionMissingAFIIsNotNegotiated shows a family the peer did not advertise is not usable (v4-only peer drops ipv6/mup, no-MUP peer drops both). Exercised for SAFI 85 only; the gating of sends and receives on SupportsFamily is outside these units. Both records red on Negotiate</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L69" title="internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go" target="_blank" rel="noopener"><code>TestMUPSessionMissingAFIIsNotNegotiated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go#L38" title="internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go" target="_blank" rel="noopener"><code>TestMUPSessionNegotiatesBothAFIs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -837,7 +916,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -163,13 +163,14 @@ check existed still commits. Each surface says it where the operator is looking:
 ```
 $ ze config set ze.conf system authentication user alice plaintext-password "secret"
 warning: system.authentication.user.alice.password: weak password (shorter than 8 characters)
-set system authentication user alice plaintext-password secret
+set system authentication user alice plaintext-password /* SECRET-DATA */
 ```
 
 The warning names the leaf and the rule the password failed. It never carries
-the password, so it is safe in a log an operator can read.
+the password, so it is safe in a log an operator can read. The `set` line that
+follows masks the value too, because `plaintext-password` is a sensitive leaf.
 
-<!-- source: internal/component/config/password_strength.go -- PasswordWeakness, PasswordMinLength -->
+<!-- source: internal/component/config/password_strength.go -- PasswordWeakness, PasswordMinLength; internal/component/config/cli/cmd_set.go -- DisplayValueAtPath -->
 <!-- source: internal/component/config/password_hash.go -- HashedPassword, PasswordWeaknessWarnings -->
 <!-- test: test/parse/password-weakness-warning.ci -- weak warns and sets, strong is silent -->
 

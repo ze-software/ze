@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 15.0% | 6 of 40 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 5.0% | 2 of 40 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 40 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 33.3% | 5 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 40 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 61.9% | 13 of 21 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 10.0% | 4 of 40 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 6 | of 40 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 15 |
-| Tagged units | 15 |
+| Test tags | 23 |
+| Tagged units | 21 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 5 |
+| Discrimination records | 13 |
 | Summary | `rfc/short/rfc6810.md` |
 | Requirement shard | `rfc/requirements/rfc6810.md` |
 | RFC text | `rfc/full/rfc6810.txt` |
@@ -98,16 +99,17 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 6 | one part of the gated population |
-| Annotated instead of tested | 34 | one part of the gated population |
+| Annotated (including scoped evidence) | 34 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **40** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (6):** [`RFC6810-5-1`](#rfc6810-5-1), [`RFC6810-5.1-1`](#rfc6810-5.1-1), [`RFC6810-5.1-3`](#rfc6810-5.1-3), [`RFC6810-6.3-1`](#rfc6810-6.3-1), [`RFC6810-6.4-1`](#rfc6810-6.4-1), [`RFC6810-8-2`](#rfc6810-8-2)
 
-**Annotated instead of tested (34):** [`RFC6810-5.6-1`](#rfc6810-5.6-1), [`RFC6810-5.5-1`](#rfc6810-5.5-1), [`RFC6810-5.8-1`](#rfc6810-5.8-1), [`RFC6810-5.10-1`](#rfc6810-5.10-1), [`RFC6810-5.10-2`](#rfc6810-5.10-2), [`RFC6810-5.10-3`](#rfc6810-5.10-3), [`RFC6810-5.10-4`](#rfc6810-5.10-4), [`RFC6810-2-1`](#rfc6810-2-1), [`RFC6810-5.1-2`](#rfc6810-5.1-2), [`RFC6810-4-1`](#rfc6810-4-1), [`RFC6810-6.1-1`](#rfc6810-6.1-1), [`RFC6810-6.2-1`](#rfc6810-6.2-1), [`RFC6810-3-1`](#rfc6810-3-1), [`RFC6810-4-2`](#rfc6810-4-2), [`RFC6810-7-1`](#rfc6810-7-1), [`RFC6810-7-2`](#rfc6810-7-2), [`RFC6810-7-3`](#rfc6810-7-3), [`RFC6810-7.1-1`](#rfc6810-7.1-1), [`RFC6810-7.1-2`](#rfc6810-7.1-2), [`RFC6810-8-1`](#rfc6810-8-1), [`RFC6810-7.2-1`](#rfc6810-7.2-1), [`RFC6810-7.2-2`](#rfc6810-7.2-2), [`RFC6810-7.2-3`](#rfc6810-7.2-3), [`RFC6810-7.2-4`](#rfc6810-7.2-4), [`RFC6810-7.2-5`](#rfc6810-7.2-5), [`RFC6810-7.2-6`](#rfc6810-7.2-6), [`RFC6810-7.2-7`](#rfc6810-7.2-7), [`RFC6810-7.2-8`](#rfc6810-7.2-8), [`RFC6810-7.3-1`](#rfc6810-7.3-1), [`RFC6810-7.3-2`](#rfc6810-7.3-2), [`RFC6810-7.4-1`](#rfc6810-7.4-1), [`RFC6810-7.4-2`](#rfc6810-7.4-2), [`RFC6810-7.4-3`](#rfc6810-7.4-3), [`RFC6810-7.4-4`](#rfc6810-7.4-4)
+**Annotated (including scoped evidence) (34):** [`RFC6810-5.6-1`](#rfc6810-5.6-1), [`RFC6810-5.5-1`](#rfc6810-5.5-1), [`RFC6810-5.8-1`](#rfc6810-5.8-1), [`RFC6810-5.10-1`](#rfc6810-5.10-1), [`RFC6810-5.10-2`](#rfc6810-5.10-2), [`RFC6810-5.10-3`](#rfc6810-5.10-3), [`RFC6810-5.10-4`](#rfc6810-5.10-4), [`RFC6810-2-1`](#rfc6810-2-1), [`RFC6810-5.1-2`](#rfc6810-5.1-2), [`RFC6810-4-1`](#rfc6810-4-1), [`RFC6810-6.1-1`](#rfc6810-6.1-1), [`RFC6810-6.2-1`](#rfc6810-6.2-1), [`RFC6810-3-1`](#rfc6810-3-1), [`RFC6810-4-2`](#rfc6810-4-2), [`RFC6810-7-1`](#rfc6810-7-1), [`RFC6810-7-2`](#rfc6810-7-2), [`RFC6810-7-3`](#rfc6810-7-3), [`RFC6810-7.1-1`](#rfc6810-7.1-1), [`RFC6810-7.1-2`](#rfc6810-7.1-2), [`RFC6810-8-1`](#rfc6810-8-1), [`RFC6810-7.2-1`](#rfc6810-7.2-1), [`RFC6810-7.2-2`](#rfc6810-7.2-2), [`RFC6810-7.2-3`](#rfc6810-7.2-3), [`RFC6810-7.2-4`](#rfc6810-7.2-4), [`RFC6810-7.2-5`](#rfc6810-7.2-5), [`RFC6810-7.2-6`](#rfc6810-7.2-6), [`RFC6810-7.2-7`](#rfc6810-7.2-7), [`RFC6810-7.2-8`](#rfc6810-7.2-8), [`RFC6810-7.3-1`](#rfc6810-7.3-1), [`RFC6810-7.3-2`](#rfc6810-7.3-2), [`RFC6810-7.4-1`](#rfc6810-7.4-1), [`RFC6810-7.4-2`](#rfc6810-7.4-2), [`RFC6810-7.4-3`](#rfc6810-7.4-3), [`RFC6810-7.4-4`](#rfc6810-7.4-4)
 
 ## Requirements
 
@@ -115,7 +117,7 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.
 |---|---|---|---|---|
 | `RFC6810-5-1` | Fields with unspecified content MUST be zero on transmission (Section 5) | MUST | 5 | **positive:** `unit/verify` [`TestWriteResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16). **positive:** `unit/verify` [`TestWriteResetQueryZeroesReservedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L52). **negative:** `unit/verify` [`TestWriteSerialQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L35) |
 | `RFC6810-5.1-1` | Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestParseIPv4Prefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L57). **negative:** `unit/verify` [`TestParseIPv4PrefixMaxLenLessThanPrefixLen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L130) |
-| `RFC6810-5.1-3` | The value of such a field MUST be ignored on receipt. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L37). **negative:** `unit/verify` [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L38) |
+| `RFC6810-5.1-3` | The value of such a field MUST be ignored on receipt. (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37). **positive:** `unit/verify` [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472). **negative:** `unit/verify` [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38). **negative:** `unit/verify` [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495) |
 | `RFC6810-5.6-1` | The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (Section 5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP |
 | `RFC6810-5.5-1` | When replying to a Reset Query, the cache sends the set of all data records it has; in this case, the withdraw/announce field in the payload PDUs MUST have the value 1 (announce). (Section 5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission |
 | `RFC6810-5.8-1` | The Session ID MUST be the same as that of the corresponding Cache Response that began the, possibly null, sequence of data PDUs. (Section 5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match |
@@ -126,13 +128,13 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.
 | `RFC6810-2-1` | As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data |
 | `RFC6810-5.1-2` | If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other's, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not detect a Session ID change -- handlePDU adopts the Cache Response Session ID unconditionally (internal/component/bgp/plugins/rpki/rtr_session.go:233, s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush |
 | `RFC6810-4-1` | The router MUST choose the most preferred, by configuration, cache or set of caches so that the operator may control load on their caches and the Global RPKI. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not select the most preferred cache -- startSessions launches a Run goroutine for every configured cache concurrently (internal/component/bgp/plugins/rpki/rpki.go:291-298) and the parsed preference is only surfaced for display (rpki.go:1026), never used to order or choose caches |
-| `RFC6810-6.1-1` | To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2) | MUST | 6.1 | **positive:** `unit/verify` [`TestRFC6810DefaultPollCadenceIsHourly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L23). **negative:** no negative test. **{single-polarity}:** the re-query cadence is Run's post-sync wait of s.retryInterval (internal/component/bgp/plugins/rpki/rtr_session.go:106-110), defaulting to 600s (rtr_session.go:81) which is below the one-hour ceiling; there is no malformed input that yields a too-infrequent negative case |
+| `RFC6810-6.1-1` | To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2) | MUST | 6.1 | **positive:** `unit/verify` [`TestRFC6810DefaultPollCadenceIsHourly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L23). **positive:** `unit/verify` [`TestRTRPollsAtLeastHourly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L512). **negative:** no negative test. **{single-polarity}:** the re-query cadence is Run's post-sync wait of s.retryInterval (internal/component/bgp/plugins/rpki/rtr_session.go:106-110), defaulting to 600s (rtr_session.go:81) which is below the one-hour ceiling; there is no malformed input that yields a too-infrequent negative case |
 | `RFC6810-6.2-1` | The cache MUST rate limit Serial Notifies to no more frequently than one per minute. (Section 6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side rate limit on Serial Notify emission -- ze receives Serial Notify and ignores it during sync (internal/component/bgp/plugins/rpki/rtr_session.go:359) and never sends one |
-| `RFC6810-6.3-1` | If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302). **negative:** `unit/verify` [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318) |
-| `RFC6810-6.4-1` | If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L71). **negative:** `unit/verify` [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L72) |
+| `RFC6810-6.3-1` | If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302). **positive:** `unit/verify` [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325). **negative:** `unit/verify` [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318). **negative:** `unit/verify` [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338) |
+| `RFC6810-6.4-1` | If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71). **negative:** `unit/verify` [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72) |
 | `RFC6810-3-1` | A relying party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any authoritative cache(s) it uses. (Section 3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** operator deployment obligation -- the trust relationship and trusted channel are established by network placement; ze dials the operator-configured cache over unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and has no in-band trust mechanism to produce or violate |
 | `RFC6810-4-2` | As a cache server must evaluate certificates and ROAs (Route Origin Attestations; see [RFC6480]), which are time dependent, servers' clocks MUST be correct to a tolerance of approximately an hour. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-server clock obligation -- ze is the RTR router client that dials out (internal/component/bgp/plugins/rpki/rtr_session.go:125 connectAndSync); it runs no cache and holds no clock this binds |
-| `RFC6810-7-1` | Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L86). **negative:** no negative test. **{single-polarity}:** ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case |
+| `RFC6810-7-1` | Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L86). **positive:** `unit/verify` [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26). **negative:** no negative test. **{single-polarity}:** ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case |
 | `RFC6810-7-2` | If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (Section 7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** operator deployment obligation -- when unprotected TCP is used the trusted-network placement is the operator's; ze dials plain TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) with no code path to enforce network topology |
 | `RFC6810-7-3` | If available to the operator, caches and routers MUST use one of the following more protected protocols. (Section 7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select |
 | `RFC6810-7.1-1` | Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication |
@@ -250,12 +252,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The value of such a field MUST be ignored on receipt. (Section 5.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The row covers every zero/reserved field of every PDU. TestRFC6810ReservedPrefixOctetsIgnored proves it for the IPv4 Prefix PDU only: an all-ones header zero field, reserved flag bits and zero octet still authorize the route, and clearing the announce bit withdraws it (so only reserved bits are ignored). No unit sends a nonzero reserved field in the other PDUs a router receives (Serial Notify, Cache Response, End of Data, Cache Reset, IPv6 Prefix), so a receiver that rejects those stays green. Same judgement as RFC8210-5-1.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Receipt of unspecified-content fields proven for every router-received PDU that has one: IPv4 Prefix (TestRFC6810ReservedPrefixOctetsIgnored), IPv6 Prefix header zero field, reserved flags and zero octet all ones still authorize 2001:db8::/32, and Cache Reset octets 2-3 0xFFFF still reset (TestRTRReservedOctetsIgnoredOnReceipt). Serial Notify, Cache Response and End of Data carry Session ID there, not a reserved field. Negative: the same 0xFFFF in a Cache Response is read as Session ID.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L38) | unit/verify | revert, verified |
-| positive | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L37) | unit/verify | revert, verified |
+| negative | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38) | unit/verify | revert, verified |
+| negative | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495) | unit/verify | revert, verified |
+| positive | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37) | unit/verify | revert, verified |
+| positive | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472) | unit/verify | revert, verified |
 
 ### [`RFC6810-5.6-1`](#rfc6810-5.6-1)
 
@@ -341,11 +345,12 @@ No test carries RFC6810-4-1, so no unit is bound to it.
 
 To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} carried on the row. TestRFC6810DefaultPollCadenceIsHourly asserts only that pollDelay(true) and pollDelay(false) return at most one hour on a fresh session. It does not drive Run, so a loop that ignored pollDelay and never re-queried would stay green, and nothing asserts that a v0 End of Data (which carries no timing parameters) leaves those intervals within the hour.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row annotation). TestRTRPollsAtLeastHourly: after an End of Data with zero interval fields, pollDelay(true) and pollDelay(false) are both at most one hour; the running cacheGroup queries again when the wait ends (Reset then Serial on the wire with a 1s wait), so the loop does re-query. TestRFC6810DefaultPollCadenceIsHourly keeps the fresh-session defaults.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC6810DefaultPollCadenceIsHourly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L23) | unit/verify | revert, verified |
+| positive | [`TestRFC6810DefaultPollCadenceIsHourly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L23) | unit/verify | revert, verified |
+| positive | [`TestRTRPollsAtLeastHourly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L512) | unit/verify | revert, verified |
 
 ### [`RFC6810-6.2-1`](#rfc6810-6.2-1)
 
@@ -359,12 +364,14 @@ No test carries RFC6810-6.2-1, so no unit is bound to it.
 
 If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: after a Cache Reset with no more-preferred cache, not issuing a Reset Query or not taking a whole new load. TestCacheResetTriggersResetQuery calls handlePDU directly and asserts only that s.serial becomes 0 and the sync ends; no tagged unit observes the Reset Query on the wire or the old set replaced by a full load. The negative (Serial Notify keeps the serial) holds. Same judgement as RFC8210-8.3-1.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Same units as RFC8210-8.3-1: TestRTRCacheResetReloadsTheWholeSet, one-session group, Cache Reset makes the next wire query a Reset Query and its load replaces the old set; negative: data in answer to the Serial Query keeps Serial Queries and merges.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318) | unit/verify | unproven |
-| positive | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302) | unit/verify | unproven |
+| negative | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338) | unit/verify | revert, verified |
+| negative | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318) | unit/verify | revert, verified |
+| positive | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325) | unit/verify | revert, verified |
+| positive | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302) | unit/verify | revert, verified |
 
 ### [`RFC6810-6.4-1`](#rfc6810-6.4-1)
 
@@ -374,8 +381,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L72) | unit/verify | revert, verified |
-| positive | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go#L71) | unit/verify | revert, verified |
+| negative | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72) | unit/verify | revert, verified |
+| positive | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71) | unit/verify | revert, verified |
 
 ### [`RFC6810-3-1`](#rfc6810-3-1)
 
@@ -397,11 +404,12 @@ No test carries RFC6810-4-2, so no unit is bound to it.
 
 Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. {single-polarity: positive} carried on the row. TestParseRPKIConfigDefaults asserts only that a parsed cache-server with no port defaults to 323; no tagged unit drives an unprotected TCP RTR session from config to show ze implements the transport on that port. Same judgement as RFC8210-9-1.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row annotation). Same unit as RFC8210-9-1: TestRTRUnprotectedTCPFromConfig drives a config-parsed trusted-network cache (default port 323) over plain TCP to a completed sync with the VRP used.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L86) | unit/verify | unproven |
+| positive | [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC6810-7-2`](#rfc6810-7-2)
 

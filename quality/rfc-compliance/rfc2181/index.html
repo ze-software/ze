@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,10 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>47.8%</strong><b>11 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13.0%</strong><b>3 of 23 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>39.1%</strong><b>9 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.0%</strong><b>13 of 20 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 23 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>13</td>
+<td>20</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>13</td>
+<td>20</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>13</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2181.md</code></td>
@@ -270,11 +275,11 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>1</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>22</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>20</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,6 +289,10 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -297,8 +306,8 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (22):</strong> <a href="#rfc2181-4.1-1"><code>RFC2181-4.1-1</code></a>, <a href="#rfc2181-4.2-1"><code>RFC2181-4.2-1</code></a>, <a href="#rfc2181-4.2-2"><code>RFC2181-4.2-2</code></a>, <a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>, <a href="#rfc2181-5.2-1"><code>RFC2181-5.2-1</code></a>, <a href="#rfc2181-5.3.1-2"><code>RFC2181-5.3.1-2</code></a>, <a href="#rfc2181-5.3.1-3"><code>RFC2181-5.3.1-3</code></a>, <a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a>, <a href="#rfc2181-5.4-1"><code>RFC2181-5.4-1</code></a>, <a href="#rfc2181-5.4-2"><code>RFC2181-5.4-2</code></a>, <a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a>, <a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a>, <a href="#rfc2181-5.4.1-9"><code>RFC2181-5.4.1-9</code></a>, <a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a>, <a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a>, <a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a>, <a href="#rfc2181-10.2-1"><code>RFC2181-10.2-1</code></a>, <a href="#rfc2181-10.3-1"><code>RFC2181-10.3-1</code></a>, <a href="#rfc2181-10.3-2"><code>RFC2181-10.3-2</code></a>, <a href="#rfc2181-11-1"><code>RFC2181-11-1</code></a>, <a href="#rfc2181-11-2"><code>RFC2181-11-2</code></a>, <a href="#rfc2181-11-3"><code>RFC2181-11-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc2181-5.4-2"><code>RFC2181-5.4-2</code></a>, <a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a>, <a href="#rfc2181-11-1"><code>RFC2181-11-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (20):</strong> <a href="#rfc2181-4.1-1"><code>RFC2181-4.1-1</code></a>, <a href="#rfc2181-4.2-1"><code>RFC2181-4.2-1</code></a>, <a href="#rfc2181-4.2-2"><code>RFC2181-4.2-2</code></a>, <a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>, <a href="#rfc2181-5.2-1"><code>RFC2181-5.2-1</code></a>, <a href="#rfc2181-5.3.1-2"><code>RFC2181-5.3.1-2</code></a>, <a href="#rfc2181-5.3.1-3"><code>RFC2181-5.3.1-3</code></a>, <a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a>, <a href="#rfc2181-5.4-1"><code>RFC2181-5.4-1</code></a>, <a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a>, <a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a>, <a href="#rfc2181-5.4.1-9"><code>RFC2181-5.4.1-9</code></a>, <a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a>, <a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a>, <a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a>, <a href="#rfc2181-10.2-1"><code>RFC2181-10.2-1</code></a>, <a href="#rfc2181-10.3-1"><code>RFC2181-10.3-1</code></a>, <a href="#rfc2181-10.3-2"><code>RFC2181-10.3-2</code></a>, <a href="#rfc2181-11-2"><code>RFC2181-11-2</code></a>, <a href="#rfc2181-11-3"><code>RFC2181-11-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -310,7 +319,8 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L345" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L56" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181ReplySourcedFromTheQueriedAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L345" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> each UDP listener binds one specific IP at internal/core/dnsserver/manager.go:160 so the kernel sources every reply from the query destination address, and ze has no wildcard-bind or explicit-source path that could send from another address</p></td>
 </tr>
@@ -319,7 +329,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L350" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L350" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the reply is written on the same socket the query arrived on via internal/core/dnsserver/handler.go:62 so miekg/dns directs it to the query source port, a property ze cannot violate</p></td>
 </tr>
@@ -328,7 +338,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L355" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L355" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> miekg/dns ServeUDP records the datagram source port and uses it as the reply destination for the write at internal/core/dnsserver/handler.go:62, so ze always answers to the query source port</p></td>
 </tr>
@@ -346,7 +356,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L397" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_RRSetEqualTTL</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L397" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_RRSetEqualTTL</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns assigns one TTL per host record set at internal/plugins/geodns/config.go:271 and as112 uses fixed per-zone TTL constants, so an emitted RRSet never carries unequal TTLs and no code path can produce one</p></td>
 </tr>
@@ -382,7 +392,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST NOT</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L226" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L226" title="internal/component/resolve/dns/rfc2181_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones</p></td>
 </tr>
@@ -391,9 +401,10 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> put discards the entire cached RRSet before storing the new answer at internal/component/resolve/dns/cache.go:145, taking the discard-cached branch of the rule rather than merging</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L21" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234" title="internal/component/resolve/dns/rfc2181_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-3">RFC2181-5.4.1-3</code></td><td colspan="3"><span class="rfc-subject">Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1)</span></td></tr>
 <tr><td></td>
@@ -436,8 +447,9 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>SHALL</td>
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L225" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L171" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181TTLTransmittedWithSignBitClear</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L225" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L238" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-4">RFC2181-10.1-4</code></td><td colspan="3"><span class="rfc-subject">An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1)</span></td></tr>
@@ -472,7 +484,8 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST NOT</td>
 <td>10.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L437" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L88" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181NSTargetIsNotAnAlias</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L437" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns synthesizes NS targets as canonical ns&lt;n&gt;.&lt;zone&gt; names at internal/plugins/geodns/server.go:154 and as112 uses fixed canonical names, so ze never emits a CNAME as an NS or MX value and serves no MX at all</p></td>
 </tr>
@@ -481,7 +494,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST</td>
 <td>10.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L454" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L454" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records</p></td>
 </tr>
@@ -490,16 +503,17 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L481" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_WireNameLimits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the DNS wire codec ze packs and unpacks through rejects a label of 64+ octets at vendor/github.com/miekg/dns/msg.go:281 and caps a name at 255, and geodns/as112 emit only short synthetic names, so no over-limit name is produced</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L131" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181NameLimitsBothSidesOfEachBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L481" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_WireNameLimits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L145" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181NameLimitsBothSidesOfEachBound</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-2">RFC2181-11-2</code></td><td colspan="3"><span class="rfc-subject">Implementations of the DNS protocols must not place any restrictions on the labels that can be used. (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L271" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L271" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns applies no label-content restriction -- parseHost at internal/plugins/geodns/config.go:270 accepts any label characters and only requires a configured-zone suffix, so underscore and other non-hostname labels are served</p></td>
 </tr>
@@ -508,7 +522,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <td>MUST NOT</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L260" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L260" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns never refuses a zone for questionable labels -- config parsing at internal/plugins/geodns/config.go:246 rejects only a missing zone suffix or an invalid IP, never label characters</p></td>
 </tr>
@@ -996,15 +1010,20 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2181-4.1-1"><code>RFC2181-4.1-1</code></a></h3>
 <p>To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_UDPReplySourceAndPort sends to 127.0.0.1 on loopback and asserts the reply source is 127.0.0.1; a wildcard-bound listener would also source a loopback reply from 127.0.0.1, so the assertion cannot fail for the regression the row guards (reply sourced from another address on a multi-homed host).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. TestRFC2181ReplySourcedFromTheQueriedAddress binds the listener to 127.0.0.2 and queries from 127.0.0.1, asserting reply source 127.0.0.2; a wildcard bind would source from 127.0.0.1, so the assertion discriminates (the earlier weak finding). Record: dnsserver Manager.bind revert observed red. {single-polarity} holds: every UDP listener binds one address and there is no explicit-source path to drive negatively.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L345" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L56" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181ReplySourcedFromTheQueriedAddress</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L345" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1017,7 +1036,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L350" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L350" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1032,7 +1051,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L355" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L355" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1051,7 +1070,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L397" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_RRSetEqualTTL</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L397" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_RRSetEqualTTL</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1078,7 +1097,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L226" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L226" title="internal/component/resolve/dns/rfc2181_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1087,15 +1106,25 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </div>
 <h3><a href="#rfc2181-5.4-2"><code>RFC2181-5.4-2</code></a></h3>
 <p>If a response contains data that would form an RRSet with data in a server&#39;s cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_CacheReplacesRRSetNoMerge: the assertion carrying this tag only checks one cache entry exists, which a merge into the same entry also satisfies; the discard of the whole cached RRSet is proven only by the RFC2181-5.4-1 assertions above it (same assertion wearing two hats).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition&#39;s false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L21" title="internal/component/resolve/dns/rfc2181_cache_rrset_test.go" target="_blank" rel="noopener"><code>TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234" title="internal/component/resolve/dns/rfc2181_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1118,20 +1147,25 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p>No test carries RFC2181-5.5-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a></h3>
 <p>It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_TTLSignBitBound drives parseTTL alone: it accepts 2147483647 and rejects 2147483648, so a config parse that let the sign bit through goes red. Two clauses stay unproven: the &#39;when transmitted&#39; clause (no assertion reads the TTL field of an emitted RR, so a TTL from another source, SOA/NS/as112 constants, or a pack that set the top bit, stays green) and the minimum value of 0 (parseTTL(&#34;0&#34;) is never accepted under test).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: parseTTL(&#39;0&#39;) is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value &lt;= 2^31-1, closing the earlier &#39;when transmitted&#39; gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L238" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L225" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L171" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181TTLTransmittedWithSignBitClear</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L225" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1150,15 +1184,20 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <p>No test carries RFC2181-10.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-10.3-1"><code>RFC2181-10.3-1</code></a></h3>
 <p>The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_NSCanonicalWithGlue asserts the NS targets have an ns&lt;n&gt;.&lt;zone&gt; shape and that no CNAME appears in the NS answer or glue; it never queries the target name for a CNAME, so the name-shape check asserts what the code does rather than that the target is not an alias.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. TestRFC2181NSTargetIsNotAnAlias queries each NS target itself: a CNAME query returns no CNAME, an A query returns only A records owned by the target holding the configured addresses (an alias would answer a CNAME chain). Record: appendNS revert observed red. {single-polarity} holds: Ze serves no CNAME and no MX, so there is no alias to refuse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L437" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L88" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181NSTargetIsNotAnAlias</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L437" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1171,7 +1210,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L454" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L454" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1180,15 +1219,25 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 </div>
 <h3><a href="#rfc2181-11-1"><code>RFC2181-11-1</code></a></h3>
 <p>The length of any one label is limited to between 1 and 63 octets. A full domain name is limited to 255 octets (including the separators). (§11)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestRFC2181_WireNameLimits proves the codec refuses a 64-octet label, but the emitted-name checks run over a short configured name and cannot fail, and the 255-octet full-name limit is never exercised against the codec or geodns config.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both sides of each bound: a 63-octet label accepted by parseConfig, a 255-octet name accepted by checkName and packed by the codec; a 64-octet label, an EMPTY label (the D-8 defect, fixed in checkName with the section 11 quote) and a 256-octet name refused, and the codec refuses 256. Records: checkName revert, both polarities observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L481" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_WireNameLimits</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L145" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181NameLimitsBothSidesOfEachBound</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L131" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181NameLimitsBothSidesOfEachBound</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L481" title="internal/plugins/geodns/rfc2181_server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_WireNameLimits</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1201,7 +1250,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L271" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L271" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1216,7 +1265,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L260" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L260" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1546,7 +1595,7 @@ One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS a
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

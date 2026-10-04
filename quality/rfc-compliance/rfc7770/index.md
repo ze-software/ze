@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 9.1% | 1 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 27.3% | 3 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 50.0% | 6 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 4 | of 11 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tagged units | 6 |
+| Test tags | 12 |
+| Tagged units | 12 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 0 |
+| Discrimination records | 6 |
 | Summary | `rfc/short/rfc7770.md` |
 | Requirement shard | `rfc/requirements/rfc7770.md` |
 | RFC text | `rfc/full/rfc7770.txt` |
@@ -96,25 +90,26 @@ Same OSPF experimental status.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 10 | one part of the gated population |
+| Annotated (including scoped evidence) | 10 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC7770-2.4-2`](#rfc7770-2.4-2)
 
-**Annotated instead of tested (10):** [`RFC7770-2.4-1`](#rfc7770-2.4-1), [`RFC7770-2.6-1`](#rfc7770-2.6-1), [`RFC7770-2.6-2`](#rfc7770-2.6-2), [`RFC7770-2.3-1`](#rfc7770-2.3-1), [`RFC7770-2.6-3`](#rfc7770-2.6-3), [`RFC7770-2.7-1`](#rfc7770-2.7-1), [`RFC7770-5.2-1`](#rfc7770-5.2-1), [`RFC7770-2-1`](#rfc7770-2-1), [`RFC7770-5.3-1`](#rfc7770-5.3-1), [`RFC7770-5.2-2`](#rfc7770-5.2-2)
+**Annotated (including scoped evidence) (10):** [`RFC7770-2.4-1`](#rfc7770-2.4-1), [`RFC7770-2.6-1`](#rfc7770-2.6-1), [`RFC7770-2.6-2`](#rfc7770-2.6-2), [`RFC7770-2.3-1`](#rfc7770-2.3-1), [`RFC7770-2.6-3`](#rfc7770-2.6-3), [`RFC7770-2.7-1`](#rfc7770-2.7-1), [`RFC7770-5.2-1`](#rfc7770-5.2-1), [`RFC7770-2-1`](#rfc7770-2-1), [`RFC7770-5.3-1`](#rfc7770-5.3-1), [`RFC7770-5.2-2`](#rfc7770-5.2-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7770-2.4-1` | If included, it MUST be the first TLV in the first instance, i.e., Instance 0, of the OSPF RI LSA. (§2.4) -- Ze emits the type-1 TLV first, spec-ospf-ext-3, `buildRIInstances` | MUST | 2.4 | **positive:** `unit/verify` [`TestRITLVType1First`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L124). **negative:** no negative test. **{single-polarity}:** ze always emits the type-1 Informational Capabilities TLV first in Instance 0 and, being informational-only on receive, never rejects a peer that misorders it, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:153) |
-| `RFC7770-2.4-2` | Additionally, the TLV MUST accurately reflect the OSPF router's capabilities in the scope advertised. (§2.4) -- derived from live config, `deriveRICapabilities` | MUST | 2.4 | **positive:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L63). **positive:** `unit/verify` [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L79). **negative:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L57) |
-| `RFC7770-2.6-1` | If included, it MUST be the included in the first instance of the LSA. (§2.6) -- Ze carries the empty type-2 TLV in Instance 0 | MUST | 2.6 | **positive:** `unit/verify` [`TestRITLVRegistered`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_registry_test.go#L51). **negative:** no negative test. **{single-polarity}:** ze carries the type-2 Functional Capabilities TLV in Instance 0's lead on every origination and does not police peer placement on receive, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:155) |
-| `RFC7770-2.6-2` | Additionally, the TLV MUST reflect the advertising OSPF router's actual functional capabilities since the information will be used to dictate OSPF protocol operation in the flooding scope of the containing OSPF RI LSA. (§2.6) -- carried empty, no functional capability supported | MUST | 2.6 | **positive:** `unit/verify` [`TestRIFunctionalCapabilitiesEmittedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L154). **negative:** no negative test. **{single-polarity}:** ze supports no functional capability, so it emits the constant all-zero type-2 value (accurately none-supported), and there is no variable capability to exercise the opposite direction (internal/plugins/ospf/ri.go:155) |
+| `RFC7770-2.4-1` | If included, it MUST be the first TLV in the first instance, i.e., Instance 0, of the OSPF RI LSA. (§2.4) -- Ze emits the type-1 TLV first, spec-ospf-ext-3, `buildRIInstances` | MUST | 2.4 | **positive:** `unit/verify` [`TestRITLVType1First`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L124). **negative:** no negative test. **{single-polarity}:** ze always emits the type-1 Informational Capabilities TLV first in Instance 0 and, being informational-only on receive, never rejects a peer that misorders it, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:153) |
+| `RFC7770-2.4-2` | Additionally, the TLV MUST accurately reflect the OSPF router's capabilities in the scope advertised. (§2.4) -- derived from live config, `deriveRICapabilities` | MUST | 2.4 | **positive:** `unit/verify` [`TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L145). **positive:** `unit/verify` [`TestRFC7770AreaRICapabilitiesFollowTheArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L49). **positive:** `unit/verify` [`TestRFC7770LinkRICapabilitiesFollowTheInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L106). **positive:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L63). **positive:** `unit/verify` [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L79). **negative:** `unit/verify` [`TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L133). **negative:** `unit/verify` [`TestRFC7770AreaRICapabilitiesFollowTheArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L55). **negative:** `unit/verify` [`TestRFC7770LinkRICapabilitiesFollowTheInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L111). **negative:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L57) |
+| `RFC7770-2.6-1` | If included, it MUST be the included in the first instance of the LSA. (§2.6) -- Ze carries the empty type-2 TLV in Instance 0 | MUST | 2.6 | **positive:** `unit/verify` [`TestRITLVRegistered`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_registry_test.go#L51). **negative:** no negative test. **{single-polarity}:** ze carries the type-2 Functional Capabilities TLV in Instance 0's lead on every origination and does not police peer placement on receive, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:155) |
+| `RFC7770-2.6-2` | Additionally, the TLV MUST reflect the advertising OSPF router's actual functional capabilities since the information will be used to dictate OSPF protocol operation in the flooding scope of the containing OSPF RI LSA. (§2.6) -- carried empty, no functional capability supported | MUST | 2.6 | **positive:** `unit/verify` [`TestRIFunctionalCapabilitiesEmittedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L154). **negative:** no negative test. **{single-polarity}:** ze supports no functional capability, so it emits the constant all-zero type-2 value (accurately none-supported), and there is no variable capability to exercise the opposite direction (internal/plugins/ospf/ri.go:155) |
 | `RFC7770-2.3-1` | When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3. (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs |
 | `RFC7770-2.6-3` | The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document |
 | `RFC7770-2.7-1` | TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document |
@@ -156,43 +151,49 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 If included, it MUST be the first TLV in the first instance, i.e., Instance 0, of the OSPF RI LSA. (§2.4) -- Ze emits the type-1 TLV first, spec-ospf-ext-3, `buildRIInstances`
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(...)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Single-polarity marker on the row covers the absent negative.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(area scope, backbone)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Re-judged 2026-09-30 after the call site gained the (area, iface) scope target; the assertion is unchanged. Single-polarity marker on the row covers the absent negative.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRITLVType1First`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L124) | unit/verify | unproven |
+| positive | [`TestRITLVType1First`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L124) | unit/verify | unproven |
 
 ### [`RFC7770-2.4-2`](#rfc7770-2.4-2)
 
 Additionally, the TLV MUST accurately reflect the OSPF router's capabilities in the scope advertised. (§2.4) -- derived from live config, `deriveRICapabilities`
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Over-claim and under-claim are enforced for the whole router: TestRICapabilityBitsFromState fails if the TE bit is set with no TE configured or the stub-router bit is clear when max-metric is configured, TestRICapabilityTEBitFromConfig fails if TE is not set with an interface TE block. The clause "in the scope advertised" has no assertion: deriveRICapabilities (internal/plugins/ospf/ri.go) takes no scope, and no test shows a capability held in one area is not claimed in an RI LSA flooded into another.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. All three scopes proven both ways. Area: TestRFC7770AreaRICapabilitiesFollowTheArea (backbone RI with TE on eth0 sets TE; area 0.0.0.5 RI with no TE interface clear; records areaHasTE +, deriveRICapabilities -). Link: TestRFC7770LinkRICapabilitiesFollowTheInterface (same area, eth0 TE Type-9 RI sets TE, eth1 Type-9 RI clear; records riScopeHasTE +/-). AS: TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns isolates each source: router-address 9.9.9.9 alone (premise asserted: teOriginateType1 originates no TE LSA) leaves the AS RI TE clear, a TE interface alone sets it (records anyInterfaceHasTE +, riScopeHasTE -). D-8 defect verified at the producer and fixed: the AS case was HasTERouterAddress || anyInterfaceHasTE while teOriginateType1 gates on anyTEActive, so a router address alone claimed TE with no TE LSA anywhere; now anyInterfaceHasTE (TE.active(), the same test as anyTEActive). Older whole-router tags (TestRICapabilityBitsFromState, TestRICapabilityTEBitFromConfig) remain as supplementary AS-scope proof.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L57) | unit/verify | unproven |
-| positive | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L63) | unit/verify | unproven |
-| positive | [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L79) | unit/verify | unproven |
+| negative | [`TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L133) | unit/verify | revert, verified |
+| negative | [`TestRFC7770AreaRICapabilitiesFollowTheArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L55) | unit/verify | revert, verified |
+| negative | [`TestRFC7770LinkRICapabilitiesFollowTheInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L111) | unit/verify | revert, verified |
+| negative | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L57) | unit/verify | unproven |
+| positive | [`TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L145) | unit/verify | revert, verified |
+| positive | [`TestRFC7770AreaRICapabilitiesFollowTheArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L49) | unit/verify | revert, verified |
+| positive | [`TestRFC7770LinkRICapabilitiesFollowTheInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_scope_test.go#L106) | unit/verify | revert, verified |
+| positive | [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L63) | unit/verify | unproven |
+| positive | [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L79) | unit/verify | unproven |
 
 ### [`RFC7770-2.6-1`](#rfc7770-2.6-1)
 
 If included, it MUST be the included in the first instance of the LSA. (§2.6) -- Ze carries the empty type-2 TLV in Instance 0
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Single-polarity marker on the row covers the absent negative.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances(area scope, backbone) to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Re-judged 2026-09-30 after the call-site signature change; assertion unchanged. Single-polarity marker on the row covers the absent negative.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRITLVRegistered`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_registry_test.go#L51) | unit/verify | unproven |
+| positive | [`TestRITLVRegistered`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_registry_test.go#L51) | unit/verify | unproven |
 
 ### [`RFC7770-2.6-2`](#rfc7770-2.6-2)
 
 Additionally, the TLV MUST reflect the advertising OSPF router's actual functional capabilities since the information will be used to dictate OSPF protocol operation in the flooding scope of the containing OSPF RI LSA. (§2.6) -- carried empty, no functional capability supported
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising a functional capability Ze does not have. Ze supports none, so any set bit is non-compliant; ri_test.go TestRIFunctionalCapabilitiesEmittedZero fails if any byte of the type-2 value in Instance 0 is non-zero or RIReadCapabilities is non-zero. Single-polarity marker on the row covers the absent negative.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising a functional capability Ze does not have. Ze supports none, so any set bit is non-compliant; ri_test.go TestRIFunctionalCapabilitiesEmittedZero fails if any byte of the type-2 value in Instance 0 is non-zero or RIReadCapabilities is non-zero. Re-judged 2026-09-30 after the call-site signature change; assertion unchanged. Single-polarity marker on the row covers the absent negative.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRIFunctionalCapabilitiesEmittedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L154) | unit/verify | unproven |
+| positive | [`TestRIFunctionalCapabilitiesEmittedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7770_ri_test.go#L154) | unit/verify | unproven |
 
 ### [`RFC7770-2.3-1`](#rfc7770-2.3-1)
 

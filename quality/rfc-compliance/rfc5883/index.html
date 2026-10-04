@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5883 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5883: Bidirectional Forwarding Detection (BFD) for Multihop Paths. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5883: Bidirectional Forwarding Detection (BFD) for Multihop Paths. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5883 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5883: Bidirectional Forwarding Detection (BFD) for Multihop Paths. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5883: Bidirectional Forwarding Detection (BFD) for Multihop Paths. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5883 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5883: Bidirectional Forwarding Detection (BFD) for Multihop Paths. 7 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5883: Bidirectional Forwarding Detection (BFD) for Multihop Paths. 6 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>7 of 7 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.0%</strong><b>4 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>6 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.9%</strong><b>6 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>7</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 7 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 6 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 7 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>8</td>
+<td>7</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>7</td>
+<td>6</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>16</td>
+<td>14</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>16</td>
+<td>14</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5883.md</code></td>
@@ -269,10 +270,10 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>7</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -284,6 +285,10 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -292,11 +297,11 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>7</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc5883-3-1"><code>RFC5883-3-1</code></a>, <a href="#rfc5883-4.1-1"><code>RFC5883-4.1-1</code></a>, <a href="#rfc5883-4.3-1"><code>RFC5883-4.3-1</code></a>, <a href="#rfc5883-4.3-2"><code>RFC5883-4.3-2</code></a>, <a href="#rfc5883-5-1"><code>RFC5883-5-1</code></a>, <a href="#rfc5883-5-2"><code>RFC5883-5-2</code></a>, <a href="#rfc5883-x-1"><code>RFC5883-x-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc5883-3-1"><code>RFC5883-3-1</code></a>, <a href="#rfc5883-4.1-1"><code>RFC5883-4.1-1</code></a>, <a href="#rfc5883-4.3-1"><code>RFC5883-4.3-1</code></a>, <a href="#rfc5883-4.3-2"><code>RFC5883-4.3-2</code></a>, <a href="#rfc5883-5-1"><code>RFC5883-5-1</code></a>, <a href="#rfc5883-x-1"><code>RFC5883-x-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -309,9 +314,9 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5883-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L243" title="internal/component/bfd/enabled_test.go" target="_blank" rel="noopener"><code>TestRFC5883ClientSingleHopEchoProfileAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L114" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L108" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L228" title="internal/component/bfd/enabled_test.go" target="_blank" rel="noopener"><code>TestRFC5883ClientMultiHopEchoProfileRefused</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L100" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L94" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5883-4.1-1">RFC5883-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Multiple sessions between the same pair of systems must have at least one endpoint address distinct from one another (§4.1)</span></td></tr>
@@ -319,8 +324,8 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5883-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L35" title="internal/component/bfd/engine/multihop_pair_rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L36" title="internal/component/bfd/engine/multihop_pair_rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5883_multihop_pair_test.go#L35" title="internal/component/bfd/engine/rfc5883_multihop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5883_multihop_pair_test.go#L36" title="internal/component/bfd/engine/rfc5883_multihop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5883-4.3-1">RFC5883-4.3-1</code></td><td colspan="3"><span class="rfc-subject">In this approach, the Unidirectional Sender MUST operate in the Active role (as defined in the base BFD specification) (§4.3)</span></td></tr>
@@ -346,17 +351,8 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5883-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L20" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopControlPort</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L35" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopControlPortNotSingleHop</code></a></span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5883-5-2">RFC5883-5-2</code></td><td colspan="3"><span class="rfc-subject">the UDP destination port MUST have a value of 4784.  This can aid in the demultiplexing and internal routing of incoming BFD packets. (§5)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>5</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5883-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L50" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopControlPort</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L65" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SeparatePortsPerMode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L213" title="internal/component/bfd/rfc5881_wire_port_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopControlSentToPort4784OnTheWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L230" title="internal/component/bfd/rfc5881_wire_port_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopControlNeverAddressesPort4784</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5883-x-1">RFC5883-x-1</code></td><td colspan="3"><span class="rfc-subject">Finally, the Echo function MUST NOT be used over multiple hops. (§3)</span></td></tr>
@@ -364,8 +360,8 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5883-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L118" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L104" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L112" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L98" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5883-6-1">RFC5883-6-1</code></td><td colspan="3"><span class="rfc-subject">As such, implementations of BFD SHOULD utilize cryptographic authentication over multihop paths to help mitigate denial-of-service attacks. (§6)</span></td></tr>
@@ -399,7 +395,7 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L100" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L94" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -409,7 +405,7 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L114" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L108" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -424,12 +420,12 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L36" title="internal/component/bfd/engine/multihop_pair_rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5883_multihop_pair_test.go#L36" title="internal/component/bfd/engine/rfc5883_multihop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L35" title="internal/component/bfd/engine/multihop_pair_rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5883_multihop_pair_test.go#L35" title="internal/component/bfd/engine/rfc5883_multihop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultihopSessionsNeedDistinctEndpoint</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -478,40 +474,20 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 </div>
 <h3><a href="#rfc5883-5-1"><code>RFC5883-5-1</code></a></h3>
 <p>The encapsulation of BFD Control packets for multihop application in IPv4 and IPv6 is identical to that defined in [BFD-1HOP], except that the UDP destination port MUST have a value of 4784. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27. Forbidden: a multihop Control packet sent to a UDP destination port other than 4784. Both units assert only newUDPTransport(...).Bind.Port(), the LOCAL port. The destination port is derived in UDP.Send via u.destination(out) from Bind.Port (transport/udp.go), but no tagged unit asserts the destination port of a packet ze sends, so a change to destination() stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. §5 &#34;...except that the UDP destination port MUST have a value of 4784.&#34; + TestRFC5883MultiHopControlSentToPort4784OnTheWire (IPv4 and IPv6), - TestRFC5883SingleHopControlNeverAddressesPort4784 (3784 seen, silence at 4784). Records on destination (+) and newUDPTransport (-) re-recorded and observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L35" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopControlPortNotSingleHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L230" title="internal/component/bfd/rfc5881_wire_port_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopControlNeverAddressesPort4784</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L20" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopControlPort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L213" title="internal/component/bfd/rfc5881_wire_port_linux_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopControlSentToPort4784OnTheWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3><a href="#rfc5883-5-2"><code>RFC5883-5-2</code></a></h3>
-<p>the UDP destination port MUST have a value of 4784.  This can aid in the demultiplexing and internal routing of incoming BFD packets. (§5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-read 2026-09-27; the quote is 5-1&#39;s MUST plus the demultiplexing sentence. Forbidden: multihop Control packets not sent to 4784 (and so not separable from single-hop 3784). TestRFC5883SingleHopControlPort and TestRFC5883SeparatePortsPerMode assert only the bound local ports differ; no tagged unit asserts the destination port of a sent packet.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L65" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SeparatePortsPerMode</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L50" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopControlPort</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -524,12 +500,12 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L104" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L98" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883MultiHopEchoRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L118" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L112" title="internal/component/bfd/rfc5883_test.go" target="_blank" rel="noopener"><code>TestRFC5883SingleHopEchoAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -730,7 +706,7 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

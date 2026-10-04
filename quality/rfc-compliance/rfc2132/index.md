@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 0.0% | 0 of 34 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 23.5% | 8 of 34 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 34 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 34 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 12.5% | 1 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 2.9% | 1 of 34 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 8 | of 34 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -70,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 8 |
 | Tagged units | 8 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 0 |
+| Discrimination records | 1 |
 | Summary | `rfc/short/rfc2132.md` |
 | Requirement shard | `rfc/requirements/rfc2132.md` |
 | RFC text | `rfc/full/rfc2132.txt` |
@@ -98,14 +99,15 @@ One MUST gap, tracked in [`rfc/short/rfc2132.md`](https://github.com/ze-software
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 34 | one part of the gated population |
+| Annotated (including scoped evidence) | 34 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **34** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (34):** [`RFC2132-3.3-1`](#rfc2132-3.3-1), [`RFC2132-3.5-1`](#rfc2132-3.5-1), [`RFC2132-3.6-1`](#rfc2132-3.6-1), [`RFC2132-3.7-1`](#rfc2132-3.7-1), [`RFC2132-3.8-1`](#rfc2132-3.8-1), [`RFC2132-3.9-1`](#rfc2132-3.9-1), [`RFC2132-3.10-1`](#rfc2132-3.10-1), [`RFC2132-3.11-1`](#rfc2132-3.11-1), [`RFC2132-3.12-1`](#rfc2132-3.12-1), [`RFC2132-3.13-1`](#rfc2132-3.13-1), [`RFC2132-8.2-1`](#rfc2132-8.2-1), [`RFC2132-8.3-1`](#rfc2132-8.3-1), [`RFC2132-8.9-1`](#rfc2132-8.9-1), [`RFC2132-8.10-1`](#rfc2132-8.10-1), [`RFC2132-8.12-1`](#rfc2132-8.12-1), [`RFC2132-8.13-1`](#rfc2132-8.13-1), [`RFC2132-8.14-1`](#rfc2132-8.14-1), [`RFC2132-8.15-1`](#rfc2132-8.15-1), [`RFC2132-8.16-1`](#rfc2132-8.16-1), [`RFC2132-8.17-1`](#rfc2132-8.17-1), [`RFC2132-8.18-1`](#rfc2132-8.18-1), [`RFC2132-8.19-1`](#rfc2132-8.19-1), [`RFC2132-8.20-1`](#rfc2132-8.20-1), [`RFC2132-8.21-1`](#rfc2132-8.21-1), [`RFC2132-4.7-1`](#rfc2132-4.7-1), [`RFC2132-4.3-1`](#rfc2132-4.3-1), [`RFC2132-5.8-1`](#rfc2132-5.8-1), [`RFC2132-2-1`](#rfc2132-2-1), [`RFC2132-2-2`](#rfc2132-2-2), [`RFC2132-2-3`](#rfc2132-2-3), [`RFC2132-8.4-1`](#rfc2132-8.4-1), [`RFC2132-9.13-1`](#rfc2132-9.13-1), [`RFC2132-9.8-1`](#rfc2132-9.8-1), [`RFC2132-9.14-1`](#rfc2132-9.14-1)
+**Annotated (including scoped evidence) (34):** [`RFC2132-3.3-1`](#rfc2132-3.3-1), [`RFC2132-3.5-1`](#rfc2132-3.5-1), [`RFC2132-3.6-1`](#rfc2132-3.6-1), [`RFC2132-3.7-1`](#rfc2132-3.7-1), [`RFC2132-3.8-1`](#rfc2132-3.8-1), [`RFC2132-3.9-1`](#rfc2132-3.9-1), [`RFC2132-3.10-1`](#rfc2132-3.10-1), [`RFC2132-3.11-1`](#rfc2132-3.11-1), [`RFC2132-3.12-1`](#rfc2132-3.12-1), [`RFC2132-3.13-1`](#rfc2132-3.13-1), [`RFC2132-8.2-1`](#rfc2132-8.2-1), [`RFC2132-8.3-1`](#rfc2132-8.3-1), [`RFC2132-8.9-1`](#rfc2132-8.9-1), [`RFC2132-8.10-1`](#rfc2132-8.10-1), [`RFC2132-8.12-1`](#rfc2132-8.12-1), [`RFC2132-8.13-1`](#rfc2132-8.13-1), [`RFC2132-8.14-1`](#rfc2132-8.14-1), [`RFC2132-8.15-1`](#rfc2132-8.15-1), [`RFC2132-8.16-1`](#rfc2132-8.16-1), [`RFC2132-8.17-1`](#rfc2132-8.17-1), [`RFC2132-8.18-1`](#rfc2132-8.18-1), [`RFC2132-8.19-1`](#rfc2132-8.19-1), [`RFC2132-8.20-1`](#rfc2132-8.20-1), [`RFC2132-8.21-1`](#rfc2132-8.21-1), [`RFC2132-4.7-1`](#rfc2132-4.7-1), [`RFC2132-4.3-1`](#rfc2132-4.3-1), [`RFC2132-5.8-1`](#rfc2132-5.8-1), [`RFC2132-2-5`](#rfc2132-2-5), [`RFC2132-2-2`](#rfc2132-2-2), [`RFC2132-2-3`](#rfc2132-2-3), [`RFC2132-8.4-1`](#rfc2132-8.4-1), [`RFC2132-9.13-1`](#rfc2132-9.13-1), [`RFC2132-9.8-1`](#rfc2132-9.8-1), [`RFC2132-9.14-1`](#rfc2132-9.14-1)
 
 ## Requirements
 
@@ -138,11 +140,11 @@ One MUST gap, tracked in [`rfc/short/rfc2132.md`](https://github.com/ze-software
 | `RFC2132-4.7-1` | Its minimum length is 2, and the length MUST be a multiple of 2. (§4.7) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Path MTU Plateau Table option (code 25), so this sender length constraint binds no ze code path |
 | `RFC2132-4.3-1` | The minimum length of this option is 8, and the length MUST be a multiple of 8. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Policy Filter option (code 21), so this sender length constraint binds no ze code path |
 | `RFC2132-5.8-1` | The minimum length of this option is 8, and the length MUST be a multiple of 8. (§5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Static Route option (code 33), so this sender length constraint binds no ze code path |
-| `RFC2132-2-1` | Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestEveryEmittedOptionHasLengthOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413). **negative:** no negative test. **{single-polarity}:** every option ze emits goes through safeAppendOption, which always writes a length octet (internal/plugins/dhcpserver/handler.go:361-363); only the exempt Pad/End markers are written without one, so ze emits no length-octet-less option to test negatively |
-| `RFC2132-2-2` | the receiver of such options MUST be prepared to delete trailing nulls if they exist. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452). **negative:** no negative test. **{single-polarity}:** ze reads ASCII-carrying options 60 and 77 only by fixed-prefix match (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498), so a trailing NUL never corrupts interpretation; no ze receive path rejects or mishandles ASCII option data because of a trailing NUL, so there is no negative case |
-| `RFC2132-2-3` | The receiver MUST NOT require that a trailing null be included in the data. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1444). **negative:** no negative test. **{single-polarity}:** ze's ASCII-option receiver prefix-matches options 60 and 77 (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498) and so never requires a trailing NUL; option data without one is accepted, and there is no ze path that demands a trailing NUL to test negatively |
-| `RFC2132-8.4-1` | Servers not equipped to interpret the vendor-specific information sent by a client MUST ignore it (although it may be reported). (§8.4) | MUST | 8.4 | **positive:** `unit/verify` [`TestIgnoresClientVendorSpecificOption43`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1501). **negative:** no negative test. **{single-polarity}:** ze never reads a received option 43 -- vendor-specific information appears only in ze's Tx path (handler.go:325) and the option-parse loop skips any code it does not request (parseMsgType/parseOptionBytes advance past unrequested options, internal/plugins/dhcpserver/handler.go:367-403), so ze ignores client vendor-specific info and no code path interprets or rejects it |
-| `RFC2132-9.13-1` | Servers not equipped to interpret the class-specific information sent by a client MUST ignore it (although it may be reported). (§9.13) | MUST | 9.13 | **positive:** `unit/verify` [`TestIgnoresUnknownVendorClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1548). **negative:** no negative test. **{single-polarity}:** ze inspects option 60 only for the "PXEClient:" prefix (isPXEClient internal/plugins/dhcpserver/handler.go:493-496); any other vendor class yields false and no class-specific handling, so an unrecognized class is ignored and no code path rejects a packet on class content to test negatively |
+| `RFC2132-2-5` | In the case of some variable-length options the length field is a constant but must still be specified. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestEveryEmittedOptionHasLengthOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413). **negative:** no negative test. **{single-polarity}:** every option ze emits goes through safeAppendOption, which writes the length octet before the data on every path (internal/plugins/dhcpserver/handler.go); no input selects a path that omits it, so there is no refusal to assert |
+| `RFC2132-2-2` | the receiver of such options MUST be prepared to delete trailing nulls if they exist. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1458). **negative:** no negative test. **{single-polarity}:** ze reads ASCII-carrying options 60 and 77 only by fixed-prefix match (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498), so a trailing NUL never corrupts interpretation; no ze receive path rejects or mishandles ASCII option data because of a trailing NUL, so there is no negative case |
+| `RFC2132-2-3` | The receiver MUST NOT require that a trailing null be included in the data. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1450). **negative:** no negative test. **{single-polarity}:** ze's ASCII-option receiver prefix-matches options 60 and 77 (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498) and so never requires a trailing NUL; option data without one is accepted, and there is no ze path that demands a trailing NUL to test negatively |
+| `RFC2132-8.4-1` | Servers not equipped to interpret the vendor-specific information sent by a client MUST ignore it (although it may be reported). (§8.4) | MUST | 8.4 | **positive:** `unit/verify` [`TestIgnoresClientVendorSpecificOption43`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1507). **negative:** no negative test. **{single-polarity}:** ze never reads a received option 43 -- vendor-specific information appears only in ze's Tx path (handler.go:325) and the option-parse loop skips any code it does not request (parseMsgType/parseOptionBytes advance past unrequested options, internal/plugins/dhcpserver/handler.go:367-403), so ze ignores client vendor-specific info and no code path interprets or rejects it |
+| `RFC2132-9.13-1` | Servers not equipped to interpret the class-specific information sent by a client MUST ignore it (although it may be reported). (§9.13) | MUST | 9.13 | **positive:** `unit/verify` [`TestIgnoresUnknownVendorClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1554). **negative:** no negative test. **{single-polarity}:** ze inspects option 60 only for the "PXEClient:" prefix (isPXEClient internal/plugins/dhcpserver/handler.go:493-496); any other vendor class yields false and no class-specific handling, so an unrecognized class is ignored and no code path rejects a packet on class content to test negatively |
 | `RFC2132-9.8-1` | The DHCP server is not required to return the options in the requested order, but MUST try to insert the requested options in the order requested by the client. (§9.8) | MUST | 9.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55 is defined at handler.go:52 but parsed nowhere in production), so it does not try to insert requested options in the client's requested order |
 | `RFC2132-9.14-1` | For correct identification of clients, each client's client- identifier MUST be unique among the client-identifiers used on the subnet to which the client is attached. (§9.14) | MUST | 9.14 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the uniqueness obligation binds the client's choice of client-identifier (option 61); ze is a server that keys leases and pool allocations by hardware address/chaddr (extractMAC internal/plugins/dhcpserver/handler.go:456, pool.allocate pool.go:64, leaseTable byMAC lease.go:23) and never reads or generates option 61, so it neither produces client-identifiers nor can enforce cross-client uniqueness |
 | `RFC2132-2-4` | Options containing NVT ASCII data SHOULD NOT include a trailing NULL (§2) | SHOULD NOT | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -437,15 +439,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2132-5.8-1, so no unit is bound to it.
 
-### [`RFC2132-2-1`](#rfc2132-2-1)
+### [`RFC2132-2-5`](#rfc2132-2-5)
 
-Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero. (§2)
+In the case of some variable-length options the length field is a constant but must still be specified. (§2)
 
-Audit verdict: wrong (the tests assert something other than what the requirement demands), fresh. The sentence binds options defined subsequent to RFC 2132 (an obligation on later option authors, like RFC 7606 section 8). TestEveryEmittedOptionHasLengthOctet walks the reply by length octet over codes 53/54/1/3/6/15/51/58/59, all defined in RFC 2132 itself; buildReply/appendPXEOptions (internal/plugins/dhcpserver/handler.go) emit no later-defined option. The test proves the general section 2 TLV format, which is not this row's obligation; the row reads not-applicable and the tag has no row stating what it proves
+Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive is valid: safeAppendOption writes the length octet on its only write path and no input selects an omission. TestEveryEmittedOptionHasLengthOctet walks the OFFER by length octets to End and now pins the constant length of 53 (1) and 54, 1, 51, 58, 59 (4), so an omitted or wrong length octet goes red
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestEveryEmittedOptionHasLengthOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413) | unit/verify | unproven |
+| positive | [`TestEveryEmittedOptionHasLengthOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413) | unit/verify | revert, verified |
 
 ### [`RFC2132-2-2`](#rfc2132-2-2)
 
@@ -455,7 +457,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452) | unit/verify | unproven |
+| positive | [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1458) | unit/verify | unproven |
 
 ### [`RFC2132-2-3`](#rfc2132-2-3)
 
@@ -465,7 +467,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1444) | unit/verify | unproven |
+| positive | [`TestASCIIOptionParsingTolerantOfTrailingNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1450) | unit/verify | unproven |
 
 ### [`RFC2132-8.4-1`](#rfc2132-8.4-1)
 
@@ -475,7 +477,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIgnoresClientVendorSpecificOption43`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1501) | unit/verify | unproven |
+| positive | [`TestIgnoresClientVendorSpecificOption43`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1507) | unit/verify | unproven |
 
 ### [`RFC2132-9.13-1`](#rfc2132-9.13-1)
 
@@ -485,7 +487,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIgnoresUnknownVendorClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1548) | unit/verify | unproven |
+| positive | [`TestIgnoresUnknownVendorClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1554) | unit/verify | unproven |
 
 ### [`RFC2132-9.8-1`](#rfc2132-9.8-1)
 
@@ -507,14 +509,14 @@ No test carries RFC2132-9.14-1, so no unit is bound to it.
 
 | Field | Value |
 |---|---|
-| Reviewer | claude |
-| Signed off | 2026-09-21 |
+| Reviewer | claude (independent judge of the services dhcpserver package) |
+| Signed off | 2026-09-29 |
 | Register | rfc2119 |
 | Source | rfc/full/rfc2132.txt |
 | Source fingerprint | 671b4cd5878737e5 |
 | Record | rfc/extraction/rfc2132.json |
-| Mapped sentences | 34 |
-| Declined as scope | 3 |
+| Mapped sentences | 33 |
+| Declined as scope | 4 |
 | Relocated to a spec, which Ze OWES | 0 |
 | Unclassified | 0 |
 
@@ -623,6 +625,7 @@ No test carries RFC2132-9.14-1, so no unit is bound to it.
 | `1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation. | o "MUST" |
 | `1.1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation. | This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification. |
 | `1.1:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation. | o "MUST NOT" |
+| `2:3` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the authors of option definitions published after RFC 2132, which Ze does not write; Ze sends only options RFC 2132 itself defines (buildReply, appendPXEOptions in internal/plugins/dhcpserver/handler.go). Row RFC2132-2-1 is retired (rfc/corrections/rfc2132.md) | Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero. |
 
 ## Superseded
 

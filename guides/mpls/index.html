@@ -145,6 +145,12 @@ a peer that proposes 0. It answers the Session Rejected/Bad KeepAlive Time
 Notification of section 3.9, logs <code>ldp: initialization rejected, peer proposed a KeepAlive Time of 0</code>, and closes the connection. A peer proposing a protocol
 version other than 1 is refused the same way, with the Bad Protocol Version
 Notification.</p>
+<p>During initialization, <code>OPENSENT</code> accepts only an Initialization message and
+<code>OPENREC</code> accepts only a KeepAlive. Any other message, including a Notification,
+triggers a Shutdown Notification and ends the transport session before its body
+is applied. The Initialization PDU's LSR ID and label-space ID must also match
+the Hello adjacency that opened the session; a mismatch receives Session
+Rejected/No Hello.</p>
 <!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->
 <!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit -->
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
@@ -198,7 +204,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

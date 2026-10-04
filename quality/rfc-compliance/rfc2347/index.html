@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2347 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2347: TFTP Option Extension. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2347: TFTP Option Extension. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2347 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2347: TFTP Option Extension. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2347: TFTP Option Extension. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2347 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2347: TFTP Option Extension. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2347: TFTP Option Extension. 3 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>2 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 4 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>8 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>3</strong><b>of 3 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 6 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>50.0%</strong><b>2 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3</strong><b>of 5 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 3 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>33.3%</strong><b>1 of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>2</strong><b>of 4 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,13 +206,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>4</td>
+<td>3</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>2</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>0</td>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>4</td>
+<td>8</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>4</td>
+<td>8</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2347.md</code></td>
@@ -250,7 +252,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: TFTP Option Extension: four MUST-level requirements. The two server-side requirements are tested with both polarities via loopback OACK round-trips in rfc2347_option_negotiation_test.go (producer: parseRRQ + sendOACKAndWait oackOpts assembly, internal/plugins/tftpserver/handler.go): RFC2347-x-1 (server MUST NOT include in the OACK any option not requested by the client) via TestRFC2347ServerOACKOnlyRequestedOptions (requesting only blksize yields an OACK with blksize but no tsize); RFC2347-x-3 (an option not acknowledged is ignored as if never requested) via TestRFC2347ServerIgnoresUnacknowledgedOption (a requested-but-unsupported windowsize is omitted from the OACK and the server falls back to lockstep, handler.go:276, while the supported blksize is still acknowledged). The two client-side requirements are {not-applicable}: RFC2347-x-2 (client MUST use acknowledged options) and RFC2347-x-4 (client MUST NOT use unacknowledged options) govern a TFTP CLIENT, and Ze ships only a TFTP server with no client. No SHOULD/MAY requirements are gated.</p>
+<p>Enrolled: TFTP Option Extension: four MUST-level obligations in three rows. The two server-side requirements are tested with both polarities via loopback OACK round-trips in rfc2347_option_negotiation_test.go (producer: parseRRQ + sendOACKAndWait oackOpts assembly, internal/plugins/tftpserver/handler.go): RFC2347-x-1 (server MUST NOT include in the OACK any option not requested by the client) via TestRFC2347ServerOACKOnlyRequestedOptions (requesting only blksize yields an OACK with blksize but no tsize); RFC2347-x-3 (an option not acknowledged is ignored as if never requested) via TestRFC2347ServerIgnoresUnacknowledgedOption (a requested-but-unsupported windowsize is omitted from the OACK and the server falls back to lockstep, handler.go:276, while the supported blksize is still acknowledged). The client-side sentence is one row, {not-applicable}: RFC2347-x-4 (the client MUST use acknowledged options and MUST NOT use unacknowledged ones) governs a TFTP CLIENT, and Ze ships only a TFTP server with no client. RFC2347-x-2, which quoted the first half of the same sentence, was retired into x-4 on 2026-09-30 (rfc/corrections/rfc2347.md). No SHOULD/MAY requirements are gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
@@ -268,8 +270,8 @@ No tracked gap in current source anchors.
 <td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>2</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -280,6 +282,10 @@ No tracked gap in current source anchors.
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -288,12 +294,12 @@ No tracked gap in current source anchors.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>3</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc2347-x-1"><code>RFC2347-x-1</code></a>, <a href="#rfc2347-x-3"><code>RFC2347-x-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc2347-x-2"><code>RFC2347-x-2</code></a>, <a href="#rfc2347-x-4"><code>RFC2347-x-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc2347-x-4"><code>RFC2347-x-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -305,18 +311,11 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>Negotiation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2347-x-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L92" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347OnlyTheClientInitiatesNegotiation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L78" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerOACKOnlyRequestedOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L94" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347OnlyTheClientInitiatesNegotiation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L82" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerOACKOnlyRequestedOptions</code></a></span></div>
 </div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2347-x-2">RFC2347-x-2</code></td><td colspan="3"><span class="rfc-subject">If multiple options were requested, the client must use those options which were acknowledged by the server (§Negotiation)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>Negotiation</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2347-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) and has no TFTP client, so there is no client-side option-consumption code path to which this applies.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2347-x-3">RFC2347-x-3</code></td><td colspan="3"><span class="rfc-subject">An option not acknowledged by the server must be ignored by the client and server as if it were never requested. (§Negotiation)</span></td></tr>
 <tr><td></td>
@@ -324,7 +323,9 @@ No tracked gap in current source anchors.
 <td>Negotiation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2347-x-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L103" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerIgnoresUnacknowledgedOption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L127" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347UnacknowledgedOptionIsNotUsed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L108" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerIgnoresUnacknowledgedOption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L132" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347UnacknowledgedOptionIsNotUsed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2347-x-4">RFC2347-x-4</code></td><td colspan="3"><span class="rfc-subject">If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server. (§Negotiation)</span></td></tr>
@@ -334,7 +335,7 @@ No tracked gap in current source anchors.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2347-x-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> This requirement governs the TFTP CLIENT (it MUST NOT use options the server did not acknowledge). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option.</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged and MUST NOT use those it did not). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2347-x-5">RFC2347-x-5</code></td><td colspan="3"><span class="rfc-subject">Options which the server does not support should be omitted from the OACK; they should not cause an ERROR packet to be generated. (§Negotiation)</span></td></tr>
 <tr><td></td>
@@ -363,13 +364,9 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2347-x-2"><code>RFC2347-x-2</code></a> If multiple options were requested, the client must use those options which were acknowledged by the server (§Negotiation)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged). Ze ships only a TFTP SERVER (internal/plugins/tftpserver/handler.go) and has no TFTP client, so there is no client-side option-consumption code path to which this applies.</td>
-</tr>
 <tr><td><a href="#rfc2347-x-4"><code>RFC2347-x-4</code></a> If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server. (§Negotiation)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST NOT use options the server did not acknowledge). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option.</td>
+<td>no test carries this requirement id; annotated {not-applicable}: This requirement governs the TFTP CLIENT (it MUST use the options the server acknowledged and MUST NOT use those it did not). Ze has no TFTP client (only the server in internal/plugins/tftpserver/handler.go), so no client-side code path could use an unacknowledged option.</td>
 </tr>
 </tbody>
 </table>
@@ -379,51 +376,67 @@ No tracked gap in current source anchors.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2347-x-1"><code>RFC2347-x-1</code></a></h3>
 <p>The server must not include in the OACK any option which had not been specifically requested by the client; that is, only the client may initiate option negotiation. (§Negotiation)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an OACK carrying an option the client did not request, and a server initiating negotiation. The server can emit two options (sendOACKAndWait, handler.go: blksize and tsize). TestRFC2347ServerOACKOnlyRequestedOptions requests only blksize and asserts opts[&#34;tsize&#34;] is absent, red if the server volunteers tsize. No tagged case requests only tsize (or no option) and asserts blksize is absent, so a server that always added blksize stays green; and no case sends a plain RRQ and asserts no OACK comes back (the hasOptions guard, handler.go:280), the &#39;only the client may initiate option negotiation&#39; clause.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2347OnlyTheClientInitiatesNegotiation: a tsize-only RRQ gets an OACK with tsize=1500 and fails if blksize is present (the case the old verdict found missing); a plain RRQ and a windowsize-only RRQ must get DATA block 1 as the first reply (expectData fails on an OACK), so the server never initiates negotiation. With TestRFC2347ServerOACKOnlyRequestedOptions (blksize-only, no tsize) both emittable options are pinned absent when unrequested.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L94" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347OnlyTheClientInitiatesNegotiation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L82" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerOACKOnlyRequestedOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L92" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347OnlyTheClientInitiatesNegotiation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L78" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerOACKOnlyRequestedOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc2347-x-2"><code>RFC2347-x-2</code></a></h3>
-<p>If multiple options were requested, the client must use those options which were acknowledged by the server (§Negotiation)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC2347-x-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2347-x-3"><code>RFC2347-x-3</code></a></h3>
 <p>An option not acknowledged by the server must be ignored by the client and server as if it were never requested. (§Negotiation)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the server acting on an option it did not acknowledge (e.g. streaming windowsize-windowed DATA, or using an out-of-range blksize it declined). TestRFC2347ServerIgnoresUnacknowledgedOption asserts only the OACK contents: windowsize absent, blksize present. That is red on acknowledging windowsize, the x-1/OACK rule, not on using it: no assertion reads the DATA/ACK exchange after the OACK, so a server that omitted windowsize from the OACK but then sent windowed blocks stays green. The declined-blksize case (value outside 8..65464, parseRRQ) is untested. The client half governs a TFTP client, which Ze does not have.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Server half: TestRFC2347UnacknowledgedOptionIsNotUsed reads past the OACK. windowsize 4 beside blksize 1024: windowsize absent from the OACK and no block 2 within 1 s before ACK 1 (red on a windowed send); declined blksize 7 and 65465 are absent and block 1 is the default 512 (red on using the declined size). Negative: the acked blksize 1024 is used (block 1 = 1024), so the ignore is not a blanket drop. The client half binds a TFTP client, which Ze does not have.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L132" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347UnacknowledgedOptionIsNotUsed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L108" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerIgnoresUnacknowledgedOption</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L127" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC2347UnacknowledgedOptionIsNotUsed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_option_negotiation_test.go#L103" title="internal/plugins/tftpserver/rfc2347_option_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC2347ServerIgnoresUnacknowledgedOption</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2347-x-4"><code>RFC2347-x-4</code></a></h3>
 <p>If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server. (§Negotiation)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. Row now quotes the whole client sentence (x-2 merged in under R5). Binds the TFTP client role only.</p>
 <p>No test carries RFC2347-x-4, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
@@ -473,7 +486,7 @@ No tracked gap in current source anchors.
 <td>The whole document</td>
 <td>4</td>
 <td>walked</td>
-<td>The whole document. RFC 2347 carries no numbered section headings, so the derivation returns one section spanning the title block to the Full Copyright Statement, and a skip of it would hide every gated id behind a skip kind. Walked heading by heading. Status of this Memo, the Copyright Notice and the Abstract are indicative. The Introduction says the mechanism is a backward-compatible extension enforcing a request-respond-acknowledge sequence and names RFC 2348 and RFC 2349 as the options it was created to carry; it directs nobody. Packet Formats is the wire-format section, written entirely in the indicative: options are appended to the Read Request or Write Request as NUL-terminated name/value pairs, a new opcode 6 (OACK) acknowledges them, a new error code 8 terminates a transfer over option negotiation, the order of options is not significant, and &#39;The maximum size of a request packet is 512 octets.&#39; Ze reads those bytes in parseRRQ and writes them in buildOACK (internal/plugins/tftpserver/handler.go), and rfc/short/rfc2347.md carries the two figures and the constants; no gated row is read from this material. Packet Formats also defers three fields to RFC 1350 in the indicative (&#39;as defined in [1]&#39; for opc, filename and mode), which cites the base document rather than restating an obligation of it, so no site here is a cross-document exclusion. Negotiation Protocol is the only normative section and holds three of the four sites, front:1 to front:3, all classified below; its remaining normative sentences are advisory and ungated -- options the server does not support &#39;should be omitted from the OACK; they should not cause an ERROR packet to be generated&#39; (RFC2347-x-5), and a client receiving an unrequested option in an OACK &#39;should respond with an ERROR packet, with error code 8&#39; (RFC2347-x-6). Its three-response tables for RRQ and WRQ, the fallback narrative for a server that does not implement options, and the two ways a client confirms an OACK are indicative. The Examples section is two packet traces. Security Considerations says the document adds no security to TFTP and no additional risk, so it states no countermeasure. The References, Authors&#39; Addresses and the Full Copyright Statement bind no TFTP speaker; the copyright statement&#39;s one modal sentence is site front:4, excluded below. RFC2347-x-4 is declared unsourced here: it is the second half of site front:3, which the sentence splitter returns whole, so the obligation has no site locator of its own.</td>
+<td>The whole document. RFC 2347 carries no numbered section headings, so the derivation returns one section spanning the title block to the Full Copyright Statement, and a skip of it would hide every gated id behind a skip kind. Walked heading by heading. Status of this Memo, the Copyright Notice and the Abstract are indicative. The Introduction says the mechanism is a backward-compatible extension enforcing a request-respond-acknowledge sequence and names RFC 2348 and RFC 2349 as the options it was created to carry; it directs nobody. Packet Formats is the wire-format section, written entirely in the indicative: options are appended to the Read Request or Write Request as NUL-terminated name/value pairs, a new opcode 6 (OACK) acknowledges them, a new error code 8 terminates a transfer over option negotiation, the order of options is not significant, and &#39;The maximum size of a request packet is 512 octets.&#39; Ze reads those bytes in parseRRQ and writes them in buildOACK (internal/plugins/tftpserver/handler.go), and rfc/short/rfc2347.md carries the two figures and the constants; no gated row is read from this material. Packet Formats also defers three fields to RFC 1350 in the indicative (&#39;as defined in [1]&#39; for opc, filename and mode), which cites the base document rather than restating an obligation of it, so no site here is a cross-document exclusion. Negotiation Protocol is the only normative section and holds three of the four sites, front:1 to front:3, all classified below; its remaining normative sentences are advisory and ungated -- options the server does not support &#39;should be omitted from the OACK; they should not cause an ERROR packet to be generated&#39; (RFC2347-x-5), and a client receiving an unrequested option in an OACK &#39;should respond with an ERROR packet, with error code 8&#39; (RFC2347-x-6). Its three-response tables for RRQ and WRQ, the fallback narrative for a server that does not implement options, and the two ways a client confirms an OACK are indicative. The Examples section is two packet traces. Security Considerations says the document adds no security to TFTP and no additional risk, so it states no countermeasure. The References, Authors&#39; Addresses and the Full Copyright Statement bind no TFTP speaker; the copyright statement&#39;s one modal sentence is site front:4, excluded below.</td>
 </tr>
 </tbody>
 </table>
@@ -524,7 +537,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

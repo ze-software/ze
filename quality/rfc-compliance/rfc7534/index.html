@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>33.3%</strong><b>1 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 5 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>85.7%</strong><b>6 of 7 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>3</strong><b>of 3 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>3</strong><b>of 3 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +161,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>5</td>
+<td>7</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>5</td>
+<td>7</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7534.md</code></td>
@@ -268,7 +270,7 @@ No tracked gap in current source anchors.
 <td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -279,6 +281,10 @@ No tracked gap in current source anchors.
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -293,7 +299,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc7534-3.5-1"><code>RFC7534-3.5-1</code></a>, <a href="#rfc7534-3.5-2"><code>RFC7534-3.5-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc7534-3.5-3"><code>RFC7534-3.5-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc7534-3.5-3"><code>RFC7534-3.5-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -305,6 +311,7 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>1 - Introduction</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L28" title="internal/plugins/as112/rfc7534_direct_delegation_test.go" target="_blank" rel="noopener"><code>TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_OutOfZoneRefused</code></a></span></div>
 </div></td>
@@ -314,6 +321,7 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3.5 - DNS Software</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L35" title="internal/plugins/as112/rfc7534_direct_delegation_test.go" target="_blank" rel="noopener"><code>TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestSOA_RFCMandatedParameters</code></a></span></div>
 </div></td>
@@ -455,7 +463,7 @@ No tracked gap in current source anchors.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7534-3.5-1"><code>RFC7534-3.5-1</code></a></h3>
 <p>Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: each node is configured to answer authoritatively for its nominated zones. Forbidden behaviour (a): a nominated zone answered without authority (AA clear) or not answered from zone data; (b) answering for a zone not nominated. Clause (b) is enforced: TestZoneAnswer_OutOfZoneRefused asserts REFUSED, reply.Authoritative false and empty sections for example.com. Clause (a) is not: TestZoneAnswer_ReverseZoneNoData calls answerQuestions directly and asserts NOERROR plus the zone SOA in Authority, but never reads the AA bit (AA is set by the handler, not answerQuestions), so a handler that stopped setting AA for served zones stays green. Only 10.in-addr.arpa. is probed of the nominated set.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive now covers every served Direct-Delegation zone (&gt;=20 probed) through the real handler: SOA at the apex is AA, NOERROR, the zone&#39;s own SOA. Negative TestZoneAnswer_OutOfZoneRefused: a name outside every served zone draws REFUSED with AA clear. Records: answerQuestions revert, positive (author) and negative (judge) observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -463,19 +471,24 @@ No tracked gap in current source anchors.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_OutOfZoneRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L28" title="internal/plugins/as112/rfc7534_direct_delegation_test.go" target="_blank" rel="noopener"><code>TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7534-3.5-2"><code>RFC7534-3.5-2</code></a></h3>
 <p>There should be no other resource records included in this zone. (§3.5, db.dd-empty)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Sentence: no resource records beyond SOA and NS in a Direct-Delegation zone. Forbidden behaviour: the zone answering any other record type. TestZoneAnswer_ReverseZoneNoData asserts empty Answer only for a PTR query at 10.in-addr.arpa.; TestSOA_RFCMandatedParameters (negative) asserts the SOA parameters and exactly two NS. answerQuestions holds an explicit TXT branch (isHostnameZone) that answers TXT for some zones; no tagged unit queries TXT (or A, AAAA, ANY) at a Direct-Delegation apex, so a broken isHostnameZone that hosts TXT in 10.in-addr.arpa. stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Positive: at every Direct-Delegation apex, A/AAAA/TXT/PTR/MX/CNAME/ANY return nothing but SOA/NS in any section, closing the PTR-only finding. Negative TestSOA_RFCMandatedParameters bounds the rule (the zone does carry SOA and NS) rather than violating it; the prohibition itself is proven by the positive across all zones and types. Records: answerQuestions (+, author) and buildSOA (-, judge) reverts observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -483,12 +496,17 @@ No tracked gap in current source anchors.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestSOA_RFCMandatedParameters</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L35" title="internal/plugins/as112/rfc7534_direct_delegation_test.go" target="_blank" rel="noopener"><code>TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -815,7 +833,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

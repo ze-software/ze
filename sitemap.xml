@@ -562,6 +562,9 @@
     <loc>https://ze-software.net/project/changes/2026-09-21/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/project/changes/2026-09-28/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/project/history/</loc>
   </url>
   <url>
@@ -1144,6 +1147,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc9086/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc9117/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc9129/</loc>
   </url>
   <url>
@@ -1433,6 +1439,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-revalidate/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-attach-community/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-delete-with-community/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-fastpath/</loc>

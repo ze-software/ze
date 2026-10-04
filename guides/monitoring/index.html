@@ -869,10 +869,12 @@ has a maximum of 10 attributes and 99.9% at 8 or fewer, so a steady rate here
 means either an unusual peer or an attribute set worth raising the inline size
 for.</p>
 <p>The count is taken over the attributes Ze publishes, not over the attributes the
-peer sent. Unrecognized non-transitive attributes are dropped first, as RFC 4271
-Section 5 requires, so a peer that sends nine attributes of which two Ze does not
-recognize and must not pass on never reaches the inline limit and never appears
-here.</p>
+peer sent. Ordinary sessions first drop unrecognized non-transitive attributes;
+route-server client sessions retain them. Thus a nine-attribute UPDATE with two
+such attributes stays below the inline limit on an ordinary session, but not
+necessarily on a route-server client session. Partial-bit normalization and
+other publication-time repairs also precede index construction. This counter
+does not measure the untouched wire attribute set.</p>
 <!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
 <h4 id="egress-modification-failures">Egress Modification Failures</h4>
@@ -1118,7 +1120,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

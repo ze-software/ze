@@ -135,6 +135,22 @@ list. `buildCommandMeta` is the one source those surfaces read, so the flag has
 one meaning everywhere.
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
 
+Each command in the list, and the object that `/api/v1/commands/{path}`
+returns, carries the keys `name`, `short-help`, `description`, `read-only`
+and `params`. Each entry in `params` carries `name`, `type`, `short-help`,
+`description` and `required`. An empty `short-help`, `description` or
+`params` is omitted. `read-only` and `required` are always sent.
+
+```json
+{
+  "name": "show bgp rib",
+  "short-help": "Show routes",
+  "read-only": true,
+  "params": [{"name": "family", "type": "string", "required": false}]
+}
+```
+<!-- source: internal/component/api/types.go -- CommandMeta, ParamMeta json tags -->
+
 POST `/api/v1/execute` body:
 ```json
 {

@@ -79,6 +79,8 @@
 </ol></li>
 <li><a href="#options">Options</a>
 <ol>
+<li><a href="#configuration-inputs-for-peer-as-derivation">Configuration inputs for peer AS derivation</a></li>
+<li><a href="#observer-completion-barriers">Observer completion barriers</a></li>
 <li><a href="#choosing-between-needs-linux-caps-and-skip-os">Choosing between needs-linux, caps=, and skip-os</a></li>
 </ol>
 <ol>
@@ -144,6 +146,7 @@
 <li><a href="#example_2">Example</a></li>
 </ol></li>
 <li><a href="#sleeps-and-their-justification-markers">Sleeps and their justification markers</a></li>
+<li><a href="#registered-engines-launched-externally">Registered engines launched externally</a></li>
 <li><a href="#the-compiled-observer-api">The compiled observer API</a></li>
 <li><a href="#engine-steps">Engine Steps</a>
 <ol>
@@ -600,6 +603,10 @@ of a tenth, asserted nothing while reading as the negative half of the proof.</p
 <!-- source: internal/test/peer/expect.go -- ClaimLine, ze-peer's own answer -->
 <h2 id="tmpfs-virtual-file-system">Tmpfs (Virtual File System)</h2>
 <p>Tmpfs allows embedding multiple files within a single <code>.ci</code> file. Files are extracted to a temp directory at runtime.</p>
+<p>File contents are arbitrary text or bytes, not implicitly Ze configuration.
+There is no special configuration meaning for a <code>.src</code> or <code>.conf</code> suffix.
+For example, a peer's <code>action=rewrite</code> may copy a human-readable acknowledgment
+into a completion marker without making either file a daemon configuration.</p>
 <h3 id="syntax_1">Syntax</h3>
 <pre><code>tmpfs=&lt;path&gt;[:mode=&lt;octal&gt;][:encoding=&lt;type&gt;]:terminator=&lt;TERM&gt;
 &lt;content&gt;
@@ -815,6 +822,63 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
 <!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
+<h4 id="configuration-inputs-for-peer-as-derivation">Configuration inputs for peer AS derivation</h4>
+<p>The derivation follows consumers, not filenames or configuration-looking text:</p>
+<ul>
+<li><code>option=file:path=</code> selects the named configuration. An embedded file with
+its basename takes precedence, as it does when the runner launches Ze.</li>
+<li>A daemon's configuration argument selects a file, or its named stdin block
+when the argument is <code>-</code>. The runner's registered harness wrappers ending in
+<code>-- ze ...</code> use the same selection. <code>ze start routing</code> selects <code>routing</code>
+even though that filename has no extension. Value-less start flags such as
+<code>--cli</code> and <code>--web-only</code> are not configuration operands.</li>
+<li>A consumed peer <code>action=rewrite</code> selects its source only when its destination
+is a selected configuration path. This includes transitive rewrite ancestry.
+Stdin-backed daemon paths use the same execution-order filename assignment as
+the runtime, including separate paths for additional daemons.</li>
+</ul>
+<p>Initial daemon inputs and rewrite source leaves must be readable. An intermediate
+created by a rewrite need not exist before execution, but its selected ancestry
+must reach readable input; a cycle of absent sources is not a producer. Existing
+selected files must parse, and permissions or other read errors still fail
+derivation. None of these failures becomes an empty peer list.
+Unselected tmpfs files and stdin blocks remain raw sidecars,
+even if they contain valid BGP declarations or unmatched quotes. The former
+all-block tokenizer incorrectly refused the apostrophe in
+<code>path-asn-filter-export-reject.ci</code>'s receiver acknowledgment. That fixture still
+publishes its marker only after the subject withdrawal and permitted fence
+arrive; classification must not rewrite or weaken those receiver checks.</p>
+<!-- source: internal/test/runner/peer_asn.go -- peerASConfigInputs, peerASRewriteSources, configuredPeerAS -->
+<!-- source: internal/test/runner/runner_exec_util.go -- zeDaemonConfigArgIndex -->
+<!-- test: internal/test/runner/peer_asn_test.go -- TestDeclarePeerASClassifiesConfigConsumers, TestDeclarePeerASRefusesMalformedConfigInputs, TestPathASNExportFenceParsesWithDerivedAS -->
+<p>The native derivation corpus gate rejects <strong>every</strong> native <code>.ci</code> parse failure,
+including failures before AS derivation. It does not feed other execution
+dialects into the native parser: <code>test/decode</code> uses <code>DecodingTests.parseCIFile</code>,
+and <code>test/exabgp-compat</code> uses <code>parseExaBGPCI</code>. The latter's
+<code>option=file:&lt;name&gt;</code> selects an <code>etc</code>-relative predecessor configuration; it is
+not the native <code>option=file:path=&lt;name&gt;</code> directive. Those populations are chosen
+by their execution owners, not by tolerating parser errors. Native scenarios
+that intentionally submit invalid Ze configuration remain in the gate: their
+<code>.ci</code> itself must still parse.
+The shared draft boundary also excludes <code>test/draft</code> before discovery; a
+malformed unpromoted fixture must not redden repository gates.</p>
+<!-- source: internal/test/runner/peer_asn_corpus_test.go -- peerASCorpus, TestPeerASCorpusRejectsNativeParseFailures, TestPeerASCorpusUsesExecutionParsers -->
+<!-- source: internal/test/runner/decoding.go -- DecodingTests.parseCIFile -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- parseExaBGPCI -->
+<h4 id="observer-completion-barriers">Observer completion barriers</h4>
+<p>A peer's last wire expectation is not the observer's completion barrier. In
+<code>cursor-replay.ci</code>, the observer starts injecting only after <code>eor-sent</code>; the
+peer MUST linger after receiving that marker. In <code>initial-sync-barrier-raw.ci</code>,
+the peer MUST linger until the observer has read <code>eor-sent</code>, even when it has
+already received both expected frames. Without <code>option=linger:value=true</code>,
+<code>Peer.completed</code> returns and closes the session before the remaining work.
+When a raw injection races the independent initial-sync marker, put their
+exact wire expectations in the same <code>seq</code> group: both are required, but neither
+is required to arrive first. The observer MUST retain its EOR counter barrier
+before requesting shutdown.</p>
+<!-- source: internal/test/peer/reject.go -- Peer.completed -->
+<!-- source: internal/test/peer/checker.go -- Checker.consumeMatches -->
+<!-- source: internal/test/fixture/register_initial_sync_barrier.go -- initialSyncBarrierRaw -->
 <h4 id="choosing-between-needs-linux-caps-and-skip-os">Choosing between <code>needs-linux</code>, <code>caps=</code>, and <code>skip-os</code></h4>
 <table>
 <thead>
@@ -1586,6 +1650,8 @@ processes end".</p>
 <pre><code>expect=bgp:conn=&lt;N&gt;:seq=&lt;N&gt;:hex=&lt;hex-bytes&gt;
 expect=bgp:conn=&lt;N&gt;:seq=&lt;N&gt;:prefix=&lt;hex-bytes&gt;
 expect=bgp:conn=&lt;N&gt;:seq=&lt;N&gt;:contains=&lt;hex-bytes&gt;
+expect=bgp:conn=&lt;N&gt;:seq=&lt;N&gt;:announced=&lt;hex-bytes&gt;
+expect=bgp:conn=&lt;N&gt;:seq=&lt;N&gt;:withdrawn=&lt;hex-bytes&gt;
 expect=bgp:conn=&lt;N&gt;:seq=&lt;N&gt;:ordered=&lt;hex-bytes&gt;
 </code></pre>
 <p>Validates the BGP wire message received: <code>hex=</code> matches the exact message,
@@ -1602,6 +1668,41 @@ bucket merge): per-message framing is not a property ze owes, but delivery
 order is. A message whose content matches only a non-front needle consumes
 nothing and is reported as a mismatch.</p>
 <!-- source: internal/test/peer/checker.go -- parseExpectRule, consumeMatches, consumeOrdered -->
+<p><code>announced=</code> matches byte-aligned bytes only in the legacy NLRI or an
+MP_REACH_NLRI's NLRI field. <code>withdrawn=</code> matches only in Withdrawn Routes or an
+MP_UNREACH_NLRI's NLRI field. Neither searches path attributes or next hops.
+Several scoped checks in one <code>seq</code> may match one packed UPDATE or separate
+UPDATEs; they never consume checks from the next sequence. Keep a fence in its
+own later sequence when ordering is the subject.</p>
+<p>Add <code>attribute=&lt;decimal-type-code&gt;,&lt;hex-value-bytes&gt;</code> to a scoped expectation to
+require both the NLRI and a value in the named path attribute in the same
+UPDATE. For example, the LLGR timer receiver uses
+<code>announced=180A0000:attribute=8,FFFF0006</code> to require 10.0.0.0/24 with LLGR_STALE.
+A stale community on another route does not satisfy that assertion. The
+attribute's compact or extended length encoding does not affect the match.
+The value is a byte-aligned substring within the named attribute, not a
+whole-attribute equality check. This qualifier requires <code>announced</code> or
+<code>withdrawn</code> and cannot be combined with <code>hex</code>, <code>prefix</code>, <code>contains</code>, or
+<code>ordered</code>; malformed qualifiers fail parsing rather than dropping a condition.</p>
+<p>These are raw NLRI byte patterns, not decoded prefix selectors. ADD-PATH
+identifiers remain present: include the four identifier octets when asserting
+a particular path. Opaque families need no CIDR conversion. Each field is
+searched separately, so a pattern cannot bridge two fields.</p>
+<p>The corresponding negative assertion is:</p>
+<pre><code>reject=bgp:conn=&lt;N&gt;:scope=announced:pattern=&lt;hex-bytes&gt;
+reject=bgp:conn=&lt;N&gt;:scope=withdrawn:pattern=&lt;hex-bytes&gt;
+</code></pre>
+<p>Put <code>scope</code> before <code>pattern</code>, whose value consumes the rest of the line.
+Without <code>scope</code>, the existing rejection still searches every wire byte.
+An unknown scope is a parse error. A malformed UPDATE fails a scoped rejection
+closed and cannot satisfy a scoped positive expectation.</p>
+<p>Use announcement scope for an export prohibition. RFC 1997 forbids advertising
+a governed route; it does not forbid withdrawing a previous generation of that
+route. The egress scenarios therefore require the withdrawal, reject the
+announcement, and require a permitted fence announcement on the same session.
+An UPDATE counter alone cannot distinguish those outcomes.</p>
+<!-- source: internal/test/peer/checker_update_fields.go -- matchUpdateField, rejectedUpdateField -->
+<!-- source: internal/test/peer/reject.go -- ParseRejectRule -->
 <p>These forms are peer-block directives (inside a <code>stdin=&lt;name&gt;:</code> block);
 top-level <code>expect=bgp</code> lines support <code>hex=</code> only.</p>
 <h3 id="json-expectations">JSON Expectations</h3>
@@ -1729,6 +1830,13 @@ waited in step 2, because it ends itself, and its expectation can be the Cease
 the stop in step 3 produces (<code>test/reload/reload-dynamic-peer-survives.ci</code>).
 Await the reload's OUTCOME line, never an earlier one: <code>sighup reload complete</code>
 for a reload that succeeded, <code>reload error</code> for one that was refused.</p>
+<p>If either fence step fails, the runner retains that failure while stopping the
+daemon, signaling the peers immediately, and reaping them. A failed exchange
+gets no further completion grace that could exhaust the test's deadline before
+SIGTERM reaches the peers. The runner collects their final stdout and stderr
+before extracting received messages and writing <code>--save</code> files. This includes a
+lingering peer's shutdown output: the missing needle must not discard the
+dialogue that explains why it never appeared.</p>
 <pre><code>cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 await=stderr:contains=incomplete peer definition:then=stop
 await=stderr:contains=reload error
@@ -2272,6 +2380,19 @@ and a guessed duration the same line of code.</p>
 across <code>test/**/*.ci</code> may not exceed the committed baseline in
 <code>test/.ci-sleep-baseline</code>, and <code>./le doc wiring</code> fails when it does. The markers
 cap how many are unexplained.</p>
+<h2 id="registered-engines-launched-externally">Registered engines launched externally</h2>
+<p><code>le test plugin-external &lt;name&gt;</code> runs a registered engine through a genuine TLS
+connect-back so a test can exercise its external-process refusal or warning.
+Before configuring the engine logger, the launcher calls <code>crashlog.Flush</code> to
+restore the stderr pipe managed by the parent daemon. The logger therefore
+writes each diagnostic into that pipe before returning.</p>
+<p>A refusing engine closes its SDK connection on return, and the parent can kill
+the child as soon as registration fails. Leaving a second asynchronous stderr
+queue inside the child let that kill discard the refusal before the parent's
+relay received it. This exception applies to this test launcher only; runtime
+crash-file capture remains armed. Standalone production external plugins do not
+use this registered-engine launcher.</p>
+<!-- source: internal/test/cli/cmd_plugin_external.go -- CmdPluginExternal -->
 <h2 id="the-compiled-observer-api">The compiled observer API</h2>
 <!-- source: internal/test/fixture/fixture.go -- Register, Run, Observe, observeConfigured, Dispatch, Poll, ReportFailure -->
 <p>Compiled <code>.ci</code> observers live under <code>internal/test/fixture</code>. They use
@@ -3023,7 +3144,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,10 +10,12 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| Enrolled RFCs with zero test-proven requirements | Q2 | **16 / 170** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **13 / 171** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Tests with no reachable failure call | Q1 | **127 / 34155 (floor 126)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
+| Test files that expect a specific error | Q2 | **1875 / 5344** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-7 further metric(s) are within threshold and are listed in full below.
+5 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -21,7 +23,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**126 / 32472 (floor 126)** (ok)
+**127 / 34155 (floor 126)** (attention)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -38,11 +40,11 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_ShortUpdate_Skipped |
 | internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshSwapsAtomically |
 | internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshASNStoreFieldRace |
-| internal/component/bgp/plugins/gr/gr_egress_test.go | TestLLGREgressFilter_ConcurrentAccess |
+| internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go | TestLLGREgressFilter_ConcurrentAccess |
 
 ### time.sleep() calls in .ci tests
 
-**0 (floor 52)** (ok)
+**0 (floor 0)** (ok)
 
 A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.
 
@@ -54,44 +56,15 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Enrolled RFCs with zero test-proven requirements
 
-**16 / 170** (attention)
+**13 / 171** (attention)
 
 Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
 
 *Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
 
-### RFC MUST requirements proven by test, over the RFCs ze implements
-
-**2488 / 3896** (ok)
-
-63.9% of the 3896 gated MUSTs the 151 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4019 gated MUSTs across 170 enrolled RFCs -- and of the 1891 of those not proven in both polarities: 748 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 676 known gap (unimplemented, genuinely untested), 393 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 41 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 33 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 8 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
-
-*Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.
-
-| rfc | gated |
-|---|---|
-| rfc7871 | 38 |
-| rfc2132 | 34 |
-| rfc4213 | 23 |
-| rfc3032 | 18 |
-| rfc4761 | 18 |
-| rfc7166 | 17 |
-| rfc9085 | 11 |
-| rfc4364 | 8 |
-| rfc2782 | 7 |
-| rfc7012 | 6 |
-
-### In-repo test inventory
-
-**32504 test functions** (ok)
-
-4723 Go test files, 88 fuzz targets, 134 benchmarks, 2112 .ci scenarios, 172 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
-
-*Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
-
 ### Test files that expect a specific error
 
-**1740 / 4723** (ok)
+**1875 / 5344** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -105,10 +78,39 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | internal/core/stats | 0 | 5 | 0.0 |
 | internal/le/hookruntime | 0 | 9 | 0.0 |
 | internal/plugins/completion | 0 | 7 | 0.0 |
-| internal/component/sysrib | 2 | 25 | 8.0 |
+| internal/component/sysrib | 2 | 26 | 7.7 |
 | internal/chaos/peer | 1 | 11 | 9.1 |
 | internal/component/lg | 2 | 22 | 9.1 |
 | internal/component/cmd | 2 | 20 | 10.0 |
+
+### RFC MUST requirements proven by test, over the RFCs ze implements
+
+**2572 / 4005** (ok)
+
+64.2% of the 4005 gated MUSTs the 152 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4134 gated MUSTs across 171 enrolled RFCs -- and of the 1880 of those not proven in both polarities: 743 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 701 known gap (unimplemented, genuinely untested), 2 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 356 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 41 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 37 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 7 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
+
+*Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.
+
+| rfc | gated |
+|---|---|
+| rfc7871 | 36 |
+| rfc2132 | 34 |
+| rfc4761 | 18 |
+| rfc7166 | 17 |
+| rfc4364 | 8 |
+| rfc2782 | 7 |
+| rfc7012 | 6 |
+| rfc8097 | 5 |
+| rfc4576 | 4 |
+| rfc6397 | 4 |
+
+### In-repo test inventory
+
+**34190 test functions** (ok)
+
+5344 Go test files, 88 fuzz targets, 136 benchmarks, 2124 .ci scenarios, 172 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+
+*Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Technique adoption by package age
 
@@ -121,7 +123,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 643 | 34 | 118 | 35 |
+| 2026 | 645 | 34 | 128 | 35 |
 
 ## Integrity
 

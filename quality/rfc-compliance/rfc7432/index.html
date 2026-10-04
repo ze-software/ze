@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7432 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7432 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7432 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -117,26 +118,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9.8%</strong><b>10 of 102 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.0%</strong><b>1 of 102 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>48.1%</strong><b>13 of 27 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>62.5%</strong><b>20 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>102</strong><b>of 119 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>79</strong><b>of 102 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>75.5%</strong><b>77 of 102 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>76</strong><b>of 102 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>72.5%</strong><b>74 of 102 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>2.0%</strong><b>2 of 102 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.7%</strong><b>13 of 102 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 102 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.7%</strong><b>15 of 102 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 102 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 102 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -210,10 +215,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>102</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>77</td>
+<td>74</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>13</td>
+<td>15</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>29</td>
+<td>34</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>27</td>
+<td>32</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>13</td>
+<td>20</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7432.md</code></td>
@@ -256,13 +261,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
-<li>EVPN NLRI family (AFI 25 / SAFI 70), route-type codecs, ADD-PATH framing, MP_REACH construction and explicit configured control-plane origination through <code>evpn.parseConfigRoute</code>. The shared <code>message.ValidateEVPNOrigination</code> guard requires a Type 1 RD and ES-Import Route Target for locally originated Ethernet Segment routes. These source paths await current integration verification</li>
-<li>permissive receive decoding is not evidence of sender compliance.</li>
+<li>EVPN NLRI family (AFI 25 / SAFI 70), route-type codecs, ADD-PATH framing, MP_REACH construction and explicit configured control-plane origination through <code>evpn.parseConfigRoute</code>. Configured extended communities, including ESI Label communities, reach the route attributes</li>
+<li><code>evpn.EncodeRoute</code> also carries them through <code>message.BuildEVPN</code>. The shared <code>message.ValidateEVPNOrigination</code> guard recognizes MAX-ET Type 1 routes as per-ES and requires a Type 1 RD, zero NLRI label, ESI Label community and route target. It also requires a Type 1 RD and ES-Import Route Target for locally originated Ethernet Segment routes. These source paths await current integration verification</li>
+<li>permissive receive decoding is not evidence of sender compliance, and route-support evidence does not establish every per-ES obligation.</li>
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>Thirteen MUST rows carry {gap}.</p>
-<p class="rfc-prose"><strong>No full EVPN PE or multihoming claim:</strong> MAC-VRF/EVI ownership, automatic segment discovery, DF election, MAC learning, EVPN forwarding, split horizon, aliasing and BUM replication remain outside the implemented control-plane boundary. The checklist retains the separate requirement gaps; its historical counts and source citations are not current execution evidence. The new Type 4 origination guard and its behavioral carrier require Main&#39;s verification. Route targets are never auto-derived from the Ethernet Tag ID (Section 7.10.1).</p>
+<p>Separate implementation and proof gaps remain in the requirement checklist.</p>
+<p class="rfc-prose"><strong>No full EVPN PE or multihoming claim:</strong> MAC-VRF/EVI ownership, automatic segment discovery, DF election, MAC learning, EVPN forwarding, split horizon, aliasing and BUM replication remain outside the implemented control-plane boundary. The explicit per-ES producer has no independent intent selector forcing MAX-ET, no validation of ESI Label flags and embedded label against an independent redundancy-mode setting, and no cross-route equal-ESI label consistency check. ESI Label presence is guarded but its row-specific enforcement proof remains unverified; carrying configured bytes is not autonomous label allocation or redundancy operation. Historical checklist counts and source citations are not current execution evidence. The new Type 4 origination guard and its behavioral carrier require Main&#39;s verification. Route targets are never auto-derived from the Ethernet Tag ID (Section 7.10.1).</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -274,7 +280,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>10</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>92</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -285,6 +291,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -298,8 +308,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (10):</strong> <a href="#rfc7432-5-1"><code>RFC7432-5-1</code></a>, <a href="#rfc7432-8.1.1-1"><code>RFC7432-8.1.1-1</code></a>, <a href="#rfc7432-8.1.1-2"><code>RFC7432-8.1.1-2</code></a>, <a href="#rfc7432-9.2.1-1"><code>RFC7432-9.2.1-1</code></a>, <a href="#rfc7432-10-1"><code>RFC7432-10-1</code></a>, <a href="#rfc7432-8.2.1-9"><code>RFC7432-8.2.1-9</code></a>, <a href="#rfc7432-8.2.1-10"><code>RFC7432-8.2.1-10</code></a>, <a href="#rfc7432-8.3-2"><code>RFC7432-8.3-2</code></a>, <a href="#rfc7432-9.2.1-6"><code>RFC7432-9.2.1-6</code></a>, <a href="#rfc7432-11.1-3"><code>RFC7432-11.1-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (92):</strong> <a href="#rfc7432-7.9-1"><code>RFC7432-7.9-1</code></a>, <a href="#rfc7432-7.9-2"><code>RFC7432-7.9-2</code></a>, <a href="#rfc7432-7.9-3"><code>RFC7432-7.9-3</code></a>, <a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a>, <a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a>, <a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a>, <a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a>, <a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a>, <a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a>, <a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a>, <a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a>, <a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a>, <a href="#rfc7432-7.6-2"><code>RFC7432-7.6-2</code></a>, <a href="#rfc7432-11-1"><code>RFC7432-11-1</code></a>, <a href="#rfc7432-9.2.1-2"><code>RFC7432-9.2.1-2</code></a>, <a href="#rfc7432-9.2.1-3"><code>RFC7432-9.2.1-3</code></a>, <a href="#rfc7432-9.1-1"><code>RFC7432-9.1-1</code></a>, <a href="#rfc7432-9.2.1-4"><code>RFC7432-9.2.1-4</code></a>, <a href="#rfc7432-8.4.1-1"><code>RFC7432-8.4.1-1</code></a>, <a href="#rfc7432-10-2"><code>RFC7432-10-2</code></a>, <a href="#rfc7432-10-3"><code>RFC7432-10-3</code></a>, <a href="#rfc7432-10-4"><code>RFC7432-10-4</code></a>, <a href="#rfc7432-11.1-1"><code>RFC7432-11.1-1</code></a>, <a href="#rfc7432-11.1-2"><code>RFC7432-11.1-2</code></a>, <a href="#rfc7432-11.2-1"><code>RFC7432-11.2-1</code></a>, <a href="#rfc7432-11.2-2"><code>RFC7432-11.2-2</code></a>, <a href="#rfc7432-11.2-3"><code>RFC7432-11.2-3</code></a>, <a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a>, <a href="#rfc7432-6.1-2"><code>RFC7432-6.1-2</code></a>, <a href="#rfc7432-6.2-1"><code>RFC7432-6.2-1</code></a>, <a href="#rfc7432-6.3-1"><code>RFC7432-6.3-1</code></a>, <a href="#rfc7432-6.3-2"><code>RFC7432-6.3-2</code></a>, <a href="#rfc7432-8.3.1.1-1"><code>RFC7432-8.3.1.1-1</code></a>, <a href="#rfc7432-8.3.1.2-1"><code>RFC7432-8.3.1.2-1</code></a>, <a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a>, <a href="#rfc7432-15-1"><code>RFC7432-15-1</code></a>, <a href="#rfc7432-15-2"><code>RFC7432-15-2</code></a>, <a href="#rfc7432-15.1-1"><code>RFC7432-15.1-1</code></a>, <a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a>, <a href="#rfc7432-15.2-1"><code>RFC7432-15.2-1</code></a>, <a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a>, <a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a>, <a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a>, <a href="#rfc7432-8.4-1"><code>RFC7432-8.4-1</code></a>, <a href="#rfc7432-8.3.1.1-2"><code>RFC7432-8.3.1.1-2</code></a>, <a href="#rfc7432-8.3.1.1-3"><code>RFC7432-8.3.1.1-3</code></a>, <a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a>, <a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a>, <a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a>, <a href="#rfc7432-5-6"><code>RFC7432-5-6</code></a>, <a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a>, <a href="#rfc7432-5-8"><code>RFC7432-5-8</code></a>, <a href="#rfc7432-5-9"><code>RFC7432-5-9</code></a>, <a href="#rfc7432-5-10"><code>RFC7432-5-10</code></a>, <a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a>, <a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a>, <a href="#rfc7432-5-13"><code>RFC7432-5-13</code></a>, <a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a>, <a href="#rfc7432-12.1-1"><code>RFC7432-12.1-1</code></a>, <a href="#rfc7432-12.1-2"><code>RFC7432-12.1-2</code></a>, <a href="#rfc7432-12.2-1"><code>RFC7432-12.2-1</code></a>, <a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a>, <a href="#rfc7432-13.1-2"><code>RFC7432-13.1-2</code></a>, <a href="#rfc7432-13.1-3"><code>RFC7432-13.1-3</code></a>, <a href="#rfc7432-13.1-4"><code>RFC7432-13.1-4</code></a>, <a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a>, <a href="#rfc7432-14.1-1"><code>RFC7432-14.1-1</code></a>, <a href="#rfc7432-14.1.1-2"><code>RFC7432-14.1.1-2</code></a>, <a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a>, <a href="#rfc7432-14.1.2-1"><code>RFC7432-14.1.2-1</code></a>, <a href="#rfc7432-14.1.2-2"><code>RFC7432-14.1.2-2</code></a>, <a href="#rfc7432-9.2.2-1"><code>RFC7432-9.2.2-1</code></a>, <a href="#rfc7432-9.2.2-2"><code>RFC7432-9.2.2-2</code></a>, <a href="#rfc7432-10.1-4"><code>RFC7432-10.1-4</code></a>, <a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a>, <a href="#rfc7432-6.3-3"><code>RFC7432-6.3-3</code></a>, <a href="#rfc7432-6.3-4"><code>RFC7432-6.3-4</code></a>, <a href="#rfc7432-7.10.1-1"><code>RFC7432-7.10.1-1</code></a>, <a href="#rfc7432-7.10.1-2"><code>RFC7432-7.10.1-2</code></a>, <a href="#rfc7432-8.2.1.1-1"><code>RFC7432-8.2.1.1-1</code></a>, <a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a>, <a href="#rfc7432-8.3.1.1-6"><code>RFC7432-8.3.1.1-6</code></a>, <a href="#rfc7432-8.3.1.1-7"><code>RFC7432-8.3.1.1-7</code></a>, <a href="#rfc7432-8.3.1.2-2"><code>RFC7432-8.3.1.2-2</code></a>, <a href="#rfc7432-8.5-2"><code>RFC7432-8.5-2</code></a>, <a href="#rfc7432-10.1-5"><code>RFC7432-10.1-5</code></a>, <a href="#rfc7432-11.2-5"><code>RFC7432-11.2-5</code></a>, <a href="#rfc7432-11.2-6"><code>RFC7432-11.2-6</code></a>, <a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a>, <a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a>, <a href="#rfc7432-13.1-7"><code>RFC7432-13.1-7</code></a>, <a href="#rfc7432-17.3-3"><code>RFC7432-17.3-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (10):</strong> <a href="#rfc7432-5-1"><code>RFC7432-5-1</code></a>, <a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a>, <a href="#rfc7432-8.1.1-1"><code>RFC7432-8.1.1-1</code></a>, <a href="#rfc7432-8.1.1-2"><code>RFC7432-8.1.1-2</code></a>, <a href="#rfc7432-9.2.1-1"><code>RFC7432-9.2.1-1</code></a>, <a href="#rfc7432-10-1"><code>RFC7432-10-1</code></a>, <a href="#rfc7432-8.2.1-10"><code>RFC7432-8.2.1-10</code></a>, <a href="#rfc7432-8.3-2"><code>RFC7432-8.3-2</code></a>, <a href="#rfc7432-9.2.1-6"><code>RFC7432-9.2.1-6</code></a>, <a href="#rfc7432-11.1-3"><code>RFC7432-11.1-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (92):</strong> <a href="#rfc7432-7.9-1"><code>RFC7432-7.9-1</code></a>, <a href="#rfc7432-7.9-2"><code>RFC7432-7.9-2</code></a>, <a href="#rfc7432-7.9-3"><code>RFC7432-7.9-3</code></a>, <a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a>, <a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a>, <a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a>, <a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a>, <a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a>, <a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a>, <a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a>, <a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a>, <a href="#rfc7432-7.6-2"><code>RFC7432-7.6-2</code></a>, <a href="#rfc7432-11-1"><code>RFC7432-11-1</code></a>, <a href="#rfc7432-9.2.1-2"><code>RFC7432-9.2.1-2</code></a>, <a href="#rfc7432-9.2.1-3"><code>RFC7432-9.2.1-3</code></a>, <a href="#rfc7432-9.1-1"><code>RFC7432-9.1-1</code></a>, <a href="#rfc7432-9.2.1-4"><code>RFC7432-9.2.1-4</code></a>, <a href="#rfc7432-8.4.1-1"><code>RFC7432-8.4.1-1</code></a>, <a href="#rfc7432-10-2"><code>RFC7432-10-2</code></a>, <a href="#rfc7432-10-3"><code>RFC7432-10-3</code></a>, <a href="#rfc7432-10-4"><code>RFC7432-10-4</code></a>, <a href="#rfc7432-11.1-1"><code>RFC7432-11.1-1</code></a>, <a href="#rfc7432-11.1-2"><code>RFC7432-11.1-2</code></a>, <a href="#rfc7432-11.2-1"><code>RFC7432-11.2-1</code></a>, <a href="#rfc7432-11.2-2"><code>RFC7432-11.2-2</code></a>, <a href="#rfc7432-11.2-3"><code>RFC7432-11.2-3</code></a>, <a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a>, <a href="#rfc7432-6.1-2"><code>RFC7432-6.1-2</code></a>, <a href="#rfc7432-6.2-1"><code>RFC7432-6.2-1</code></a>, <a href="#rfc7432-6.3-1"><code>RFC7432-6.3-1</code></a>, <a href="#rfc7432-6.3-2"><code>RFC7432-6.3-2</code></a>, <a href="#rfc7432-8.3.1.1-1"><code>RFC7432-8.3.1.1-1</code></a>, <a href="#rfc7432-8.3.1.2-1"><code>RFC7432-8.3.1.2-1</code></a>, <a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a>, <a href="#rfc7432-15-1"><code>RFC7432-15-1</code></a>, <a href="#rfc7432-15-2"><code>RFC7432-15-2</code></a>, <a href="#rfc7432-15.1-1"><code>RFC7432-15.1-1</code></a>, <a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a>, <a href="#rfc7432-15.2-1"><code>RFC7432-15.2-1</code></a>, <a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a>, <a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a>, <a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a>, <a href="#rfc7432-8.4-1"><code>RFC7432-8.4-1</code></a>, <a href="#rfc7432-8.3.1.1-2"><code>RFC7432-8.3.1.1-2</code></a>, <a href="#rfc7432-8.3.1.1-3"><code>RFC7432-8.3.1.1-3</code></a>, <a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a>, <a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a>, <a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a>, <a href="#rfc7432-5-6"><code>RFC7432-5-6</code></a>, <a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a>, <a href="#rfc7432-5-8"><code>RFC7432-5-8</code></a>, <a href="#rfc7432-5-9"><code>RFC7432-5-9</code></a>, <a href="#rfc7432-5-10"><code>RFC7432-5-10</code></a>, <a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a>, <a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a>, <a href="#rfc7432-5-13"><code>RFC7432-5-13</code></a>, <a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a>, <a href="#rfc7432-12.1-1"><code>RFC7432-12.1-1</code></a>, <a href="#rfc7432-12.1-2"><code>RFC7432-12.1-2</code></a>, <a href="#rfc7432-12.2-1"><code>RFC7432-12.2-1</code></a>, <a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a>, <a href="#rfc7432-13.1-2"><code>RFC7432-13.1-2</code></a>, <a href="#rfc7432-13.1-3"><code>RFC7432-13.1-3</code></a>, <a href="#rfc7432-13.1-4"><code>RFC7432-13.1-4</code></a>, <a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a>, <a href="#rfc7432-14.1-1"><code>RFC7432-14.1-1</code></a>, <a href="#rfc7432-14.1.1-2"><code>RFC7432-14.1.1-2</code></a>, <a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a>, <a href="#rfc7432-14.1.2-1"><code>RFC7432-14.1.2-1</code></a>, <a href="#rfc7432-14.1.2-2"><code>RFC7432-14.1.2-2</code></a>, <a href="#rfc7432-9.2.2-1"><code>RFC7432-9.2.2-1</code></a>, <a href="#rfc7432-9.2.2-2"><code>RFC7432-9.2.2-2</code></a>, <a href="#rfc7432-10.1-4"><code>RFC7432-10.1-4</code></a>, <a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a>, <a href="#rfc7432-6.3-3"><code>RFC7432-6.3-3</code></a>, <a href="#rfc7432-6.3-4"><code>RFC7432-6.3-4</code></a>, <a href="#rfc7432-7.10.1-1"><code>RFC7432-7.10.1-1</code></a>, <a href="#rfc7432-7.10.1-2"><code>RFC7432-7.10.1-2</code></a>, <a href="#rfc7432-8.2.1-9"><code>RFC7432-8.2.1-9</code></a>, <a href="#rfc7432-8.2.1.1-1"><code>RFC7432-8.2.1.1-1</code></a>, <a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a>, <a href="#rfc7432-8.3.1.1-6"><code>RFC7432-8.3.1.1-6</code></a>, <a href="#rfc7432-8.3.1.1-7"><code>RFC7432-8.3.1.1-7</code></a>, <a href="#rfc7432-8.3.1.2-2"><code>RFC7432-8.3.1.2-2</code></a>, <a href="#rfc7432-8.5-2"><code>RFC7432-8.5-2</code></a>, <a href="#rfc7432-10.1-5"><code>RFC7432-10.1-5</code></a>, <a href="#rfc7432-11.2-5"><code>RFC7432-11.2-5</code></a>, <a href="#rfc7432-11.2-6"><code>RFC7432-11.2-6</code></a>, <a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a>, <a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a>, <a href="#rfc7432-13.1-7"><code>RFC7432-13.1-7</code></a>, <a href="#rfc7432-17.3-3"><code>RFC7432-17.3-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -338,8 +348,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L400" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L440" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L403" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L443" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-1">RFC7432-8.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The Ethernet Tag ID MUST be set to MAX-ET. (§8.2.1)</span></td></tr>
@@ -349,16 +359,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> NewEVPNType1 stores the operator-supplied Ethernet Tag unchanged (internal/component/bgp/plugins/nlri/evpn/encode.go:90-95) and parseEVPNType1 reads it back verbatim (internal/component/bgp/plugins/nlri/evpn/types.go:281); ze draws no per-ES versus per-EVI distinction and never forces MAX-ET</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams passes the operator-supplied EthernetTag to NewEVPNType1. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination recognizes MAX-ET and validates the per-ES branch, but these producers have no independent per-ES intent selector that forces MAX-ET. A configured MAX-ET example establishes support, not independent enforcement of tag selection</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-2">RFC7432-8.2.1-2</code></td><td colspan="3"><span class="rfc-subject">The MPLS label in the NLRI MUST be set to 0. (§8.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the Ethernet A-D encoder attaches whichever label the route command carries (internal/component/bgp/plugins/nlri/evpn/encode.go:91-95), with no rule that zeroes the NLRI label for a per-ES route</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L35" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L14" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L54" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L69" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesLabelStack</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-3">RFC7432-8.2.1-3</code></td><td colspan="3"><span class="rfc-subject">The ESI Label extended community MUST be included in the route. (§8.2.1)</span></td></tr>
 <tr><td></td>
@@ -367,7 +379,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the route this obligation attaches to cannot be originated from a session, and the ESI Label extended community has no producer at all. NewEVPNType1 has one non-test caller, EncodeRoute (internal/component/bgp/plugins/nlri/evpn/encode.go:95), which is registered only as InProcessRouteEncoder (internal/component/bgp/plugins/nlri/evpn/register.go:42) and resolved only by registry.RouteEncoderByFamily (internal/component/plugin/registry/registry.go:856), whose one non-test caller is the offline hex tool cmdEncode (internal/component/bgp/cli/encode.go:149). The session origination path is buildEVPNFromParams (internal/component/bgp/plugins/nlri/evpn/plugin.go:227), which admits route types 2, 3 and 5 only, and the family registers no InProcessConfigRouteParser, so no configured route reaches route type 1 either. No ESI Label extended community is ever attached on any path: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches only unrelated OSPF SID/Label helpers, the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and BuildEVPN emits an EXTENDED_COMMUNITIES attribute only from the caller-supplied pre-packed ExtCommunityBytes (internal/component/bgp/message/update_build_evpn.go), which l2vpnRouteToEVPNParams never fills. Disclosed in docs/features/rfc-status.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> row-specific enforcement proof remains unverified, not an absent producer. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute merges configured extended communities, calls ValidateEVPNOrigination and attaches the bytes to PluginRoute; internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute carries ExtCommunityBytes through l2vpnRouteToEVPNParams to BuildEVPN. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination rejects MAX-ET Type 1 origination without an ESI Label community (type 0x06/subtype 0x01). This implemented presence guard requires its own proof and verdict; the route-support verdict does not promote this row</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-4">RFC7432-8.2.1-4</code></td><td colspan="3"><span class="rfc-subject">If All-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value. (§8.2.1)</span></td></tr>
 <tr><td></td>
@@ -376,7 +388,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze signals no all-active redundancy mode</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> configured ESI Label bytes are carried by internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks community presence, not the Single-Active bit or embedded MPLS label against an independent All-Active mode setting. That conditional field validation is unimplemented. Autonomous multihoming remains outside the selected control-plane role; its absence does not establish conformance of configured signaling</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-5">RFC7432-8.2.1-5</code></td><td colspan="3"><span class="rfc-subject">The MPLS label in this Extended Community is referred to as the ESI label and MUST have the same value in each Ethernet A-D per ES route advertised for the ES. (§8.2.1)</span></td></tr>
 <tr><td></td>
@@ -385,7 +397,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, so there is no per-ES label value to keep consistent</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute carries each route&#39;s supplied ESI Label bytes. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks community presence without comparing embedded labels across separately originated routes with the same ESI. The cross-route consistency invariant is unimplemented; one conforming per-ES example does not prove it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-6">RFC7432-8.2.1-6</code></td><td colspan="3"><span class="rfc-subject">If the advertising PE is using P2MP MPLS LSPs for sending multicast, broadcast, or unknown unicast traffic, then this label MUST be an upstream assigned MPLS label. (§8.2.1)</span></td></tr>
 <tr><td></td>
@@ -394,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze sets up no P2MP LSP, so no upstream-assigned label is allocated</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the condition is a PE sending BUM traffic over P2MP MPLS LSPs. Ze&#39;s selected BGP control-plane role, documented in docs/architecture/wire/nlri-evpn.md, does not forward Ethernet/BUM traffic or manage its P2MP trees. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry explicitly supplied ESI Label bytes, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks their presence; these producers neither establish P2MP LSPs nor allocate upstream labels. Carrying the community does not fill the conditional forwarding role</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-7">RFC7432-8.2.1-7</code></td><td colspan="3"><span class="rfc-subject">If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 (§8.2.1)</span></td></tr>
 <tr><td></td>
@@ -403,7 +415,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze signals no single-active redundancy mode</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry configured ESI Label bytes. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks presence, not the Single-Active bit against an independent Single-Active mode setting. That conditional flag validation is unimplemented. Ze does not autonomously select or operate a redundancy mode in its documented BGP control-plane role; this role boundary is not proof that explicitly configured signaling satisfies the condition</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-8">RFC7432-8.2.1-8</code></td><td colspan="3"><span class="rfc-subject">Each Ethernet A-D per ES route MUST carry one or more Route Target (RT) attributes. (§8.2.1)</span></td></tr>
 <tr><td></td>
@@ -412,15 +424,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so an Ethernet A-D per ES route configured without a route target is advertised carrying none</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> row-specific enforcement proof remains unverified, not an absent producer or guard. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute merges and attaches configured extended communities; encode.go::l2vpnRouteToEVPNParams supplies ExtCommunityBytes to BuildEVPN. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination rejects MAX-ET Type 1 origination without a Route Target (type 0x00, 0x01 or 0x02/subtype 0x02). This presence guard requires its own proof and verdict; it does not auto-derive RTs or guarantee the entire ES-to-EVI RT set required by RFC7432-8.2.1.1-1</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.1.1-1">RFC7432-8.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. (§8.1.1). `message.ValidateEVPNOrigination` checks locally originated Type 4 NLRIs; current verification remains required. The receive codec remains permissive because this is an origination requirement.</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.1.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L54" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L67" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L54" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L67" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.1.1-2">RFC7432-8.1.1-2</code></td><td colspan="3"><span class="rfc-subject">The BGP advertisement that advertises the Ethernet Segment route MUST also carry an ES-Import Route Target, as defined in Section 7.6. (§8.1.1). `message.ValidateEVPNOrigination` requires extended community type 0x06/subtype 0x02 for local Type 4 origination; an ESI Label community is not a substitute. Current verification remains required.</span></td></tr>
@@ -428,8 +440,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.1.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L55" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L73" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L55" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_es_import_test.go#L21" title="internal/component/bgp/message/rfc7432_es_import_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L73" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_es_import_test.go#L23" title="internal/component/bgp/message/rfc7432_es_import_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-7.6-1">RFC7432-7.6-1</code></td><td colspan="3"><span class="rfc-subject">The Ethernet Segment route filtering MUST be done such that the Ethernet Segment route is imported only by the PEs that are multihomed to the same Ethernet segment. (§8.1.1)</span></td></tr>
@@ -464,8 +478,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>9.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-9.2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L293" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L315" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L296" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L318" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-9.2.1-2">RFC7432-9.2.1-2</code></td><td colspan="3"><span class="rfc-subject">The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE. (§9.2.1, §11.1)</span></td></tr>
@@ -475,7 +489,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-9.2.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> buildMPReachEVPN writes the configured next hop but substitutes the 4-octet 0.0.0.0 whenever the next hop is unset (internal/component/bgp/message/update_build_evpn.go:161-165), and parseL2VPNArgs treats next-hop as an optional keyword (internal/component/bgp/plugins/nlri/evpn/encode.go:227-232), so an EVPN route reaches the wire with a next hop that is not the advertising PE&#39;s address</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the earlier zero-address fallback claim is obsolete. internal/component/bgp/message/update_build_evpn.go::BuildEVPN rejects missing, unspecified and multicast next hops before buildMPReachEVPN writes the supplied address. Native configuration retains next-hop self and internal/component/bgp/reactor/peer_static_routes.go::toPluginParams resolves it from the connected local address. These guards do not establish that every explicitly supplied next hop belongs to the advertising PE. Whole-row enforcement remains unverified</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-9.2.1-3">RFC7432-9.2.1-3</code></td><td colspan="3"><span class="rfc-subject">MPLS Label1 MUST be downstream assigned (§9.2.1)</span></td></tr>
 <tr><td></td>
@@ -502,7 +516,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-9.2.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so a MAC/IP Advertisement route configured without a route target is advertised carrying none</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams and config.go::parseConfigRoute carry configured extended communities. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination has no Type 2 Route Target presence check, so explicit MAC/IP origination without a Route Target is not refused. The missing guard, not an inability to carry configured Route Targets, is the gap</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.4.1-1">RFC7432-8.4.1-1</code></td><td colspan="3"><span class="rfc-subject">The Ethernet A-D route MUST carry one or more Route Target (RT) attributes, per Section 7.10. (§8.4.1)</span></td></tr>
 <tr><td></td>
@@ -511,15 +525,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so an Ethernet A-D per EVI route configured without a route target is advertised carrying none</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams and config.go::parseConfigRoute carry configured extended communities. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination requires a Route Target for Type 1 only when its Ethernet Tag is MAX-ET. Explicit per-EVI origination without a Route Target is not refused. The per-ES support proof does not establish this separate per-EVI obligation</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10-1">RFC7432-10-1</code></td><td colspan="3"><span class="rfc-subject">For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address. (§10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-10-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L352" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L374" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L355" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go" target="_blank" rel="noopener"><code>TestRFC7432MACIPSenderUsesBitLengths</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L377" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10-2">RFC7432-10-2</code></td><td colspan="3"><span class="rfc-subject">If there are multiple IP addresses associated with a MAC address, then multiple MAC/IP Advertisement routes MUST be generated, one for each IP address. (§10)</span></td></tr>
@@ -556,7 +571,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-11.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> NewEVPNType3 takes the Originating Router&#39;s IP Address from the per-route next hop (internal/component/bgp/plugins/nlri/evpn/encode.go:109-110), and ze holds no PE-wide originating address that would keep the field common across instances</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams uses the route&#39;s explicit IP as its originator, or its explicit next hop when IP is absent, and refuses an absent originating address. It does not establish PE ownership or a common address across EVIs. The configured IMET originator can differ from the session next hop</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-11.1-2">RFC7432-11.1-2</code></td><td colspan="3"><span class="rfc-subject">The assignment of RTs as described in Section 7.10 MUST be followed. (§11.1)</span></td></tr>
 <tr><td></td>
@@ -565,7 +580,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-11.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), and no Section 7.10 route-target derivation exists, so an Inclusive Multicast route carries only the route targets an operator pre-packs</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> row-specific enforcement proof remains unverified. Section 7.10 permits configured RTs or automatic derivation. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry configured RTs, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination requires at least one on IMET. The earlier claim that configured communities could not reach this producer is obsolete. Automatic derivation is not selected, as documented in docs/architecture/wire/nlri-evpn.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-11.2-1">RFC7432-11.2-1</code></td><td colspan="3"><span class="rfc-subject">In order to identify the P-tunnel used for sending broadcast, unknown unicast, or multicast traffic, the Inclusive Multicast Ethernet Tag route MUST carry a Provider Multicast Service Interface (PMSI) Tunnel attribute as specified in [RFC6514]. (§11.2)</span></td></tr>
 <tr><td></td>
@@ -1220,22 +1235,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L34" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_evpn_test.go#L12" title="internal/component/bgp/reactor/session_validation_evpn_test.go" target="_blank" rel="noopener"><code>TestEVPNIngressPreservesPerESZeroLabel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L53" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_evpn_test.go#L25" title="internal/component/bgp/reactor/session_validation_evpn_test.go" target="_blank" rel="noopener"><code>TestEVPNIngressRejectsVariableLengthADLabels</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L67" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesLabelStack</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L34" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go#L12" title="internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go" target="_blank" rel="noopener"><code>TestEVPNIngressPreservesPerESZeroLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> owner ruling 2026-10-02 continuation ba93202e, MSS retirement and EVPN polarity ruling. Invalid label encodings test their own wire obligations, not absence of route support.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-10">RFC7432-8.2.1-10</code></td><td colspan="3"><span class="rfc-subject">The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. (§8.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L35" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L54" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L32" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesASTypeRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L36" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L15" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L55" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L34" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesASTypeRD</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1.1-1">RFC7432-8.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The set of Ethernet A-D routes per ES MUST carry the entire set of RTs for all the EVPN instances to which the Ethernet segment belongs (§8.2.1.1)</span></td></tr>
@@ -1261,8 +1275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L85" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L91" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L85" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L91" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.3.1.1-6">RFC7432-8.3.1.1-6</code></td><td colspan="3"><span class="rfc-subject">It MUST then push onto the MPLS label stack the MPLS label distributed by PE2 in the Inclusive Multicast Ethernet Tag route for VLAN1. (§8.3.1.1)</span></td></tr>
@@ -1306,8 +1320,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>9.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-9.2.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go#L26" title="internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go#L88" title="internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L26" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L88" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-5">RFC7432-10.1-5</code></td><td colspan="3"><span class="rfc-subject">Each PE that acts as a default gateway for a given EVPN instance that receives this route and imports it as per procedures specified in this document MUST create MAC forwarding state that enables it to apply IP forwarding to the packets destined to the MAC address carried in the route. (§10.1)</span></td></tr>
@@ -1324,10 +1338,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>11.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-11.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L65" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETOriginatorIsNotNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L45" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastIncludesRouteTarget</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L82" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETRefusesMissingRouteTarget</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L57" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastRefusesMissingRouteTarget</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L66" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETOriginatorIsNotNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L47" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastIncludesRouteTarget</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETRefusesMissingRouteTarget</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L59" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastRefusesMissingRouteTarget</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-11.2-5">RFC7432-11.2-5</code></td><td colspan="3"><span class="rfc-subject">+ If the PE that originates the advertisement uses a P-multicast tree for the P-tunnel for EVPN, the PMSI Tunnel attribute MUST contain the identity of the tree (note that the PE could create the identity of the tree prior to the actual instantiation of the tree). (§11.2)</span></td></tr>
@@ -1407,35 +1421,31 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a> The Ethernet Tag ID MUST be set to MAX-ET. (§8.2.1)</td>
 <td>{gap}, no test</td>
-<td>NewEVPNType1 stores the operator-supplied Ethernet Tag unchanged (internal/component/bgp/plugins/nlri/evpn/encode.go:90-95) and parseEVPNType1 reads it back verbatim (internal/component/bgp/plugins/nlri/evpn/types.go:281); ze draws no per-ES versus per-EVI distinction and never forces MAX-ET</td>
-</tr>
-<tr><td><a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a> The MPLS label in the NLRI MUST be set to 0. (§8.2.1)</td>
-<td>{gap}, no test</td>
-<td>the Ethernet A-D encoder attaches whichever label the route command carries (internal/component/bgp/plugins/nlri/evpn/encode.go:91-95), with no rule that zeroes the NLRI label for a per-ES route</td>
+<td>internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams passes the operator-supplied EthernetTag to NewEVPNType1. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination recognizes MAX-ET and validates the per-ES branch, but these producers have no independent per-ES intent selector that forces MAX-ET. A configured MAX-ET example establishes support, not independent enforcement of tag selection</td>
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a> The ESI Label extended community MUST be included in the route. (§8.2.1)</td>
 <td>{gap}, no test</td>
-<td>the route this obligation attaches to cannot be originated from a session, and the ESI Label extended community has no producer at all. NewEVPNType1 has one non-test caller, EncodeRoute (internal/component/bgp/plugins/nlri/evpn/encode.go:95), which is registered only as InProcessRouteEncoder (internal/component/bgp/plugins/nlri/evpn/register.go:42) and resolved only by registry.RouteEncoderByFamily (internal/component/plugin/registry/registry.go:856), whose one non-test caller is the offline hex tool cmdEncode (internal/component/bgp/cli/encode.go:149). The session origination path is buildEVPNFromParams (internal/component/bgp/plugins/nlri/evpn/plugin.go:227), which admits route types 2, 3 and 5 only, and the family registers no InProcessConfigRouteParser, so no configured route reaches route type 1 either. No ESI Label extended community is ever attached on any path: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches only unrelated OSPF SID/Label helpers, the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and BuildEVPN emits an EXTENDED_COMMUNITIES attribute only from the caller-supplied pre-packed ExtCommunityBytes (internal/component/bgp/message/update_build_evpn.go), which l2vpnRouteToEVPNParams never fills. Disclosed in docs/features/rfc-status.md</td>
+<td>row-specific enforcement proof remains unverified, not an absent producer. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute merges configured extended communities, calls ValidateEVPNOrigination and attaches the bytes to PluginRoute; internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute carries ExtCommunityBytes through l2vpnRouteToEVPNParams to BuildEVPN. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination rejects MAX-ET Type 1 origination without an ESI Label community (type 0x06/subtype 0x01). This implemented presence guard requires its own proof and verdict; the route-support verdict does not promote this row</td>
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a> If All-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value. (§8.2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze signals no all-active redundancy mode</td>
+<td>{gap}, no test</td>
+<td>configured ESI Label bytes are carried by internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks community presence, not the Single-Active bit or embedded MPLS label against an independent All-Active mode setting. That conditional field validation is unimplemented. Autonomous multihoming remains outside the selected control-plane role; its absence does not establish conformance of configured signaling</td>
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a> The MPLS label in this Extended Community is referred to as the ESI label and MUST have the same value in each Ethernet A-D per ES route advertised for the ES. (§8.2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, so there is no per-ES label value to keep consistent</td>
+<td>{gap}, no test</td>
+<td>internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute carries each route&#39;s supplied ESI Label bytes. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks community presence without comparing embedded labels across separately originated routes with the same ESI. The cross-route consistency invariant is unimplemented; one conforming per-ES example does not prove it</td>
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a> If the advertising PE is using P2MP MPLS LSPs for sending multicast, broadcast, or unknown unicast traffic, then this label MUST be an upstream assigned MPLS label. (§8.2.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze sets up no P2MP LSP, so no upstream-assigned label is allocated</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the condition is a PE sending BUM traffic over P2MP MPLS LSPs. Ze&#39;s selected BGP control-plane role, documented in docs/architecture/wire/nlri-evpn.md, does not forward Ethernet/BUM traffic or manage its P2MP trees. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry explicitly supplied ESI Label bytes, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks their presence; these producers neither establish P2MP LSPs nor allocate upstream labels. Carrying the community does not fill the conditional forwarding role</td>
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a> If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 (§8.2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze carries no ESI Label extended community: grep -rni &#39;esi.label&#39; --include=*.go over internal/ and pkg/ matches nothing, and the extended-community codec internal/core/bgp/attribute/community.go defines no type 0x06 sub-type 0x01 value, and ze signals no single-active redundancy mode</td>
+<td>{gap}, no test</td>
+<td>internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry configured ESI Label bytes. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks presence, not the Single-Active bit against an independent Single-Active mode setting. That conditional flag validation is unimplemented. Ze does not autonomously select or operate a redundancy mode in its documented BGP control-plane role; this role boundary is not proof that explicitly configured signaling satisfies the condition</td>
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a> Each Ethernet A-D per ES route MUST carry one or more Route Target (RT) attributes. (§8.2.1)</td>
 <td>{gap}, no test</td>
-<td>BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so an Ethernet A-D per ES route configured without a route target is advertised carrying none</td>
+<td>row-specific enforcement proof remains unverified, not an absent producer or guard. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute merges and attaches configured extended communities; encode.go::l2vpnRouteToEVPNParams supplies ExtCommunityBytes to BuildEVPN. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination rejects MAX-ET Type 1 origination without a Route Target (type 0x00, 0x01 or 0x02/subtype 0x02). This presence guard requires its own proof and verdict; it does not auto-derive RTs or guarantee the entire ES-to-EVI RT set required by RFC7432-8.2.1.1-1</td>
 </tr>
 <tr><td><a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a> The Ethernet Segment route filtering MUST be done such that the Ethernet Segment route is imported only by the PEs that are multihomed to the same Ethernet segment. (§8.1.1)</td>
 <td>no test</td>
@@ -1451,7 +1461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc7432-9.2.1-2"><code>RFC7432-9.2.1-2</code></a> The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE. (§9.2.1, §11.1)</td>
 <td>{gap}, no test</td>
-<td>buildMPReachEVPN writes the configured next hop but substitutes the 4-octet 0.0.0.0 whenever the next hop is unset (internal/component/bgp/message/update_build_evpn.go:161-165), and parseL2VPNArgs treats next-hop as an optional keyword (internal/component/bgp/plugins/nlri/evpn/encode.go:227-232), so an EVPN route reaches the wire with a next hop that is not the advertising PE&#39;s address</td>
+<td>the earlier zero-address fallback claim is obsolete. internal/component/bgp/message/update_build_evpn.go::BuildEVPN rejects missing, unspecified and multicast next hops before buildMPReachEVPN writes the supplied address. Native configuration retains next-hop self and internal/component/bgp/reactor/peer_static_routes.go::toPluginParams resolves it from the connected local address. These guards do not establish that every explicitly supplied next hop belongs to the advertising PE. Whole-row enforcement remains unverified</td>
 </tr>
 <tr><td><a href="#rfc7432-9.2.1-3"><code>RFC7432-9.2.1-3</code></a> MPLS Label1 MUST be downstream assigned (§9.2.1)</td>
 <td>{gap}, no test</td>
@@ -1463,11 +1473,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc7432-9.2.1-4"><code>RFC7432-9.2.1-4</code></a> The BGP advertisement for the MAC/IP Advertisement route MUST also carry one or more Route Target (RT) attributes. (§9.2.1)</td>
 <td>{gap}, no test</td>
-<td>BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so a MAC/IP Advertisement route configured without a route target is advertised carrying none</td>
+<td>internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams and config.go::parseConfigRoute carry configured extended communities. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination has no Type 2 Route Target presence check, so explicit MAC/IP origination without a Route Target is not refused. The missing guard, not an inability to carry configured Route Targets, is the gap</td>
 </tr>
 <tr><td><a href="#rfc7432-8.4.1-1"><code>RFC7432-8.4.1-1</code></a> The Ethernet A-D route MUST carry one or more Route Target (RT) attributes, per Section 7.10. (§8.4.1)</td>
 <td>{gap}, no test</td>
-<td>BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), so an Ethernet A-D per EVI route configured without a route target is advertised carrying none</td>
+<td>internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams and config.go::parseConfigRoute carry configured extended communities. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination requires a Route Target for Type 1 only when its Ethernet Tag is MAX-ET. Explicit per-EVI origination without a Route Target is not refused. The per-ES support proof does not establish this separate per-EVI obligation</td>
 </tr>
 <tr><td><a href="#rfc7432-10-2"><code>RFC7432-10-2</code></a> If there are multiple IP addresses associated with a MAC address, then multiple MAC/IP Advertisement routes MUST be generated, one for each IP address. (§10)</td>
 <td>no test</td>
@@ -1483,11 +1493,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc7432-11.1-1"><code>RFC7432-11.1-1</code></a> The Originating Router&#39;s IP Address field value MUST be set to an IP address of the PE that should be common for all the EVIs on the PE (e.g., this address may be the PE&#39;s loopback address). (§11.1)</td>
 <td>{gap}, no test</td>
-<td>NewEVPNType3 takes the Originating Router&#39;s IP Address from the per-route next hop (internal/component/bgp/plugins/nlri/evpn/encode.go:109-110), and ze holds no PE-wide originating address that would keep the field common across instances</td>
+<td>internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams uses the route&#39;s explicit IP as its originator, or its explicit next hop when IP is absent, and refuses an absent originating address. It does not establish PE ownership or a common address across EVIs. The configured IMET originator can differ from the session next hop</td>
 </tr>
 <tr><td><a href="#rfc7432-11.1-2"><code>RFC7432-11.1-2</code></a> The assignment of RTs as described in Section 7.10 MUST be followed. (§11.1)</td>
 <td>{gap}, no test</td>
-<td>BuildEVPN emits an EXTENDED_COMMUNITIES attribute only when the caller hands it pre-packed bytes (internal/component/bgp/message/update_build_evpn.go:118-124), and l2vpnRouteToEVPNParams never fills ExtCommunityBytes (internal/component/bgp/plugins/nlri/evpn/encode.go:64-124), and no Section 7.10 route-target derivation exists, so an Inclusive Multicast route carries only the route targets an operator pre-packs</td>
+<td>row-specific enforcement proof remains unverified. Section 7.10 permits configured RTs or automatic derivation. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry configured RTs, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination requires at least one on IMET. The earlier claim that configured communities could not reach this producer is obsolete. Automatic derivation is not selected, as documented in docs/architecture/wire/nlri-evpn.md</td>
 </tr>
 <tr><td><a href="#rfc7432-11.2-1"><code>RFC7432-11.2-1</code></a> In order to identify the P-tunnel used for sending broadcast, unknown unicast, or multicast traffic, the Inclusive Multicast Ethernet Tag route MUST carry a Provider Multicast Service Interface (PMSI) Tunnel attribute as specified in [RFC6514]. (§11.2)</td>
 <td>no test</td>
@@ -1787,12 +1797,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L440" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L443" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L400" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L403" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNESIIsTenOctets</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1806,7 +1816,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a></h3>
 <p>The MPLS label in the NLRI MUST be set to 0. (§8.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7432-8.2.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L54" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L69" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesLabelStack</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L35" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L14" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a></h3>
 <p>The ESI Label extended community MUST be included in the route. (§8.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1839,12 +1875,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L67" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L67" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L54" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L54" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1853,18 +1889,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7432-8.1.1-2"><code>RFC7432-8.1.1-2</code></a></h3>
 <p>The BGP advertisement that advertises the Ethernet Segment route MUST also carry an ES-Import Route Target, as defined in Section 7.6. (§8.1.1). `message.ValidateEVPNOrigination` requires extended community type 0x06/subtype 0x02 for local Type 4 origination; an ESI Label community is not a substitute. Current verification remains required.</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the ES-Import presence rule is proven: TestRFC7432EthernetSegmentOriginationAccepted carries the 0x06/0x02 community byte-for-byte and TestRFC7432EthernetSegmentOriginationRefused refuses an ordinary RT or no community with a Type 1 RD. But the row also claims an ESI Label community is not a substitute, and no tagged unit offers the ESI Label (0x06/0x01, same type octet) in place of ES-Import, so a guard that matched only type 0x06 stays green. The untagged config test TestConfiguredEVPNEthernetSegmentRequirements does offer it</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. ES-Import presence proven by the HEAD units; the ESI-Label-substitute clause now proven: TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel builds a Type 4 route with ES-Import (extended communities exactly it) and refuses ESI Label 0x06/0x01 (same type octet, asserted) alone or with an RT via ErrEVPNOrigination, no UPDATE.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L73" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_es_import_test.go#L23" title="internal/component/bgp/message/rfc7432_es_import_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L73" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationRefused</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L55" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_es_import_test.go#L21" title="internal/component/bgp/message/rfc7432_es_import_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L55" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432EthernetSegmentOriginationAccepted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1885,18 +1931,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-11-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-9.2.1-1"><code>RFC7432-9.2.1-1</code></a></h3>
 <p>The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV]. (§9.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. types_test.go::TestEVPNMACAddressLength: length 48 decodes to the 6-octet MAC and the encoder writes length 48 and six MAC octets; lengths 0,32,47,49,64,255 are rejected with ErrEVPNInvalidAddress</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7432 §9.2.1: &#34;The MAC Address Length field is in bits, and it is set to 48. MAC address length values other than 48 bits are outside the scope of this document. The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV].&#34; Read its sole tagged carrier internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength and repaired shared helper evpnT2Body. The positive now supplies a complete Type-2 MAC-only route including mandatory Label1 00 01 01, requires decoded MAC 00:11:22:33:44:55, then independently pins the output length octet to 48 and the exact six MAC octets. The negative cases change only MAC length to 0/32/47/49/64/255 and require ErrEVPNInvalidAddress, preserving a valid zero-length optional IP field and label. types.go::parseEVPNType2 checks 48 before copying six bytes, and EVPNType2.WriteTo always emits 48 and the six-byte MAC. Thus the assertions implement the RFC&#39;s six-octet format, fail on altered width/content, isolate the MAC rule after the label repair, and cover the whole selected encoding obligation. One positive and one negative tag refer to distinct subcases, not the same assertion twice. Rejecting out-of-scope widths is a local validation boundary, not an invented RFC requirement for future MAC formats. Prior enforced judgment remains enforced after independent semantic rereading; no runtime execution or new discrimination record is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L315" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L318" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L293" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L296" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNMACAddressLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1925,18 +1971,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-10-1"><code>RFC7432-10-1</code></a></h3>
 <p>For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address. (§10)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. row now quotes &#39;the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address&#39;, an obligation on the sender. types_test.go::TestEVPNIPAddressLength only decodes: 0/32/128 accepted, other lengths rejected. No unit re-encodes a MAC/IP route with an IPv4 or IPv6 address and asserts the length octet the encoder writes is 32 or 128, so an encoder writing the octet count (4 or 16) stays green</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7432 §10: &#34;For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address.&#34; Independently reread both current tagged carriers after the parent repaired their shared fixture. internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths pins the sender&#39;s raw octet 31 to 32/128, exact IPv4/IPv6 address octets, complete length and mandatory Label1=100 bytes. types_test.go::TestEVPNIPAddressLength separately accepts literal IPv4/IPv6 layouts with the exact decoded address and refuses non-0/32/128 lengths with ErrEVPNInvalidAddress. Its evpnT2Body now includes valid mandatory Label1 bytes 00 01 01 after the IP field; the former missing-label confound is gone. The absent-IP control is permitted by §9.2.1, not an exception to §10&#39;s present-IP obligation. Producers types.go::NewEVPNType2/EVPNType2.WriteTo choose bit lengths independently of parseEVPNType2&#39;s literal 0/32/128 branches. Exact raw sender expectations distinguish bits from octets, while parser negatives vary the tested length and retain valid surrounding fields. Current tags are two positive and one negative, backed by distinct conforming and invalid-length cases. The entire selected length obligation is now enforced at source level; no new runtime success or observed producer-break red is asserted. This fixture repair does not authorize EVPN forwarding or label-allocation features.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L374" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L377" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L352" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go" target="_blank" rel="noopener"><code>TestRFC7432MACIPSenderUsesBitLengths</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L355" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2185,33 +2236,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-7.10.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-9"><code>RFC7432-8.2.1-9</code></a></h3>
 <p>Support of this route is REQUIRED. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. row is &#39;Support of this route is REQUIRED.&#39; The positives do show support: bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute and origination_test.go (per-ES A-D originated) and session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel (received per-ES route survives ingress). But every tag&#39;s prose, and every negative (TestConfiguredEVPNRefusesInvalidPerESRoute label case, TestOriginEthernetADPerESRefusesLabelStack, TestEVPNIngressRejectsVariableLengthADLabels), proves the zero/three-octet NLRI label, which is RFC7432-8.2.1-2, a neighbouring requirement. No negative violates &#39;support of this route&#39;</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7432 §8.2.1: &#34;This section describes the procedures used to construct the Ethernet A-D per ES route, which is used for fast convergence (as discussed above) and for advertising the ESI label used for split-horizon filtering (as discussed in Section 8.3). Support of this route is REQUIRED.&#34; Within the established explicit BGP control-plane role, current positive carriers demonstrate actual route support rather than only malformed-label rejection: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute checks the entire MAX-ET Type-1 NLRI plus configured RT/ESI Label bytes; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD checks the complete NLRI in an actual UPDATE MP_REACH and decodes it; internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel requires exact unchanged ingress NLRI and action None. Producers evpn/config.go::parseConfigRoute, encode.go::EncodeRoute/l2vpnRouteToEVPNParams, message/update_build_evpn.go::BuildEVPN/ValidateEVPNOrigination and session_validation.go::enforceRFC7606 support those paths. Removing the route or changing its layout fails these assertions. Current single-polarity annotation is semantically justified: malformed label/RD cases are neighboring obligations, not a negative of route support. It does not waive any runtime proof, invent an owner exception, or claim PE fast-convergence, split-horizon, automatic ESI/label allocation or undisclosed whole EVPN support.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L53" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></td>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L34" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L67" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesLabelStack</code></a></td>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_evpn_test.go#L25" title="internal/component/bgp/reactor/session_validation_evpn_test.go" target="_blank" rel="noopener"><code>TestEVPNIngressRejectsVariableLengthADLabels</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L34" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_evpn_test.go#L12" title="internal/component/bgp/reactor/session_validation_evpn_test.go" target="_blank" rel="noopener"><code>TestEVPNIngressPreservesPerESZeroLabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go#L12" title="internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go" target="_blank" rel="noopener"><code>TestEVPNIngressPreservesPerESZeroLabel</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2220,28 +2261,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7432-8.2.1-10"><code>RFC7432-8.2.1-10</code></a></h3>
 <p>The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD asserts RD type 1 on the originated per-ES route; TestOriginEthernetADPerESRefusesASTypeRD refuses an AS-specific RD on per-ES and still allows it per-EVI; bgp_routes_evpn_test.go pair repeats both through native config</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7432 §8.2.1: &#34;The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. The value field comprises an IP address of the PE (typically, the loopback address) followed by a number unique to the PE.&#34; The selected row is the Type-1 format obligation. Read all four carriers: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute pins complete Type-1 RD bytes; TestConfiguredEVPNRefusesInvalidPerESRoute includes an otherwise guarded per-ES route with AS-specific RD; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD pins RD=1 in the encoded and MP_REACH-carried NLRI; TestOriginEthernetADPerESRefusesASTypeRD demands refusal/nil output for per-ES and permits the same AS-specific format for per-EVI. RT and ESI Label are present, so missing-community rejection cannot mask the RD error. evpn/config.go::parseConfigRoute and encode.go::EncodeRoute both reach message/update_build_evpn.go::ValidateEVPNOrigination, which checks RD type before label/community checks for MAX-ET. Removing the type check would violate the negative pair. This proves required RD type within configured control-plane origination, not automatic PE-owned RD allocation/uniqueness or a new multihoming role; no runtime claim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L54" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L55" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L32" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesASTypeRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L34" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesASTypeRD</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L35" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L36" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L15" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2264,12 +2305,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L91" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L91" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_evpn_rfc7432_test.go#L85" title="internal/component/bgp/message/update_build_evpn_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L85" title="internal/component/bgp/message/rfc7432_update_build_evpn_test.go" target="_blank" rel="noopener"><code>TestRFC7432PerESRouteDistributesESILabel</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2300,12 +2341,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go#L88" title="internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L88" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go#L26" title="internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L26" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2324,22 +2365,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L82" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETRefusesMissingRouteTarget</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETRefusesMissingRouteTarget</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L57" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastRefusesMissingRouteTarget</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L59" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastRefusesMissingRouteTarget</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/bgp_routes_evpn_test.go#L65" title="internal/component/bgp/config/bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETOriginatorIsNotNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L66" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETOriginatorIsNotNextHop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/origination_test.go#L45" title="internal/component/bgp/plugins/nlri/evpn/origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastIncludesRouteTarget</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L47" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastIncludesRouteTarget</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3058,7 +3099,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

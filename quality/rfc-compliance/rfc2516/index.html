@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,10 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>62.2%</strong><b>23 of 37 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>24.3%</strong><b>9 of 37 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>70.3%</strong><b>26 of 37 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>16.2%</strong><b>6 of 37 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 37 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.9%</strong><b>27 of 63 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 37 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.0%</strong><b>63 of 84 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>10.8%</strong><b>4 of 37 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>31</strong><b>of 37 gated MUSTs judged</b><p>13 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 37 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 37 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>63</td>
+<td>84</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>63</td>
+<td>84</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>31</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>27</td>
+<td>63</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2516.md</code></td>
@@ -270,11 +275,11 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>23</strong></td>
+<td><strong>26</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>14</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,6 +289,10 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -297,8 +306,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (23):</strong> <a href="#rfc2516-x-1"><code>RFC2516-x-1</code></a>, <a href="#rfc2516-x-2"><code>RFC2516-x-2</code></a>, <a href="#rfc2516-5.2-1"><code>RFC2516-5.2-1</code></a>, <a href="#rfc2516-5.3-1"><code>RFC2516-5.3-1</code></a>, <a href="#rfc2516-x-5"><code>RFC2516-x-5</code></a>, <a href="#rfc2516-5.2-2"><code>RFC2516-5.2-2</code></a>, <a href="#rfc2516-5.2-4"><code>RFC2516-5.2-4</code></a>, <a href="#rfc2516-5.4-1"><code>RFC2516-5.4-1</code></a>, <a href="#rfc2516-5.4-2"><code>RFC2516-5.4-2</code></a>, <a href="#rfc2516-x-7"><code>RFC2516-x-7</code></a>, <a href="#rfc2516-7-1"><code>RFC2516-7-1</code></a>, <a href="#rfc2516-4-1"><code>RFC2516-4-1</code></a>, <a href="#rfc2516-5.1-4"><code>RFC2516-5.1-4</code></a>, <a href="#rfc2516-5.1-5"><code>RFC2516-5.1-5</code></a>, <a href="#rfc2516-5.2-6"><code>RFC2516-5.2-6</code></a>, <a href="#rfc2516-5.3-5"><code>RFC2516-5.3-5</code></a>, <a href="#rfc2516-5.4-3"><code>RFC2516-5.4-3</code></a>, <a href="#rfc2516-5.5-3"><code>RFC2516-5.5-3</code></a>, <a href="#rfc2516-5.5-4"><code>RFC2516-5.5-4</code></a>, <a href="#rfc2516-7-2"><code>RFC2516-7-2</code></a>, <a href="#rfc2516-7-3"><code>RFC2516-7-3</code></a>, <a href="#rfc2516-7-4"><code>RFC2516-7-4</code></a>, <a href="#rfc2516-x-10"><code>RFC2516-x-10</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (14):</strong> <a href="#rfc2516-x-4"><code>RFC2516-x-4</code></a>, <a href="#rfc2516-5.1-1"><code>RFC2516-5.1-1</code></a>, <a href="#rfc2516-5.1-2"><code>RFC2516-5.1-2</code></a>, <a href="#rfc2516-5.3-2"><code>RFC2516-5.3-2</code></a>, <a href="#rfc2516-x-6"><code>RFC2516-x-6</code></a>, <a href="#rfc2516-x-8"><code>RFC2516-x-8</code></a>, <a href="#rfc2516-x-9"><code>RFC2516-x-9</code></a>, <a href="#rfc2516-3-1"><code>RFC2516-3-1</code></a>, <a href="#rfc2516-6-1"><code>RFC2516-6-1</code></a>, <a href="#rfc2516-x-11"><code>RFC2516-x-11</code></a>, <a href="#rfc2516-x-12"><code>RFC2516-x-12</code></a>, <a href="#rfc2516-x-13"><code>RFC2516-x-13</code></a>, <a href="#rfc2516-x-14"><code>RFC2516-x-14</code></a>, <a href="#rfc2516-x-15"><code>RFC2516-x-15</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (26):</strong> <a href="#rfc2516-x-1"><code>RFC2516-x-1</code></a>, <a href="#rfc2516-x-2"><code>RFC2516-x-2</code></a>, <a href="#rfc2516-x-4"><code>RFC2516-x-4</code></a>, <a href="#rfc2516-5.2-1"><code>RFC2516-5.2-1</code></a>, <a href="#rfc2516-5.3-1"><code>RFC2516-5.3-1</code></a>, <a href="#rfc2516-x-5"><code>RFC2516-x-5</code></a>, <a href="#rfc2516-5.2-2"><code>RFC2516-5.2-2</code></a>, <a href="#rfc2516-5.2-4"><code>RFC2516-5.2-4</code></a>, <a href="#rfc2516-5.4-1"><code>RFC2516-5.4-1</code></a>, <a href="#rfc2516-5.4-2"><code>RFC2516-5.4-2</code></a>, <a href="#rfc2516-x-6"><code>RFC2516-x-6</code></a>, <a href="#rfc2516-x-7"><code>RFC2516-x-7</code></a>, <a href="#rfc2516-x-9"><code>RFC2516-x-9</code></a>, <a href="#rfc2516-7-1"><code>RFC2516-7-1</code></a>, <a href="#rfc2516-4-1"><code>RFC2516-4-1</code></a>, <a href="#rfc2516-5.1-4"><code>RFC2516-5.1-4</code></a>, <a href="#rfc2516-5.1-5"><code>RFC2516-5.1-5</code></a>, <a href="#rfc2516-5.2-6"><code>RFC2516-5.2-6</code></a>, <a href="#rfc2516-5.3-5"><code>RFC2516-5.3-5</code></a>, <a href="#rfc2516-5.4-3"><code>RFC2516-5.4-3</code></a>, <a href="#rfc2516-5.5-3"><code>RFC2516-5.5-3</code></a>, <a href="#rfc2516-5.5-4"><code>RFC2516-5.5-4</code></a>, <a href="#rfc2516-7-2"><code>RFC2516-7-2</code></a>, <a href="#rfc2516-7-3"><code>RFC2516-7-3</code></a>, <a href="#rfc2516-7-4"><code>RFC2516-7-4</code></a>, <a href="#rfc2516-x-10"><code>RFC2516-x-10</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc2516-5.1-1"><code>RFC2516-5.1-1</code></a>, <a href="#rfc2516-5.1-2"><code>RFC2516-5.1-2</code></a>, <a href="#rfc2516-5.3-2"><code>RFC2516-5.3-2</code></a>, <a href="#rfc2516-x-8"><code>RFC2516-x-8</code></a>, <a href="#rfc2516-3-1"><code>RFC2516-3-1</code></a>, <a href="#rfc2516-6-1"><code>RFC2516-6-1</code></a>, <a href="#rfc2516-x-11"><code>RFC2516-x-11</code></a>, <a href="#rfc2516-x-12"><code>RFC2516-x-12</code></a>, <a href="#rfc2516-x-13"><code>RFC2516-x-13</code></a>, <a href="#rfc2516-x-14"><code>RFC2516-x-14</code></a>, <a href="#rfc2516-x-15"><code>RFC2516-x-15</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -310,8 +319,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L449" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L301" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadVersion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L454" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L306" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadVersion</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-2">RFC2516-x-2</code></td><td colspan="3"><span class="rfc-subject">The TYPE field is four bits and MUST be set to 0x1 for this version of the PPPoE specification. (§4)</span></td></tr>
@@ -319,8 +328,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L450" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L469" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L455" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L474" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadType</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-4">RFC2516-x-4</code></td><td colspan="3"><span class="rfc-subject">This TAG indicates that there are no further TAGs in the list. The TAG_LENGTH of this TAG MUST always be zero. (Appendix A, §11)</span></td></tr>
@@ -328,18 +337,20 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L360" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseEndOfListTag</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze never constructs an End-Of-List tag (builders set the payload length instead, discovery.go:291), and parseTags treats a zero-length End-Of-List as the list terminator (discovery.go:161), so no non-zero-length End-Of-List is ever produced and no negative case exists</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L365" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseEndOfListTag</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L350" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516NoSentFrameCarriesEndOfList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L351" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516NoSentFrameCarriesEndOfList</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.2-1">RFC2516-5.2-1</code></td><td colspan="3"><span class="rfc-subject">If the Access Concentrator receives this TAG, it MUST include the TAG unmodified in the associated PADO or PADS response. (Appendix A, §11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L124" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADO</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L173" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L573" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildNoHostUniqEcho</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L129" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADO</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L178" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L79" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L578" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildNoHostUniqEcho</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.3-1">RFC2516-5.3-1</code></td><td colspan="3"><span class="rfc-subject">If a Host receives this TAG, it MUST return the TAG unmodified in the following PADR. (Appendix A, §11)</span></td></tr>
@@ -347,8 +358,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L503" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L544" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADRNoOptionalTags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L508" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L549" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADRNoOptionalTags</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-5">RFC2516-x-5</code></td><td colspan="3"><span class="rfc-subject">If either the Host or Access Concentrator receives this TAG they MUST include it unmodified in any discovery packet they send as a response. (Appendix A, §11)</span></td></tr>
@@ -356,8 +367,10 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L610" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDEcho</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L653" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDNoEcho</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L273" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516RefusingPADSEchoesRelaySessionID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L615" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDEcho</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L274" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516RefusingPADSEchoesRelaySessionID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L658" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDNoEcho</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.1-1">RFC2516-5.1-1</code></td><td colspan="3"><span class="rfc-subject">The PADI packet MUST contain exactly one TAG of TAG_TYPE Service- Name, indicating the service the Host is requesting, and any number of other TAG types. (§5.1)</span></td></tr>
@@ -365,7 +378,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L480" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L485" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> emit-side count: BuildPADI always writes exactly one Service-Name tag (discovery.go:307). The AC does not enforce the count on receive (MatchServiceName tolerates zero or many, discovery.go:220): this is a deliberate choice, not an omission, per the owner decision of 2026-09-08 recorded in docs/architecture/l2tp/bng-5-pppoe.md (&#34;Ze refuses a PADR with no Service-Name tag and serves a PADI with none&#34;), because Section 5.1 binds the sending host and neither accel-ppp nor FreeBSD enforces this count on receipt either</p></td>
 </tr>
@@ -374,7 +387,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L481" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L486" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> emit-side: BuildPADI addresses the PADI to the Ethernet broadcast MAC (discovery.go:305); the receive-side non-broadcast-PADI discard is not enforced (handlePADI checks only SID, server.go:53)</p></td>
 </tr>
@@ -383,8 +396,9 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L720" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L721" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L725" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L242" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOCarriesACNameAndServiceNames</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L726" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.2-4">RFC2516-5.2-4</code></td><td colspan="3"><span class="rfc-subject">If the Access Concentrator can not serve the PADI it MUST NOT respond with a PADO. (§5.2)</span></td></tr>
@@ -392,8 +406,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST NOT</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L241" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestServiceNameFilter</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L242" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestServiceNameFilter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L203" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnservedServiceNameIsRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L202" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnservedServiceNameIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.3-2">RFC2516-5.3-2</code></td><td colspan="3"><span class="rfc-subject">The PADR packet MUST contain exactly one TAG of TAG_TYPE Service- Name, indicating the service the Host is requesting, and any number of other TAG types. (§5.3)</span></td></tr>
@@ -401,7 +415,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L504" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L509" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> emit-side count: BuildPADR writes exactly one Service-Name tag (discovery.go:322). The AC&#39;s requireServiceNameTag (server.go) now refuses a PADR carrying zero Service-Name tags on receipt, but that enforces PRESENCE, not COUNT: a PADR carrying two Service-Name tags is accepted, first-wins (TestDuplicateServiceNameTagTakesTheFirst), so there is still no receive-side enforcement of &#34;exactly one, not more&#34; to give a negative for this requirement</p></td>
 </tr>
@@ -410,8 +424,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L174" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L777" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestPADSAlwaysCarriesServiceName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L179" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L782" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestPADSAlwaysCarriesServiceName</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.4-2">RFC2516-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If the Access Concentrator does not like the Service-Name in the PADR, then it MUST reply with a PADS containing a TAG of TAG_TYPE Service-Name-Error (and any number of other TAG types). In this case the SESSION_ID MUST be set to 0x0000. (§5.4)</span></td></tr>
@@ -419,8 +433,9 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L156" title="internal/component/l2tp/pppoe/server_test.go" target="_blank" rel="noopener"><code>TestPADRWithoutServiceNameGetsServiceNameError</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L175" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_server_test.go#L157" title="internal/component/l2tp/pppoe/rfc2516_server_test.go" target="_blank" rel="noopener"><code>TestPADRWithoutServiceNameGetsServiceNameError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L201" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnservedServiceNameIsRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L78" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-6">RFC2516-x-6</code></td><td colspan="3"><span class="rfc-subject">For Discovery packets, the value is either a unicast or broadcast address as defined in the Discovery section. For PPP session traffic, this field MUST contain the peer&#39;s unicast address as determined from the Discovery stage. (§4)</span></td></tr>
@@ -428,18 +443,19 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L218" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADT</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> emit-side: every builder addresses PADO/PADR/PADS/PADT to the peer unicast MAC derived from its unicast source (discovery.go:320, 336, 362, 387); the receive-side broadcast-destination discard is not enforced (ParseDiscovery validates only the source, discovery.go:108)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L77" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L163" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionNeverBoundToANonUnicastPeer</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-7">RFC2516-x-7</code></td><td colspan="3"><span class="rfc-subject">The SOURCE_ADDR field MUST contains the Ethernet MAC address of the source device. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L46" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParsePADI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L327" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseBroadcastSource</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L337" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseMulticastSource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L51" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParsePADI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L305" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516BuildersWriteTheSendersMAC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L332" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseBroadcastSource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L342" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseMulticastSource</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-8">RFC2516-x-8</code></td><td colspan="3"><span class="rfc-subject">If a discovery packet is received with a TAG of unknown TAG_TYPE, the TAG MUST be ignored unless otherwise specified in this document. (§5)</span></td></tr>
@@ -447,7 +463,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L673" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestUnknownTagIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L678" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestUnknownTagIgnored</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> tolerate requirement: parseTags stores unknown tag types generically and never errors on them (discovery.go:154); rejecting an unknown tag would itself violate the MUST NOT, so no negative exists</p></td>
 </tr>
@@ -457,16 +473,21 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-9">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L117" title="internal/component/l2tp/pppoeclient/session_test.go" target="_blank" rel="noopener"><code>TestLCPConfigRequestMRU</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ceiling requirement: the client proposes MRU 1492 by default in its LCP Configure-Request (dialer.go:114, session.go:487) and the AC caps MaxMRU at PPPoEMaxMTU 1492 (server.go:203); 1492 is the maximum so there is no negative</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L151" title="internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L120" title="internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L34" title="internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L176" title="internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L153" title="internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L96" title="internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-7-1">RFC2516-7-1</code></td><td colspan="3"><span class="rfc-subject">The SESSION_ID MUST NOT change for that PPPoE session and MUST be the value assigned in the Discovery stage. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L12" title="internal/component/l2tp/pppoe/server_test.go" target="_blank" rel="noopener"><code>TestHandlePADTVerifiesMACAndSID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L13" title="internal/component/l2tp/pppoe/server_test.go" target="_blank" rel="noopener"><code>TestHandlePADTVerifiesMACAndSID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L76" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L134" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRReplayKeepsTheSessionID</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-3-1">RFC2516-3-1</code></td><td colspan="3"><span class="rfc-subject">Once a PPP session is established, both the Host and the Access Concentrator MUST allocate the resources for a PPP virtual interface (§3)</span></td></tr>
@@ -483,8 +504,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L46" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516AllocSIDReturnsUsableValue</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L58" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionID0xffffIsNeverAllocated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L46" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516AllocSIDReturnsUsableValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L58" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionID0xffffIsNeverAllocated</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.1-4">RFC2516-5.1-4</code></td><td colspan="3"><span class="rfc-subject">The CODE field is set to 0x09 and the SESSION_ID MUST be set to 0x0000. (§5.1)</span></td></tr>
@@ -492,8 +513,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L79" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADISessionIDIsZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L95" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADIWithNonZeroSessionIDIsDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L79" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADISessionIDIsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L95" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADIWithNonZeroSessionIDIsDropped</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.1-5">RFC2516-5.1-5</code></td><td colspan="3"><span class="rfc-subject">An entire PADI packet (including the PPPoE header) MUST NOT exceed 1484 octets so as to leave sufficient room for a relay agent to add a Relay-Session-Id TAG. (§5.1)</span></td></tr>
@@ -501,8 +522,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST NOT</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L17" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L18" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L17" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L18" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.2-6">RFC2516-5.2-6</code></td><td colspan="3"><span class="rfc-subject">The CODE field is set to 0x07 and the SESSION_ID MUST be set to 0x0000. (§5.2)</span></td></tr>
@@ -510,8 +531,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L115" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOSessionIDIsZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go#L37" title="internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L115" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOSessionIDIsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L37" title="internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.3-5">RFC2516-5.3-5</code></td><td colspan="3"><span class="rfc-subject">The CODE field is set to 0x19 and the SESSION_ID MUST be set to 0x0000. (§5.3)</span></td></tr>
@@ -519,8 +540,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L132" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRSessionIDIsZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L149" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRWithNonZeroSessionIDIsDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L132" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRSessionIDIsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L149" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRWithNonZeroSessionIDIsDropped</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.4-3">RFC2516-5.4-3</code></td><td colspan="3"><span class="rfc-subject">The CODE field is set to 0x65 and the SESSION_ID MUST be set to the unique value generated for this PPPoE session. (§5.4)</span></td></tr>
@@ -528,8 +549,9 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L178" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSCarriesTheSessionsID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go#L61" title="internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSWithZeroSessionIDIsARefusal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L75" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L178" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSCarriesTheSessionsID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L61" title="internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSWithZeroSessionIDIsARefusal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.5-3">RFC2516-5.5-3</code></td><td colspan="3"><span class="rfc-subject">The DESTINATION_ADDR field is a unicast Ethernet address, the CODE field is set to 0xa7 and the SESSION_ID MUST be set to indicate which session is to be terminated. (§5.5)</span></td></tr>
@@ -537,8 +559,11 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>5.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L219" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L253" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L225" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADT</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L140" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostPADTNamesItsAccessConcentratorAndSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L219" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L161" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L253" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-5.5-4">RFC2516-5.5-4</code></td><td colspan="3"><span class="rfc-subject">Even normal PPP termination packets MUST NOT be sent after sending or receiving a PADT (§5.5)</span></td></tr>
@@ -546,12 +571,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST NOT</td>
 <td>5.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-5.5-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padt_lifetime_linux_test.go#L45" title="internal/component/l2tp/pppoe/padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padt_lifetime_linux_test.go#L79" title="internal/component/l2tp/pppoe/padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACSentPADTClosesTransportBeforeSend</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/padt_lifetime_test.go#L29" title="internal/component/l2tp/pppoeclient/padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/padt_lifetime_test.go#L127" title="internal/component/l2tp/pppoeclient/padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientSentPADTStopsPPPBeforeSend</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padt_lifetime_linux_test.go#L46" title="internal/component/l2tp/pppoe/padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/padt_lifetime_test.go#L30" title="internal/component/l2tp/pppoeclient/padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L45" title="internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L79" title="internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACSentPADTClosesTransportBeforeSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L29" title="internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L127" title="internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientSentPADTStopsPPPBeforeSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L46" title="internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L30" title="internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-6-1">RFC2516-6-1</code></td><td colspan="3"><span class="rfc-subject">The PPPoE CODE MUST be set to 0x00. (§6)</span></td></tr>
@@ -579,8 +604,10 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-7-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L220" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L254" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L249" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L220" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L282" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostKeepsTheSessionUntilLCPTerminates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L254" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-7-4">RFC2516-7-4</code></td><td colspan="3"><span class="rfc-subject">If the Host wishes to start another PPP session, it MUST return to the PPPoE Discovery stage. (§7)</span></td></tr>
@@ -588,8 +615,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-7-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/pppoe_client_rfc2516_test.go#L59" title="internal/component/iface/pppoe_client_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/pppoe_client_rfc2516_test.go#L60" title="internal/component/iface/pppoe_client_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L59" title="internal/component/iface/rfc2516_pppoe_client_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L60" title="internal/component/iface/rfc2516_pppoe_client_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-10">RFC2516-x-10</code></td><td colspan="3"><span class="rfc-subject">All PADI packets MUST guarantee sufficient room for the addition of a Relay-Session-Id TAG with a TAG_VALUE length of 12 octets. (Appendix A, §11)</span></td></tr>
@@ -597,8 +624,8 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L19" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L20" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L19" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L20" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-x-11">RFC2516-x-11</code></td><td colspan="3"><span class="rfc-subject">A Relay-Session-Id TAG MUST NOT be added if the discovery packet already contains one. (Appendix A, §11)</span></td></tr>
@@ -615,7 +642,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L285" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L285" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> discovery.go::BuildPADSError writes the tag with no data, so the conditional never binds and no violating input exists</p></td>
 </tr>
@@ -624,7 +651,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>MUST</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-x-13">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L286" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L286" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> discovery.go::BuildPADSError writes the tag with no data, so the conditional never binds and no violating input exists</p></td>
 </tr>
@@ -716,12 +743,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L301" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadVersion</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L306" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadVersion</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L449" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L454" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -736,12 +763,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L469" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L474" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseBadType</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L450" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L455" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildFrameVerType</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -750,40 +777,55 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-x-4"><code>RFC2516-x-4</code></a></h3>
 <p>This TAG indicates that there are no further TAGs in the list. The TAG_LENGTH of this TAG MUST always be zero. (Appendix A, §11)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestParseEndOfListTag proves only the first quoted sentence (a zero-length End-Of-List ends the list on parse); nothing asserts the TAG_LENGTH MUST, and Ze never builds an End-Of-List</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. first sentence: TestParseEndOfListTag. TAG_LENGTH MUST: Ze builds no End-Of-List; TestRFC2516NoSentFrameCarriesEndOfList walks the raw TLVs of the PADO and PADS replies and shows a received End-Of-List of TAG_LENGTH 4 is never copied out. Not observed: BuildPADR and BuildPADSError, which copy tags by type the same way (AddTagCopy of FindTag) and so cannot carry one either. Stale single-polarity marker removed</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L360" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseEndOfListTag</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L351" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516NoSentFrameCarriesEndOfList</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L350" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516NoSentFrameCarriesEndOfList</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L365" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseEndOfListTag</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2516-5.2-1"><code>RFC2516-5.2-1</code></a></h3>
 <p>If the Access Concentrator receives this TAG, it MUST include the TAG unmodified in the associated PADO or PADS response. (Appendix A, §11)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. PADO half enforced (TestBuildPADO compares the echoed value, TestBuildNoHostUniqEcho the absence); the PADS unit TestBuildPADS checks only len==2, so a PADS echoing a modified Host-Uniq of the same length passes</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. PADO echo byte-compared by TestBuildPADO; PADS echo now byte-compared both in TestBuildPADS and through handlePADR for two hosts with distinct Host-Uniq values (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); TestBuildNoHostUniqEcho proves no Host-Uniq is invented. Observed-red records on BuildPADS for both new/changed units</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L573" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildNoHostUniqEcho</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L578" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildNoHostUniqEcho</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L124" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADO</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L79" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L173" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L129" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADO</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L178" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -796,12 +838,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L544" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADRNoOptionalTags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L549" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADRNoOptionalTags</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L503" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L508" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -810,20 +852,30 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-x-5"><code>RFC2516-x-5</code></a></h3>
 <p>If either the Host or Access Concentrator receives this TAG they MUST include it unmodified in any discovery packet they send as a response. (Appendix A, §11)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. PADO, PADR and PADS echo the Relay-Session-Id bytes; the refusing PADS (BuildPADSError, discovery.go:407) is also a response and no unit asserts its echo, and the negative checks only BuildPADO invents none</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. the refusing PADS (BuildPADSError via handlePADR) and the admitting PADS now echo the Relay-Session-Id byte-for-byte, and a refusing PADS for a PADR without one invents none; PADO, PADR and PADS builder echo and no-echo units unchanged. Records red on BuildPADSError</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L653" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDNoEcho</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L274" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516RefusingPADSEchoesRelaySessionID</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L658" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDNoEcho</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L610" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDEcho</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L273" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516RefusingPADSEchoesRelaySessionID</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L615" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRelaySessionIDEcho</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -836,7 +888,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L480" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L485" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -851,7 +903,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L481" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L486" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADIDiscovery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -860,18 +912,23 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-5.2-2"><code>RFC2516-5.2-2</code></a></h3>
 <p>The PADO packet MUST contain one AC-Name TAG containing the Access Concentrator&#39;s name, a Service-Name TAG identical to the one in the PADI, and any number of other Service-Name TAGs indicating other services that the Access Concentrator offers. (§5.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestPADOAlwaysCarriesServiceName asserts the Service-Name tags exactly but never the AC-Name TAG the sentence also requires (TestBuildPADO checks it, untagged)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2516PADOCarriesACNameAndServiceNames drives handlePADI and asserts exactly one AC-Name equal to the configured name, the first Service-Name identical to the PADI&#39;s, then the other offered name in order; TestPADOAlwaysCarriesServiceName pins the Service-Name list and the zero-length edge. Records observed red on BuildPADO</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L721" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L726" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L720" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L242" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOCarriesACNameAndServiceNames</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L725" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestPADOAlwaysCarriesServiceName</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -880,20 +937,20 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-5.2-4"><code>RFC2516-5.2-4</code></a></h3>
 <p>If the Access Concentrator can not serve the PADI it MUST NOT respond with a PADO. (§5.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestServiceNameFilter asserts only the MatchServiceName predicate; no unit drives handlePADI and observes that no PADO is sent for an unserved name, though the recording server harness in session_id_rfc2516_test.go could</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2516UnservedServiceNameIsRefused drives handlePADI: a PADI naming an unserved Service-Name draws no frame, the same PADI naming a served one draws exactly one PADO, so the silence is specific to the unserved service. Both polarities recorded red on handlePADI</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L242" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestServiceNameFilter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L202" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnservedServiceNameIsRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L241" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestServiceNameFilter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L203" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnservedServiceNameIsRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -906,7 +963,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L504" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L509" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADREchoesTags</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -915,18 +972,18 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-5.4-1"><code>RFC2516-5.4-1</code></a></h3>
 <p>The PADS packet contains exactly one TAG of TAG_TYPE Service-Name, indicating the service under which Access Concentrator has accepted the PPPoE session, and any number of other TAG types. (§5.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestBuildPADS and TestPADSAlwaysCarriesServiceName both count exactly one Service-Name tag in the PADS, including for a PADR carrying none</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. re-read after TestBuildPADS changed (only its Host-Uniq check was tightened to a byte compare): TestBuildPADS and TestPADSAlwaysCarriesServiceName both count exactly one Service-Name tag in the PADS, including for a PADR carrying none</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L777" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestPADSAlwaysCarriesServiceName</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L782" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestPADSAlwaysCarriesServiceName</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L174" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L179" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -935,18 +992,23 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-5.4-2"><code>RFC2516-5.4-2</code></a></h3>
 <p>If the Access Concentrator does not like the Service-Name in the PADR, then it MUST reply with a PADS containing a TAG of TAG_TYPE Service-Name-Error (and any number of other TAG types). In this case the SESSION_ID MUST be set to 0x0000. (§5.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the positive drives handlePADR only with a PADR carrying NO Service-Name tag (the requireServiceNameTag branch, server.go:153); the sentence&#39;s case, a present Service-Name the AC does not serve (the MatchServiceName branch, server.go:164), is never driven by a tagged unit, so deleting that branch leaves both units green. The TestBuildPADS negative calls the builder, not handlePADR, and does not check the error tag is absent</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive: a PADR with a PRESENT unserved Service-Name through handlePADR draws one PADS with Service-Name-Error and SESSION_ID 0x0000, no session, no socket (TestRFC2516UnservedServiceNameIsRefused); the absent-tag branch stays covered by TestPADRWithoutServiceNameGetsServiceNameError. negative: a served name draws a non-zero SID and no Service-Name-Error. All three recorded red on handlePADR</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L175" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L78" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L156" title="internal/component/l2tp/pppoe/server_test.go" target="_blank" rel="noopener"><code>TestPADRWithoutServiceNameGetsServiceNameError</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L201" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnservedServiceNameIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_server_test.go#L157" title="internal/component/l2tp/pppoe/rfc2516_server_test.go" target="_blank" rel="noopener"><code>TestPADRWithoutServiceNameGetsServiceNameError</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -955,40 +1017,50 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-x-6"><code>RFC2516-x-6</code></a></h3>
 <p>For Discovery packets, the value is either a unicast or broadcast address as defined in the Discovery section. For PPP session traffic, this field MUST contain the peer&#39;s unicast address as determined from the Discovery stage. (§4)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. the sentence binds PPP session traffic (0x8864); TestBuildPADT asserts the destination of a PADT, which is a Discovery packet. Session-stage addressing is set by pppoeCreate connecting the pppox socket to the peer MAC (kernel_linux.go) and no tagged unit observes it</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. session-stage addressing is set by connecting the pppox socket: the positive asserts each admitted session&#39;s socket is bound to its PADR&#39;s unicast source MAC; the negative shows a broadcast- and a multicast-sourced PADR are refused by ParseDiscovery before HandleDiscovery and bind nothing, while a unicast source binds itself. The negative mirrors Subsystem.discoveryReader&#39;s parse-then-dispatch inline (read at subsystem.go, it matches), so a change to the reader itself would not turn it red. Records red on createTransport and ParseDiscovery</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L218" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADT</code></a></td>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L163" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionNeverBoundToANonUnicastPeer</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L77" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2516-x-7"><code>RFC2516-x-7</code></a></h3>
 <p>The SOURCE_ADDR field MUST contains the Ethernet MAC address of the source device. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the tagged units prove receive-side validation (a unicast source parses, broadcast and multicast sources are refused); none asserts that Ze&#39;s builders write the sending device&#39;s MAC in SOURCE_ADDR (TestBuildPADO asserts it but is not tagged)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2516BuildersWriteTheSendersMAC asserts PADI, PADR, PADO, PADS, the refusing PADS and PADT write the sender MAC they are given in SOURCE_ADDR; every production call site passes the device&#39;s own MAC (s.hwAddr in server.go, hwaddr/srcMAC in pppoeclient/dialer.go), read, not asserted. Receive side refuses broadcast and multicast sources. Record red on NewBuilder</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L327" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseBroadcastSource</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L332" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseBroadcastSource</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L337" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParseMulticastSource</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L342" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParseMulticastSource</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L46" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestParsePADI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L305" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516BuildersWriteTheSendersMAC</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L51" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestParsePADI</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1001,7 +1073,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L673" title="internal/component/l2tp/pppoe/discovery_test.go" target="_blank" rel="noopener"><code>TestUnknownTagIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L678" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestUnknownTagIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1010,35 +1082,65 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-x-9"><code>RFC2516-x-9</code></a></h3>
 <p>The Maximum-Receive-Unit (MRU) option MUST NOT be negotiated to a larger size than 1492. (§7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. TestLCPConfigRequestMRU passes 1492 into sendLCPConfigRequest itself, so a dialer default above 1492 would not turn it red; no unit shows a peer&#39;s MRU above 1492 is refused (Nak) or the AC cap applies</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). Both halves proven. Host: pppoeSessionMTU (dialer.go, producer read) defaults 0 -&gt; 1492, keeps 68..1492, refuses the rest; Dial calls it before ResolveInterface. + TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling (0/1492/1480, and the default drives negotiateLCP to a Configure-Request MRU 1492); - TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling (1493/1500/9000 refused; Dial with MTU 1500 refused before discovery). This closes the gap the cont 8 verdict named. Host LCP pair (TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling / ...RefusesAnMRUAboveThePPPoECeiling) and AC pair (TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling / ...RefusesAnMRUAboveThePPPoECeiling) unchanged. Every unit but the older TestLCPConfigRequestMRU carries an observed-red record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L176" title="internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L96" title="internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L153" title="internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L151" title="internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L34" title="internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L120" title="internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L117" title="internal/component/l2tp/pppoeclient/session_test.go" target="_blank" rel="noopener"><code>TestLCPConfigRequestMRU</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2516-7-1"><code>RFC2516-7-1</code></a></h3>
 <p>The SESSION_ID MUST NOT change for that PPPoE session and MUST be the value assigned in the Discovery stage. (§6)</p>
-<p><strong>Audit verdict:</strong> wrong (the tests assert something other than what the requirement demands), fresh. the row now quotes Section 6 (SESSION_ID constant in the session stage and equal to the Discovery value); TestHandlePADTVerifiesMACAndSID asserts PADT source-MAC validation, a Discovery-packet rule the sentence does not state. The session-stage SESSION_ID is set by pppoeCreate (kernel_linux.go) and no tagged unit observes it</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Ze&#39;s share of Section 6 is binding the session socket: TestRFC2516AdmittedPADSCarriesTheNewSessionsID asserts the socket is bound once to the SID the PADS assigned (createTransport seam, production path unchanged), and TestRFC2516PADRReplayKeepsTheSessionID shows a retransmitted PADR keeps the SID, binds no second socket, adds no session. The kernel pppox socket keeps the SID fixed after connect. The PADT-MAC unit no longer carries the tag. Records red on createTransport and matchLiveCookie</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L13" title="internal/component/l2tp/pppoe/server_test.go" target="_blank" rel="noopener"><code>TestHandlePADTVerifiesMACAndSID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L134" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRReplayKeepsTheSessionID</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L12" title="internal/component/l2tp/pppoe/server_test.go" target="_blank" rel="noopener"><code>TestHandlePADTVerifiesMACAndSID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L76" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1055,12 +1157,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L58" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionID0xffffIsNeverAllocated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L58" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionID0xffffIsNeverAllocated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L46" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516AllocSIDReturnsUsableValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L46" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516AllocSIDReturnsUsableValue</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1075,12 +1177,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L95" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADIWithNonZeroSessionIDIsDropped</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L95" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADIWithNonZeroSessionIDIsDropped</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L79" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADISessionIDIsZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L79" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADISessionIDIsZero</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1095,12 +1197,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L18" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L18" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L17" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L17" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1115,12 +1217,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go#L37" title="internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L37" title="internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L115" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOSessionIDIsZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L115" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADOSessionIDIsZero</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1135,12 +1237,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L149" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRWithNonZeroSessionIDIsDropped</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L149" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRWithNonZeroSessionIDIsDropped</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L132" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRSessionIDIsZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L132" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADRSessionIDIsZero</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1149,18 +1251,23 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-5.4-3"><code>RFC2516-5.4-3</code></a></h3>
 <p>The CODE field is set to 0x65 and the SESSION_ID MUST be set to the unique value generated for this PPPoE session. (§5.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the positive drives only the replay path (matchLiveCookie, server.go:191) with a pre-added session; the PADS that admits a fresh session (server.go:276, after AllocSID) is never observed, so a wrong SESSION_ID there stays green. CODE 0x65 and the client&#39;s refusal of 0x0000 are asserted</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. the fresh-admission PADS is now observed: two hosts each get CODE 0x65, a non-zero SESSION_ID equal to the SID the table holds for that host, and the two SIDs differ (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); the replay path stays covered; the client refuses a zero-SID PADS (pppoeclient negative). Records observed red on handlePADR and tryReadPADS</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go#L61" title="internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSWithZeroSessionIDIsARefusal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L61" title="internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSWithZeroSessionIDIsARefusal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L178" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSCarriesTheSessionsID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L75" title="internal/component/l2tp/pppoe/rfc2516_admission_test.go" target="_blank" rel="noopener"><code>TestRFC2516AdmittedPADSCarriesTheNewSessionsID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L178" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516PADSCarriesTheSessionsID</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1169,18 +1276,33 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-5.5-3"><code>RFC2516-5.5-3</code></a></h3>
 <p>The DESTINATION_ADDR field is a unicast Ethernet address, the CODE field is set to 0xa7 and the SESSION_ID MUST be set to indicate which session is to be terminated. (§5.5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. AC-sent PADT is asserted (CODE, SESSION_ID, unicast destination via handleSessionDown); the Host-sent PADT (pppoeclient/dialer.go::sendPADT, its own dstMAC and sid) has no tagged assertion, so a broadcast destination or wrong SESSION_ID there stays green. The negative proves receive-side matching, not the sent fields</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (TestBuildPADT, handleSessionDown sends the PADT for that SID, an unknown SID terminates nothing). Host half, the gap of the prior weak verdict, now proven on raw octets: TestRFC2516HostPADTNamesItsAccessConcentratorAndSession (PADO+PADS through tryReadPADO/tryReadPADS, then sendPADT: DESTINATION_ADDR = offering AC&#39;s MAC with the group bit clear, CODE 0xa7, SESSION_ID 0x2345 from the PADS), observed red under a revert of sendPADT; TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession (a PADO from broadcast or multicast source is never an offer, so no PADT can be addressed to a group; a PADS from another AC carrying 0x3456 is ignored and the PADT names 0x2345), observed red under a revert of tryReadPADS. Residual, named not disqualifying: the two-line acMAC copy from padoPkt.SrcMAC in Dial is mirrored in the test helper because Dial needs kernel PPPoE; Dial passes the same acMAC/sessID to sendPADT on every path (read at dialer.go).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L253" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L253" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L161" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L219" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L225" title="internal/component/l2tp/pppoe/rfc2516_discovery_test.go" target="_blank" rel="noopener"><code>TestBuildPADT</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L219" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L140" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostPADTNamesItsAccessConcentratorAndSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1195,32 +1317,32 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padt_lifetime_linux_test.go#L46" title="internal/component/l2tp/pppoe/padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L46" title="internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/padt_lifetime_test.go#L30" title="internal/component/l2tp/pppoeclient/padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L30" title="internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padt_lifetime_linux_test.go#L45" title="internal/component/l2tp/pppoe/padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L45" title="internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padt_lifetime_linux_test.go#L79" title="internal/component/l2tp/pppoe/padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACSentPADTClosesTransportBeforeSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L79" title="internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2516ACSentPADTClosesTransportBeforeSend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/padt_lifetime_test.go#L29" title="internal/component/l2tp/pppoeclient/padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L29" title="internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientPADTStopsOnlyMatchingSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/padt_lifetime_test.go#L127" title="internal/component/l2tp/pppoeclient/padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientSentPADTStopsPPPBeforeSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L127" title="internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC2516ClientSentPADTStopsPPPBeforeSend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1263,18 +1385,28 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </div>
 <h3><a href="#rfc2516-7-3"><code>RFC2516-7-3</code></a></h3>
 <p>When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session. (§7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. the AC half is asserted (handleSessionDown removes the session and sends its PADT; an unknown SID leaves it). The sentence binds the Host too, and no tagged unit shows the client stops using the session when LCP terminates</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (handleSessionDown removes the session and sends its PADT; an unknown SID leaves it). Host half, the gap of the prior weak verdict: TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates drives production superviseNetworkPhase (extracted from Dial&#39;s anonymous goroutine with no behaviour change: keepaliveLoop then link.Close, same order, same args) with an AC Terminate-Request: exactly one Terminate-Ack, channel closed once, Done published, link.Write refused, a later Echo-Reply not written (the fake channel accepts writes after Close, so only the session guard refuses). Observed red under a revert of superviseNetworkPhase. Negative TestRFC2516HostKeepsTheSessionUntilLCPTerminates: an Echo-Request and a stray Terminate-Ack leave Done open and the Host answering; only the following Terminate-Request ends it, so the stop is tied to LCP termination and not to any LCP frame. Observed red under a revert of keepaliveLoop.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L254" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L254" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516UnknownSessionIDTerminatesNothing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L282" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostKeepsTheSessionUntilLCPTerminates</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L220" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L220" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516SessionDownSendsPADTForThatSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L249" title="internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1289,12 +1421,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/pppoe_client_rfc2516_test.go#L60" title="internal/component/iface/pppoe_client_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L60" title="internal/component/iface/rfc2516_pppoe_client_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/pppoe_client_rfc2516_test.go#L59" title="internal/component/iface/pppoe_client_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L59" title="internal/component/iface/rfc2516_pppoe_client_test.go" target="_blank" rel="noopener"><code>TestRFC2516HostReturnsToDiscoveryForTheNextSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1309,12 +1441,12 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L20" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L20" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/padi_length_rfc2516_test.go#L19" title="internal/component/l2tp/pppoe/padi_length_rfc2516_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L19" title="internal/component/l2tp/pppoe/rfc2516_padi_length_test.go" target="_blank" rel="noopener"><code>TestPADINeverExceeds1484Octets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1333,7 +1465,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L285" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L285" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1348,7 +1480,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/session_id_rfc2516_test.go#L286" title="internal/component/l2tp/pppoe/session_id_rfc2516_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L286" title="internal/component/l2tp/pppoe/rfc2516_session_id_test.go" target="_blank" rel="noopener"><code>TestRFC2516ErrorTagsCarryNoData</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1376,7 +1508,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td>2026-09-21</td>
 </tr>
 <tr><td>Register</td>
-<td>prose</td>
+<td>rfc2119</td>
 </tr>
 <tr><td>Source</td>
 <td>rfc/full/rfc2516.txt</td>
@@ -1568,7 +1700,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

@@ -139,7 +139,7 @@ configure several collectors at once (for example one sFlow and one IPFIX).</p>
 <tr>
 <td><code>polling-interval</code></td>
 <td>20</td>
-<td>Counter polling interval in seconds (1-3600)</td>
+<td>Maximum time between two counter polls, in seconds (1-3600). Snapshots arrive once a second, so Ze polls from one second before the interval ends</td>
 </tr>
 <tr>
 <td><code>template-refresh</code></td>
@@ -149,7 +149,7 @@ configure several collectors at once (for example one sFlow and one IPFIX).</p>
 <tr>
 <td><code>sub-agent-id</code></td>
 <td>0</td>
-<td>sFlow sub-agent identifier</td>
+<td>sFlow sub-agent identifier. Every sflow collector exports every interface, so all sflow collectors MUST name the same value</td>
 </tr>
 <tr>
 <td><code>observation-domain</code></td>
@@ -159,7 +159,7 @@ configure several collectors at once (for example one sFlow and one IPFIX).</p>
 <tr>
 <td><code>agent-address</code></td>
 <td>-</td>
-<td>sFlow agent address (the device's own stable IP, for example a loopback)</td>
+<td>sFlow agent address (the device's own stable IP, for example a loopback). Mandatory for <code>sflow</code>. <code>0.0.0.0</code> and <code>::</code> are refused, and all sflow collectors MUST name the same address. Ze compares the parsed addresses, so are one address. <span class="ev-src"><span class="ev-ref"><code>2001:db8::1</code></span><span class="ev-ref"><code>2001:DB8:0::1</code></span></span></td>
 </tr>
 <tr>
 <td><code>source-address</code></td>
@@ -537,7 +537,7 @@ the collector endpoints off any untrusted path.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

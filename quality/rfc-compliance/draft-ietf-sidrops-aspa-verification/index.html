@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,7 +120,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>87.5%</strong><b>7 of 8 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.0%</strong><b>12 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>77.8%</strong><b>14 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,9 +136,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.5%</strong><b>1 of 8 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 8 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>5</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>12</td>
+<td>14</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/draft-ietf-sidrops-aspa-verification.md</code></td>
@@ -274,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -285,6 +290,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -299,7 +308,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#draft-ietf-sidrops-aspa-verification-4-1"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1</code></a>, <a href="#draft-ietf-sidrops-aspa-verification-5.1-1"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1</code></a>, <a href="#draft-ietf-sidrops-aspa-verification-5.4-1"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1</code></a>, <a href="#draft-ietf-sidrops-aspa-verification-5.4-2"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2</code></a>, <a href="#draft-ietf-sidrops-aspa-verification-5.6-1"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1</code></a>, <a href="#draft-ietf-sidrops-aspa-verification-6.2-1"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1</code></a>, <a href="#draft-ietf-sidrops-aspa-verification-6.2-2"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#draft-ietf-sidrops-aspa-verification-5.1-2"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#draft-ietf-sidrops-aspa-verification-5.1-2"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -311,8 +320,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L212" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L213" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L28" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go" target="_blank" rel="noopener"><code>TestASPAZeroBesideProvidersIsNoWildcard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L212" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L34" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go" target="_blank" rel="noopener"><code>TestASPAZeroBesideProvidersIsNoWildcard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L213" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-5.1-2">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification. (Section 5.1)</span></td></tr>
@@ -329,8 +340,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L97" title="internal/component/bgp/plugins/rpki/compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePrependsValid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L149" title="internal/component/bgp/plugins/rpki/compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePreservesHops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L97" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePrependsValid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L149" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePreservesHops</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-5.4-1">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1</code></td><td colspan="3"><span class="rfc-subject">The upstream verification algorithm described here is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS. (§5.5)</span></td></tr>
@@ -338,8 +349,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L32" title="internal/component/bgp/plugins/rpki/aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L33" title="internal/component/bgp/plugins/rpki/aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L32" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L33" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-5.4-2">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If the AS_PATH has an AS_SET, then the procedure halts with the outcome &#34;Invalid&#34; (Section 5.5; Section 5.6)</span></td></tr>
@@ -347,8 +358,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L56" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAVerifyASSet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L180" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAStateForPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L56" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAVerifyASSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L180" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAStateForPath</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-5.6-1">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1</code></td><td colspan="3"><span class="rfc-subject">If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7)</span></td></tr>
@@ -356,10 +367,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L59" title="internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L183" title="internal/component/bgp/plugins/rib/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L62" title="internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L232" title="internal/component/bgp/plugins/rib/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L59" title="internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L183" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L62" title="internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L232" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-6.2-1">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1</code></td><td colspan="3"><span class="rfc-subject">The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF]. (Section 6.2)</span></td></tr>
@@ -367,8 +378,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L110" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L132" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv4Unicast</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L110" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L132" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv4Unicast</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-6.2-2">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2</code></td><td colspan="3"><span class="rfc-subject">The procedures MUST NOT be applied to other address families by default (Section 6.2)</span></td></tr>
@@ -376,8 +387,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L111" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L165" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPANotAppliedToOtherFamilies</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPANotAppliedToOtherFamilies</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-5.6-2">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2</code></td><td colspan="3"><span class="rfc-subject">If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (Section 5.7)</span></td></tr>
@@ -491,18 +502,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#draft-ietf-sidrops-aspa-verification-4-1"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1</code></a></h3>
 <p>Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures (see Section 5.3, Section 5). (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: AS 0 beside other providers in a SPAS changing the verification outcome, either by invalidating a real authorization or by acting as a wildcard. TestASPAZeroDoesNotAuthorizeOrInvalidate asserts SPAS {0,200} verifies Valid (red if AS 0 invalidates) and SPAS {0} alone verifies Invalid (the AS0 ASPA case, red if an AS0-only SPAS is a wildcard). No assertion covers the wildcard case of the quoted sentence: a mixed SPAS {0, 999} for an unlisted provider must still verify Invalid, and an implementation treating a mixed AS 0 as a wildcard stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: AS 0 beside other providers changing the verification outcome. TestASPAZeroDoesNotAuthorizeOrInvalidate: {0,200} Valid, {0} alone Invalid. TestASPAZeroBesideProvidersIsNoWildcard: {0,200} = {200} = Valid (AS 0 does not invalidate) and {0,999} = {999} = Invalid for a path whose provider 200 is unlisted (AS 0 is no wildcard).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L213" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L213" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L34" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go" target="_blank" rel="noopener"><code>TestASPAZeroBesideProvidersIsNoWildcard</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L212" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L212" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAZeroDoesNotAuthorizeOrInvalidate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L28" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go" target="_blank" rel="noopener"><code>TestASPAZeroBesideProvidersIsNoWildcard</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -521,12 +542,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L149" title="internal/component/bgp/plugins/rpki/compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePreservesHops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L149" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePreservesHops</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/compressed_aspa_test.go#L97" title="internal/component/bgp/plugins/rpki/compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePrependsValid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L97" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go" target="_blank" rel="noopener"><code>TestASPACompressedUpdatePrependsValid</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -541,12 +562,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L33" title="internal/component/bgp/plugins/rpki/aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L33" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_role_mode_test.go#L32" title="internal/component/bgp/plugins/rpki/aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L32" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go" target="_blank" rel="noopener"><code>TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -561,12 +582,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L180" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAStateForPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L180" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAStateForPath</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_verify_test.go#L56" title="internal/component/bgp/plugins/rpki/aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAVerifyASSet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L56" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go" target="_blank" rel="noopener"><code>TestASPAVerifyASSet</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -581,22 +602,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L62" title="internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L62" title="internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L232" title="internal/component/bgp/plugins/rib/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L232" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go#L59" title="internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L59" title="internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_aspa_retention_test.go#L183" title="internal/component/bgp/plugins/rib/rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L183" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -611,12 +632,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L132" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv4Unicast</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L132" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv4Unicast</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L110" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L110" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -631,12 +652,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L165" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPANotAppliedToOtherFamilies</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPANotAppliedToOtherFamilies</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/aspa_family_scope_test.go#L111" title="internal/component/bgp/plugins/rpki/aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go" target="_blank" rel="noopener"><code>TestASPAAppliesToIPv6Unicast</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -983,7 +1004,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

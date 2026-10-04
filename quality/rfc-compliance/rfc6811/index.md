@@ -13,8 +13,9 @@ what Ze has
 | Tested both ways | 100.0% | 5 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 5 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 11.8% | 2 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,15 +29,7 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 1 | of 5 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +40,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 15 |
-| Tagged units | 15 |
+| Test tags | 17 |
+| Tagged units | 17 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc6811.md` |
 | Requirement shard | `rfc/requirements/rfc6811.md` |
 | RFC text | `rfc/full/rfc6811.txt` |
@@ -96,9 +90,10 @@ No tracked gap in current source anchors.
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 5 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **5** | every gated MUST falls in exactly one bucket above |
@@ -109,11 +104,11 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6811-2-1` | The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2) | MUST | 2 - Prefix-to-AS Mapping Database | **positive:** `unit/verify` [`TestBatchValidateTypedMatchesString`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_batch_test.go#L398). **positive:** `unit/verify` [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L216). **positive:** `unit/verify` [`TestValidateValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L18). **negative:** `unit/verify` [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L218). **negative:** `unit/verify` [`TestValidateInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L33) |
-| `RFC6811-2-2` | An implementation MUST NOT exclude a route from the Adj-RIB-In or from consideration in the decision process as a side effect of its validation state, unless explicitly configured to do so (Section 2) | MUST NOT | 2 - Prefix-to-AS Mapping Database | **positive:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L105). **negative:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L107) |
-| `RFC6811-3-1` | An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function (Section 3) | MUST | 3 - Policy Control | **positive:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L110). **negative:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L113) |
-| `RFC6811-3-2` | An implementation MUST also support four-octet AS numbers (Section 3) | MUST | 3 - Policy Control | **positive:** `unit/verify` [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L94). **negative:** `unit/verify` [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L96) |
-| `RFC6811-4-1` | When a mapping is added or deleted, the implementation MUST re-validate any affected prefixes and run the BGP decision process if needed (Section 4) | MUST | 4 - Interaction with Local Cache | **positive:** `unit/verify` [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L45). **positive:** `unit/verify` [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L375). **negative:** `unit/verify` [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L48). **negative:** `unit/verify` [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L378) |
+| `RFC6811-2-1` | The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2) | MUST | 2 - Prefix-to-AS Mapping Database | **positive:** `unit/verify` [`TestBatchValidateTypedMatchesString`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go#L398). **positive:** `unit/verify` [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L216). **positive:** `unit/verify` [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L31). **positive:** `unit/verify` [`TestValidateValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L18). **negative:** `unit/verify` [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L218). **negative:** `unit/verify` [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L53). **negative:** `unit/verify` [`TestValidateInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L33) |
+| `RFC6811-2-2` | An implementation MUST NOT exclude a route from the Adj-RIB-In or from consideration in the decision process as a side effect of its validation state, unless explicitly configured to do so (Section 2) | MUST NOT | 2 - Prefix-to-AS Mapping Database | **positive:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L105). **negative:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107) |
+| `RFC6811-3-1` | An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function (Section 3) | MUST | 3 - Policy Control | **positive:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L110). **negative:** `unit/verify` [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L113) |
+| `RFC6811-3-2` | An implementation MUST also support four-octet AS numbers (Section 3) | MUST | 3 - Policy Control | **positive:** `unit/verify` [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L94). **negative:** `unit/verify` [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L96) |
+| `RFC6811-4-1` | When a mapping is added or deleted, the implementation MUST re-validate any affected prefixes and run the BGP decision process if needed (Section 4) | MUST | 4 - Interaction with Local Cache | **positive:** `unit/verify` [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L45). **positive:** `unit/verify` [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L375). **negative:** `unit/verify` [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L48). **negative:** `unit/verify` [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378) |
 | `RFC6811-2-3` | When a BGP speaker receives an UPDATE from a neighbor, it SHOULD perform a lookup as described above for each of the Routes in the UPDATE message. (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
 | `RFC6811-2-4` | The lookup SHOULD also be applied to routes that are redistributed into BGP from another source, such as another protocol or a locally defined static route. (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
 | `RFC6811-2-5` | If validation is not performed on a Route, the implementation SHOULD initialize the validation state of such a route to "NotFound". (Section 2) | SHOULD | 2 - Prefix-to-AS Mapping Database | **positive:** no positive test. **negative:** no negative test |
@@ -131,15 +126,17 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The Validate units (TestValidateValid/Invalid) prove the lookup result, and TestRPKIOriginASFromASPathRFC6811 the origin derivation, but no tagged assertion checks that the Route's stored state is SET from that result: TestBatchValidateTypedMatchesString only compares the string and typed paths to each other, so a bug that stored the wrong state on both paths (e.g. left Pending or defaulted Valid) stays green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRouteStateIsSetFromTheLookup drives validateNLRIs, the UPDATE path: for Valid, Invalid and NotFound lookups both the returned per-route state and the state carried by the validateCh request equal the lookup (and each is checked against the expected constant, so a shared wrong default goes red). Negative: after the VRP set changes Valid to Invalid, the route's state is Invalid, not the stale Valid.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L218) | unit/verify | unproven |
-| negative | [`TestValidateInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L33) | unit/verify | unproven |
-| positive | [`TestBatchValidateTypedMatchesString`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_batch_test.go#L398) | unit/verify | unproven |
-| positive | [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L216) | unit/verify | unproven |
-| positive | [`TestValidateValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L18) | unit/verify | unproven |
+| negative | [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L53) | unit/verify | revert, verified |
+| negative | [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L218) | unit/verify | unproven |
+| negative | [`TestValidateInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L33) | unit/verify | unproven |
+| positive | [`TestBatchValidateTypedMatchesString`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go#L398) | unit/verify | unproven |
+| positive | [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L31) | unit/verify | revert, verified |
+| positive | [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L216) | unit/verify | unproven |
+| positive | [`TestValidateValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L18) | unit/verify | unproven |
 
 ### [`RFC6811-2-2`](#rfc6811-2-2)
 
@@ -149,8 +146,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L107) | unit/verify | unproven |
-| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L105) | unit/verify | unproven |
+| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107) | unit/verify | unproven |
+| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L105) | unit/verify | unproven |
 
 ### [`RFC6811-3-1`](#rfc6811-3-1)
 
@@ -160,8 +157,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L113) | unit/verify | unproven |
-| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_batch_test.go#L110) | unit/verify | unproven |
+| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L113) | unit/verify | unproven |
+| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L110) | unit/verify | unproven |
 
 ### [`RFC6811-3-2`](#rfc6811-3-2)
 
@@ -171,8 +168,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L96) | unit/verify | unproven |
-| positive | [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L94) | unit/verify | unproven |
+| negative | [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L96) | unit/verify | unproven |
+| positive | [`TestValidateFourOctetAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L94) | unit/verify | unproven |
 
 ### [`RFC6811-4-1`](#rfc6811-4-1)
 
@@ -182,10 +179,10 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L378) | unit/verify | unproven |
-| negative | [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L48) | unit/verify | unproven |
-| positive | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L375) | unit/verify | unproven |
-| positive | [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L45) | unit/verify | unproven |
+| negative | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378) | unit/verify | unproven |
+| negative | [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L48) | unit/verify | unproven |
+| positive | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L375) | unit/verify | unproven |
+| positive | [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L45) | unit/verify | unproven |
 
 ## Extraction sign-off
 

@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -119,8 +120,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>13 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>21.4%</strong><b>6 of 28 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.0%</strong><b>16 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>10</strong><b>of 13 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>28</td>
+<td>32</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>28</td>
+<td>32</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>16</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1334.md</code></td>
@@ -269,7 +270,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td><strong>13</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -280,6 +281,10 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <tr><td>No test and no annotation</td>
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
@@ -305,7 +310,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST</td>
 <td>1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L669" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L675" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestAuthProtoRejectClearsMethod</code></a></span></div>
 </div></td>
 </tr>
@@ -314,8 +319,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L270" title="internal/component/l2tp/ppp/auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L112" title="internal/component/l2tp/ppp/auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestAuthOffersCHAPBeforePAP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L97" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestConfiguredPAPStillOffersCHAPFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L270" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestAuthOffersCHAPBeforePAP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestConfiguredPAPStillOffersCHAPFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L112" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.3-1">RFC1334-2.3-1</code></td><td colspan="3"><span class="rfc-subject">If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.3)</span></td></tr>
@@ -323,8 +332,8 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L293" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L411" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.3-2">RFC1334-2.3-2</code></td><td colspan="3"><span class="rfc-subject">If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2)</span></td></tr>
@@ -332,8 +341,8 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST</td>
 <td>2.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-1">RFC1334-2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1)</span></td></tr>
@@ -341,8 +350,8 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST</td>
 <td>2.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L52" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L53" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L52" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L53" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-2">RFC1334-2.2.1-2</code></td><td colspan="3"><span class="rfc-subject">The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1)</span></td></tr>
@@ -350,8 +359,8 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST</td>
 <td>2.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L125" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L126" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L125" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L126" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-3">RFC1334-2.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Upon reception of an Authenticate-Request packet, some type of Authenticate reply (described below) MUST be returned. (Section 2.2.1)</span></td></tr>
@@ -395,8 +404,8 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST</td>
 <td>2.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L127" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L128" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L127" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L128" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.3-3">RFC1334-2.3-3</code></td><td colspan="3"><span class="rfc-subject">The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply. (Section 2.2.2)</span></td></tr>
@@ -405,8 +414,8 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>2.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswersAfterAuthentication</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L414" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L300" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswersAfterAuthentication</code></a></span></div>
 </div></td>
 </tr>
@@ -415,8 +424,8 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>MUST NOT</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L49" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L53" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L55" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L56" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.3-5">RFC1334-2.3-5</code></td><td colspan="3"><span class="rfc-subject">If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak), and SHOULD take action to terminate the link. (§2.2.2)</span></td></tr>
@@ -457,7 +466,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc1334-1-1"><code>RFC1334-1-1</code></a></h3>
 <p>If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: authentication configured but the LCP CONFREQ omits Auth-Protocol. TestLocalCONFREQAdvertisesAuthMethod asserts lookupOption(LCPOptAuthProto) ok and the protocol 0xC023 for PAP (0xC223 plus algorithm for CHAP) in the first CONFREQ from the driver; TestAuthProtoRejectClearsMethod asserts the option is absent once authentication is no longer desired, so an unconditional option goes red there.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -465,32 +474,52 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestAuthProtoRejectClearsMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L669" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L675" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1334-x-1"><code>RFC1334-x-1</code></a></h3>
 <p>Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: an implementation that includes CHAP offering PAP before offering CHAP in LCP negotiation. The positive TestDefaultAuthFallbackOrder asserts only the helper list [CHAP-MD5, MS-CHAPv2, PAP]; the negative TestSelectAuthFallback asserts a CHAP-only order refuses a PAP suggestion, which is downgrade refusal, a neighbouring rule. No tagged unit drives LCP and asserts the first CONFREQ carries CHAP (0xC223) with PAP offered only after CHAP is refused, and a session configured with AuthMethod PAP opens with PAP regardless of the order list.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both entry points now proven. TestConfiguredPAPStillOffersCHAPFirst starts a session through Driver/spawnSession with AuthMethod PAP and the default order: the first Configure-Request must offer CHAP 0xc223 (red on the old copy of StartSession.AuthMethod, observed before the fix and recorded against initialAuthMethod), PAP only after the peer&#39;s PAP Nak; the PAP-alone control keeps PAP first where no stronger method is included. TestAuthOffersCHAPBeforePAP drives the default path and the fallback after a PAP Nak. The negative (first Configure-Request never PAP while CHAP is in the order) reads the same first frame as the positive; a send-side MUST has no refusing input, so the pair is the correct shape. TestDefaultAuthFallbackOrder and TestSelectAuthFallback are supporting unit tags with no discrimination record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L112" title="internal/component/l2tp/ppp/auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L112" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestAuthOffersCHAPBeforePAP</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestConfiguredPAPStillOffersCHAPFirst</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L270" title="internal/component/l2tp/ppp/auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L270" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestAuthOffersCHAPBeforePAP</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L97" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestConfiguredPAPStillOffersCHAPFirst</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -503,12 +532,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L411" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L293" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -523,12 +552,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -543,12 +572,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L53" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L53" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L52" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L52" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientOpensAuthPhaseWithPAPRequest</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -563,12 +592,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L126" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L126" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L125" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L125" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -663,12 +692,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L128" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L128" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go#L127" title="internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L127" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -693,12 +722,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L414" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L300" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -707,20 +736,20 @@ Verification remains for the retry and post-authentication reanswer changes in <
 </div>
 <h3><a href="#rfc1334-2.3-4"><code>RFC1334-2.3-4</code></a></h3>
 <p>It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 2.3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: the Message field changing the outcome. TestPAPReplyMessageDoesNotAffectOutcome sends Ack with &#39;welcome aboard&#39; (success) and Nak with &#39;invalid credentials&#39; (failure). The messages differ, contrary to the tag prose (&#39;the same Message text on both codes&#39;), so an implementation that decides on the message text and ignores the Code passes both cases. No tagged case holds the Code fixed and varies the Message (or puts a failure-like message on an Ack), which is the input that isolates the rule.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge ppp5 2026-09-30. The Message binds the receiver of the Ack/Nak, the pppoeclient peer (runClientAuth); ppp&#39;s authenticator never receives it. TestPAPReplyMessageDoesNotAffectOutcome now holds the Code fixed per group and varies the Message over the same three values (&#39;&#39;, &#39;welcome aboard&#39;, &#39;invalid credentials&#39;): every Ack succeeds (+), every Nak returns the &#39;PAP auth rejected&#39; error (-), which an ignored Nak (retry exhaustion) would not give. A Message-driven decision turns one group red. Records: runClientAuth revert, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L53" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L56" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L49" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L55" title="internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go" target="_blank" rel="noopener"><code>TestPAPReplyMessageDoesNotAffectOutcome</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1074,7 +1103,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

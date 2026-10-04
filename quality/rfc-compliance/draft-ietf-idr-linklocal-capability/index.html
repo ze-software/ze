@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY requirement ledger - Ze</title>
-        <meta name="description" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY: Link-Local Next Hop Capability for BGP. 13 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY: Link-Local Next Hop Capability for BGP. 15 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY requirement ledger - Ze" />
-        <meta property="og:description" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY: Link-Local Next Hop Capability for BGP. 13 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY: Link-Local Next Hop Capability for BGP. 15 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY requirement ledger - Ze" />
-        <meta name="twitter:description" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY: Link-Local Next Hop Capability for BGP. 13 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY: Link-Local Next Hop Capability for BGP. 15 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>92.3%</strong><b>12 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>24 of 24 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>12 of 15 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>44 of 44 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>15</strong><b>of 27 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 15 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>6.7%</strong><b>1 of 15 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>7.7%</strong><b>1 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 13 gated MUSTs judged</b><p>8 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>13.3%</strong><b>2 of 15 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 15 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -162,6 +164,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -204,16 +210,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>25</td>
+<td>27</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>13</td>
+<td>15</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>2</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -225,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>24</td>
+<td>44</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>24</td>
+<td>44</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>12</td>
+<td>15</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>24</td>
+<td>44</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/draft-ietf-idr-linklocal-capability.md</code></td>
@@ -250,14 +256,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Link-Local Next Hop capability for BGP (code 77): twelve MUST-level requirements, all conditioned by Section 2 on the capability being negotiated. Ze advertises the capability (extractLLNHCapabilities, internal/component/bgp/plugins/llnh/llnh.go), parses it back as a typed capability (parseCapability, internal/core/bgp/capability/capability.go) and records what it negotiated to (Negotiate, internal/core/bgp/capability/negotiated.go), which is the Section 2 condition every other procedure reads. 3-1 and 5-1 are met on the send side: Peer.linkLocalOnlyNextHopPermitted (internal/component/bgp/reactor/peer.go) admits a link-local next hop only where the session may carry the 16-octet form, and buildMPReach (internal/component/bgp/message/update_build.go) writes that address alone in 16 octets, or the global-then-link-local pair in 32. 4-5 and 4-6 are met on the reflection path: egressNextHopIsLinkLocalOnly (internal/component/bgp/reactor/forward_next_hop.go) classifies the field about to be written and sameLinkLayerSegment (internal/component/bgp/reactor/link_scope.go) answers the segment half, so forwardUpdateCore either sends the rewrite applyFactsNextHop recorded or withholds the announcement. 3-2 is met by the RFC 2545 32-octet path; 4-2 and 4-8 are met because a link-local is appended only when the peer shares a connected subnet. 4-1, 4-4, 4-7 and 4-9 are met because a route whose next hop has no wire form is refused rather than encoded, and 4-3 because a route reachable through the speaker carries the speaker&#39;s own link-local toward a one-hop peer. One MUST-level requirement stays outstanding and carries a `{gap}` on its checklist line.</p>
+<p>Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level requirements; those of Sections 3 to 6 are conditioned by Section 2 on the capability being negotiated. Ze advertises the capability (extractLLNHCapabilities, internal/component/bgp/plugins/llnh/llnh.go), parses it back as a typed capability (parseCapability, internal/core/bgp/capability/capability.go) and records what it negotiated to (Negotiate, internal/core/bgp/capability/negotiated.go), which is the Section 2 condition every other procedure reads. 3-1 and 5-1 are met on the send side: Peer.linkLocalOnlyNextHopPermitted (internal/component/bgp/reactor/peer.go) admits a link-local next hop only where the session may carry the 16-octet form, and buildMPReach (internal/component/bgp/message/update_build.go) writes that address alone in 16 octets, or the global-then-link-local pair in 32. 4-5 and 4-6 are met on the reflection path: egressNextHopIsLinkLocalOnly (internal/component/bgp/reactor/forward_next_hop.go) classifies the field about to be written and sameLinkLayerSegment (internal/component/bgp/reactor/link_scope.go) answers the segment half, so forwardUpdateCore either sends the rewrite applyFactsNextHop recorded or withholds the announcement. 3-2 is met by the RFC 2545 32-octet path; 4-2 and 4-8 are met because a link-local is appended only when the peer shares a connected subnet. 4-1, 4-4, 4-7 and 4-9 are met because a route whose next hop has no wire form is refused rather than encoded, and 4-3 because a route reachable through the speaker carries the speaker&#39;s own link-local toward a one-hop peer. Two MUST-level requirements stay outstanding and carry a `{gap}` on their checklist lines: 6-1, and 1-2, the Section 1 interface association (row added 2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md). 4-15, the second condition of the 4-3 sentence (split 2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md), is `{not-applicable}`: RFC 4271 Section 5.1.3 forbids the route it would apply to.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
-<li>Capability 77 declared, negotiated and acted on, for the send side and for the reflection path. Declaration: <code>extractLLNHCapabilities</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/llnh.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/llnh/llnh.go</code></a>) advertises the empty code 77 capability for a peer or group whose config carries a <code>link-local-nexthop</code> key that is not <code>disable</code>. Negotiation: <code>parseCapability</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability.go" target="_blank" rel="noopener"><code>internal/core/bgp/capability/capability.go</code></a>) types it and <code>Negotiate</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated.go" target="_blank" rel="noopener"><code>internal/core/bgp/capability/negotiated.go</code></a>) sets <code>LinkLocalNextHop</code> only when both OPENs carried it, which <code>Peer.linkLocalOnlyNextHopPermitted</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/peer.go</code></a>) reads beside the RFC 8950 Extended Next Hop Encoding state Section 5 asks for. Send: <code>resolveNextHop</code> (same file) refuses a link-local next hop on a session that may not carry it, so the route is left out rather than encoded in a form RFC 2545 Section 3 forbids, and <code>buildMPReach</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/update_build.go</code></a>) writes the 16-octet Link-Local-only field or the 32-octet pair, for IPv4 NLRI as well as IPv6. Reflection: <code>egressNextHopIsLinkLocalOnly</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/forward_next_hop.go</code></a>) and <code>sameLinkLayerSegment</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/link_scope.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/link_scope.go</code></a>) decide, per client, between the rewrite and the ineligibility Section 4 allows. Receive: <code>parseNextHops</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/mpnlri.go</code></a>) still performs no <code>fe80::/10</code> test, so a received 16-octet link-local-only Next Hop is read as a Global IPv6 next hop</li>
-<li>the Section 3 receive sentence is indicative and carries no checklist row (see Notes). One MUST-level requirement carries a <code>{gap}</code>: 6-1, because a malformed Next Hop field is answered with the RFC 7606 Section 7.11 session reset rather than the treat-as-withdraw of Section 7.3.</li>
+<li>Capability 77 declared, negotiated and acted on, for the send side and for the reflection path. Declaration: <code>extractLLNHCapabilities</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/llnh.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/llnh/llnh.go</code></a>) advertises the empty code 77 capability for a peer or group whose config carries a <code>link-local-nexthop</code> key that is not <code>disable</code>, and <code>refuseLinkLocalCapabilityWithoutAddress</code> (same file) refuses that config, at commit and at startup, when neither the peer nor its group sets <code>session link-local</code>, the only source of the own Link-Local Section 4 makes the next hop include. Gap: <a href="#draft-ietf-idr-linklocal-capability-1-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2</code></a>, Section 1&#39;s &#34;implementations must ensure that they are strictly associated with a specific interface&#34;: a received Link-Local next hop is kept without its interface, and the configured <code>session link-local</code> address is not tied to the session&#39;s interface. Negotiation: <code>parseCapability</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability.go" target="_blank" rel="noopener"><code>internal/core/bgp/capability/capability.go</code></a>) types it and <code>Negotiate</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated.go" target="_blank" rel="noopener"><code>internal/core/bgp/capability/negotiated.go</code></a>) sets <code>LinkLocalNextHop</code> only when both OPENs carried it, which <code>Peer.linkLocalOnlyNextHopPermitted</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/peer.go</code></a>) reads beside the RFC 8950 Extended Next Hop Encoding state Section 5 asks for. Send: <code>resolveNextHop</code> (same file) refuses a link-local next hop on a session that may not carry it, so the route is left out rather than encoded in a form RFC 2545 Section 3 forbids, and <code>buildMPReach</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/update_build.go</code></a>) writes the 16-octet Link-Local-only field or the 32-octet pair, for IPv4 NLRI as well as IPv6. Reflection: <code>egressNextHopIsLinkLocalOnly</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/forward_next_hop.go</code></a>) and <code>sameLinkLayerSegment</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/link_scope.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/link_scope.go</code></a>) decide, per client, between the rewrite and the ineligibility Section 4 allows. Receive: <code>parseNextHops</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/mpnlri.go</code></a>) still performs no <code>fe80::/10</code> test, so a received 16-octet link-local-only Next Hop is read as a Global IPv6 next hop</li>
+<li>the Section 3 receive sentence is indicative and carries no checklist row (see Notes). One MUST-level requirement carries a <code>{gap}</code>: 6-1, because no receive producer inspects the addresses inside an admitted 32-octet Next Hop field on a capability-77 session, so a field that is not a Global followed by a Link-Local is not treated as withdrawn per RFC 7606 Section 7.3. A wrong Length of Next Hop still ends in the RFC 7606 Section 7.11 session reset, which that section requires.</li>
 </ul>
 </details>
 <p><strong>What the ledger says remains:</strong></p>
@@ -272,8 +278,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>12</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
-<td><strong>1</strong></td>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,6 +290,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -292,12 +302,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>15</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (12):</strong> <a href="#draft-ietf-idr-linklocal-capability-3-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1</code></a>, <a href="#draft-ietf-idr-linklocal-capability-3-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-3"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-4"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-5"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-6"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-7"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-8"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-9"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9</code></a>, <a href="#draft-ietf-idr-linklocal-capability-5-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#draft-ietf-idr-linklocal-capability-6-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#draft-ietf-idr-linklocal-capability-1-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2</code></a>, <a href="#draft-ietf-idr-linklocal-capability-4-15"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</code></a>, <a href="#draft-ietf-idr-linklocal-capability-6-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -307,11 +317,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-1-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1</code></td><td colspan="3"><span class="rfc-subject">BGP speakers SHOULD NOT advertise a route whose Next Hop is a Link-Local address that is in the tentative state (Section 5.4 of [RFC4862]); this applies both to a first-party Next Hop (the speaker&#39;s own Link-Local address) and to a third-party Next Hop re-advertised from another peer. (§1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
-<td>1</td>
+<td>1 - Walked 2026-10-01 (R58(c))</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-1-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2</code></td><td colspan="3"><span class="rfc-subject">Since IPv6 Link-Local addresses are not required to be globally unique, implementations must ensure that they are strictly associated with a specific interface. (§1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>1 - Walked 2026-10-01 (R58(c))</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze keeps no interface with a Link-Local next hop. A received next hop becomes a bare address (mpNextHopAddr, internal/component/bgp/plugins/rib/rib_bestchange.go, parses the 16 octets and attaches no zone from the session&#39;s interface, so an fe80::/10 next hop names no link), and the best path the RIB publishes carries no interface for sysrib to hand the FIB (sysrib&#39;s nextHopInterface is filled only from a producer that names one, internal/component/sysrib/sysrib.go; the BGP best-change event names none). On the send side the address Ze writes is the configured `session link-local` leaf, which nothing ties to the interface the session runs over. The strict association the sentence asks for is not implemented on either side</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-2-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-2-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that is willing to use (send and receive) IPv6 Link- Local-only next hops SHOULD advertise the Link-Local Next Hop Capability to its peers only when: 1. It is capable of sending IPv6 Link-Local-only next hops for a route. 2. IPv6 Link-Local neighbors are associated with interfaces as part of their configuration to assist in determining the interface scope of received IPv6 Link-Local-only next hops. (§2)</span></td></tr>
 <tr><td></td>
@@ -327,8 +346,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L87" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyNextHopFieldIsSixteenOctets</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L118" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNextHopWithAGlobalIsNotSentAlone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L87" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyNextHopFieldIsSixteenOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L118" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNextHopWithAGlobalIsNotSentAlone</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-3-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2</code></td><td colspan="3"><span class="rfc-subject">If an implementation intends to send both a IPv6 Global and Link- Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field. (§3)</span></td></tr>
@@ -336,8 +355,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L48" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalBothAddressesUseThirtyTwoOctets</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L61" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressKeepsSixteenOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L157" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L48" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalBothAddressesUseThirtyTwoOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L61" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressKeepsSixteenOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L181" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1</code></td><td colspan="3"><span class="rfc-subject">If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. (§4)</span></td></tr>
@@ -345,8 +366,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L70" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAdvertised</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L83" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L80" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L70" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L83" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAdvertised</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2</code></td><td colspan="3"><span class="rfc-subject">If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop. (§4)</span></td></tr>
@@ -354,8 +377,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L73" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForPeerMoreThanOneHopAway</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L84" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForPeerOneHopAway</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L73" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForPeerMoreThanOneHopAway</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForPeerOneHopAway</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-3">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</code></td><td colspan="3"><span class="rfc-subject">If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link- Local IPv6 address. (§4)</span></td></tr>
@@ -363,8 +388,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L135" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L150" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go#L104" title="internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityAcceptedWithLinkLocalAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L85" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L135" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L166" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go#L75" title="internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L107" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L193" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-4">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4</code></td><td colspan="3"><span class="rfc-subject">If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker. (§4)</span></td></tr>
@@ -372,8 +402,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L96" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L105" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L86" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L96" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L105" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-5">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5</code></td><td colspan="3"><span class="rfc-subject">A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser. (§4)</span></td></tr>
@@ -381,8 +412,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L192" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L201" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L220" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L229" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-6">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6</code></td><td colspan="3"><span class="rfc-subject">For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer. (§4)</span></td></tr>
@@ -390,8 +421,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L228" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L258" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L256" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L286" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-7">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7</code></td><td colspan="3"><span class="rfc-subject">If no next hops are included, the route MUST NOT be announced (treat-as- withdraw). (§4)</span></td></tr>
@@ -399,8 +430,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L117" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L126" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L117" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L193" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestNextHopSelfWithheldRouteServerWithdraws</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L126" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-8">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8</code></td><td colspan="3"><span class="rfc-subject">When sending a message to an external peer X, and the peer is multiple IP hops away from the speaker (aka &#34;multihop EBGP&#34;): * Link-Local IPv6 next hops MUST NOT be included. (§4)</span></td></tr>
@@ -408,8 +440,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L95" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForMultihopExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L108" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForDirectlyAttachedExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L95" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForMultihopExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L98" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L210" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerStripsReceivedPairForMultihopClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L108" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForDirectlyAttachedExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L121" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L232" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-9">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9</code></td><td colspan="3"><span class="rfc-subject">If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw). (§4)</span></td></tr>
@@ -417,8 +453,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L137" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L151" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L124" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L88" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L137" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L127" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L151" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-10">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-10</code></td><td colspan="3"><span class="rfc-subject">When sending a message to an internal peer, if the route is not locally-originated, the BGP speaker SHOULD NOT modify the Global IPv6 next hop, if one is present, unless it has been explicitly configured to announce its own IP address as the next hop. (§4)</span></td></tr>
@@ -466,13 +505,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-15">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</code></td><td colspan="3"><span class="rfc-subject">if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link- Local IPv6 address. (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the antecedent is a route Ze is forbidden to send. RFC 4271 Section 5.1.3: &#34;A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP.&#34; Ze withholds a route whose next hop is the receiving peer&#39;s own address on every rail (originatedNextHopIsPeerOwn at the write boundary, egressNextHopIsPeerOwn on the relayed rail, internal/component/bgp/reactor/forward_next_hop.go; owner decision 2026-08-15), so no route carrying this condition reaches the wire. Shown by the untagged TestLinkLocalSecondConditionNeverReachesTheWire (internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go): a static route with explicit next hop = the internal peer&#39;s address 2001:db8:1::2 writes nothing to that peer. The directly-connected condition of the same sentence stays under DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</p></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-5-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1</code></td><td colspan="3"><span class="rfc-subject">When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L141" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L173" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L141" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L173" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-6-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></td><td colspan="3"><span class="rfc-subject">If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606]. (§6)</span></td></tr>
@@ -482,7 +530,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> validateMPReachNextHop (internal/component/bgp/message/rfc7606.go) answers a next-hop length outside attribute.ValidNextHopLens with RFC7606ActionSessionReset, which is RFC 7606 Section 7.11&#39;s approach and not the treat-as-withdraw of Section 7.3 this requirement names, and no producer inspects the CONTENT of a field whose length is admitted</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> on a session where capability 77 is negotiated, no receive producer inspects the addresses inside an admitted 32-octet Next Hop field, so a field that is not a Global followed by a Link-Local is never treated as withdrawn. A wrong Length of Next Hop is not this gap: validateMPReachNextHop (internal/component/bgp/message/rfc7606.go) answers it with RFC7606ActionSessionReset, which RFC 7606 Section 7.11 requires because the NLRI cannot be located</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-6-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-2</code></td><td colspan="3"><span class="rfc-subject">Receivers SHOULD use the second Link-Local IPv6 address for forwarding, because the second slot is the position that carries the Link-Local address in the conforming Global-then-Link-Local layout defined by [RFC2545], and thus is the value the sender most likely intended as the Link-Local next hop. (§6)</span></td></tr>
 <tr><td></td>
@@ -538,9 +586,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
+<tr><td><a href="#draft-ietf-idr-linklocal-capability-1-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2</code></a> Since IPv6 Link-Local addresses are not required to be globally unique, implementations must ensure that they are strictly associated with a specific interface. (§1)</td>
+<td>{gap}, no test</td>
+<td>Ze keeps no interface with a Link-Local next hop. A received next hop becomes a bare address (mpNextHopAddr, internal/component/bgp/plugins/rib/rib_bestchange.go, parses the 16 octets and attaches no zone from the session&#39;s interface, so an fe80::/10 next hop names no link), and the best path the RIB publishes carries no interface for sysrib to hand the FIB (sysrib&#39;s nextHopInterface is filled only from a producer that names one, internal/component/sysrib/sysrib.go; the BGP best-change event names none). On the send side the address Ze writes is the configured `session link-local` leaf, which nothing ties to the interface the session runs over. The strict association the sentence asks for is not implemented on either side</td>
+</tr>
+<tr><td><a href="#draft-ietf-idr-linklocal-capability-4-15"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</code></a> if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link- Local IPv6 address. (§4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the antecedent is a route Ze is forbidden to send. RFC 4271 Section 5.1.3: &#34;A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP.&#34; Ze withholds a route whose next hop is the receiving peer&#39;s own address on every rail (originatedNextHopIsPeerOwn at the write boundary, egressNextHopIsPeerOwn on the relayed rail, internal/component/bgp/reactor/forward_next_hop.go; owner decision 2026-08-15), so no route carrying this condition reaches the wire. Shown by the untagged TestLinkLocalSecondConditionNeverReachesTheWire (internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go): a static route with explicit next hop = the internal peer&#39;s address 2001:db8:1::2 writes nothing to that peer. The directly-connected condition of the same sentence stays under DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</td>
+</tr>
 <tr><td><a href="#draft-ietf-idr-linklocal-capability-6-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></a> If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606]. (§6)</td>
 <td>{gap}, no test</td>
-<td>validateMPReachNextHop (internal/component/bgp/message/rfc7606.go) answers a next-hop length outside attribute.ValidNextHopLens with RFC7606ActionSessionReset, which is RFC 7606 Section 7.11&#39;s approach and not the treat-as-withdraw of Section 7.3 this requirement names, and no producer inspects the CONTENT of a field whose length is admitted</td>
+<td>on a session where capability 77 is negotiated, no receive producer inspects the addresses inside an admitted 32-octet Next Hop field, so a field that is not a Global followed by a Link-Local is never treated as withdrawn. A wrong Length of Next Hop is not this gap: validateMPReachNextHop (internal/component/bgp/message/rfc7606.go) answers it with RFC7606ActionSessionReset, which RFC 7606 Section 7.11 requires because the NLRI cannot be located</td>
 </tr>
 </tbody>
 </table>
@@ -548,6 +604,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#draft-ietf-idr-linklocal-capability-1-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2</code></a></h3>
+<p>Since IPv6 Link-Local addresses are not required to be globally unique, implementations must ensure that they are strictly associated with a specific interface. (§1)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Judged 2026-10-01 (BGP c20 judge, R58(c)). Row text is a verbatim span of draft -06 Section 1 (lowercase must, ruled to bind the implementation). Gap confirmed at the producers: mpNextHopAddr (rib_bestchange.go) turns the received Next Hop octets into a bare netip.Addr with no zone and no interface, and nothing in the BGP best-change path sets one (no WithZone on that path); on the send side applyLinkLocal (config_nexthop_form.go) parses session link-local as a plain address with no tie to the session&#39;s interface. The {gap} annotation states both halves.</p>
+<p>No test carries DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, so no unit is bound to it.</p>
 <h3><a href="#draft-ietf-idr-linklocal-capability-3-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1</code></a></h3>
 <p>If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field. (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a sender meaning to send one Link-Local address writes a field other than 16 octets, or adds another address. TestLinkLocalOnlyNextHopFieldIsSixteenOctets builds the UPDATE through resolveNextHop and BuildUnicast and asserts assert.Len(field, 16) and that the field equals fe80::1 alone; either defect turns it red. The negative TestLinkLocalNextHopWithAGlobalIsNotSentAlone shows the 16-octet form is keyed on one address (32 octets when a Global is also sent).</p>
@@ -556,12 +616,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L118" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNextHopWithAGlobalIsNotSentAlone</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L118" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNextHopWithAGlobalIsNotSentAlone</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L87" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyNextHopFieldIsSixteenOctets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L87" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyNextHopFieldIsSixteenOctets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -570,18 +630,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-3-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2</code></a></h3>
 <p>If an implementation intends to send both a IPv6 Global and Link- Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field. (§3)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Clause &#39;include both addresses&#39; is asserted: TestLinkLocalBothAddressesUseThirtyTwoOctets compares nhGlobalLL[:16] to the Global and nhGlobalLL[16:] to the Link-Local. Clause &#39;set the length of the Next Hop field to 32&#39; has no assertion that goes red: assert.Len(facts.nhGlobalLL[:], 32) measures a [32]byte array and is always true, and the unit stops at peerForwardFacts, so a writer (applyFactsNextHop) that emitted 16 octets for nhModeSelfV6LL would leave it green. The wire length is asserted only by units tagged 3-1 and 5-1.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge). The c19 finding is closed: TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo reads the MP_REACH_NLRI Length of Next Hop octet off the bytes sendStaticRoutes wrote to the one-hop internal peer&#39;s connection and asserts 0x20 followed by exactly 2001:db8:1::1 then fe80::1 (both clauses: length 32, both addresses); TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen asserts 0x10 and the lone global for a route through another router, so the 32-octet length is tied to sending both. mpReachNextHopField slices exactly the octets the length announces and fails when none is written. Records observed red on mpnlri.go::nextHopLen. The older facts-level units stay tagged; their assert.Len over a [32]byte array is vacuous and carries no weight in this verdict.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L61" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressKeepsSixteenOctets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L181" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L61" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressKeepsSixteenOctets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L48" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalBothAddressesUseThirtyTwoOctets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L157" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L48" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalBothAddressesUseThirtyTwoOctets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -590,18 +660,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1</code></a></h3>
 <p>If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: advertising a route that is left with no IPv6 next hop AFTER the Section 4 procedures run. TestLinkLocalRouteWithNoNextHopIsNotAdvertised asserts assert.Nil on buildRIBRouteUpdate fed a zero netip.Addr, so it proves only that the RIB-replay builder refuses an empty address. The clause &#39;after completing these procedures&#39; has no assertion: no tagged unit feeds a route whose procedures strip every address (for example a Link-Local-only next hop toward a multihop peer, where the Link-Local must not be included), and the forward rail (forwardUpdateCore) is not driven. A procedure that dropped the Link-Local and still sent an empty next hop leaves both units green.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: advertising a route left with no IPv6 next hop after the Section 4 procedures, instead of treat-as-withdraw. The positive is now real: TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer relays a received 16-octet fe80::1 through forwardUpdateCore under next hop unchanged to an internal and an external peer no connected subnet holds, and asserts no MP_REACH next hop and the exact MP_UNREACH_NLRI withdrawing 2001:db8:7::/64, so both clauses (not advertised, treat-as-withdraw) are asserted on the general rail. The RIB-rail units remain a zero-address builder check. Weak because the tagged forward-rail control asserts the directly attached external peer is written the Link-Local-only fe80::1. The fixture (llnhExternalPeer/llnhClient) negotiates no Link-Local Next Hop capability, and draft Section 2 says &#39;When the capability has not been negotiated, the procedures in this document do not apply&#39;, while Section 3 says &#39;A Link-Local-only Next Hop received without the Link-Local Next Hop Capability having been negotiated is not conformant with [RFC2545]&#39;. So the control asserts a delivery the RFC does not sanction on that session: it would go red the day Ze stops relaying a received Link-Local-only next hop to a peer without capability 77 (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go, deliberately asks only a next hop recorded in mods). Fix: negotiate LinkLocalNextHop in the fixture; the positive needs no change.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L83" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L83" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAdvertised</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L70" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L70" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAdvertised</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L80" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -610,18 +690,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2</code></a></h3>
 <p>If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: including any Link-Local next hop toward an internal peer more than one hop away. TestLinkLocalNotIncludedForPeerMoreThanOneHopAway asserts nhMode == nhModeSelfV6 and an empty nhGlobalLL, but only for a peer configured next-hop-self, where ze would append its OWN configured link-local. The third-party case is not asserted: under next-hop unchanged (nhModeNone, the iBGP default) applyFactsNextHop (peer_forward_facts.go) returns without touching the received MP_REACH next hop, so a received Global+Link-Local field forwarded to a multihop internal peer keeps its Link-Local address, and no tagged unit feeds that input.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: including a Link-Local next hop toward an internal peer more than one hop away. The third-party case the earlier weak verdict named is now driven: TestLinkLocalReceivedPairStrippedForMultihopInternalPeer relays the received 32-octet 2001:db8:1::1 + fe80::9 pair through forwardUpdateCore under next hop unchanged and under auto to an internal (AS 65000) peer off every connected subnet and asserts the exact 16-octet Global alone; the control in the same fan-out, an internal peer on the advertiser&#39;s subnet, keeps the exact 32-octet pair, which RFC 2545 Section 3 permits without the capability. Restoring the pass-through turns the positive red. The facts-level units still cover the next-hop-self half.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L84" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForPeerOneHopAway</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForPeerOneHopAway</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L73" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForPeerMoreThanOneHopAway</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L73" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForPeerMoreThanOneHopAway</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -630,18 +720,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-3"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</code></a></h3>
 <p>If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link- Local IPv6 address. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: announcing to a one-hop internal peer a route that is directly connected (or whose next router is that peer) without the speaker&#39;s own Link-Local address. TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker asserts the own Link-Local is in nhGlobalLL[16:], but its input is the PEER&#39;s next-hop-self setting, not a route: neither condition of the sentence (route directly connected; next router&#39;s interface address is the internal peer&#39;s address) is an input of the tagged unit, so a directly connected route announced on a next-hop-unchanged session without the own Link-Local would leave both units green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c20 judge, R58(a)). The c19 hole is closed at its producer: refuseLinkLocalCapabilityWithoutAddress (llnh.go), run by both OnConfigVerify (commit) and OnConfigure (startup, FatalOnConfigError in register.go), refuses a peer, a group member or a dynamic-group template whose capability 77 is enabled (llnhEnabledFor, the same answer extractLLNHCapabilities advertises from) with no session link-local on the peer or its group; ResolveBGPTree merges the group&#39;s session leaves into the peer, so the group case matches what the reactor&#39;s applyLinkLocal reads. So every configuration that can negotiate 77 carries the address linkScope.linkLocalNextHop appends. New units, both through the real LoadConfig + ToPluginMap lowering: negative TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress (standalone and group-inherited capability refused, error names peer1 and session link-local, the section entry refuses too); positive TestLinkLocalCapabilityAcceptedWithLinkLocalAddress (leaf on peer, group, member: accepted and the capability still declared). Both recorded red under the producer break. The wire half stays proven both polarities on the announce rail (directly connected originated route: [global, fe80::1]; route through another router: 16-octet global) and on the forward facts (next-hop self, local ip auto, unchanged), each with an observed-red record. Functional: test/plugin/llnh-refuses-without-link-local.ci (ze boot exits 1 with the refusal) passes. Residual note: the wire units do not negotiate capability 77 itself; linkLocalNextHop does not read the capability, so the same producer answers with and without it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L150" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go#L75" title="internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L107" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L193" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L135" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go#L104" title="internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityAcceptedWithLinkLocalAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L85" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L135" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L166" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -650,18 +765,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-4"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4</code></a></h3>
 <p>If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: announcing to an internal peer a route left with no IPv6 next hop after the internal-peer procedures. TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer asserts assert.Nil on buildRIBRouteUpdate&#39;s internal rail for a zero netip.Addr only. &#39;After evaluating the above procedures&#39; is not an input: no unit feeds a route whose Link-Local is removed toward a multihop internal peer and then leaves nothing, and the forward rail is not driven. The &#39;(Treat-as-withdraw.)&#39; clause, a withdrawal of a previously announced route, has no assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to an internal peer a route the internal-peer procedures leave with no IPv6 next hop, rather than treat-as-withdraw. TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (internal=true branch) relays a Link-Local-only fe80::1 to an internal peer more than one hop away, where the Link-Local MUST NOT be included and nothing remains, and asserts no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix, so &#39;after evaluating the above procedures&#39; is an input and the withdrawal is asserted. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer announces the same route with a Global next hop and LOCAL_PREF (RIB rail, cross-rail but conformant). The RIB-rail positive alone is still only a zero-address builder check.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L105" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L105" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L96" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L96" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L86" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -670,18 +790,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-5"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5</code></a></h3>
 <p>A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a reflector advertising a link-local-only route to a client off the original advertiser&#39;s segment. TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment drives forwardUpdateCore with a 16-octet fe80::1 next hop and asserts assert.NotContains(got, off-segment client); delivering to it turns the test red. The same function (negative tag) asserts the on-segment client does receive the link-local-only next hop, so the refusal is keyed on the segment.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-04 after f93a30fbfc (downgraded from enforced). Forbidden: an RR advertising a Link-Local-only route to a client off the original advertiser&#39;s segment. TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment drives forwardUpdateCore and asserts the off-segment client is written no MP_REACH next hop (assert.Empty, which does not distinguish the withdrawal from nothing; the withdrawal is proven by the untagged TestReflectedLinkLocalOnlyRouteWithdrawnFromClientOffTheSegment). The refusal side would go red. Weak because the only tagged control asserts the on-segment client receives the Link-Local-only next hop. The fixture (llnhExternalPeer/llnhClient) negotiates no Link-Local Next Hop capability, and draft Section 2 says &#39;When the capability has not been negotiated, the procedures in this document do not apply&#39;, while Section 3 says &#39;A Link-Local-only Next Hop received without the Link-Local Next Hop Capability having been negotiated is not conformant with [RFC2545]&#39;. So the control asserts a delivery the RFC does not sanction on that session: it would go red the day Ze stops relaying a received Link-Local-only next hop to a peer without capability 77 (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go, deliberately asks only a next hop recorded in mods). Fix: negotiate LinkLocalNextHop in the fixture; the positive needs no change.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L201" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L229" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L192" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L220" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -690,18 +810,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-6"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6</code></a></h3>
 <p>For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: for an off-segment client, sending the link-local-only route neither rewritten nor withheld. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives 2001:db8:1::254 and not a link-local-only field (rewrite arm) and that the client without rewrite receives nothing (ineligible arm); passing the link-local through to either turns it red. The negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld shows a Global next hop is untouched.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: for an off-segment client, sending the Link-Local-only route neither rewritten nor ineligible. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives exactly 2001:db8:1::254 and not a Link-Local-only field, and the client without rewrite is written no MP_REACH next hop (now the withdrawal under the owner&#39;s decision; assert.Empty does not distinguish withdrawal from nothing, which the sentence does not require). Negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld: a Global next hop reaches the same off-segment client unchanged. No assertion delivers a Link-Local-only next hop, so the capability-77 fixture gap does not touch this pair.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L258" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L286" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L228" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L256" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -710,18 +830,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-7"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7</code></a></h3>
 <p>If no next hops are included, the route MUST NOT be announced (treat-as- withdraw). (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: announcing to a one-hop external peer a route with no next hop, and not treating it as a withdrawal. TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer asserts assert.Nil on buildRIBRouteUpdate&#39;s external rail for a zero netip.Addr, which proves the builder builds nothing. The &#39;(treat-as-withdraw)&#39; clause has no assertion: no unit announces the route with a next hop first and then checks that losing it sends a withdrawal. Only the RIB-replay rail is driven; the forward rail is not.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to a one-hop external peer a route with no next hop included, rather than treat-as-withdraw. TestNextHopSelfWithheldRouteServerWithdraws requires the fixture reached nhSelfWithheld (next-hop self configured, no address of this speaker, so third-party is disabled and nothing remains) and asserts on the route-server rail no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix; the client is on-link, so no other gate explains the refusal. Both rails share egressNextHopWithheld and each calls mods.SetWithdraw on any refusal, and the general-rail withdrawal is proven by the 4-1 unit. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer (RIB rail, cross-rail, conformant). The RIB-rail positive alone is a zero-address builder check.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L126" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L126" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L117" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L117" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L193" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestNextHopSelfWithheldRouteServerWithdraws</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -730,18 +855,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-8"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8</code></a></h3>
 <p>When sending a message to an external peer X, and the peer is multiple IP hops away from the speaker (aka &#34;multihop EBGP&#34;): * Link-Local IPv6 next hops MUST NOT be included. (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: including any Link-Local next hop toward a multihop EBGP peer. TestLinkLocalNotIncludedForMultihopExternalPeer asserts nhMode == nhModeSelfV6 and an empty nhGlobalLL, but only under next-hop-self (own configured link-local). A received Global+Link-Local next hop passed on under next-hop unchanged (nhModeNone; applyFactsNextHop returns without editing attribute 14) to a multihop external peer is not an input of any tagged unit, and nothing in the forward path is seen to strip it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c22 judge). The route-server rail the c21 judge named is now driven: TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the received 32-octet 2001:db8:1::1+fe80::9 through reactorForwardRS to an off-link external client under next hop unchanged and auto and asserts the 16-octet Global alone; TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient keeps the pair for a client on the connected /64. The author&#39;s overlay disabling only the forward_rs.go call (strip &amp;&amp; false, job-c22-nocut log, read by the judge) turns the RS positive red, so the RS call is pinned on its own. General rail unchanged from c21 (forwardUpdateCore units, both polarities). Revert records on egressNextHopGlobalHalf observed red for all four units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L108" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForDirectlyAttachedExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L121" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L232" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L108" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForDirectlyAttachedExternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L95" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForMultihopExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L98" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopExternalPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L210" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerStripsReceivedPairForMultihopClient</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L95" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForMultihopExternalPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -750,24 +895,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-9"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9</code></a></h3>
 <p>If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw). (§4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: advertising to a multihop external peer a route that carries no Global IPv6 next hop, typically one whose next hop is Link-Local only. TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer feeds a ZERO next hop to buildRIBRouteUpdate and asserts nil, which is the no-next-hop-at-all rule of 4-1/4-7; its facts half (no Link-Local appended under next-hop-self) is not connected to the builder call. No tagged unit offers a Link-Local-only (fe80::) next hop toward a multihop external peer, which is the input the sentence forbids.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: advertising to a multihop external peer a route with no Global IPv6 next hop, rather than treat-as-withdraw. The input the earlier weak verdict asked for is now driven on both rails: TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (forwardUpdateCore) and TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient (reactorForwardRS) relay a Link-Local-only fe80::1 under next hop unchanged (the owner&#39;s ruling) to an external peer off every connected subnet and assert no MP_REACH next hop and the exact MP_UNREACH_NLRI. The refusal is enforced. Weak because the tagged route-server control asserts the attached external client is written the Link-Local-only next hop. The fixture (llnhExternalPeer/llnhClient) negotiates no Link-Local Next Hop capability, and draft Section 2 says &#39;When the capability has not been negotiated, the procedures in this document do not apply&#39;, while Section 3 says &#39;A Link-Local-only Next Hop received without the Link-Local Next Hop Capability having been negotiated is not conformant with [RFC2545]&#39;. So the control asserts a delivery the RFC does not sanction on that session: it would go red the day Ze stops relaying a received Link-Local-only next hop to a peer without capability 77 (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go, deliberately asks only a next hop recorded in mods). Fix: negotiate LinkLocalNextHop in the fixture; the positive needs no change. The RIB-rail negative (Global next hop advertised) is conformant.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L151" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L151" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L127" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L137" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L137" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L124" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L88" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
+<h3><a href="#draft-ietf-idr-linklocal-capability-4-15"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</code></a></h3>
+<p>if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link- Local IPv6 address. (§4)</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. Judged 2026-10-01 (BGP c19 judge). Split from 4-3 under R3/R57(a); row text is a verbatim span of the Section 4 sentence&#39;s second clause. Read both producers: egressNextHopIsPeerOwn compares the (modified) next hop to f.addr, originatedNextHopIsPeerOwn reads the built body. The untagged TestLinkLocalSecondConditionNeverReachesTheWire (static route, explicit next hop = the internal peer&#39;s 2001:db8:1::2) asserts nothing is written, while the sibling ::99 route on the same fixture is written, so the empty wire is the withholding, not a dead fixture. Untagged because the gate refuses a tag beside {not-applicable}; that reading is accepted.</p>
+<p>No test carries DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15, so no unit is bound to it.</p>
 <h3><a href="#draft-ietf-idr-linklocal-capability-5-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1</code></a></h3>
 <p>When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets. (§5)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: sending the 16-octet Link-Local-only field for IPv4 NLRI when capability 77 plus RFC 8950 were not both negotiated. TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination asserts require.ErrorIs(err, ErrNextHopLinkLocalOnly) from resolveNextHop and assert.Len(field, 32) with Global then Link-Local; admitting the 16-octet form turns it red. The negative TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination shows the 16-octet form is sent once both are negotiated.</p>
@@ -776,12 +940,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L173" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L173" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L141" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L141" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -790,7 +954,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-6-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></a></h3>
 <p>If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606]. (§6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-02 (BGP c22 judge). Gap unchanged; the {gap} annotation is now aimed at the content half as the c21 judge required: on a capability-77 session no receive producer inspects the addresses of an admitted 32-octet Next Hop field, so a field that is not Global followed by Link-Local is never treated as withdrawn. A wrong Length stays an RFC 7606 Section 7.11 session reset in validateMPReachNextHop, which is correct and named here as the producer that admits the field without inspecting it. Dated correction in rfc/corrections.</p>
 <p>No test carries DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
@@ -799,10 +963,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>ze-work agent, spec-rfcgate-6 draft walk, draft-ietf-idr-linklocal-capability</td>
+<td>claude, BGP c20 independent judge (spec-rfc-verdict-test-fix-pass)</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-01</td>
+<td>2026-10-01</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -817,10 +981,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/extraction/draft-ietf-idr-linklocal-capability.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -838,15 +1002,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><code>front</code></td>
 <td>not stated</td>
-<td>0</td>
-<td>skipped (front-matter)</td>
-<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract says the document updates RFC 2545 to clarify the next-hop encoding when only an IPv6 Link-Local address is available, and defines a capability signalling support for it. It directs no speaker. Its one site is the Copyright Notice, excluded below.</td>
+<td>1</td>
+<td>walked</td>
+<td>Walked 2026-10-01 (R58(c)): the -06 text yields one derived site here, the Copyright Notice sentence front:1, excluded below as IETF Trust boilerplate. The section holds the Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract says the document updates RFC 2545 to clarify the next-hop encoding when only an IPv6 Link-Local address is available, and defines a capability signalling support for it. It directs no speaker. Its one site is the Copyright Notice, excluded below.</td>
 </tr>
 <tr><td><code>1</code></td>
-<td>not stated</td>
-<td>0</td>
+<td>Walked 2026-10-01 (R58(c))</td>
+<td>3</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Walked 2026-10-01 (R58(c)). Three derived sites: 1:2 binds Ze and maps to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2 (a recorded gap); 1:1 and 1:3 state what a deployment or an address does not need and direct no implementation, so both are excluded. DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1 quotes an uppercase SHOULD NOT sentence the lowercase site scan does not split out, so it stays unsourced.</td>
 </tr>
 <tr><td><code>2</code></td>
 <td>not stated</td>
@@ -864,7 +1028,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>9</td>
 <td>walked</td>
-<td>not stated</td>
+<td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 (2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md) is split from DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 and quotes the second condition of site 4:3&#39;s sentence: it is annotated not-applicable, so it is listed here as unsourced rather than given a second site.</td>
 </tr>
 <tr><td><code>5</code></td>
 <td>not stated</td>
@@ -942,7 +1106,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3>Excluded sentences</h3>
-<p>The walk over DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY declined no sentence: every site it found is mapped to a requirement.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>IETF Trust boilerplate in the Copyright Notice. It binds a person who copies Code Components out of the document, not a BGP speaker, and no behavior of Ze&#39;s can meet or break it.</td>
+<td>Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Indicative statement about data-center deployments on point-to-point links: a Global address is not needed there. It removes a need rather than imposing one, and directs no implementation behavior; the procedures that make a Link-Local-only next hop valid are Sections 2 to 5, gated separately.</td>
+<td>In these situations, a Global IPv6 address is not required for the advertisement of reachability information.</td>
+</tr>
+<tr><td><code>1:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A property of IPv6 addressing restated as context (RFC 4291, RFC 4862), not an obligation on a BGP speaker. The consequence the next sentences draw (a changed Link-Local resets the TCP session, and a tentative address is not advertised) is carried by DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1 and by the transport, not by this site.</td>
+<td>IPv6 Link-Local addresses are not required to be stable across interface startup or reconfiguration.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY, so its obligations are stated where they were written.</p>
@@ -976,7 +1161,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

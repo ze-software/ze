@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 14.3% | 2 of 14 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 14.3% | 2 of 14 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 25.0% | 2 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 14 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 100.0% | 18 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 7.1% | 1 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 4 | of 14 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 8 |
-| Tagged units | 8 |
+| Test tags | 18 |
+| Tagged units | 18 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 2 |
+| Discrimination records | 18 |
 | Summary | `rfc/short/rfc3954.md` |
 | Requirement shard | `rfc/requirements/rfc3954.md` |
 | RFC text | `rfc/full/rfc3954.txt` |
@@ -98,30 +99,31 @@ Template refresh is time-interval-based only, with no packet-count-based refresh
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the gated population |
-| Annotated instead of tested | 12 | one part of the gated population |
+| Annotated (including scoped evidence) | 12 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **14** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC3954-x-1`](#rfc3954-x-1), [`RFC3954-x-8`](#rfc3954-x-8)
 
-**Annotated instead of tested (12):** [`RFC3954-x-2`](#rfc3954-x-2), [`RFC3954-x-3`](#rfc3954-x-3), [`RFC3954-x-4`](#rfc3954-x-4), [`RFC3954-x-5`](#rfc3954-x-5), [`RFC3954-x-6`](#rfc3954-x-6), [`RFC3954-x-7`](#rfc3954-x-7), [`RFC3954-x-9`](#rfc3954-x-9), [`RFC3954-x-22`](#rfc3954-x-22), [`RFC3954-x-23`](#rfc3954-x-23), [`RFC3954-x-24`](#rfc3954-x-24), [`RFC3954-x-25`](#rfc3954-x-25), [`RFC3954-x-26`](#rfc3954-x-26)
+**Annotated (including scoped evidence) (12):** [`RFC3954-x-2`](#rfc3954-x-2), [`RFC3954-x-3`](#rfc3954-x-3), [`RFC3954-x-4`](#rfc3954-x-4), [`RFC3954-x-5`](#rfc3954-x-5), [`RFC3954-x-6`](#rfc3954-x-6), [`RFC3954-x-7`](#rfc3954-x-7), [`RFC3954-x-9`](#rfc3954-x-9), [`RFC3954-x-22`](#rfc3954-x-22), [`RFC3954-x-23`](#rfc3954-x-23), [`RFC3954-x-24`](#rfc3954-x-24), [`RFC3954-x-25`](#rfc3954-x-25), [`RFC3954-x-26`](#rfc3954-x-26)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3954-x-1` | After a NetFlow process restarts, the Exporter MUST NOT send any Data FlowSet without sending the corresponding Template FlowSet and the required Options Template FlowSet in a previous packet or including it in the same Export Packet. (§7) | MUST NOT | 7 | **positive:** `unit/verify` [`TestWriteExportPacketWithTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L69). **negative:** `unit/verify` [`TestExporterTemplateFailureRetriesBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_lifecycle_test.go#L62) |
+| `RFC3954-x-1` | After a NetFlow process restarts, the Exporter MUST NOT send any Data FlowSet without sending the corresponding Template FlowSet and the required Options Template FlowSet in a previous packet or including it in the same Export Packet. (§7) | MUST NOT | 7 | **positive:** `unit/verify` [`TestRFC3954RestartedEncodersSendTemplateBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L187). **positive:** `unit/verify` [`TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L241). **positive:** `unit/verify` [`TestWriteExportPacketWithTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go#L69). **negative:** `unit/verify` [`TestExporterTemplateFailureRetriesBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go#L62) |
 | `RFC3954-x-2` | On a regular basis, the Exporter MUST send all the Template Records and Options Template Records to refresh the Collector. Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed. Two approaches are taken to make sure that Templates get refreshed at the Collector: * Every N number of Export Packets. * On a time basis, so every N number of minutes. Both options MUST be configurable by the user on the Exporter. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze refreshes NetFlow v9 templates on a time interval only (internal/plugins/flowexport/exporter.go:192-199, config template-refresh seconds); it has no packet-count-based template-refresh interval, so the conjoined time-and-packet-count refresh requirement is only partly met |
-| `RFC3954-x-3` | The Exporter MUST code all binary integers of the Packet Header and the different FlowSets in network byte order (also known as the big-endian byte ordering). (§4) | MUST | 4 | **positive:** `unit/verify` [`TestNetflow9DataFlowSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/data_test.go#L10). **positive:** `unit/verify` [`TestNetflow9Header`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L10). **negative:** no negative test. **{single-polarity}:** ze only ENCODES NetFlow v9 (exporter-only, internal/plugins/flowexport/netflow9); every multi-octet field is written big-endian via binary.BigEndian and there is no decode or wrong-endianness code path to reject, so only the positive can be tested |
+| `RFC3954-x-3` | The Exporter MUST code all binary integers of the Packet Header and the different FlowSets in network byte order (also known as the big-endian byte ordering). (§4) | MUST | 4 | **positive:** `unit/verify` [`TestNetflow9DataFlowSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_data_test.go#L10). **positive:** `unit/verify` [`TestNetflow9Header`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go#L10). **positive:** `unit/verify` [`TestRFC3954CounterTemplateFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L33). **positive:** `unit/verify` [`TestRFC3954FlowDataFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L135). **positive:** `unit/verify` [`TestRFC3954FlowTailBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L77). **positive:** `unit/verify` [`TestRFC3954IPv6FlowDataFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L95). **positive:** `unit/verify` [`TestRFC3954IPv6TemplateFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L43). **positive:** `unit/verify` [`TestRFC3954TemplateFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L118). **negative:** no negative test. **{single-polarity}:** ze only ENCODES NetFlow v9 (exporter-only, internal/plugins/flowexport/netflow9); every multi-octet field is written big-endian via binary.BigEndian and there is no decode or wrong-endianness code path to reject, so only the positive can be tested |
 | `RFC3954-x-4` | The Collector MUST use the FlowSet ID to find the corresponding Template Record and decode the Flow Records from the FlowSet. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a NetFlow v9 collector requirement (map a Data FlowSet ID to its template); ze is a v9 exporter only (internal/plugins/flowexport/netflow9) with no v9 decode/collect code path |
 | `RFC3954-x-5` | Because an individual Template FlowSet MAY contain multiple Template Records, the Length value MUST be used to determine the position of the next FlowSet record, which could be any type of FlowSet. (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (use FlowSet Length to find the next FlowSet); ze does not collect v9 |
 | `RFC3954-x-6` | Finally, note that the Collector MUST accept padding in the Data FlowSet and Options Template FlowSet, which means for the Flow Data Records, the Options Data Records and the Template Records. (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (accept padding); ze does not collect v9 (its exporter does emit 4-octet padding at internal/plugins/flowexport/netflow9/data.go:38-44) |
 | `RFC3954-x-7` | If a Collector should receive a new definition for an already existing Template ID, it MUST discard the previous template definition and use the new one. (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** collector requirement (override a template on redefinition); ze does not collect v9 |
-| `RFC3954-x-8` | Incremental sequence counter of all Export Packets sent from the current Observation Domain by the Exporter. This value MUST be cumulative (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestNetflow9FlowSeqNumPerPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_adapter_test.go#L53). **negative:** `unit/verify` [`TestNetflow9SeqNumNotAdvancedOnSendError`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/adapter_test.go#L58) |
-| `RFC3954-x-9` | The Template IDs must remain constant for the life of the NetFlow process on the Exporter. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestNetflow9FlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_template_test.go#L8). **positive:** `unit/verify` [`TestNetflow9Template`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/template_test.go#L8). **negative:** no negative test. **{single-polarity}:** ze's NetFlow v9 template IDs are compile-time constants (CounterTemplateID=256 in internal/plugins/flowexport/netflow9/template.go, FlowTemplateID=257 and FlowTemplateID6=258 in flow_template.go) that are never reassigned for the life of the process, so there is no ID-change code path to test negatively |
+| `RFC3954-x-8` | Incremental sequence counter of all Export Packets sent from the current Observation Domain by the Exporter. This value MUST be cumulative (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestNetflow9FlowSeqNumPerPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go#L53). **positive:** `unit/verify` [`TestRFC3954SequenceCountsEveryExportPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L53). **negative:** `unit/verify` [`TestNetflow9SeqNumNotAdvancedOnSendError`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go#L58) |
+| `RFC3954-x-9` | The Template IDs must remain constant for the life of the NetFlow process on the Exporter. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestNetflow9FlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go#L8). **positive:** `unit/verify` [`TestNetflow9Template`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_template_test.go#L8). **positive:** `unit/verify` [`TestRFC3954TemplateIDsConstantAcrossRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L80). **negative:** no negative test. **{single-polarity}:** ze's NetFlow v9 template IDs are compile-time constants (CounterTemplateID=256 in internal/plugins/flowexport/netflow9/template.go, FlowTemplateID=257 and FlowTemplateID6=258 in flow_template.go) that are never reassigned for the life of the process, so there is no ID-change code path to test negatively |
 | `RFC3954-x-10` | The Exporter SHOULD insert some padding bytes so that the subsequent FlowSet starts at a 4-byte aligned boundary. It is important to note that the Length field includes the padding bytes. Padding SHOULD be using zeros. (§5.3) | SHOULD | 5.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3954-x-11` | In the event of configuration changes, the Exporter SHOULD send the new template definitions at an accelerated rate. In such a case, it MAY transmit the changed Template Record(s) and Options Template Record(s), without any data, in advance to help ensure that the Collector will have the correct template information before receiving the first data. 3. On a regular basis, the Exporter MUST send all the Template Records and Options Template Records to refresh the Collector. Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed. Two approaches are taken to make sure that Templates get refreshed at the Collector: * Every N number of Export Packets. * On a time basis, so every N number of minutes. Both options MUST be configurable by the user on the Exporter. When one of these expiry conditions is met, the Exporter MUST send the Template FlowSet and Options Template. 4. In the event of a clock configuration change on the Exporter, the Exporter SHOULD send the template definitions at an accelerated rate. (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3954-x-12` | NetFlow Collectors SHOULD use the combination of the source IP address and the Source ID field to separate different export streams originating from the same Exporter. (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
@@ -163,12 +165,14 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 After a NetFlow process restarts, the Exporter MUST NOT send any Data FlowSet without sending the corresponding Template FlowSet and the required Options Template FlowSet in a previous packet or including it in the same Export Packet. (§7)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Exporter clause: TestExporterTemplateFailureRetriesBeforeData goes red if data leaves after a failed template (datagrams-sent/bytes-sent) or the retry transcript is not template then data, but it drives the exporter with the fake templateFailureEncoder, so the real netflow9 encoders are outside it. 'The corresponding Template FlowSet': no tagged assertion goes red if the real CounterEncoder.EncodeTemplate or FlowEncoder.EncodeFlowTemplate sent a template other than the one the following data references (for example no IPv6 template 258 before IPv6 flow data). TestWriteExportPacketWithTemplate passes needTemplate=true itself and asserts only count==2, not that the Template FlowSet precedes the Data FlowSet or carries the data's template ID. The Options Template clause is vacuous (no Options Template or Options Data is emitted).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Both halves now proven. Exporter ordering: TestExporterTemplateFailureRetriesBeforeData (counter and flow subtests) goes red if data leaves after a failed Template or the retry transcript is not template-then-data (recorded, notifySnapshot). Corresponding Template: TestRFC3954RestartedEncodersSendTemplateBeforeData drives fresh real CounterEncoder and FlowEncoder and requires every Data FlowSet 256/257/258 to follow a packet whose Template FlowSet defines that ID, and each ID to be seen, so an encoder omitting 258 goes red (recorded, EncodeFlowTemplate). TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket pins same-packet order (recorded). The Options Template clause is vacuous: Ze emits no Options Data. TestWriteExportPacketWithTemplate stays a count-only floor and carries no record.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestExporterTemplateFailureRetriesBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_lifecycle_test.go#L62) | unit/verify | revert, verified |
-| positive | [`TestWriteExportPacketWithTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L69) | unit/verify | unproven |
+| negative | [`TestExporterTemplateFailureRetriesBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go#L62) | unit/verify | revert, verified |
+| positive | [`TestWriteExportPacketWithTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go#L69) | unit/verify | revert, verified |
+| positive | [`TestRFC3954RestartedEncodersSendTemplateBeforeData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L187) | unit/verify | revert, verified |
+| positive | [`TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L241) | unit/verify | revert, verified |
 
 ### [`RFC3954-x-2`](#rfc3954-x-2)
 
@@ -182,12 +186,18 @@ No test carries RFC3954-x-2, so no unit is bound to it.
 
 The Exporter MUST code all binary integers of the Packet Header and the different FlowSets in network byte order (also known as the big-endian byte ordering). (§4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. encoder_test.go TestNetflow9Header and data_test.go TestNetflow9DataFlowSet read the Packet Header and the counter Data FlowSet big-endian. The sentence covers "the different FlowSets": the Template FlowSet and the per-flow Data FlowSet integers have no assertion in an x-3 tagged unit (template_test.go/flow_template_test.go read them big-endian but are tagged x-9 only).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row, every writer now compared byte for byte with distinct-octet values: Packet Header (TestNetflow9Header), counter Data FlowSet (TestNetflow9DataFlowSet), counter Template (TestRFC3954CounterTemplateFlowSetBigEndian), IPv4 and IPv6 flow Templates, IPv4 flow Data FlowSet, the shared tail with non-zero SRC_AS, DST_AS, FIRST_SWITCHED, LAST_SWITCHED (TestRFC3954FlowTailBigEndian), and the IPv6 Data FlowSet header and tail. A little-endian write of any field changes compared bytes. Every unit recorded.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestNetflow9DataFlowSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/data_test.go#L10) | unit/verify | unproven |
-| positive | [`TestNetflow9Header`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/encoder_test.go#L10) | unit/verify | unproven |
+| positive | [`TestRFC3954CounterTemplateFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L33) | unit/verify | revert, verified |
+| positive | [`TestRFC3954FlowTailBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L77) | unit/verify | revert, verified |
+| positive | [`TestRFC3954IPv6FlowDataFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L95) | unit/verify | revert, verified |
+| positive | [`TestRFC3954IPv6TemplateFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go#L43) | unit/verify | revert, verified |
+| positive | [`TestNetflow9DataFlowSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_data_test.go#L10) | unit/verify | revert, verified |
+| positive | [`TestNetflow9Header`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go#L10) | unit/verify | revert, verified |
+| positive | [`TestRFC3954FlowDataFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L135) | unit/verify | revert, verified |
+| positive | [`TestRFC3954TemplateFlowSetBigEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L118) | unit/verify | revert, verified |
 
 ### [`RFC3954-x-4`](#rfc3954-x-4)
 
@@ -225,23 +235,25 @@ No test carries RFC3954-x-7, so no unit is bound to it.
 
 Incremental sequence counter of all Export Packets sent from the current Observation Domain by the Exporter. This value MUST be cumulative (§5.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. flow_adapter_test.go asserts two data packets from one FlowEncoder differ by exactly 1; adapter_test.go asserts a failed Send does not advance the counter. The sentence counts "all Export Packets" of the domain: template-only packets (flow_adapter.go writes one with sender.Sequence()) and counter plus flow packets on one sender are not shown counted by a tagged unit (exporter_lifecycle_test.go checks it but carries no x-8 tag).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC3954SequenceCountsEveryExportPacket sends template-only, counter Data and flow Data packets from two encoders on one sender over two rounds and requires ten consecutive sequence values, so a template-only packet left out, or a per-encoder counter, goes red (recorded, sendTemplatePacket). Negative TestNetflow9SeqNumNotAdvancedOnSendError: an unsent packet does not advance the count of packets sent (recorded).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestNetflow9SeqNumNotAdvancedOnSendError`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/adapter_test.go#L58) | unit/verify | revert, verified |
-| positive | [`TestNetflow9FlowSeqNumPerPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_adapter_test.go#L53) | unit/verify | unproven |
+| negative | [`TestNetflow9SeqNumNotAdvancedOnSendError`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go#L58) | unit/verify | revert, verified |
+| positive | [`TestNetflow9FlowSeqNumPerPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go#L53) | unit/verify | revert, verified |
+| positive | [`TestRFC3954SequenceCountsEveryExportPacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L53) | unit/verify | revert, verified |
 
 ### [`RFC3954-x-9`](#rfc3954-x-9)
 
 The Template IDs must remain constant for the life of the NetFlow process on the Exporter. (§7)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. template_test.go and flow_template_test.go assert one build of the counter and IPv4 flow templates carries 256 and 257. No tagged unit shows the ID unchanged across two builds or a template refresh, which is the behaviour the sentence forbids, and the IPv6 template FlowTemplateID6=258 is not asserted.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row. TestRFC3954TemplateIDsConstantAcrossRefresh sends two full rounds and requires Templates 256, 257, 258 unchanged in round two and the Data FlowSets to name 256 and 257, so a refresh that reassigns an ID goes red (recorded, BuildFlowTemplate6). The IPv6 Template 258 is now asserted.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestNetflow9FlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_template_test.go#L8) | unit/verify | unproven |
-| positive | [`TestNetflow9Template`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/template_test.go#L8) | unit/verify | unproven |
+| positive | [`TestNetflow9FlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go#L8) | unit/verify | revert, verified |
+| positive | [`TestNetflow9Template`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_template_test.go#L8) | unit/verify | revert, verified |
+| positive | [`TestRFC3954TemplateIDsConstantAcrossRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/rfc3954_test.go#L80) | unit/verify | revert, verified |
 
 ### [`RFC3954-x-22`](#rfc3954-x-22)
 

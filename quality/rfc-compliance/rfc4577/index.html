@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4577 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 45 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4577 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 45 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4577 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 45 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -79,6 +79,7 @@
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }
@@ -116,27 +117,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4.3%</strong><b>2 of 46 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2.2%</strong><b>1 of 45 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 45 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 45 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 45 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 45 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.0%</strong><b>1 of 4 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>46</strong><b>of 66 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>44</strong><b>of 46 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>95.7%</strong><b>44 of 46 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>45</strong><b>of 65 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>44</strong><b>of 45 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>97.8%</strong><b>44 of 45 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 45 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 45 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>4</strong><b>of 46 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 46 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 45 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,6 +160,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
 <tr><td>No test at all</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
@@ -184,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -204,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>66</td>
+<td>65</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>46</td>
+<td>45</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>44</td>
@@ -225,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
-</tr>
-<tr><td>Tagged units</td>
-<td>6</td>
-</tr>
-<tr><td>Recorded audit verdicts</td>
 <td>4</td>
 </tr>
+<tr><td>Tagged units</td>
+<td>4</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>3</td>
+</tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4577.md</code></td>
@@ -266,10 +267,10 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>2</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
-<tr><td>Annotated instead of tested</td>
+<tr><td>Annotated (including scoped evidence)</td>
 <td><strong>44</strong></td>
 <td>one part of the gated population</td>
 </tr>
@@ -281,6 +282,10 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
@@ -289,12 +294,12 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>46</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>45</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc4577-4.2.6-5"><code>RFC4577-4.2.6-5</code></a>, <a href="#rfc4577-6-1"><code>RFC4577-6-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (44):</strong> <a href="#rfc4577-4.1.1-1"><code>RFC4577-4.1.1-1</code></a>, <a href="#rfc4577-4.2.1-1"><code>RFC4577-4.2.1-1</code></a>, <a href="#rfc4577-4.2.1-2"><code>RFC4577-4.2.1-2</code></a>, <a href="#rfc4577-4.1.1-2"><code>RFC4577-4.1.1-2</code></a>, <a href="#rfc4577-4.2.4-1"><code>RFC4577-4.2.4-1</code></a>, <a href="#rfc4577-4.2.4-2"><code>RFC4577-4.2.4-2</code></a>, <a href="#rfc4577-4.2.4-3"><code>RFC4577-4.2.4-3</code></a>, <a href="#rfc4577-4.2.4-4"><code>RFC4577-4.2.4-4</code></a>, <a href="#rfc4577-4.2.4-5"><code>RFC4577-4.2.4-5</code></a>, <a href="#rfc4577-4.2.6-1"><code>RFC4577-4.2.6-1</code></a>, <a href="#rfc4577-4.2.6-2"><code>RFC4577-4.2.6-2</code></a>, <a href="#rfc4577-4.2.5.1-1"><code>RFC4577-4.2.5.1-1</code></a>, <a href="#rfc4577-4.2.5.1-2"><code>RFC4577-4.2.5.1-2</code></a>, <a href="#rfc4577-4.2.8.1-1"><code>RFC4577-4.2.8.1-1</code></a>, <a href="#rfc4577-4.2.6-3"><code>RFC4577-4.2.6-3</code></a>, <a href="#rfc4577-4.2.6-4"><code>RFC4577-4.2.6-4</code></a>, <a href="#rfc4577-4.2.5.1-3"><code>RFC4577-4.2.5.1-3</code></a>, <a href="#rfc4577-4.2.5.2-1"><code>RFC4577-4.2.5.2-1</code></a>, <a href="#rfc4577-4.2.5.2-2"><code>RFC4577-4.2.5.2-2</code></a>, <a href="#rfc4577-4.2.5.2-3"><code>RFC4577-4.2.5.2-3</code></a>, <a href="#rfc4577-4.2.5.2-4"><code>RFC4577-4.2.5.2-4</code></a>, <a href="#rfc4577-4.2.5.2-5"><code>RFC4577-4.2.5.2-5</code></a>, <a href="#rfc4577-4.2.5.2-6"><code>RFC4577-4.2.5.2-6</code></a>, <a href="#rfc4577-4.2.5.2-7"><code>RFC4577-4.2.5.2-7</code></a>, <a href="#rfc4577-4.2.8.1-2"><code>RFC4577-4.2.8.1-2</code></a>, <a href="#rfc4577-4.1.4-1"><code>RFC4577-4.1.4-1</code></a>, <a href="#rfc4577-4.2.7.1-1"><code>RFC4577-4.2.7.1-1</code></a>, <a href="#rfc4577-4.2.7.1-2"><code>RFC4577-4.2.7.1-2</code></a>, <a href="#rfc4577-4.2.7.1-3"><code>RFC4577-4.2.7.1-3</code></a>, <a href="#rfc4577-4.2.7.2-1"><code>RFC4577-4.2.7.2-1</code></a>, <a href="#rfc4577-4.2.7.3-1"><code>RFC4577-4.2.7.3-1</code></a>, <a href="#rfc4577-4.2.7.4-1"><code>RFC4577-4.2.7.4-1</code></a>, <a href="#rfc4577-4.2.7.4-2"><code>RFC4577-4.2.7.4-2</code></a>, <a href="#rfc4577-4.2.7.4-3"><code>RFC4577-4.2.7.4-3</code></a>, <a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a>, <a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a>, <a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a>, <a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a>, <a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a>, <a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a>, <a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a>, <a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a>, <a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a>, <a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc4577-6-1"><code>RFC4577-6-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (44):</strong> <a href="#rfc4577-4.1.1-1"><code>RFC4577-4.1.1-1</code></a>, <a href="#rfc4577-4.2.1-1"><code>RFC4577-4.2.1-1</code></a>, <a href="#rfc4577-4.2.1-2"><code>RFC4577-4.2.1-2</code></a>, <a href="#rfc4577-4.1.1-2"><code>RFC4577-4.1.1-2</code></a>, <a href="#rfc4577-4.2.4-1"><code>RFC4577-4.2.4-1</code></a>, <a href="#rfc4577-4.2.4-2"><code>RFC4577-4.2.4-2</code></a>, <a href="#rfc4577-4.2.4-3"><code>RFC4577-4.2.4-3</code></a>, <a href="#rfc4577-4.2.4-4"><code>RFC4577-4.2.4-4</code></a>, <a href="#rfc4577-4.2.4-5"><code>RFC4577-4.2.4-5</code></a>, <a href="#rfc4577-4.2.6-1"><code>RFC4577-4.2.6-1</code></a>, <a href="#rfc4577-4.2.6-2"><code>RFC4577-4.2.6-2</code></a>, <a href="#rfc4577-4.2.5.1-1"><code>RFC4577-4.2.5.1-1</code></a>, <a href="#rfc4577-4.2.5.1-2"><code>RFC4577-4.2.5.1-2</code></a>, <a href="#rfc4577-4.2.8.1-1"><code>RFC4577-4.2.8.1-1</code></a>, <a href="#rfc4577-4.2.6-3"><code>RFC4577-4.2.6-3</code></a>, <a href="#rfc4577-4.2.6-4"><code>RFC4577-4.2.6-4</code></a>, <a href="#rfc4577-4.2.5.1-3"><code>RFC4577-4.2.5.1-3</code></a>, <a href="#rfc4577-4.2.5.2-1"><code>RFC4577-4.2.5.2-1</code></a>, <a href="#rfc4577-4.2.5.2-2"><code>RFC4577-4.2.5.2-2</code></a>, <a href="#rfc4577-4.2.5.2-3"><code>RFC4577-4.2.5.2-3</code></a>, <a href="#rfc4577-4.2.5.2-4"><code>RFC4577-4.2.5.2-4</code></a>, <a href="#rfc4577-4.2.5.2-5"><code>RFC4577-4.2.5.2-5</code></a>, <a href="#rfc4577-4.2.5.2-6"><code>RFC4577-4.2.5.2-6</code></a>, <a href="#rfc4577-4.2.5.2-7"><code>RFC4577-4.2.5.2-7</code></a>, <a href="#rfc4577-4.2.8.1-2"><code>RFC4577-4.2.8.1-2</code></a>, <a href="#rfc4577-4.1.4-1"><code>RFC4577-4.1.4-1</code></a>, <a href="#rfc4577-4.2.7.1-1"><code>RFC4577-4.2.7.1-1</code></a>, <a href="#rfc4577-4.2.7.1-2"><code>RFC4577-4.2.7.1-2</code></a>, <a href="#rfc4577-4.2.7.1-3"><code>RFC4577-4.2.7.1-3</code></a>, <a href="#rfc4577-4.2.7.2-1"><code>RFC4577-4.2.7.2-1</code></a>, <a href="#rfc4577-4.2.7.3-1"><code>RFC4577-4.2.7.3-1</code></a>, <a href="#rfc4577-4.2.7.4-1"><code>RFC4577-4.2.7.4-1</code></a>, <a href="#rfc4577-4.2.7.4-2"><code>RFC4577-4.2.7.4-2</code></a>, <a href="#rfc4577-4.2.7.4-3"><code>RFC4577-4.2.7.4-3</code></a>, <a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a>, <a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a>, <a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a>, <a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a>, <a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a>, <a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a>, <a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a>, <a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a>, <a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a>, <a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -526,15 +531,6 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> native VPN-PE role not selected by the 2026-09-21 owner decision below the scope statement; RFC 4577 Section 1 says &#34;No special procedures are needed in the CE router though; CE routers just run whatever OSPF implementations they may have.&#34; Ordinary InjectExternal and parseRedistribute are not VPN import/export producers</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-5">RFC4577-4.2.6-5</code></td><td colspan="3"><span class="rfc-subject">Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP. (§4.2.6)</span></td></tr>
-<tr><td></td>
-<td>MUST NOT</td>
-<td>4.2.6</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.6-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L18" title="internal/plugins/ospf/spf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577Type3SummaryBecomesRedistributableRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L41" title="internal/plugins/ospf/spf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577Type4SummaryNotRedistributed</code></a></span></div>
-</div></td>
-</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.1.4-1">RFC4577-4.1.4-1</code></td><td colspan="3"><span class="rfc-subject">If the OSPF domain has any area 0 routers other than the PE routers, then at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router. (§4.1.4, §4.2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -622,7 +618,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L12" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthImplemented</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L34" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L32" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-6">RFC4577-4.2.4-6</code></td><td colspan="3"><span class="rfc-subject">the default value (if none is configured) SHOULD be NULL (§4.2.4)</span></td></tr>
@@ -702,7 +698,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>SHOULD</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L17" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthImplemented</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_link_auth_test.go#L88" title="internal/plugins/ospf/rfc4577_link_auth_test.go" target="_blank" rel="noopener"><code>TestRFC4577ConfiguredLinkSendsAuthenticatedHello</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the negative -- an interface with no key chain sending unauthenticated OSPF packets -- is the state this SHOULD recommends against, not a behavior the implementation must exhibit, so asserting it would pin the unrecommended path instead of the requirement</p></td>
 </tr>
@@ -1186,26 +1182,6 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p>The VPN Route Tag (see Section 4.2.5.2) MUST be placed in the LSA, unless the use of the VPN Route Tag has been turned off by configuration. (§4.2.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4577-4.2.8.1-2, so no unit is bound to it.</p>
-<h3><a href="#rfc4577-4.2.6-5"><code>RFC4577-4.2.6-5</code></a></h3>
-<p>Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP. (§4.2.6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: a route learned from a type 4 LSA reaching BGP. TestRFC4577Type4SummaryNotRedistributed asserts ComputeInterArea yields no RouteEntry for a Type 4 summary and TestRFC4577Type3SummaryBecomesRedistributableRoute that a Type 3 does. Neither drives the redistribution rail (redistribute/source.go emitDelta) to BGP; the note of the earlier pass itself says that link is structural and not exercised, so a redistribution source that read the LSDB directly would leave both green. Separately, the row binds the PE role the 2026-09-21 owner decision did not select.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L41" title="internal/plugins/ospf/spf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577Type4SummaryNotRedistributed</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc4577_test.go#L18" title="internal/plugins/ospf/spf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577Type3SummaryBecomesRedistributableRoute</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
 <h3><a href="#rfc4577-4.1.4-1"><code>RFC4577-4.1.4-1</code></a></h3>
 <p>If the OSPF domain has any area 0 routers other than the PE routers, then at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router. (§4.1.4, §4.2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1244,13 +1220,13 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <p>No test carries RFC4577-4.2.7.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4577-6-1"><code>RFC4577-6-1</code></a></h3>
 <p>OSPF &#34;cryptographic authentication&#34; SHOULD be used between a PE and a CE. It MUST be implemented on each PE. (§6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The quote&#39;s first sentence, the operator SHOULD, is row 6-2.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge): stale only because the 6-2 tag comment was removed from TestRFC4577CryptographicAuthImplemented; its body and the 6-1 tags are unchanged. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The operator SHOULD is row 6-2.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L34" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L32" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1264,15 +1240,15 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 </div>
 <h3><a href="#rfc4577-6-2"><code>RFC4577-6-2</code></a></h3>
 <p>OSPF &#34;cryptographic authentication&#34; SHOULD be used between a PE and a CE. (§6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. An operator SHOULD for the PE role the 2026-09-21 owner decision did not select: not-applicable in substance, but the row is tagged, so the verdict stays weak and the tag is reported. The tag claims the configured link authenticates its outgoing Hello, but the test builds and signs the Hello itself (signedHello calls packet.Sign directly); the engine&#39;s Hello transmit path is never exercised, so a link that configured a key chain but sent unauthenticated packets would stay green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c11). The prior weakness (the tag sat on a unit that signs the Hello itself) is gone: the tag moved to TestRFC4577ConfiguredLinkSendsAuthenticatedHello +, which parses config text naming key chain ce-link (hmac-sha-256), opens the interfaces over a recording transport and takes the first Hello the engine&#39;s own Hello loop sends: AuType 2, Key ID 1, and a separate authStore configured from the same text verifies it. Revert record on auth_wiring.go::signPacket observed red. Row carries {single-polarity: positive} (the negative is the unrecommended state). The 2026-09-21 owner decision on the PE role is unchanged; this proves the link behaviour the SHOULD recommends, which is role-independent.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L17" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthImplemented</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_link_auth_test.go#L88" title="internal/plugins/ospf/rfc4577_link_auth_test.go" target="_blank" rel="noopener"><code>TestRFC4577ConfiguredLinkSendsAuthenticatedHello</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1342,7 +1318,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>claude</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-10-02</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -1357,10 +1333,10 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>rfc/extraction/rfc4577.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>46</td>
+<td>45</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -1639,6 +1615,11 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
 <td>The lead-in clause of the procedure the next sentence states, which this walk maps to RFC4577-4.2.6-13: the PE examines the VRF so that &#39;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#39; Examining the VRF is how that route set is found; it carries no separate obligation.</td>
 <td>Otherwise, the PE must examine the corresponding VRF.</td>
 </tr>
+<tr><td><code>4.2.6:9</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>the sentence addresses the VPN PE that receives the CE&#39;s LSAs into a VRF and creates VPN-IPv4 routes in BGP (Section 4.2.6); the 2026-09-21 owner decision does not select that role and ze fills it nowhere. The role has no producer in this tree: internal/plugins/ospf/redistribute/source.go exports OSPF routes to BGP as plain ipv4/unicast, with no VRF and no VPN-IPv4 route. Row RFC4577-4.2.6-5 retired 2026-10-02 (rfc/corrections/rfc4577.md).</td>
+<td>Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP.</td>
+</tr>
 <tr><td><code>4.2.6:10</code></td>
 <td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
 <td>The obligation belongs to [VPN], which is RFC 4364, and the sentence cites it: &#39;The attributes specified above are in addition to any other attributes that routes must carry in accordance with [VPN].&#39; It adds nothing of its own, and what a VPN-IPv4 route must carry is RFC 4364&#39;s to state.</td>
@@ -1695,7 +1676,7 @@ Native VPN-PE behavior is not selected: no OSPF-domain/VRF association, VPN meta
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
                 </div>
             </div>
         </footer>

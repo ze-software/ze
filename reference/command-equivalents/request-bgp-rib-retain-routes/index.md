@@ -1,6 +1,6 @@
 # `request bgp rib retain-routes`
 
-Mark peer RIB for retention
+Retain peer routes, optionally only the supplied families: <selector> [family ...]
 
 ## Ze command
 

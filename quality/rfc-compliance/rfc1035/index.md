@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 92.6% | 25 of 27 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 27 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 27 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 1.6% | 1 of 62 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 27 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 7.8% | 5 of 64 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +36,7 @@ what Ze owes
 |---|---:|---|---|
 | No test at all | 7.4% | 2 of 27 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,6 +47,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -66,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 2 |
 | Nightly-only evidence | 0 |
-| Test tags | 62 |
-| Tagged units | 62 |
+| Test tags | 64 |
+| Tagged units | 64 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 1 |
+| Discrimination records | 5 |
 | Summary | `rfc/short/rfc1035.md` |
 | Requirement shard | `rfc/requirements/rfc1035.md` |
 | RFC text | `rfc/full/rfc1035.txt` |
@@ -95,9 +97,10 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 25 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 2 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **27** | every gated MUST falls in exactly one bucket above |
@@ -126,16 +129,16 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 | `RFC1035-4.1.1-3` | 3 Name Error - Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist. (§4.1.1) | MUST | 4.1.1 - Header section format | **positive:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L102). **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L237). **negative:** `unit/verify` [`TestRFC1035_ResponseCodeByNameAndClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L107). **negative:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L242) |
 | `RFC1035-4.1.3-1` | TTL a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (§4.1.3) | MUST | 4.1.3 - Resource record format | **positive:** `unit/verify` [`TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L109). **negative:** `unit/verify` [`TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L127) |
 | `RFC1035-4.1.3-2` | RDLENGTH an unsigned 16 bit integer that specifies the length in octets of the RDATA field. (§4.1.3) | MUST | 4.1.3 - Resource record format | **positive:** `unit/verify` [`TestRFC1035_RDLengthCountsTheRDataOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L181). **negative:** `unit/verify` [`TestRFC1035_RDLengthCountsTheRDataOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L201) |
-| `RFC1035-4.1.4-1` | This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less. (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L150). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L225) |
-| `RFC1035-4.1.4-2` | The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L169). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L229) |
-| `RFC1035-4.1.4-3` | Pointers can only be used for occurances of a domain name where the format is not class specific (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L208). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232) |
-| `RFC1035-4.1.4-4` | If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L184). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L235) |
-| `RFC1035-4.1.4-5` | However all programs are required to understand arriving messages that contain pointers. (§4.1.4) | REQUIRED | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L345). **negative:** `unit/verify` [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L365) |
+| `RFC1035-4.1.4-1` | This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less. (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L155). **positive:** `unit/verify` [`TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L501). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L230). **negative:** `unit/verify` [`TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L515) |
+| `RFC1035-4.1.4-2` | The OFFSET field specifies an offset from the start of the message (i.e., the first octet of the ID field in the domain header). (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L174). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L234) |
+| `RFC1035-4.1.4-3` | Pointers can only be used for occurances of a domain name where the format is not class specific (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L213). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L237) |
+| `RFC1035-4.1.4-4` | If a domain name is contained in a part of the message subject to a length field (such as the RDATA section of an RR), and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name. (§4.1.4) | MUST | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L189). **negative:** `unit/verify` [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L240) |
+| `RFC1035-4.1.4-5` | However all programs are required to understand arriving messages that contain pointers. (§4.1.4) | REQUIRED | 4.1.4 - Message compression | **positive:** `unit/verify` [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L350). **negative:** `unit/verify` [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L370) |
 | `RFC1035-4.2-1` | Zone refresh activities must use virtual circuits because of the need for reliable transfer (§4.2) | MUST | 4.2 - Transport preamble | **positive:** no positive test. **negative:** no negative test |
 | `RFC1035-4.2.1-1` | Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers). (§4.2.1) | MUST | 4.2.1 - UDP usage | **positive:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97). **positive:** `unit/verify` [`TestRFC1035_UDPTruncatedTCPWholeOverRealSockets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L81). **negative:** `unit/verify` [`TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L164) |
 | `RFC1035-4.2.1-2` | Longer messages are truncated and the TC bit is set in the header (§4.2.1) | MUST | 4.2.1 - UDP usage | **positive:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L107). **positive:** `unit/verify` [`TestRFC1035_UDPTruncatedTCPWholeOverRealSockets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L90). **negative:** `unit/verify` [`TestRFC1035_StreamTransportNotTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L195). **negative:** `unit/verify` [`TestRFC1035_UDPReplyBoundedAndTruncated`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L127). **negative:** `unit/verify` [`TestRFC1035_UDPTruncatedTCPWholeOverRealSockets`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L104) |
 | `RFC1035-4.2.1-3` | Messages sent using UDP user server port 53 (decimal) (§4.2.1) <!-- "user" is verbatim: RFC 1035 rfc/full/rfc1035.txt:1754 has a typo for "use", and the id contract pins the quoted text, so it is reproduced rather than silently corrected. Compare :1783, which reads "use server port 53" for TCP. --> | MUST | 4.2.1 - UDP usage | **positive:** `unit/verify` [`TestRFC1035_DNSTransportsUseServerPort53`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L26). **negative:** `unit/verify` [`TestRFC1035_DNSTransportsUseServerPort53`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L49) |
-| `RFC1035-4.2.2-1` | Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2) | MUST | 4.2.2 - TCP usage | **positive:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L421). **negative:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L445) |
+| `RFC1035-4.2.2-1` | Messages sent over TCP connections use server port 53 (decimal). The message is prefixed with a two byte length field which gives the message length, excluding the two byte length field. (§4.2.2) | MUST | 4.2.2 - TCP usage | **positive:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L426). **negative:** `unit/verify` [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L450) |
 | `RFC1035-6.4-1` | While inverse query support is optional, all name servers must be at least able to return the error response (§6.4) | MUST | 6.4 - Inverse queries (Optional) | **positive:** `unit/verify` [`TestRFC1035_UnsupportedOpcodeReturnsNotImplemented`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241). **negative:** `unit/verify` [`TestRFC1035_QueryOpcodeAnsweredNormally`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L290) |
 | `RFC1035-2.3.1-1` | The labels must follow the rules for ARPANET host names. They must start with a letter, end with a letter or digit, and have as interior characters only letters, digits, and hyphen. (§2.3.1) | SHOULD | 2.3.1 - Preferred name syntax | **positive:** no positive test. **negative:** no negative test |
 | `RFC1035-2.3.3-3` | When data enters the domain system, its original case should be preserved whenever possible (§2.3.3) | SHOULD | 2.3.3 - Character Case | **positive:** no positive test. **negative:** no negative test |
@@ -344,8 +347,10 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L225) | unit/verify | unproven |
-| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L150) | unit/verify | unproven |
+| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L230) | unit/verify | revert, verified |
+| negative | [`TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L515) | unit/verify | revert, verified |
+| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L155) | unit/verify | revert, verified |
+| positive | [`TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L501) | unit/verify | revert, verified |
 
 ### [`RFC1035-4.1.4-2`](#rfc1035-4.1.4-2)
 
@@ -355,8 +360,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L229) | unit/verify | unproven |
-| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L169) | unit/verify | unproven |
+| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L234) | unit/verify | unproven |
+| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L174) | unit/verify | unproven |
 
 ### [`RFC1035-4.1.4-3`](#rfc1035-4.1.4-3)
 
@@ -366,8 +371,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232) | unit/verify | unproven |
-| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L208) | unit/verify | unproven |
+| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L237) | unit/verify | unproven |
+| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L213) | unit/verify | unproven |
 
 ### [`RFC1035-4.1.4-4`](#rfc1035-4.1.4-4)
 
@@ -377,8 +382,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L235) | unit/verify | unproven |
-| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L184) | unit/verify | unproven |
+| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L240) | unit/verify | unproven |
+| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L189) | unit/verify | unproven |
 
 ### [`RFC1035-4.1.4-5`](#rfc1035-4.1.4-5)
 
@@ -388,8 +393,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L365) | unit/verify | unproven |
-| positive | [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L345) | unit/verify | unproven |
+| negative | [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L370) | unit/verify | unproven |
+| positive | [`TestRFC1035_InboundCompressionPointerUnderstood`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L350) | unit/verify | unproven |
 
 ### [`RFC1035-4.2-1`](#rfc1035-4.2-1)
 
@@ -444,8 +449,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L445) | unit/verify | unproven |
-| positive | [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L421) | unit/verify | unproven |
+| negative | [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L450) | unit/verify | unproven |
+| positive | [`TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L426) | unit/verify | unproven |
 
 ### [`RFC1035-6.4-1`](#rfc1035-6.4-1)
 

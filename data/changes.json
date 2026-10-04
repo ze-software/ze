@@ -1,5 +1,82 @@
 [
   {
+    "slug": "2026-09-28",
+    "intro": "A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section.\n\nThe release queue closed the week at 213 required work items and 221 nice-to-have, against 191 and 219 at the start. 24 items joined and none left. Eleven of the required additions are defects found this week, and seven more split the RFC fix work by area. The rest are update authenticity, an SRv6 forwarding path and two tooling items. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
+      },
+      {
+        "label": "BFD",
+        "category": "routing",
+        "key": "BFD"
+      },
+      {
+        "label": "LDP",
+        "category": "routing",
+        "key": "LDP"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "PPP",
+        "category": "services",
+        "key": "PPP"
+      },
+      {
+        "label": "RADIUS",
+        "category": "services",
+        "key": "RADIUS"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "RSVP-TE",
+        "category": "routing",
+        "key": "RSVP-TE"
+      },
+      {
+        "label": "Flow Export",
+        "category": "observe",
+        "key": "Flow Export"
+      },
+      {
+        "label": "API",
+        "category": "automate",
+        "key": "API"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-09-21",
     "intro": "Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end.\n\nThe release queue closed the week at 191 required work items and 219 nice-to-have, against 157 and 183 at the start. 74 items joined and 4 left. Almost everything that joined is a defect or a missing behavior found by reading the RFCs end to end. Three of the four that left are the backup and restore work below. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/",
     "is_draft": false,

@@ -487,7 +487,7 @@ Implemented and tested, still waiting for production evidence.
 *platform / Experimental* -- `PXE` `ISO`
 
 - **PXE** bare-metal provisioning
-- Installer **ISO** media
+- Current amd64 installation **ISO under 150 MB**
 - Local **systemd** install and uninstall
 
 [Learn more](https://ze-software.net/guides/ze-install/)

@@ -13,7 +13,8 @@ what Ze has
 | Tested both ways | 21.1% | 4 of 19 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 15.8% | 3 of 19 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 19 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Partial proof; remaining gap | 0.0% | 0 of 19 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 53.3% | 8 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,9 +35,8 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 5.3% | 1 of 19 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 6 | of 19 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,12 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -67,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 12 |
-| Tagged units | 12 |
+| Test tags | 15 |
+| Tagged units | 15 |
 | Recorded audit verdicts | 6 |
-| Discrimination records | 0 |
+| Discrimination records | 8 |
 | Summary | `rfc/short/rfc7858.md` |
 | Requirement shard | `rfc/requirements/rfc7858.md` |
 | RFC text | `rfc/full/rfc7858.txt` |
@@ -99,32 +100,33 @@ One MUST NOT gap ([`RFC7858-3.1-3`](#rfc7858-3.1-3)): ze does not reject a DoT l
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 4 | one part of the gated population |
-| Annotated instead of tested | 15 | one part of the gated population |
+| Annotated (including scoped evidence) | 15 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **19** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`RFC7858-3.1-5`](#rfc7858-3.1-5), [`RFC7858-3.1-6`](#rfc7858-3.1-6), [`RFC7858-3.1-8`](#rfc7858-3.1-8), [`RFC7858-8-1`](#rfc7858-8-1)
 
-**Annotated instead of tested (15):** [`RFC7858-3.1-1`](#rfc7858-3.1-1), [`RFC7858-3.1-2`](#rfc7858-3.1-2), [`RFC7858-3.1-3`](#rfc7858-3.1-3), [`RFC7858-3.1-7`](#rfc7858-3.1-7), [`RFC7858-3.3-1`](#rfc7858-3.3-1), [`RFC7858-3.3-4`](#rfc7858-3.3-4), [`RFC7858-3.3-5`](#rfc7858-3.3-5), [`RFC7858-3.4-5`](#rfc7858-3.4-5), [`RFC7858-3.4-7`](#rfc7858-3.4-7), [`RFC7858-3.4-8`](#rfc7858-3.4-8), [`RFC7858-3.4-9`](#rfc7858-3.4-9), [`RFC7858-4.2-4`](#rfc7858-4.2-4), [`RFC7858-4.2-5`](#rfc7858-4.2-5), [`RFC7858-4.2-6`](#rfc7858-4.2-6), [`RFC7858-4.2-7`](#rfc7858-4.2-7)
+**Annotated (including scoped evidence) (15):** [`RFC7858-3.1-1`](#rfc7858-3.1-1), [`RFC7858-3.1-2`](#rfc7858-3.1-2), [`RFC7858-3.1-3`](#rfc7858-3.1-3), [`RFC7858-3.1-7`](#rfc7858-3.1-7), [`RFC7858-3.3-1`](#rfc7858-3.3-1), [`RFC7858-3.3-4`](#rfc7858-3.3-4), [`RFC7858-3.3-5`](#rfc7858-3.3-5), [`RFC7858-3.4-5`](#rfc7858-3.4-5), [`RFC7858-3.4-7`](#rfc7858-3.4-7), [`RFC7858-3.4-8`](#rfc7858-3.4-8), [`RFC7858-3.4-9`](#rfc7858-3.4-9), [`RFC7858-4.2-4`](#rfc7858-4.2-4), [`RFC7858-4.2-5`](#rfc7858-4.2-5), [`RFC7858-4.2-6`](#rfc7858-4.2-6), [`RFC7858-4.2-7`](#rfc7858-4.2-7)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7858-3.1-1` | By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use a port other than 853 for DNS over TLS. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L377). **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52). **negative:** no negative test. **{single-polarity}:** affirmative listen mandate. Positive proof: a DoT listener accepts a TCP+TLS connection and answers (internal/core/dnsserver/secure_test.go TestDoTListener) with the default DoT port pinned to 853 (internal/core/dnsserver/secure.go:39, TestDefaultSecureConfig). A "must listen and accept" obligation has no rejecting counter-behavior to assert as a negative. |
+| `RFC7858-3.1-1` | By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use a port other than 853 for DNS over TLS. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L379). **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52). **negative:** no negative test. **{single-polarity}:** affirmative listen mandate. Positive proof: a DoT listener accepts a TCP+TLS connection and answers (internal/core/dnsserver/secure_test.go TestDoTListener) with the default DoT port pinned to 853 (internal/core/dnsserver/secure.go:39, TestDefaultSecureConfig). A "must listen and accept" obligation has no rejecting counter-behavior to assert as a negative. |
 | `RFC7858-3.1-2` | By default, a DNS client desiring privacy from DNS over TLS from a particular server MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement with its server to use a port other than port 853 for DNS over TLS. (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DoT server only, not a DoT client. The querying resolver initiates the connection; ze's only DoT code path is the server listener bindDoT (internal/core/dnsserver/secure.go:307), and dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
 | `RFC7858-3.1-3` | Such another port MUST NOT be port 53 (§3.1) | MUST NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not enforce this. ParseSecureLeaves validates the DoT listen-port only as 1..65535 (internal/core/dnsserver/secure.go:166-172) and does not reject 53, so an operator can configure the DoT listener on port 53. |
-| `RFC7858-3.1-5` | The first data exchange on this TCP connection MUST be the client and server initiating a TLS handshake using the procedure described in [RFC5246]. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L632) |
-| `RFC7858-3.1-6` | DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L633) |
+| `RFC7858-3.1-5` | The first data exchange on this TCP connection MUST be the client and server initiating a TLS handshake using the procedure described in [RFC5246]. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L642) |
+| `RFC7858-3.1-6` | DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L643) |
 | `RFC7858-3.1-7` | DNS clients MUST NOT send and DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | MUST NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** constrains a DoT client's send behavior; ze is a DoT server only (internal/core/dnsserver/secure.go:307 bindDoT) and issues no DoT queries. The server-side counterpart (do not respond to cleartext on the DoT port) is RFC7858-3.1-8. |
-| `RFC7858-3.1-8` | DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L634) |
+| `RFC7858-3.1-8` | DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L644) |
 | `RFC7858-3.3-1` | All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of [RFC1035]. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56). **negative:** no negative test. **{single-polarity}:** the RFC 1035 4.2.2 two-octet length-prefixed framing is provided by the miekg/dns Server ze hands the TLS listener to (internal/core/dnsserver/secure.go:314-315). A successful DoT round trip (internal/core/dnsserver/secure_test.go TestDoTListener) proves conformant framing; ze has no code path that emits non-length-prefixed framing to exercise as a negative. |
 | `RFC7858-3.3-4` | Since pipelined responses can arrive out of order, clients MUST match responses to outstanding queries on the same TLS connection using the Message ID. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client obligation to match pipelined responses to outstanding queries; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries. dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
 | `RFC7858-3.3-5` | If the response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client response-matching obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries to match responses against. |
-| `RFC7858-3.4-5` | Clients and servers that keep idle connections open MUST be robust to termination of idle connection by either party. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestDoTRobustToIdleConnectionClose`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L708). **negative:** no negative test. **{single-polarity}:** server-side liveness property. Positive proof: after a DoT client abruptly closes an idle connection the server keeps serving and answers a fresh connection (internal/core/dnsserver/secure_test.go TestDoTRobustToIdleConnectionClose). "Remains robust" has no failure polarity to assert as a negative. |
+| `RFC7858-3.4-5` | Clients and servers that keep idle connections open MUST be robust to termination of idle connection by either party. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestDoTRobustToIdleConnectionClose`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L718). **positive:** `unit/verify` [`TestRFC7858ServerIdleCloseLeavesTheServerServing`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_idle_close_test.go#L29). **negative:** no negative test. **{single-polarity}:** server-side liveness property. Positive proof, one per party: after a DoT client abruptly closes an idle connection the server keeps serving and answers a fresh connection (internal/core/dnsserver/secure_test.go TestDoTRobustToIdleConnectionClose), and after the server itself closes an idle connection it answers a fresh one (internal/core/dnsserver/rfc7858_idle_close_test.go TestRFC7858ServerIdleCloseLeavesTheServerServing). Ze runs no DoT client. "Remains robust" has no failure polarity to assert as a negative. |
 | `RFC7858-3.4-7` | As with current DNS over TCP, clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries. (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client reconnect/retry obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and opens no client connections to reestablish. The server-side robustness counterpart is RFC7858-3.4-5. |
 | `RFC7858-3.4-8` | when using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DoT listener does not use TCP Fast Open. bindDoT opens an ordinary TCP socket via lc.Listen (internal/core/dnsserver/secure.go:308-309) with no TCP_FASTOPEN, so the TFO-specific handshake obligation has no bearing. |
 | `RFC7858-3.4-9` | when using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (cleartext DNS MUST NOT be exchanged). (§3.4) | MUST NOT | 3.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DoT listener does not use TCP Fast Open (internal/core/dnsserver/secure.go:308-309 opens a plain TCP socket, no TCP_FASTOPEN), so the TFO-specific cleartext prohibition has no bearing. |
@@ -132,7 +134,7 @@ One MUST NOT gap ([`RFC7858-3.1-3`](#rfc7858-3.1-3)): ze does not reject a DoT l
 | `RFC7858-4.2-5` | Otherwise, the client MUST treat the SPKI validation failure as a non-recoverable error. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client out-of-band key-pinning obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and pins no server SPKI. Client authentication policy is the querying resolver's concern. |
 | `RFC7858-4.2-6` | Implementations of this privacy profile MUST support the calculation of a fingerprint as the SHA-256 [RFC6234] hash of the DER-encoded ASN.1 representation of the SPKI of an X.509 certificate. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client key-pinned-profile obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side SPKI pinning profile. |
 | `RFC7858-4.2-7` | Implementations MUST support the representation of a SHA-256 fingerprint as a base64-encoded character string [RFC4648]. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client key-pinning representation obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side pin storage. |
-| `RFC7858-8-1` | Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of [BCP195]. (§8) | MUST | 8 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57). **negative:** `unit/verify` [`TestDoTRejectsBelowTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L684) |
+| `RFC7858-8-1` | Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of [BCP195]. (§8) | MUST | 8 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57). **positive:** `unit/verify` [`TestRFC7858DoTNegotiatesOnlyBCP195Suites`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_bcp195_test.go#L24). **negative:** `unit/verify` [`TestDoTRejectsBelowTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L694). **negative:** `unit/verify` [`TestRFC7858DoTNegotiatesOnlyBCP195Suites`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_bcp195_test.go#L25) |
 | `RFC7858-3.1-9` | DNS clients SHOULD remember server IP addresses that don't support DNS over TLS, including timeouts, connection refusals, and TLS handshake failures, and not request DNS over TLS from them for a reasonable period (such as one hour per server). (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7858-3.3-2` | For reasons of efficiency, DNS clients and servers SHOULD pass the two-octet length field, and the message described by that length field, to the TCP layer at the same time (e.g., in a single "write" system call) to make it more likely that all the data will be transmitted in a single TCP segment ([RFC7766], Section 8). (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7858-3.3-3` | In order to minimize latency, clients SHOULD pipeline multiple queries over a TLS session. (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
@@ -178,12 +180,12 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use a port other than 853 for DNS over TLS. (§3.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: (1) listen for and accept TCP connections, (2) on port 853 by default. Clause 1: a server that refused the TLS connection makes secure_test.go TestDoTListener fail at t.Fatalf("DoT exchange"). Clause 2: TestDefaultSecureConfig asserts sc.DoTPort != DefaultDoTPort, comparing the default to its own constant, and TestDoTListener binds a freePort; changing DefaultDoTPort (secure.go:39) to any other value keeps every tagged unit green. No assertion pins the default to 853.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Clause 2 now discriminates: TestDefaultSecureConfig compares the default DoT port with the literal 853 (no longer DefaultDoTPort against itself) and a config enabling tls without listen-port parses to 853; clause 1 stays TestDoTListener (listen, accept, answer). Record: DefaultSecureConfig revert observed red. {single-polarity} holds: a listen-and-accept mandate has no refusal path. Edit to a HEAD test adds assertions only (approval D-15).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L377) | unit/verify | unproven |
-| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52) | unit/verify | unproven |
+| positive | [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L379) | unit/verify | revert, verified |
+| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52) | unit/verify | revert, verified |
 
 ### [`RFC7858-3.1-2`](#rfc7858-3.1-2)
 
@@ -209,7 +211,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L632) | unit/verify | unproven |
+| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L642) | unit/verify | unproven |
 | positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53) | unit/verify | unproven |
 
 ### [`RFC7858-3.1-6`](#rfc7858-3.1-6)
@@ -220,7 +222,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L633) | unit/verify | unproven |
+| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L643) | unit/verify | unproven |
 | positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54) | unit/verify | unproven |
 
 ### [`RFC7858-3.1-7`](#rfc7858-3.1-7)
@@ -239,7 +241,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L634) | unit/verify | unproven |
+| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L644) | unit/verify | unproven |
 | positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55) | unit/verify | unproven |
 
 ### [`RFC7858-3.3-1`](#rfc7858-3.3-1)
@@ -272,11 +274,12 @@ No test carries RFC7858-3.3-5, so no unit is bound to it.
 
 Clients and servers that keep idle connections open MUST be robust to termination of idle connection by either party. (§3.4)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Clauses: robust to termination of an idle connection by (a) the client, (b) the server. (a) TestDoTRobustToIdleConnectionClose closes an idle client connection and fails at t.Fatalf("DoT exchange after idle-connection close") if the server stops answering. (b) No tagged unit makes the server terminate an idle connection (idle timeout or server-side close) and then asserts the server still serves; that half of "either party" has no assertion.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both parties now: client-side close (HEAD TestDoTRobustToIdleConnectionClose) and server-side close (TestRFC7858ServerIdleCloseLeavesTheServerServing: EOF within 16 s of the 8 s idle timeout, then a fresh connection answered). Ze runs no DoT client. Record: bindDoT revert observed red. {single-polarity} holds: robustness has no failure input to refuse.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestDoTRobustToIdleConnectionClose`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L708) | unit/verify | unproven |
+| positive | [`TestRFC7858ServerIdleCloseLeavesTheServerServing`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_idle_close_test.go#L29) | unit/verify | revert, verified |
+| positive | [`TestDoTRobustToIdleConnectionClose`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L718) | unit/verify | revert, verified |
 
 ### [`RFC7858-3.4-7`](#rfc7858-3.4-7)
 
@@ -338,12 +341,14 @@ No test carries RFC7858-4.2-7, so no unit is bound to it.
 
 Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of [BCP195]. (§8)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. BCP 195 (RFC 7525) recommendations include the TLS 1.2 floor, no SSL, no NULL / export / RC4 cipher suites, no TLS compression, and secure renegotiation. Only the version floor is asserted: TestDoTRejectsBelowTLS12 fails at t.Fatal("DoT exchange with a TLS 1.1-capped client succeeded") and TestDoTListener proves TLS 1.2 succeeds. No tagged unit offers a forbidden cipher suite (e.g. RC4, NULL, export) or compression and asserts refusal, so a server that negotiated a BCP 195-prohibited suite at TLS 1.2 keeps both units green.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Beyond the HEAD TLS 1.2 floor: TestRFC7858DoTNegotiatesOnlyBCP195Suites drives the DoT listener built from selfcert.NewTLSConfig (the production constructor) with a hand-built TLS 1.2 ClientHello (internal/test/tlsprobe), ECDSA and RSA certs: ECDHE AES-128-GCM selected with null compression and renegotiation_info, also after every forbidden suite; each NULL/RC4/export/DES/3DES/static-RSA/static-ECDH/DHE suite alone never selected; DEFLATE alone refused. The good suite in the same hello shape is the control, so refusals are about the suite. Records: NewTLSConfig revert both polarities; an overlay adding RC4/3DES/static RSA turned the negative red for 7 suites. Not asserted: RFC 9325 SHOULD-level items outside negotiation (session tickets, EMS).
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDoTRejectsBelowTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L684) | unit/verify | unproven |
-| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57) | unit/verify | unproven |
+| negative | [`TestRFC7858DoTNegotiatesOnlyBCP195Suites`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_bcp195_test.go#L25) | unit/verify | revert, verified |
+| negative | [`TestDoTRejectsBelowTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L694) | unit/verify | revert, verified |
+| positive | [`TestRFC7858DoTNegotiatesOnlyBCP195Suites`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_bcp195_test.go#L24) | unit/verify | revert, verified |
+| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

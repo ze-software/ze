@@ -13,6 +13,7 @@ what Ze has
 | Tested both ways | 100.0% | 4 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 47.8% | 11 of 23 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
@@ -36,7 +37,7 @@ what Ze owes
 |---|---:|---|---|
 | Audit verdicts | 7 | of 4 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -47,6 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
+| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -96,9 +98,10 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 4 | one part of the gated population |
-| Annotated instead of tested | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
+| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **4** | every gated MUST falls in exactly one bucket above |
@@ -114,8 +117,8 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 | `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3` | An AFI/SAFI tuple MUST be ignored if the same tuple was not received in the ADD-PATH capability. (§3) | MUST | 3 - PATHS-LIMIT Capability | **positive:** `unit/verify` [`TestNegotiatePathsLimitPartialAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L670). **negative:** `unit/verify` [`TestNegotiatePathsLimitPartialAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L671) |
 | `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4` | If more than one tuple is received for the same AFI/SAFI pair, only the first tuple should be considered.  All others MUST be ignored. (§3) | MUST | 3 - PATHS-LIMIT Capability | **positive:** `unit/verify` [`TestParsePathsLimitDuplicateFirstWins`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L913). **negative:** `unit/verify` [`TestParsePathsLimitDuplicateFirstWins`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L914) |
 | `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5` | If the received Paths Limit is zero (0), the tuple SHOULD be ignored. (§3) | SHOULD | 3 - PATHS-LIMIT Capability | **positive:** `unit/verify` [`TestNegotiatePathsLimitDuplicateEntries`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L745). **positive:** `unit/verify` [`TestParsePathsLimitSkipZero`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L881). **negative:** `unit/verify` [`TestNegotiatePathsLimitDuplicateEntries`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L746). **negative:** `unit/verify` [`TestParsePathsLimitSkipZero`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L882). **negative:** `unit/verify` [`TestParsePathsLimitZeroFirst`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L941) |
-| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6` | A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability. (§3) | SHOULD | 3 - PATHS-LIMIT Capability | **positive:** `unit/verify` [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L181). **positive:** `unit/verify` [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L138). **negative:** `unit/verify` [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L182). **negative:** `unit/verify` [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L139). **positive:** `functional/verify` [`paths-limit-live.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9). **negative:** `functional/verify` [`paths-limit-live.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10) |
-| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7` | An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender. (§3) | SHOULD | 3 - PATHS-LIMIT Capability | **positive:** `unit/verify` [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L13). **positive:** `unit/verify` [`TestParsePeerCapabilityPathsLimit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L564). **negative:** `unit/verify` [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L14) |
+| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6` | A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability. (§3) | SHOULD | 3 - PATHS-LIMIT Capability | **positive:** `unit/verify` [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L181). **positive:** `unit/verify` [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L138). **negative:** `unit/verify` [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L182). **negative:** `unit/verify` [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L139). **positive:** `functional/verify` [`paths-limit-live.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9). **negative:** `functional/verify` [`paths-limit-live.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10) |
+| `DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7` | An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender. (§3) | SHOULD | 3 - PATHS-LIMIT Capability | **positive:** `unit/verify` [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go#L13). **positive:** `unit/verify` [`TestParsePeerCapabilityPathsLimit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L564). **negative:** `unit/verify` [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go#L14) |
 
 ## Gaps and untested MUSTs
 
@@ -192,11 +195,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L182) | unit/verify | mutant, verified |
-| negative | [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L139) | unit/verify | mutant, verified |
+| negative | [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L182) | unit/verify | mutant, verified |
+| negative | [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L139) | unit/verify | mutant, verified |
 | negative | [`paths-limit-live.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10) | functional/verify | revert, verified |
-| positive | [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L181) | unit/verify | mutant, verified |
-| positive | [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L138) | unit/verify | mutant, verified |
+| positive | [`TestPathsLimitForwardWritersShareState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L181) | unit/verify | mutant, verified |
+| positive | [`TestPathsLimitSessionAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L138) | unit/verify | mutant, verified |
 | positive | [`paths-limit-live.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9) | functional/verify | revert, verified |
 
 ### [`DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7`](#draft-abraitis-idr-addpath-paths-limit-3-7)
@@ -207,9 +210,9 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L14) | unit/verify | unproven |
-| positive | [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L13) | unit/verify | unproven |
+| negative | [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go#L14) | unit/verify | unproven |
 | positive | [`TestParsePeerCapabilityPathsLimit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L564) | unit/verify | unproven |
+| positive | [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go#L13) | unit/verify | unproven |
 
 ## Extraction sign-off
 

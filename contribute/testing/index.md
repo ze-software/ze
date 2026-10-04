@@ -72,6 +72,35 @@ round-trip.
 ./le verify current mode full
 ```
 
+#### Fixture environment isolation
+
+Native Go test commands remove the launching le's `ze.repo.root` and
+`ze.le.build.name` values under every case/dot/underscore spelling. The test
+process discovers its checkout from its working directory; a fixture can then
+set its own root without an inherited canonical spelling winning after a cache
+reset. Toolchain caches, tags and unrelated environment settings remain intact.
+Go test callers using `gotoolchain.Toolchain.Environment` MUST set
+`EnvOptions.Test`, including fuzz and benchmark runs. Ordinary builds and
+production commands retain operator checkout overrides and named-build checks.
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- EnvOptions, Environment -->
+
+Direct `./le job run ... command go test ...` children use the same isolation
+at the process boundary, including Go's optional leading `-C` directory option.
+The admission process retains its root and job identity; only the test child's
+checkout/build identity is removed.
+<!-- source: internal/le/job/process.go -- commandEnvironment, RunProcess -->
+<!-- source: internal/le/job/job.go -- Admission.stream -->
+
+Tests that invoke fixture binaries remove inherited launcher identity before
+adding their explicit child environment. The production named-build refusal is
+not disabled: a child given an explicit mismatching identity still fails.
+Tests that run git-changing actions MUST verify the resolved root is their own
+temporary fixture before invoking those actions. They MUST NOT use the
+developer's checkout or linked worktrees as mutation fixtures.
+<!-- source: internal/le/worktree/actions_test.go -- useCheckout -->
+<!-- source: cmd/ze/root_launcher_test.go -- launcherEnv -->
+<!-- source: cmd/ze/ze_le_personality_test.go -- invokePersonality -->
+
 ### Functional tests (`.ci` files)
 
 These spin up real Ze processes and test behavior end-to-end: does the config
