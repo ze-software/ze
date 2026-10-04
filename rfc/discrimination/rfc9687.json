@@ -38,7 +38,7 @@
       "rid": "RFC9687-4.3-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9687_rib_release_test.go::TestRFC9687Event29ReleasesTheLivePeersRIB",
-      "unit-sha": "69e400f11f72434e",
+      "unit-sha": "7f694bc1b691fe6e",
       "claim-sha": "72e61e2dc7102297",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",

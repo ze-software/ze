@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-04",
   "requirements": {
     "RFC9687-4.3-1": {
       "note": "Forbidden behaviour: a SendHoldTimer not started by the OpenConfirm KeepAliveMsg, or started before it. TestRFC9687SendHoldTimerArmedOnEstablished asserts p.armed() true once Event 26 made the session Established; TestRFC9687SendHoldTimerNotArmedBeforeEstablished asserts sendHoldDeadline zero while still in OpenConfirm. The 'if the SendHoldTime is non-zero' clause has no violating input: sendHoldDuration (session_write.go) returns the configured value when positive and otherwise max(sendHoldTimerMin, 2*ReceiveHoldTime), so the effective SendHoldTime is never zero.",
@@ -45,21 +45,23 @@
       "verdict": "enforced"
     },
     "RFC9687-4.3-3": {
-      "note": "Forbidden: BGP resources kept after Event 29. TestRFC9687Event29ReleasesHoldTimerAndConnection asserts HoldTimer and KeepaliveTimer stopped (and the connection gone) after SendHoldTimer_Expires, all held one nanosecond short; the connection half is really the separate 'drops the TCP connection' item. Missing: the routes learned over the connection, released through Peer state and the RIB plugin; no tagged unit goes red if they stay installed after Event 29.",
+      "note": "RFC 9687 section 4.3 adds the Event 29 action list: if SendHoldTimer_Expires occurs, the local system releases all BGP resources, drops TCP and changes to Idle; it also says the SendHoldTimer is stopped following any transition out of Established as part of the release-all-resources action. Read all currently tagged units. TestRFC9687Event29ReleasesTheLivePeersRIB establishes a real Peer through a borrowed plugin server, installs two wire-learned routes in the running bgp-rib plugin before advancing the fake clock, and requires both routes and the peer snapshot entry to disappear, the old session to detach and become Idle, its connection to become nil, and the wire to contain the Send Hold Timer Expired notification. It therefore closes the prior verdict's specific missing RIB-release proof and distinguishes an unrelated teardown. TestRFC9687Event29ReleasesHoldTimerAndConnection requires live Hold/Keepalive timers and TCP one nanosecond before expiry and their release after expiry. TestRFC9687SendHoldExpiryRunsTheEvent29ActionList and TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact additionally contrast SendHold/ConnectRetry resources across the expiry boundary. Read sendHoldTimerExpired and the RIB handleStructuredState down path, which releases and deletes peer storage. The live test proves observable resource removal, not allocator internals or every optional plugin configuration. The startup change waits for the borrowed server's real startup completion before starting peers; it manufactures no DOWN event and removes no assertion. Renewal of its unit-changed positive discrimination record remains required; no new mutant run is claimed.",
       "requirement_sha": "83340d1ef8b36846",
       "tests": {
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "c0faef65febf2aca",
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_rib_release_test.go::TestRFC9687Event29ReleasesTheLivePeersRIB": "2316215f5915829c",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "fc3f1c5978108b49",
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "fc3f1c5978108b49",
+        "internal/component/bgp/reactor/rfc9687_rib_release_test.go::TestRFC9687Event29ReleasesTheLivePeersRIB": "32ffa259631a2f9a",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9687-4.3-4": {
       "note": "Forbidden behaviour: ConnectRetryTimer left running after Event 29. The positive unit arms it as a precondition and asserts IsConnectRetryTimerRunning false after the expiry; the negative asserts it still runs inside the SendHoldTime.",

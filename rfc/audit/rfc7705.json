@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-04",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7705-3.3-1": {
@@ -16,17 +16,17 @@
       "verdict": "enforced"
     },
     "RFC7705-3.3-2": {
-      "note": "Forbidden: appending the Local AS on a route from a No Prepend Inbound peer (a) when installing the route and (b) when advertising it to iBGP neighbors. (b) is asserted: TestLocalASNoPrependLeavesEveryOutboundPathAlone requires the iBGP neighbor 10.0.0.2 to receive exactly [65002]. (a) has no assertion: no tagged unit reads the installed route. The negative arm reads the outbound path of another destination, which the option does not govern, and never shows the option changing anything: ze performs no inbound Local AS append at all (RFC7705-3.3-9 is unperformed), so the iBGP assertion passes with or without the option.",
+      "note": "Rejudged against RFC 7705 section 3.3: the No Prepend Inbound sentence forbids adding Local AS both on installation and on advertisement to iBGP; the sentence's native-eBGP global-AS obligation is separately RFC7705-3.3-3, not renewed here. TestRFC7705NoPrependInstalledAndAdvertised now sends real inbound UPDATEs, reads the running bgp-rib snapshot and captures the internal neighbor's wire; both exact AS_PATH comparisons reject any added legacy ASN. Its second input already contains the legacy ASN and rejects duplicate insertion or stripping, independently of the first input. This remedies the old verdict's missing installed-route assertion. Absence of the advisory default inbound prepend is not a violation of this conditional MUST NOT and is not credited as implemented here. The startup commit changes only spacing in the tagged body and waits for plugin startup in lowLiveRouter; neither alters inputs or assertions. Read handleReceivedStructured and publishBase: installed and published attributes are real production results, not values injected by the test. Existing producer-changed discrimination records still require renewal; this semantic judgment does not claim that renewal has run.",
       "requirement_sha": "435fb533d22e9143",
       "tests": {
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone": "4f0b9f702a78801e",
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone#2": "4f0b9f702a78801e"
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised": "53d72344f170bacc",
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised#2": "53d72344f170bacc"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone": "a6106fe1dc40c546",
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone#2": "a6106fe1dc40c546"
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised": "5b39ea89b1878102",
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised#2": "5b39ea89b1878102"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7705-3.3-3": {
       "note": "Forbidden: dropping the globally configured ASN toward a native eBGP neighbor for a route learned from a No Prepend Inbound peer. TestLocalASNoPrependLeavesEveryOutboundPathAlone asserts the native eBGP neighbor 10.0.0.3 receives exactly [65000 65002] (assert.Equal on the forwarded AS_PATH), red if 65000 is not appended. Negative: the iBGP neighbor receives [65002] alone in the same run.",
@@ -111,17 +111,17 @@
       "verdict": "enforced"
     },
     "RFC7705-4.2-4": {
-      "note": "Forbidden: handling UPDATEs sent to or received from the migrating peer as eBGP, or otherwise unlike a native iBGP session under RFC 4271 and RFC 4456. TestMigrationSessionIsIBGP asserts only the classification (IsIBGP, IsEBGP) and localASPrependFor(settings).owed() && IsEBGP(), which is derived from IsEBGP itself. No tagged unit sends or receives an UPDATE on such a session: nothing asserts the absence of an eBGP AS_PATH prepend on the wire, LOCAL_PREF handling, iBGP split horizon, or the RFC 4456 reflection rules.",
+      "note": "RFC 7705 section 4.2 says: In each case, the BGP speaker MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by RFC4271 and RFC4456. TestRFC7705MigrationWireSemantics compares native, retained-AS migration and legacy-AS migration sessions. Real ingress must install a third-party AS_PATH and LOCAL_PREF 231 unchanged; actual reflection must retain them without eBGP prepend and add exact ORIGINATOR_ID and CLUSTER_LIST. The distinct non-client/non-client forwarding case must return an error and emit no wire bytes. That negative case supplies resolved internal source facts, so it proves the forwarding boundary rather than independently proving source classification; the live positive case exercises source classification through isIBGPWith. Reading forwardUpdateSection confirms the destination classification and non-client suppression gate, reflection attributes and production forwarding path. These observations replace the old classification-only proof and address its named missing UPDATE behaviors. The startup commit changes formatting and fixture startup ordering without weakening assertions. Existing unit-changed discrimination records require renewal; no new mutant execution is claimed.",
       "requirement_sha": "c44d77b7a82e5df7",
       "tests": {
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP": "4e9d34dbf686a042",
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP#2": "4e9d34dbf686a042"
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705MigrationWireSemantics": "53d72344f170bacc",
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705MigrationWireSemantics#2": "53d72344f170bacc"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP": "012c128db34a3c67",
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP#2": "012c128db34a3c67"
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705MigrationWireSemantics": "b96e581da280f36e",
+        "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705MigrationWireSemantics#2": "b96e581da280f36e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc7705"

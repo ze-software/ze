@@ -661,37 +661,45 @@ internal/core/ipc/yang/
 
 ### The reactor's startup barrier
 
-A standalone BGP reactor hosts its own plugin server, and it must not validate
-peer families or start peers until that server's plugins have finished their
-startup. Two waits in `Reactor.StartWithContext` hold it there:
-`WaitForPluginStartupComplete`, for the end of every startup phase, and
-`WaitForAPIReady`, for one ready signal from each counted plugin. The server
-releases them through the reactor's `SignalPluginStartupComplete`,
-`AddAPIProcessCount` and `SignalAPIReady`.
+A standalone BGP reactor hosts its own plugin server. Before family validation
+and peer start, `Reactor.StartWithContext` calls `WaitForPluginStartupComplete`
+for the end of startup and `WaitForAPIReady` for the counted plugins' ready
+signals. Both waits retain their timeout and context-cancel exits.
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.StartWithContext -->
+<!-- source: internal/component/bgp/reactor/api_sync.go -- WaitForPluginStartupComplete, WaitForAPIReady -->
 
-**Only a standalone reactor arms the barrier, and it arms it before the server
-it owns starts.** `startAPIServer` calls `SetAPIProcessCount` immediately before
-the server's `StartWithContext`. That call creates the `startupComplete` channel
-and, with explicit plugins, the `apiReady` channel. The server's startup
-goroutine does not exist yet, so no signal can reach a field while it is being
-created. A signal that arrives later closes the channel once; a second
-`SignalPluginStartupComplete`, which an auto-load reload sends, is a no-op.
+Only a standalone reactor calls `SetAPIProcessCount`, immediately before its
+server's `StartWithContext`. This creates `startupComplete` and, with explicit
+plugins, `apiReady` before the server can signal them. `SignalPluginStartupComplete`
+closes `startupComplete` once. A repeated call, including an auto-load reload,
+does not close it again.
 
-**A borrow-mode reactor arms nothing.** The hub constructed and started the
-server before the reactor existed, and the reactor's own engine is one of that
-server's plugins, so waiting for every plugin would wait for itself. Both waits
-are skipped, and `SetAPIProcessCount` is not called. The server keeps calling
-the signal methods, because it cannot tell which reactor mode it serves. In
-borrow mode those calls find no channel, close nothing, and are discarded. Peer
-start in borrow mode follows the coordinator's post-startup callback instead
-(`StartPeers`, `internal/component/bgp/plugin/register.go`).
-
-Arming the barrier in borrow mode would rewrite the channel and its `sync.Once`
-on the reactor's goroutine while the server's goroutine reads them, which is a
-data race that buys no wait.
+A borrow-mode reactor never calls `SetAPIProcessCount` and skips both waits.
+The hub starts the server before its BGP plugin constructs the reactor, so
+waiting for all plugins inside reactor startup would wait for itself.
+`startupComplete` stays nil: an early, late, or repeated
+`SignalPluginStartupComplete` closes nothing. Readiness bookkeeping is separate:
+`AddAPIProcessCount` can still create `apiReady` for a positive count, and
+`SignalAPIReady` can close it. Borrow-mode startup does not wait on that channel.
 <!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.startAPIServer -->
-<!-- source: internal/component/bgp/reactor/api_sync.go -- SetAPIProcessCount -->
-<!-- source: internal/component/bgp/reactor/api_sync.go -- SignalPluginStartupComplete -->
+<!-- source: internal/component/bgp/reactor/api_sync.go -- SetAPIProcessCount, AddAPIProcessCount, SignalAPIReady, SignalPluginStartupComplete -->
+
+The hub's coordinator drops reactor-directed startup signals before
+`SetReactor` attaches the reactor and forwards later signals. This attachment
+order alone does not prove that the server signals completion during reactor
+startup. Borrow-mode peer start follows the coordinator's post-startup callback,
+registered by the BGP plugin after `StartWithContext` returns.
+<!-- source: internal/component/plugin/coordinator.go -- Coordinator.SetReactor, Coordinator.SignalPluginStartupComplete, Coordinator.OnPostStartup -->
+<!-- source: internal/component/bgp/plugin/register.go -- runBGPEngine -->
+
+Calling `SetAPIProcessCount` during borrow-mode startup would rewrite
+`startupComplete` and its `sync.Once` while an attached server can signal them.
+The live borrowed-server tests reproduced that race through `reactorAPIAdapter`.
+Their adapter forwards from server construction, earlier than the hub's
+coordinator. `TestBorrowModeStartArmsNoStartupBarrier` also drives repeated
+signals across reactor startup under the race detector.
+<!-- source: internal/component/bgp/reactor/reactor_shutdown_ownership_test.go -- newBorrowedPluginServer, startBorrowedPeers -->
+<!-- source: internal/component/bgp/reactor/reactor_borrow_startup_barrier_test.go -- TestBorrowModeStartArmsNoStartupBarrier -->
 
 ## Route Injection Flow
 
