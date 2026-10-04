@@ -8,6 +8,9 @@ stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=asn:value=65001
+# The observer waits for eor-sent before checking the monitor API. The peer MUST
+# stay alive after receiving EOR until all API assertions finish.
+option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -57,3 +60,4 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+reject=stderr:pattern=ZE-OBSERVER-FAIL

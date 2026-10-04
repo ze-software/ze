@@ -33,3 +33,21 @@ Check which verb owns the command before editing a YANG file.
 `goconst` reports a repeated string literal across a build-tagged file pair. A
 constant shared by the Linux file and the stub belongs in the file with no
 build tag, where both builds see it.
+
+## Functional test lifecycle
+
+`monitor-system-netlink.ci` checks the dispatch-command contract for the default
+group, the route group, and an invalid group. Its BGP peer also requires the
+exact initial End-of-RIB frame. The observer MUST wait for that peer's
+`eor-sent` counter before a successful return can trigger daemon shutdown;
+otherwise the peer can receive a Cease notification where EOR was expected.
+The peer MUST linger after its wire expectation so the API checks finish
+before teardown.
+
+The wait runs in `Observe`'s scenario worker, not in a startup callback that
+must return before peers start. Plugin readiness permits command dispatch;
+it does not prove that a peer's initial routing update has reached the wire.
+This fixture checks the RPC response, not delivery of kernel events from the
+separate streaming handler.
+<!-- source: internal/test/fixture/plugin_fixture_10.go -- fixture10MonitorSystemNetlink, fixture10WaitEOR -->
+<!-- source: internal/test/fixture/fixture.go -- observeConfigured -->

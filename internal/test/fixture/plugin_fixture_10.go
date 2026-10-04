@@ -339,6 +339,13 @@ func fixture10MonitorPeer(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func fixture10MonitorSystemNetlink(ctx context.Context, plugin *sdk.Plugin) error {
+	// Observe runs this scenario in a worker and returns its post-startup
+	// callback immediately, so waiting here does not hold startup open.
+	// The scenario MUST observe the peer's EOR before any successful return
+	// lets Observe request shutdown; the .ci peer MUST linger for the API checks.
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+		return err
+	}
 	first := fixture10Call(ctx, plugin, "monitor system netlink")
 	if first.err != nil && strings.Contains(first.err.Error(), "not available on this platform") {
 		fmt.Fprintln(os.Stderr, "OK: netlink monitor not available on this platform")
