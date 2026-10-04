@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -103,8 +104,8 @@ func commandEnvironment(argv []string, dir string, environ []string) ([]string, 
 // platform-specific default path. A nonempty OS override already determines
 // the answer; an empty value does not suppress Go's persistent configuration.
 func goTestDefaults(prefix []string, dir string, environ []string) (string, error) {
-	for i := len(environ) - 1; i >= 0; i-- {
-		if value, found := strings.CutPrefix(environ[i], "GOFLAGS="); found {
+	for _, entry := range slices.Backward(environ) {
+		if value, found := strings.CutPrefix(entry, "GOFLAGS="); found {
 			if value != "" {
 				return value, nil
 			}

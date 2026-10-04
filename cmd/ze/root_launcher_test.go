@@ -352,7 +352,15 @@ func main() {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stdin.Close()
+	t.Cleanup(func() {
+		err := stdin.Close()
+		if errors.Is(err, os.ErrClosed) {
+			return
+		}
+		if err != nil {
+			t.Errorf("close first launcher input: %v", err)
+		}
+	})
 	stdout, err := first.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -410,7 +418,15 @@ exec 3>&-
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer secondInput.Close()
+	t.Cleanup(func() {
+		err := secondInput.Close()
+		if errors.Is(err, os.ErrClosed) {
+			return
+		}
+		if err != nil {
+			t.Errorf("close second launcher input: %v", err)
+		}
+	})
 	secondOutput, err := second.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)

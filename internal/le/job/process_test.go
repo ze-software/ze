@@ -132,7 +132,8 @@ func TestGoTestEnvironmentDropsOnlyLauncherIdentity(t *testing.T) {
 		{name: "environment race before positional tail", args: []string{"./fixture", "-v", "positional", "-race=false"}, inherited: "0", flags: "-race", want: "1"},
 	} {
 		t.Run(one.name, func(t *testing.T) {
-			childEnv := append(inherited, "LEJOB_CHECKOUT_PROBE="+root,
+			childEnv := inherited
+			childEnv = append(childEnv, "LEJOB_CHECKOUT_PROBE="+root,
 				"CGO_ENABLED="+one.inherited, "LEJOB_EXPECT_CGO="+one.want,
 				"GOFLAGS=-race", "GOFLAGS="+one.flags, "LEJOB_EXPECT_GOFLAGS="+one.flags,
 				"GOENV=off", "GOTOOLCHAIN=local", "LEJOB_REAL_GO="+realGo,
