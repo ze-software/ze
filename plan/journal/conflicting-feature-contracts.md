@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-04 | - | `Peer.getPluginFamilies`, installed during session setup | The callback returns every family in the process registry, without a peer selector. Source comments identify a conflict between unwanted OPEN families/implicit IPv4 fallback and the intentional auto-advertisement pinned by `test/plugin/flowspec-open-capability.ci`. | Source-traced only; no new wire reproduction. Preserved both behaviors and tests. Resolving the operator-visible policy conflict is separate from startup-race verification. |
