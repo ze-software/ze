@@ -267,7 +267,7 @@ func evpnT2Body(macLen, ipLen byte, ipBytes []byte) []byte {
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
 	mac := []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
-	body := make([]byte, 0, 8+10+4+1+6+1+len(ipBytes))
+	body := make([]byte, 0, 8+10+4+1+6+1+len(ipBytes)+3)
 	body = append(body, rd...)
 	body = append(body, esi...)
 	body = append(body, ethTag...)
@@ -275,6 +275,9 @@ func evpnT2Body(macLen, ipLen byte, ipBytes []byte) []byte {
 	body = append(body, mac...)
 	body = append(body, ipLen)
 	body = append(body, ipBytes...)
+	// RFC 7432 Section 9.2.1: "The MPLS Label1 field is encoded as 3 octets,
+	// where the high-order 20 bits contain the label value."
+	body = append(body, 0x00, 0x01, 0x01)
 	return body
 }
 

@@ -5,7 +5,7 @@
       "rid": "RFC7432-10-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths",
-      "unit-sha": "755608fe34539dfd",
+      "unit-sha": "c509c164495c4b70",
       "claim-sha": "c84d75e5e359141b",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::NewEVPNType2",

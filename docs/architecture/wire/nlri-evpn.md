@@ -87,7 +87,7 @@ propagation (RFC 7606 Sections 3 and 5.3).
 +---------------------------+
 |   Route Type = 2          |  1 octet
 +---------------------------+
-|   Length                  |  1 octet (33-54 depending on IP)
+|   Length                  |  1 octet (33-52 depending on IP and labels)
 +---------------------------+
 |   RD (8 octets)           |
 +---------------------------+
@@ -128,6 +128,11 @@ propagation (RFC 7606 Sections 3 and 5.3).
 # MAClen: 24, MAC: 25-31, IPlen: 31
 # IP: 32+ (0/4/16 bytes), Label: after IP
 ```
+
+The MAC/IP length-field fixtures retain the mandatory first label; their
+malformed cases vary only the advertised address length.
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types_test.go -- evpnT2Body, TestEVPNMACAddressLength, TestEVPNIPAddressLength -->
 
 ### Route Key (for equality)
 
