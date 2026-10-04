@@ -104,9 +104,12 @@ rule, and this page adds only why Ze differs.
 
 ## Lineage
 
-The guide follows TigerStyle, the coding standard of TigerBeetle. It is restated
-for Go, for a routing daemon, and for this repository, and the examples are Ze's
-own.
+The guide is Ze style. It started from TigerStyle, the coding standard of
+TigerBeetle, and restates it for Go, for a routing daemon, and for this
+repository, with Ze's own examples. Ze style also goes further than TigerStyle.
+TigerStyle catches a bad state with an assertion when the program runs. Ze style
+prefers a type that cannot hold the bad state, so the compiler refuses it before
+the program runs ("Types that cannot lie" in the guide).
 
 Source: `https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md`
 

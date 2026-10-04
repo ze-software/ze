@@ -34,7 +34,12 @@ defect alone can produce, never for a state that arrives over a socket.
 |-------------|----------|
 | A programmer error that MUST NOT happen at runtime | `panic("BUG: <what>")` |
 | An operating error that a running system produces | An error return, wrapped with `fmt.Errorf("context: %w", err)` |
-| A design property that holds before the program runs | `var _ Iface = (*T)(nil)`, or a test |
+| A design property that holds before the program runs | A type that cannot hold the bad state, `var _ Iface = (*T)(nil)`, or a test |
+
+**The best check is the one that never runs.** When a type can make a bad state
+impossible to write, use the type and delete the check. A check that runs can be
+forgotten, but a state that cannot be written needs no check. "Types that cannot
+lie" shows the forms.
 
 **Pair the check.** Check each property on two code paths. Validate an
 attribute when it is parsed from the wire, and again when it is written back. A
@@ -94,6 +99,79 @@ type Candidate struct {
 ```
 
 Full rule: `ai/rules/go-standards.md`, "Prefer Typed Numeric Over String".
+
+The four rules below apply to code written from 2026-10-04. Older code does not
+need a rewrite to meet them.
+
+#### One state, one variant
+
+A struct whose fields are valid only in some combinations is a sum type in
+disguise. With `done bool`, `result *T` and `reason string`, a caller can build
+"done with a reason" or "not done with a result", and each of those is a defect
+nobody wrote on purpose. Write one type for each state. Each type holds only the
+data that its state has, and a sealed interface joins them:
+
+```go
+type Outcome interface{ outcome() } // sealed: only this package can add a state
+
+type Pending struct{}
+type Done struct{ Result Route }
+type Failed struct{ Reason error }
+
+func (Pending) outcome() {}
+func (Done) outcome()    {}
+func (Failed) outcome()  {}
+```
+
+The consumer uses a type switch with one arm for each state, and each arm reads
+only that state's data.
+
+#### A switch over a closed set has no default
+
+A switch over a typed enum or a sealed interface lists every value and has no
+`default` arm. When a value is added, every switch that lists the old values
+becomes a place to update. A `default` arm takes the new value without a word,
+and gives it a behavior that nobody chose. A `default` is correct only when the
+set is open, for example a code read from the wire. Its comment then says that
+the set is open.
+
+The `exhaustive` linter accepts a `default` as complete, because older code
+relies on that. So for new code, the reader is the check.
+<!-- source: .golangci.yml -- exhaustive default-signifies-exhaustive -->
+
+#### Validated at construction
+
+A type that carries a validation has an unexported field and one constructor
+that returns `(T, error)`. A plain named type such as `type Email string` lets
+any package write `Email("junk")`, so it guarantees nothing. When the
+constructor is the only way to build a value, the code that receives the value
+does not check it again:
+
+```go
+type HoldTime struct{ seconds uint16 } // zero, or 3 and above
+
+func ParseHoldTime(seconds uint16) (HoldTime, error)
+```
+
+This is not the paired check in "Assertions, in a language that has none". That
+check pairs the read from the wire with the write back to it. It does not
+validate again a value that a type can only hold when the value is valid.
+
+#### One type per lifecycle state
+
+When Ze itself moves a value through a lifecycle, give each state its own type,
+and put an operation only on the state where it is permitted. `Dial` returns a
+`*Conn`. Only `*Conn` has `Send`, so a call to `Send` before `Dial` does not
+compile. A transition takes the old value and returns the new one, so the old
+state cannot be used after the transition.
+
+Go cannot attach a method to one instance of a generic type, so `Conn[Open]` is
+not a choice. Use distinct types.
+
+This rule is only for transitions that Ze controls: setup, builders, and config
+that goes from parsed to validated. A state that a peer changes, for example the
+BGP FSM, is runtime data. A peer can send any message in any state, so the code
+must check the state at runtime and the type cannot carry it.
 
 ### A limit on everything
 
@@ -316,7 +394,7 @@ A finding from these tools names the rule, so the rule is not restated above.
 | Only a named panic | `writeGoPatterns` | A `panic(` in content that holds no panic with a `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix. One allowed panic admits every other panic in the same content, so a peer-reachable panic stays a reader check (see "Assertions, in a language that has none") |
 | No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |
 | No `nil, nil` answer | `nilnil` | A `(pointer, error)` function that returns neither |
-| Every enum value handled | `exhaustive` (a `default` counts) | A `switch` over an enum that skips a value |
+| Every enum value handled | `exhaustive` (a `default` counts, so new code with no `default` is a reader check: see "A switch over a closed set has no default") | A `switch` over an enum that skips a value |
 | A `//nolint` names its linter and its reason | `nolintlint`, `writeGoPatterns` | `//nolint`, or `//nolint:x` with no `// reason` |
 | No legacy logger | `forbidigo`, `writeGoPatterns` | `log.Print*`, `log.Fatal*`, `log.Panic*`: use `slog` |
 | No allocating formatter | `writeGoPatterns` | `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, `strconv.FormatInt`, `strconv.FormatUint`: use `textbuf.Buffer` |
