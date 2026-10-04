@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/3 |
+| Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-10-03 |
+| Updated | 2026-10-04 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -618,8 +618,9 @@ Totals in b3ff2855fb: 26 untagged renamed, 13 untagged marked, 6 mismatches rena
 
 | Field | Value |
 |-------|-------|
-| Artifact | Phase 1, commit e87b8bb205 |
-| `./le spec review check` | not run |
+| Artifact | `tmp/review/rfc-test-file-naming-ff3776cb-ce05-4491-9d8f-ba31bcc36641.md` (22 code files, verdict clean, rounds 10, owner-authorised: Thomas, rounds 7 to 10, 2026-10-03/04) |
+| `./le spec review check` | clean: "OK (22 code files, clean, hashes match)", 2026-10-04 |
+| Final state | 0 BLOCKER, 0 ISSUE open across rounds 1 to 10 after the dispositions below. Round 10's one ISSUE (R10-1) is fixed by 49039f53bb, a comment and doc narrowing only; that fix was written by the closure agent and has had no independent read of its own, which the main thread owes or waives |
 | Rounds | 10, with rounds 7 to 10 authorised by the owner (Thomas, 2026-10-03/04) (round 10 scope: the round 9 fixes in 3a97549349; round 9 scope: the round 8 fixes in 981bdeb19f; round 8 scope: the round 7 fixes in b892cd4e03; round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
@@ -847,3 +848,131 @@ Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` tr
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-rfc-test-file-naming.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1 (e87b8bb205, review fixes 150892523b, 14d6771780): `./le rfc check`'s baseline follows a byte-pure rename (`exactRenamesSince`, `coversAt` in `internal/le/rfc/check_baseline.go`); the verb `./le rfc rename` (`renameFiles`, `planRename`, `applyRename`, `proposeRenames` in `internal/le/rfc/rename.go`, registered in `internal/le/rfc/actions.go`); the naming predicate (`stemPrefix`, `stemOfFileName`, `judgeTestFileName`, `checkTestFileNames` in `internal/le/rfc/names.go`); the citation grammar as the leaf `internal/le/doc/citation` (`Paths`, later `Policed`, `Excluded`, `CorpusGlobs`).
+- Phase 2 (32 commits, table above): 505 `_test.go` renames, every one R100 in `git show -M`, with their discrimination and audit keys and citations rewritten by the tool; no commit carries an `RFC-approved:` trailer.
+- Phase 3 (b3ff2855fb, review fixes d6118e8d09): `checkTestFileNames` wired into `check` (`internal/le/rfc/check.go`), 32 more R100 renames and 9 marker comments over the untagged and mismatched files, the rule point `ai/rules/points/testing/rfc-tagged-tests-blocking/name-a-single-rfc-test-file-for-its-rfc.md`.
+- Review rounds 7 to 10 (b892cd4e03, 981bdeb19f, 3a97549349, 49039f53bb): one refusal predicate, `pairRefusals`, shared by `refusePair`, `proposeRenames` and `repairBlocked`, and the page and comments narrowed to what it sees.
+
+### Bugs Found/Fixed
+- Inner stem doubled in proposed names (D-1, fd31c539ce): `TestJudgeTestFileNameDropsTheInnerStem`.
+- Rename rewrote unpoliced records (D-2, D-3): `TestRenameLeavesUnpolicedRecordsUntouched`, `TestPolicedKeepsCorpusFilesUnderRecordTrees`.
+- Offered or proposed targets the rename refuses (R7-1, R8-1, R9-1): `TestCheckTestFileNamesNeverSuggestsARefusedTarget`, `TestRenameProposeLeavesOutPlatformMovingTarget`, `TestRenameProposeLeavesOutEditedSource`.
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md`: rename following, the `./le rfc rename` section, "Test file names", anchored `<!-- source: internal/le/rfc/names.go -- ... -->` and `<!-- source: internal/le/rfc/rename.go -- ... -->`.
+- `docs/contributing/rfc-implementation-guide.md` line 603 points at "Test file names"; `docs/architecture/core-design.md` line 210 names `./le rfc rename` among the Go writers.
+- `ai/rules/testing.md` renders the directive (line 57); `./le ai rules lint`: "32 rule file(s) conform", `./le ai rules render-check`: "32 rules are fresh".
+
+### Deviations from Plan
+- The research counted 509 single-stem files to rename; the tree held 505 Phase 2 renames plus 32 in Phase 3 by the time each ran, because other sessions added and renamed files meanwhile, and three Phase 2 renames were re-renames of the D-1 doubled names (6194de918a).
+- Review ran ten rounds; rounds 7 to 10 were authorised by the owner.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Each review fix routed one more refusal through a shared predicate and left the rest behind (R7-1, R8-1, R9-1) | The class closes only when every refusal one pair can draw lives in one predicate | Rounds 7 to 9 | `pairRefusals`; lesson in `plan/learned/028-one-predicate-for-every-refusal.md` |
+| approach | Prose claimed the predicate covered every refusal of a batch (R10-1) | Evidence-record refusals are judged by the batch rewrite alone | Round 10 probe | Text narrowed, 49039f53bb |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| (a) RFC-named file carries a tag or the marker | Done | `internal/le/rfc/names.go` `judgeTestFileName` | |
+| (b) single-stem file named for its RFC, existing files renamed | Done | Phase 2 commits, b3ff2855fb | |
+| (c) enforced inside `./le rfc check` | Done | `internal/le/rfc/check.go` line 455 | |
+| (d) rule point | Done | `ai/rules/points/testing/rfc-tagged-tests-blocking/name-a-single-rfc-test-file-for-its-rfc.md` | |
+| (e) tree repaired, check arms green | Done | whole-tree run 2026-10-04: 0 naming findings | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-2, AC-3 | Done | `TestCheckOwesNothingForBytePureRename`, `TestCheckBacklogFollowsBytePureRename`, `TestCheckOwesAgainWhenRenameChangesOneByte`, `TestCheckOwesAgainWhenRenameRewritesTheFile` | |
+| AC-4 to AC-10, AC-9b | Done | the `rename_test.go` tests of the TDD plan, `TestRFCActionsRenameThroughAnswer` | |
+| AC-11 to AC-17 | Done | the `names_test.go` tests of the TDD plan | |
+| AC-18 | Done | 505 R100 renames over the 32 Phase 2 commits, 0 `RFC-approved:` trailers in `0a32d2fa12^..6dbb2272f6` | |
+| AC-19 | Done | `./le rfc check` 2026-10-04: 0 naming findings | |
+| AC-20 | Done | `ai/rules/testing.md` line 57; rules lint and render-check pass | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every row of the Unit Tests table | Done | `internal/le/rfc/`, `internal/le/doc/` | a `grep "func <name>("` over `internal/le` finds each one |
+| Functional: whole-tree `./le rfc check`, real-tree `./le rfc rename` | Done | Phase 2 and 3 commits | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create, all eight | Done | ls below |
+| Files to Modify | Done | `ai/rationale/testing.md` and the regenerated rule files carried by b3ff2855fb |
+
+### Audit Summary
+- **Total items:** 5 requirements, 21 ACs
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, the rename counts (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A file named for an RFC carries a tag for it or the marker (a) | functional, real tree | `./le rfc check` over the whole tree, 2026-10-04: 0 naming findings (`checkTestFileNames`, `internal/le/rfc/check.go` line 455); 9 files carry the marker with a reason |
+| A single-stem file is named for its RFC, existing files renamed (b) | repository evidence | 505 R100 renames in the 32 Phase 2 commits and 32 R100 in b3ff2855fb, keys and citations rewritten, no trailer; `./le rfc rename propose` over the tree wrote 0 pairs after 6dbb2272f6 |
+| Enforced inside `./le rfc check` (c) | unit + wiring | `TestCheckReportsTestFileNameFindings` drives `check`; focused run 2026-10-04: `ok internal/le/rfc 13.710s`, `ok internal/le/doc/citation 0.253s` |
+| A rule point states it (d) | render | `ai/rules/testing.md` line 57; `./le ai rules lint` and `render-check` pass |
+| The tree is repaired so the check arms green (e) | functional, real tree | same whole-tree run: 0 naming findings; its 143 other violations predate and are outside this spec |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every requirement and AC is done | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/rfc/names.go`, `names_test.go`, `rename.go`, `rename_test.go`, `check_rename_baseline_test.go` | yes | `ls` 2026-10-04: 19K, 21K, 38K, 34K, 11K |
+| `internal/le/doc/citation/citation.go`, `citation_test.go`, `internal/le/doc/check/citation_test.go` | yes | `ls` 2026-10-04 |
+| the rule point file | yes | `ls` 2026-10-04: 986 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-17 | the TDD tests pass | `go test ./internal/le/rfc/ ./internal/le/doc/citation/ -run 'Rename\|TestCheckTestFileNames\|...'` under `./le job run`, 2026-10-04: both `ok` |
+| AC-18 | byte-pure Phase 2 | `git show -M --name-status` per commit: 505 R100; 0 `RFC-approved:` trailers |
+| AC-19 | armed and green | `grep -n checkTestFileNames internal/le/rfc/check.go`: line 455; whole-tree `./le rfc check`: 0 naming findings |
+| AC-20 | rule rendered | `grep -n "named for it" ai/rules/testing.md`: line 57 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check`, `./le rfc rename` | none: no `.ci` suite drives `./le rfc` (N-A in the TDD plan) | `TestRFCActionsRenameThroughAnswer`, `TestCheckReportsTestFileNameFindings`, `TestRenameEndToEndCheckFindingsUnchanged` pass; `./le rfc help` lists `rename (writes)` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-4, A-5, A-9 | confirmed | as recorded in the Assumptions table |
+| A-2 | confirmed | 32 Phase 2 commits passed `./le commit create` with no trailer and no WEAKENED finding for a moved file |
+| A-3 | confirmed | e8ef205181: 89 R100 renames, equal to its 89 pairs; `./le rfc check` stayed at 94 with none new |
+| A-6 | confirmed | `./le doc check links` stayed at its 12 pre-existing broken references through Phase 2 |
+| A-7 | confirmed | Phase 2 ran from `propose` per component; a final whole-tree propose wrote 0 pairs |
+| A-8 | confirmed | each component commit ran its package tests; the bgp reactor reds were identical before and after the renames (Phase 2 constraint above) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "Test file names" and the rename section | `internal/le/rfc/names.go` `repairBlocked`, `internal/le/rfc/rename.go` `planRename` (evidence refusals from `planEvidence` return before `applyRename` writes) | yes, 2026-10-04 |
+| Go writers in `core-design.md` | `internal/le/rfc/actions.go` registers `rename` as a writer | yes |
+| RFC status (category 9) | No: no requirement changed state | `./le rfc check` violations unrelated to naming |
+
+Full verification is owed by the main thread: `./le verify worktree`, `./le go lint run`, and the rows in `plan/verification-debt/1d41415e.md`, which this closure did not run. `./le repo check` reports 2 issues in `internal/le/repo/numberparse-allowlist.txt` for bgp files outside this spec. `./le commit audit base e87b8bb205~1` reports `internal/le/rfc/rename_test.go` WEAKENED: the known false positive of `plan/journal/check-cannot-see-the-change-it-looks-for.md` (the owner approved it; the audit does not read the trailer).

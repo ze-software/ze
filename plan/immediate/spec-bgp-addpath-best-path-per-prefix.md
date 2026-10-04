@@ -17,7 +17,7 @@
 | Updated | 2026-10-03 |
 
 <!-- Not claimed: the implementing session (ff3776cb) holds another claim
-     (plan/spec-rfc-test-file-naming.md). Thomas authorised the fix agent and
+     (spec-rfc-test-file-naming, closed 2026-10-04). Thomas authorised the fix agent and
      the scope (ALL ADD-PATH families in one spec) on 2026-10-03. -->
 
 ## Design (chosen 2026-10-03, Option A)
