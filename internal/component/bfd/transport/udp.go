@@ -577,6 +577,8 @@ var errUDPOffSubnet = errors.New("bfd: single-hop peer is on no subnet of the se
 
 // egressLinkOf answers what Send needs to know about the interface named
 // name, from the cache when the entry is younger than ifNameTTL.
+// The BFD component's canonicalRequest resolves client/config logical names
+// before creating the session key, so name here is already a kernel device.
 //
 // An interface that does not resolve is an error, never an unpinned or
 // unchecked send: the link the session protects is gone, and a packet routed

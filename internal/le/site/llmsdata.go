@@ -43,6 +43,7 @@ type registryPlugin struct {
 	ConfigRoots          []string `json:"config_roots"`
 	Dependencies         []string `json:"dependencies"`
 	OptionalDependencies []string `json:"optional_dependencies"`
+	StartAfter           []string `json:"start_after"`
 	SourceDir            string   `json:"source_dir"`
 	YangFiles            []string `json:"yang_files"`
 }

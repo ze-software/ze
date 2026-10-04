@@ -116,6 +116,7 @@ func marshalPluginRegistry(plugins []repoinventory.Plugin) (string, error) {
 			ConfigRoots:          orEmpty(plugin.ConfigRoots),
 			Dependencies:         orEmpty(plugin.Dependencies),
 			OptionalDependencies: orEmpty(plugin.OptionalDependencies),
+			StartAfter:           orEmpty(plugin.StartAfter),
 			SourceDir:            plugin.SourceDir,
 			YangFiles:            orEmpty(plugin.YANGFiles),
 		})
@@ -506,14 +507,15 @@ func pluginBucketOf(group *pluginGroup) string {
 	return bucketSystem
 }
 
-// pluginRelations names, for one plugin, every plugin that depends on it.
+// pluginRelations names reverse dependency and startup-order relationships.
 type pluginRelations struct {
-	Required []*pluginEntry
-	Optional []*pluginEntry
+	Required     []*pluginEntry
+	Optional     []*pluginEntry
+	StartsBefore []*pluginEntry
 }
 
-// pluginDependents inverts the dependency declarations, so a detail page can
-// say who uses this plugin as well as what it uses.
+// pluginDependents inverts dependency and startup-order declarations without
+// treating an order-only predecessor as a required or optional dependency.
 func pluginDependents(entries []*pluginEntry) map[string]*pluginRelations {
 	byName := make(map[string]*pluginEntry, len(entries))
 	relations := make(map[string]*pluginRelations, len(entries))
@@ -532,6 +534,11 @@ func pluginDependents(entries []*pluginEntry) map[string]*pluginRelations {
 				relations[dependency].Optional = append(relations[dependency].Optional, entry)
 			}
 		}
+		for _, predecessor := range entry.StartAfter {
+			if _, found := byName[predecessor]; found {
+				relations[predecessor].StartsBefore = append(relations[predecessor].StartsBefore, entry)
+			}
+		}
 	}
 	for _, relation := range relations {
 		sort.SliceStable(relation.Required, func(left, right int) bool {
@@ -539,6 +546,9 @@ func pluginDependents(entries []*pluginEntry) map[string]*pluginRelations {
 		})
 		sort.SliceStable(relation.Optional, func(left, right int) bool {
 			return relation.Optional[left].Name < relation.Optional[right].Name
+		})
+		sort.SliceStable(relation.StartsBefore, func(left, right int) bool {
+			return relation.StartsBefore[left].Name < relation.StartsBefore[right].Name
 		})
 	}
 	return relations
@@ -792,7 +802,7 @@ func pluginCardHTML(entry *pluginEntry, group *pluginGroup) string {
 
 // pluginSearchText is what the browser-side search matches a query against: the
 // plugin's name, its purpose, where it lives, its area, and every config root,
-// dependency and YANG file it names.
+// dependency, startup predecessor and YANG file it names.
 func pluginSearchText(entry *pluginEntry, group *pluginGroup) string {
 	return strings.Join([]string{
 		entry.Name,
@@ -805,6 +815,7 @@ func pluginSearchText(entry *pluginEntry, group *pluginGroup) string {
 		strings.Join(entry.ConfigRoots, " "),
 		strings.Join(entry.Dependencies, " "),
 		strings.Join(entry.OptionalDependencies, " "),
+		strings.Join(entry.StartAfter, " "),
 		strings.Join(entry.YangFiles, " "),
 	}, " ")
 }
@@ -829,6 +840,9 @@ func pluginChips(entry *pluginEntry) []string {
 	if len(entry.OptionalDependencies) != 0 {
 		chips = append(chips, `<span class="chip">`+html.EscapeString("optional:"+entry.OptionalDependencies[0])+"</span>")
 	}
+	if len(entry.StartAfter) != 0 {
+		chips = append(chips, `<span class="chip">`+html.EscapeString("Start after:"+entry.StartAfter[0])+"</span>")
+	}
 	if len(entry.YangFiles) != 0 {
 		chips = append(chips, `<span class="chip">`+html.EscapeString("YANG:"+strconv.Itoa(len(entry.YangFiles)))+"</span>")
 	}
@@ -851,6 +865,9 @@ func pluginMetaHTML(entry *pluginEntry) string {
 	}
 	if len(entry.OptionalDependencies) != 0 {
 		rows.Str(pluginMetaRow("Optional", codeList(entry.OptionalDependencies)))
+	}
+	if len(entry.StartAfter) != 0 {
+		rows.Str(pluginMetaRow("Start after", codeList(entry.StartAfter)))
 	}
 	if len(entry.YangFiles) != 0 {
 		rows.Str(pluginMetaRow("YANG", plural(len(entry.YangFiles), "module")))
@@ -902,6 +919,12 @@ func pluginCatalogMirror(entries []*pluginEntry, groups []*pluginGroup) string {
 				Str(pluginOrNone(codeMarkerList(entry.Dependencies))).Str(" | `").Str(entry.SourceDir).Str("` |\n")
 		}
 		mirror.Byte('\n')
+		for _, entry := range group.Plugins {
+			if len(entry.StartAfter) != 0 {
+				mirror.Str("- [`").Str(entry.Name).Str("`](").Str(entry.Slug).Byte('/').Str(pageMirrorFile).
+					Str("): Start after ").Str(codeMarkerList(entry.StartAfter)).Str(" (order only).\n")
+			}
+		}
 	}
 	return strings.TrimRight(mirror.String(), "\n") + "\n"
 }

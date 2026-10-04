@@ -2,10 +2,13 @@
 package repoinventory
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -52,6 +55,101 @@ func TestAPluginCarriesItsSourceDirectoryYANGFilesAndOptionalDependencies(t *tes
 	}
 	if !slices.Equal(static.OptionalDependencies, []string{"interface"}) {
 		t.Errorf("static optionally depends on %v, want [interface]", static.OptionalDependencies)
+	}
+}
+
+// TestBFDCatalogKeepsStartupOrderingSeparateFromDependencies reads the real
+// catalog and its JSON/text renderings, so a projection cannot turn an
+// order-only edge back into an auto-activating dependency.
+func TestBFDCatalogKeepsStartupOrderingSeparateFromDependencies(t *testing.T) {
+	plugins, err := Plugins(repositoryRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := slices.IndexFunc(plugins, func(plugin Plugin) bool { return plugin.Name == "bfd" })
+	if index < 0 {
+		t.Fatal("the catalog has no registered BFD plugin")
+	}
+	bfd := &plugins[index]
+	if !slices.Equal(bfd.StartAfter, []string{"interface"}) {
+		t.Errorf("BFD start-after = %v, want [interface]", bfd.StartAfter)
+	}
+	if slices.Contains(bfd.Dependencies, "interface") {
+		t.Errorf("BFD reports interface as a hard dependency: %v", bfd.Dependencies)
+	}
+	if slices.Contains(bfd.OptionalDependencies, "interface") {
+		t.Errorf("BFD reports interface as an optional dependency: %v", bfd.OptionalDependencies)
+	}
+	encoded, err := json.Marshal(bfd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if string(fields["start-after"]) != `["interface"]` {
+		t.Errorf("BFD JSON start-after = %s, want [\"interface\"]", fields["start-after"])
+	}
+	text := (Inventory{Plugins: plugins[index : index+1]}).Text()
+	want := "| " + strings.Join(bfd.Dependencies, ", ") + " | interface | " + strings.Join(bfd.RFCs, ", ") + " |"
+	if !strings.Contains(text, want) {
+		t.Errorf("BFD report lost the separate dependency and ordering cells %q:\n%s", want, text)
+	}
+}
+
+// TestRegisteredBFDOrdersOnlySelectedInterface resolves actual composition-root
+// registrations: raw BFD must not activate interface, while a selection that
+// explicitly includes interface must start it before BFD.
+func TestRegisteredBFDOrdersOnlySelectedInterface(t *testing.T) {
+	for _, name := range []string{"bfd", "interface"} {
+		if !registry.Has(name) {
+			t.Fatalf("composition root did not register %s", name)
+		}
+	}
+	for _, requested := range [][]string{{"bfd"}, {"bfd", "interface"}} {
+		t.Run(strings.Join(requested, "-"), func(t *testing.T) {
+			resolved, err := registry.ResolveDependencies(requested, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range requested {
+				if !slices.Contains(resolved, name) {
+					t.Fatalf("resolved %v lost requested plugin %s: %v", requested, name, resolved)
+				}
+			}
+			tiers, err := registry.TopologicalTiers(resolved, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(requested) == 1 {
+				if !slices.Equal(resolved, requested) {
+					t.Fatalf("BFD-only resolution = %v, want [bfd]", resolved)
+				}
+				if len(tiers) != 1 {
+					t.Fatalf("BFD-only tiers = %v, want [[bfd]]", tiers)
+				}
+				if !slices.Equal(tiers[0], []string{"bfd"}) {
+					t.Fatalf("BFD-only tier = %v, want [bfd]", tiers[0])
+				}
+				return
+			}
+			interfaceTier, bfdTier := -1, -1
+			for index, tier := range tiers {
+				if slices.Contains(tier, "interface") {
+					interfaceTier = index
+				}
+				if slices.Contains(tier, "bfd") {
+					bfdTier = index
+				}
+			}
+			if interfaceTier < 0 {
+				t.Fatalf("interface absent from configured tiers: %v", tiers)
+			}
+			if bfdTier <= interfaceTier {
+				t.Errorf("interface must precede BFD in configured tiers: %v", tiers)
+			}
+		})
 	}
 }
 

@@ -60,6 +60,7 @@ func pluginsFrom(root string, registrations []*registry.Registration, yangPaths 
 			Capabilities:         reg.CapabilityCodes,
 			Dependencies:         reg.Dependencies,
 			OptionalDependencies: reg.OptionalDependencies,
+			StartAfter:           reg.StartAfter,
 			ConfigRoots:          reg.ConfigRoots,
 			RFCs:                 reg.RFCs,
 			Features:             reg.Features,

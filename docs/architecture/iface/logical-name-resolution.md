@@ -95,6 +95,19 @@ nothing re-runs the consumer until its own config changes. Take the error as
 <!-- source: internal/plugins/vrrp/engine.go -- apply, the binding step -->
 <!-- source: internal/plugins/vrrp/groups.go -- parentDevice, deviceResolver -->
 
+BFD also binds at its component boundary, before a session enters the engine.
+Both pinned configuration and runtime protocol clients call `canonicalRequest`,
+which resolves a supplied single-hop interface through `ResolveDevice` before
+deriving its local address and canonical key. The engine's interface is then a
+kernel name, matching received packet metadata; the same name reaches the
+Control and Echo transports. Binding only in the transport would leave session
+sharing, ingress matching and the pinned socket's device wrong. A failed
+selector refuses the request before a pinned apply publishes candidate profiles
+or loop settings, or releases existing sessions.
+
+<!-- source: internal/component/bfd/session_identity.go -- canonicalRequest -->
+<!-- source: internal/component/bfd/bfd.go -- applyPinned, pluginService.EnsureSession, resolveLoopDevices -->
+
 A tracked interface is the second name VRRP resolves, and it takes the OTHER
 route. `track interface <name>` names a device VRRP only READS, so it calls
 `Resolve` and `Subscribe` directly rather than `ResolveDevice`: nothing is built

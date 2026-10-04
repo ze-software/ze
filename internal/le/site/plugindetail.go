@@ -56,9 +56,8 @@ func pluginKind(entry *pluginEntry) string {
 	return pluginKindRuntime
 }
 
-// pluginDetailBody renders one plugin's page under <main>: the hero, and five
-// panels stating what it is, what it configures, what it needs, what needs it,
-// and where its code and schema live.
+// pluginDetailBody renders one plugin's page under <main>: its identity,
+// configuration, dependencies, startup ordering, and repository artifacts.
 func pluginDetailBody(entry *pluginEntry, group *pluginGroup,
 	byName map[string]*pluginEntry, relations *pluginRelations,
 ) string {
@@ -95,6 +94,15 @@ func pluginDetailBody(entry *pluginEntry, group *pluginGroup,
 			"                        "+pluginLinkList(pluginEntryLinks(relations.Required))+"\n"+
 			"                        <h3>Optional dependency for</h3>\n"+
 			"                        "+pluginLinkList(pluginEntryLinks(relations.Optional)), ""))
+
+	if len(entry.StartAfter)+len(relations.StartsBefore) != 0 {
+		body.Str(pluginPanel("Startup ordering",
+			"                        <p>Order only when both plugins are selected; never auto-loads a plugin.</p>\n"+
+				"                        <h3>Start after</h3>\n"+
+				"                        "+pluginLinkList(pluginDependencyLinks(entry.StartAfter, byName))+"\n"+
+				"                        <h3>Starts before</h3>\n"+
+				"                        "+pluginLinkList(pluginEntryLinks(relations.StartsBefore)), ""))
+	}
 
 	yang := make([]string, 0, len(entry.YangFiles))
 	for _, path := range entry.YangFiles {
@@ -217,6 +225,12 @@ func pluginDetailMirror(entry *pluginEntry, group *pluginGroup,
 	mirror.Str("## Used by\n\n")
 	mirror.Str("- Required dependency for: ").Str(pluginEntryMirrorList(relations.Required)).Byte('\n')
 	mirror.Str("- Optional dependency for: ").Str(pluginEntryMirrorList(relations.Optional)).Str("\n\n")
+	if len(entry.StartAfter)+len(relations.StartsBefore) != 0 {
+		mirror.Str("## Startup ordering\n\n").
+			Str("Order only when both plugins are selected; never auto-loads a plugin.\n\n")
+		mirror.Str("- Start after: ").Str(pluginDependencyMirrorList(entry.StartAfter, byName)).Byte('\n')
+		mirror.Str("- Starts before: ").Str(pluginEntryMirrorList(relations.StartsBefore)).Str("\n\n")
+	}
 	mirror.Str("## Repository artifacts\n\n")
 	mirror.Str("Package: `").Str(entry.SourceDir).Str("`\n\n")
 	mirror.Str("YANG files: ").Str(pluginOrNone(codeMarkerList(entry.YangFiles))).Byte('\n')

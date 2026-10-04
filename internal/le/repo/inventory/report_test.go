@@ -4,6 +4,7 @@
 package repoinventory
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -17,7 +18,7 @@ func page() Inventory {
 		Plugins: []Plugin{
 			{Name: "rib", Description: "the RIB", Families: []string{"ipv4 unicast"},
 				Capabilities: []uint8{64, 69}, Dependencies: []string{"bgp"},
-				RFCs: []string{"4271"}, HasYANG: true},
+				StartAfter: []string{"interface"}, RFCs: []string{"4271"}, HasYANG: true},
 			{Name: "ntp", Description: "the clock"},
 		},
 		Families:      map[string]string{"ipv4 unicast": "rib", "ipv6 unicast": "rib"},
@@ -55,8 +56,10 @@ func TestTextRendersEverySection(t *testing.T) {
 		"| Go files | 6 |",
 		"| Go lines | 120 |",
 		"## Plugins (2)",
-		"| rib | the RIB | ipv4 unicast | 64, 69 | bgp | 4271 | yes |",
-		"| ntp | the clock |  | - |  |  | - |",
+		"Start after orders selected plugins only; it never activates a plugin.",
+		"| Name | Description | Families | Caps | Deps | Start after | RFCs | YANG |",
+		"| rib | the RIB | ipv4 unicast | 64, 69 | bgp | interface | 4271 | yes |",
+		"| ntp | the clock |  | - |  |  |  | - |",
 		"## Address Families (2)",
 		"## Family Support Matrix",
 		"| ipv4 unicast | rib | yes | - | - | - |",
@@ -121,5 +124,19 @@ func TestTotalsSumEveryArea(t *testing.T) {
 	packages, files, lines := page().totals()
 	if packages != 3 || files != 6 || lines != 120 {
 		t.Errorf("totals answered %d, %d, %d; want 3, 6, 120", packages, files, lines)
+	}
+}
+
+// TestPluginJSONOmitsEmptyStartupOrdering keeps absent ordering metadata out
+// of the inventory JSON, using both nil and explicitly empty lists.
+func TestPluginJSONOmitsEmptyStartupOrdering(t *testing.T) {
+	for _, ordering := range [][]string{nil, {}} {
+		encoded, err := json.Marshal(Plugin{Name: "unordered", StartAfter: ordering})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(encoded), `"start-after"`) {
+			t.Errorf("empty ordering was published: %s", encoded)
+		}
 	}
 }

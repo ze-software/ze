@@ -74,7 +74,7 @@ roadmap with JavaScript disabled and a narrow viewport.
 The website plugin catalog at `../gh-pages/reference/plugins/` is
 generated, not hand-authored. Its data source is each plugin's
 `registry.Registration`: name, description, config roots, dependencies,
-optional dependencies, and the YANG schema it registers.
+optional dependencies, startup ordering, and the YANG schema it registers.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration metadata -->
 
 Two facts the catalog shows are DERIVED rather than declared, so do not look for
@@ -93,6 +93,13 @@ hand-written plugin list.
 <!-- source: internal/le/site/build.go -- refreshNativeSurfaces -->
 <!-- source: internal/le/site/plugins.go -- renderPluginCatalog -->
 <!-- source: internal/le/site/config.go -- renderConfiguration -->
+
+Startup ordering is published as `start_after` in the site registry JSON.
+The catalog and detail pages label it **Start after**, and the target's detail
+page labels the reverse relationship **Starts before**. These are order-only
+edges when both plugins are selected, not required or optional dependencies;
+they never auto-load the target. The Markdown mirrors and generated `llms.txt`
+retain this distinction.
 
 A plugin the catalog no longer carries loses its page: a build removes every
 detail directory whose plugin is not in the registry it just read.
@@ -426,9 +433,9 @@ card declares the RULE that chose its tone beside the tone, and
 or bad direction -- a population, for instance -- takes `neutral` and gets no
 color, because a color on a number is a verdict.
 
-On the index page the requirement buckets carry an `Accounted for` row whose
-count equals the Gated MUSTs card, and a sentence saying whether every gated
-MUST falls in exactly one bucket. The tape above it carries no text of its own:
+On the index page the requirement buckets carry a `Gated MUST-level requirements`
+total for the implemented-RFC population and a sentence saying whether every
+requirement in that population falls in exactly one bucket. The tape above it carries no text of its own:
 a bucket at 4.5% of the width had a label wider than its segment, so the small
 buckets were the unreadable ones. The tape is the proportion, the key beneath it
 is the words, and every bucket the vocabulary declares has a color rule.
@@ -449,6 +456,12 @@ stale or shifted, a tagged unit with no discrimination record, and a `no-break`
 record are each named on the page under the requirement id they belong to. A
 count may accompany the list and never stands in for it.
 
+For a partial requirement, the proof block states that the records cover only
+scoped tag claims and give zero whole-requirement credit. The gate population
+is the gated MUSTs of enrolled RFCs; published satisfaction shares use the
+implemented RFCs within that population. Rollup rows belong to neither count.
+These figures come from the native RFC collector, not hand-maintained totals.
+
 The input is `../gh-pages/data/rfc-requirements.json`, derived once per build by
 `publishRFCLedger` before any producer runs, in the way the plugin registry and
 the command catalog already are. It is one reading of the checkout through
@@ -464,7 +477,7 @@ three of which were deleted with the interpreter, to claim an agent guard was
 ON. The page states the live verification wiring instead, read from the declared
 pre-commit stage population.
 <!-- source: internal/le/site/health.go -- renderHealth -->
-<!-- source: internal/le/site/rfccompliance.go -- collectRFCCompliance -->
+<!-- source: internal/le/site/rfccompliance.go -- collectRFCCompliance, rfcSatisfactionRows, rfcAccountedNote -->
 <!-- source: internal/le/site/rfcledger.go -- collectRequirementLedger -->
 <!-- source: internal/le/site/rfcdetail.go -- writeRFCDetailPage -->
 <!-- source: internal/le/site/rfcevidence.go -- rfcProofHTML -->

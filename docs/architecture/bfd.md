@@ -459,6 +459,27 @@ Stage 2 (transport hardening) are all merged. The production path is now:
 | Send failure log | `internal/component/bfd/engine/loop.go` -- `warnSendFailedLocked` | A Control or Echo packet the transport refuses (off-subnet peer, unresolvable interface) is logged at Warn naming the peer, interface, VRF, mode, local discriminator and reason, once per `sendWarnInterval` (1 min) per session, and at Debug in between. The session itself then falls Down on Control Detection Time Expired. |
 | Egress link | `internal/component/bfd/transport/udp.go` -- `Send`, `pinsToLink`, `egressLinkOf` | RFC 5881 §6 one-hop path. A single-hop socket bound to no device (the loop's default-VRF sessions name several interfaces, or one names none) sends each packet with an `IP_PKTINFO` / `IPV6_PKTINFO` control message carrying the session interface's ifindex (`pktinfoPin`, `udp_linux.go`), so a more specific route to the peer over another link is not taken. A device-bound socket, a multi-hop socket, a zoned link-local destination and a session naming no interface carry none. An interface that does not resolve fails the send rather than routing it. Off Linux no control message is built. |
 
+Both pinned configuration and runtime clients bind a supplied single-hop
+interface through `iface.ResolveDevice` before canonicalizing the session key.
+An `os-name` or `mac/match` selector therefore selects the same kernel device for
+session sharing, ingress matching, socket binding and per-packet egress.
+Topology-derived interfaces already name kernel devices. An unresolved selector
+refuses the request; a pinned apply resolves all requested interfaces before
+publishing candidate profiles or loop settings and before releasing any existing
+session. Names without selectors retain the existing raw-device behavior, and
+multi-hop requests remain routed without an interface.
+The transport's kernel lookup reads the resolved device's flags, subnets and
+ifindex, retaining its existing TTL cache and subnet exemptions.
+
+<!-- source: internal/component/bfd/session_identity.go -- canonicalRequest, connectedLinks -->
+<!-- source: internal/component/bfd/bfd.go -- applyPinned, pluginService.EnsureSession, resolveLoopDevices -->
+<!-- source: internal/component/bfd/register.go -- StartAfter -->
+
+BFD declares `StartAfter: ["interface"]`, an order-only edge. When both plugins
+are selected, startup configures the shared resolver before BFD binds pinned
+sessions. The edge never activates `interface`, preserving BFD-only startup on
+platforms without a default interface backend.
+
 ## Stage 4 complete (operator UX)
 
 Stage 4 adds the operator-facing surface on top of the engine Snapshot:

@@ -331,6 +331,7 @@ func writeLLMSPlugins(out *textbuf.Buffer, inputs *llmsInputs) {
 		out.Str("- `").Str(cleanInline(plugin.Name)).Str("`: ").Str(trimInline(plugin.Description, 170)).
 			Str(" Config roots: ").Str(joinOrNone(plugin.ConfigRoots)).Str(". Dependencies: ").
 			Str(joinOrNone(plugin.Dependencies)).Str(". Optional: ").Str(joinOrNone(plugin.OptionalDependencies)).
+			Str(". Start after (order only): ").Str(joinOrNone(plugin.StartAfter)).
 			Str(". YANG files: ").Int(int64(len(plugin.YangFiles))).Str(". Source: `").
 			Str(cleanInline(plugin.SourceDir)).Str("`.\n")
 	}

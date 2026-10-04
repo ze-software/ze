@@ -63,8 +63,12 @@ type Registration struct {
 	// absent at run time. Example: bgp-rs uses bgp-adj-rib-in for replay-on-
 	// peer-up; without it, replay is disabled but forwarding still works.
 	OptionalDependencies []string
-	EventTypes           []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
-	SendTypes            []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
+	// StartAfter orders this plugin after each named plugin ONLY when both
+	// are selected for startup. It never loads a plugin, unlike either kind
+	// of dependency. Cycles among selected plugins are still refused.
+	StartAfter []string
+	EventTypes []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
+	SendTypes  []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
 	// Claims are exclusive runtime roles this plugin takes over from another
 	// plugin's default behavior (e.g., ["bgp-peer-up-replay"]). Same token
 	// shape as EventTypes/SendTypes: opaque to the engine, agreed between the
@@ -512,20 +516,14 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 			return fmt.Errorf("%w: plugin %q family %q (must contain /)", ErrInvalidFamily, reg.Name, f)
 		}
 	}
-	for _, dep := range reg.Dependencies {
-		if dep == "" {
-			return fmt.Errorf("%w: plugin %q", ErrEmptyDependency, reg.Name)
-		}
-		if dep == reg.Name {
-			return fmt.Errorf("%w: plugin %q", ErrSelfDependency, reg.Name)
-		}
-	}
-	for _, dep := range reg.OptionalDependencies {
-		if dep == "" {
-			return fmt.Errorf("%w: plugin %q optional dep", ErrEmptyDependency, reg.Name)
-		}
-		if dep == reg.Name {
-			return fmt.Errorf("%w: plugin %q optional dep", ErrSelfDependency, reg.Name)
+	for _, edges := range [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter} {
+		for _, dep := range edges {
+			if dep == "" {
+				return fmt.Errorf("%w: plugin %q", ErrEmptyDependency, reg.Name)
+			}
+			if dep == reg.Name {
+				return fmt.Errorf("%w: plugin %q", ErrSelfDependency, reg.Name)
+			}
 		}
 	}
 	// Filter types must be globally unique across plugins so chain refs
@@ -1420,34 +1418,20 @@ func detectCycles(names []string, external map[string]bool) error {
 		color[name] = gray
 		reg, ok := plugins[name]
 		if ok && !external[name] {
-			// Cycle detection walks ALL declared deps (hard + optional) so the
-			// resolved graph stays acyclic regardless of which kind each edge
-			// uses. Optional-dep edges only affect the walk when both endpoints
-			// are in the resolved name set (i.e., the optional dep was
-			// registered and pulled in earlier).
-			for _, dep := range reg.Dependencies {
-				if !nameSet[dep] {
-					continue
-				}
-				switch color[dep] {
-				case gray:
-					return fmt.Errorf("%w: %s → %s", ErrCircularDependency, name, dep)
-				case white:
-					if err := visit(dep); err != nil {
-						return err
+			// All ordering edges participate, but only when both endpoints
+			// were selected. StartAfter never expands the selected set.
+			for _, edges := range [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter} {
+				for _, dep := range edges {
+					if !nameSet[dep] {
+						continue
 					}
-				}
-			}
-			for _, dep := range reg.OptionalDependencies {
-				if !nameSet[dep] {
-					continue
-				}
-				switch color[dep] {
-				case gray:
-					return fmt.Errorf("%w: %s → %s", ErrCircularDependency, name, dep)
-				case white:
-					if err := visit(dep); err != nil {
-						return err
+					switch color[dep] {
+					case gray:
+						return fmt.Errorf("%w: %s → %s", ErrCircularDependency, name, dep)
+					case white:
+						if err := visit(dep); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -1485,12 +1469,10 @@ func TopologicalTiers(names []string, external map[string]bool) ([][]string, err
 		nameSet[n] = true
 	}
 
-	// Compute in-degree (number of deps within name set) for each plugin.
-	inDegree := make(map[string]int, len(names))
 	// deps maps each plugin to its dependencies within the name set.
 	deps := make(map[string][]string, len(names))
 	for _, name := range names {
-		inDegree[name] = 0
+		deps[name] = nil
 	}
 
 	for _, name := range names {
@@ -1501,18 +1483,30 @@ func TopologicalTiers(names []string, external map[string]bool) ([][]string, err
 		if !ok {
 			continue // External plugin — no known deps, stays at in-degree 0
 		}
-		for _, dep := range reg.Dependencies {
-			if nameSet[dep] {
-				deps[name] = append(deps[name], dep)
-				inDegree[name]++
+		// Dependencies and order-only edges constrain startup only when
+		// their target is also selected. No edge here activates a plugin.
+		for _, edges := range [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter} {
+			for _, dep := range edges {
+				if nameSet[dep] {
+					deps[name] = append(deps[name], dep)
+				}
 			}
 		}
-		// Optional deps contribute to ordering only when the dep is also in
-		// the resolved set; otherwise they are absent at run time and cannot
-		// constrain startup order.
-		for _, dep := range reg.OptionalDependencies {
-			if nameSet[dep] {
-				deps[name] = append(deps[name], dep)
+	}
+	return TopologicalGraphTiers(deps)
+}
+
+// TopologicalGraphTiers orders a selected graph whose keys and edge targets
+// already use the same identity. The server uses process labels here after
+// resolving each registration edge to every selected implementation instance.
+// An edge to a node outside the map is inert; this function never adds nodes.
+// The graph is not mutated. Cycles return ErrCircularDependency.
+func TopologicalGraphTiers(deps map[string][]string) ([][]string, error) {
+	inDegree := make(map[string]int, len(deps))
+	for name, edges := range deps {
+		inDegree[name] = 0
+		for _, dep := range edges {
+			if _, selected := deps[dep]; selected {
 				inDegree[name]++
 			}
 		}
@@ -1520,12 +1514,12 @@ func TopologicalTiers(names []string, external map[string]bool) ([][]string, err
 
 	// Kahn's algorithm: iteratively peel off nodes with in-degree 0.
 	var tiers [][]string
-	remaining := len(names)
+	remaining := len(deps)
 
 	for remaining > 0 {
 		// Collect all nodes with in-degree 0 for this tier.
 		var tier []string
-		for _, name := range names {
+		for name := range deps {
 			if inDegree[name] == 0 {
 				tier = append(tier, name)
 			}
@@ -1547,7 +1541,7 @@ func TopologicalTiers(names []string, external map[string]bool) ([][]string, err
 		}
 
 		// Decrement in-degree for nodes that depended on completed tier.
-		for _, name := range names {
+		for name := range deps {
 			if inDegree[name] <= 0 {
 				continue // Already processed or will be
 			}

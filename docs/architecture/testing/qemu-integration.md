@@ -365,21 +365,15 @@ Tests tagged `integration && linux` run through the applicable `./le test qemu`
 action, which supplies `-tags integration`. Tests tagged only `linux` also run
 in native unit groups on a Linux host.
 
-One case takes the first tag for a test that does need a capability, and it is
-the only one: a unit carrying an `RFC requirement:` tag. `./le rfc
-discriminate-record` runs the tagged unit with an empty build-tag set, so a
-unit behind `integration` matches nothing, `go test` exits 0, and no break can
-ever be observed to redden it
-(`plan/journal/gate-excludes-part-of-its-population.md`). Such a unit carries
-bare `linux`, and it calls `t.Skip` when the capability is absent, so it stays
-silent in the merge gate and runs for real in a privileged guest or container.
-`internal/core/network/rfc5082_ttl_gtsm_linux_test.go` and
-`internal/component/gtsm/rfc5082_gtsm_linux_test.go` are the two files that do
-this, and both say so in their headers.
+Kernel-touching tests use `integration && linux`, including tests carrying
+an `RFC requirement:` tag. The native discrimination recorder tries the
+host's actual build tags first, then a Linux guest with `integration`.
+A guest observation requires Ze's runtime kernel through the `kernel`
+keyword; a host observation rejects that keyword. See
+[RFC discrimination placement](../../contributing/rfc-conformance-gates.md).
 
-A bare `linux` unit that needs only its own network, a fixed port or an
-address of its own on `lo`, needs no privilege at all: `userns.Enter`
-(`internal/test/userns`) re-executes the test in a new user and network
+For tests needing only their own network, a fixed port or an address on `lo`,
+`userns.Enter` (`internal/test/userns`) re-executes the test in a new user and network
 namespace, where the test is root over a namespace of its own, and skips only
 when the kernel refuses one. A well-known port bound there never collides with
 a ze running on the host or with a parallel run of the same package, and a
@@ -387,7 +381,10 @@ coverage run passes its counter directory to the child, so `./le rfc
 discriminate-record` sees the code the child ran. The BFD wire tests
 (`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
 `internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go`) use it.
-<!-- source: internal/test/userns/userns_linux.go -- Enter -->
+`Enter` brings up the literal kernel-created `lo` inside that new namespace.
+This is fixture topology, not an operator-selected logical interface, so the
+direct lookup in `loopbackUp` is an explicit interface-resolution gate exemption.
+<!-- source: internal/test/userns/userns_linux.go -- Enter, loopbackUp -->
 
 ### File Naming
 
@@ -649,7 +646,7 @@ config, because the discard count is only visible through the CLI.
 | Mistake | Fix |
 |---------|-----|
 | "Needs real hardware, skipping test" | Use the virtual substitute in the table above |
-| `//go:build linux` on a test that needs root | Use `//go:build integration && linux`, unless the unit carries an `RFC requirement:` tag: see Build Tags |
+| `//go:build linux` on a kernel-touching test | Use `//go:build integration && linux`, including RFC-tagged tests |
 | A new Linux package absent from `integrationPackages` | The test compiles and never runs. Add it to `internal/le/test/qemu/alltests.go` |
 | `t.Fatal` for a missing capability | Use `t.Skip`, so the file stays portable |
 | Hardcoding `/dev/ttyS0` | Use `pty.Open()` for a real PTY pair |

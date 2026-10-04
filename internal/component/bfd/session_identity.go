@@ -4,11 +4,28 @@
 package bfd
 
 import (
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	ifcomp "github.com/ze-software/ze/internal/component/iface"
 )
+
+// canonicalRequest binds a client's logical interface before deriving the
+// session identity. The engine compares it with kernel-sourced ingress names,
+// and the transports use it for both socket binding and per-packet egress.
+// ResolveDevice preserves raw names without selectors and refuses an unresolved
+// selector; that failure must precede any release of existing pinned sessions.
+func canonicalRequest(req api.SessionRequest, links []api.Link) (api.SessionRequest, error) {
+	if req.Mode == api.SingleHop && req.Interface != "" {
+		device, err := ifcomp.ResolveDevice(req.Interface)
+		if err != nil {
+			return req, fmt.Errorf("bfd: resolve session interface %q: %w", req.Interface, err)
+		}
+		req.Interface = device
+	}
+	return req.Canonical(api.Topology{Links: links}), nil
+}
 
 // connectedLinks reads the link table api.SessionRequest.Canonical derives a
 // session's interface and local address from, with each link's VRF resolved so

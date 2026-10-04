@@ -300,6 +300,7 @@ var integrationPackages = []string{
 	"./internal/core/routewatch/...",
 	"./internal/core/network/...",
 	"./internal/component/bgp/reactor/...",
+	"./internal/component/bfd",
 	"./internal/plugins/fib/kernel/...",
 	"./internal/plugins/firewall/nft/...",
 	"./internal/plugins/firewall/vpp/...",

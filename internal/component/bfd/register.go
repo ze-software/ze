@@ -31,6 +31,7 @@ func init() {
 		Features:                "yang",
 		RFCs:                    []string{"5880", "5881", "5882", "5883"},
 		ConfigRoots:             []string{configRoot},
+		StartAfter:              []string{"interface"},
 		YANG:                    bfdyang.ZeBFDConfYANG,
 		InProcessConfigVerifier: verifyBFDConfig,
 		RunEngine:               RunBFDPlugin,

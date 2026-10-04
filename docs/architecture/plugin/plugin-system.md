@@ -48,6 +48,7 @@ Optional metadata:
 | `ConfigReads` | `[]string` | Config roots the plugin reads but does not own. Its config verifier and its schema receive them, and they never auto-load it. `ze config validate` hands them to an in-process verifier, and the daemon's server joins them into the roots it delivers at a commit and a SIGHUP reload, where a change to any of the plugin's roots delivers all of them whole. The server finds the entry through the implementation the process runs (`use bgp-rpki` under a block named `rpki` still gets `pki`). A read root is delivered and never owned: the transaction lists it as the participant's `WantsConfig`, so it reaches verify and a coarse section apply, and the operation coverage guard never counts it as the reader's (`docs/architecture/config/transaction-protocol.md`). `bgp-rpki` reads `pki` this way, so a `pki`-only config does not start BGP |
 | `Dependencies` | `[]string` | Plugin names that must also load. A missing name gives `ErrMissingDependency` |
 | `OptionalDependencies` | `[]string` | Plugin names the owner uses when present. A missing name is skipped in silence |
+| `StartAfter` | `[]string` | Order-only prerequisites when both plugins are selected. Never auto-loads a plugin |
 | `EventTypes` | `[]string` | Event types this plugin produces. Registered at startup |
 | `SendTypes` | `[]string` | Send types this plugin enables, such as `enhanced-refresh` |
 | `Claims` | `[]string` | Exclusive runtime roles this plugin takes over from another plugin's default |
@@ -208,11 +209,32 @@ the file names no plugin.
 |-------|-----------|
 | `Dependencies` | Hard. `ResolveDependencies` returns `ErrMissingDependency` when the named plugin is not registered, and startup fails |
 | `OptionalDependencies` | Soft. The resolver pulls the plugin in when it is registered and skips it in silence when it is not |
+| `StartAfter` | Order only. Never expands the selected set; orders the owner after a named plugin only when both are selected |
 
-Validation at registration is the same for both fields: an empty string and a
-self-dependency are rejected. Cycle detection and `TopologicalTiers` walk both
-kinds of edge when both endpoints appear in the resolved name set, so startup
-order holds whenever the optional dependency is present.
+All three fields reject empty strings and self-edges at registration. Cycle
+detection and `TopologicalTiers` walk every edge whose endpoints are both in the
+selected set. A selected cycle fails startup even when one edge is order-only.
+An absent `StartAfter` target is inert, whether or not that plugin is registered.
+
+BFD uses `StartAfter: ["interface"]`: configured interface selectors must be
+published before BFD creates session keys, but a BFD-only configuration must not
+activate an interface backend. This preserves raw-interface and empty-interface
+BFD startup on platforms without a default interface backend. The order-only
+edge does not keep a target loaded after its own configuration is removed.
+
+The daemon checks its config-path and explicit startup selections together.
+Already-selected explicit prerequisites move into the config-path phase when
+needed; unrelated explicit plugins remain later. Thus an explicitly selected
+interface provider also publishes before auto-loaded BFD. This does not expand
+the selected population or read compiled-in dependency metadata for an external
+program. Edges name implementations; dispatch keeps the configured process
+labels. `internal links { use interface }` therefore satisfies BFD's interface
+ordering edge. When several selected aliases run the same prerequisite, every
+instance finishes its handshake before the consumer. The same resolved graph
+drives cycle preflight, phase promotion, per-phase handshakes, and reverse-order
+configuration removal.
+<!-- source: internal/component/plugin/server/startup.go -- selectedPluginGraph, startupSelectedPhases, runPluginPhase -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- stopCollectedProcesses -->
 
 Graceful fallback belongs to the owner. `bgp-rs` is the worked example. It uses
 `bgp-adj-rib-in` for replay on peer-up, dispatches the command normally, treats
@@ -220,7 +242,7 @@ the engine's `ErrUnknownCommand` string as the plugin-absent signal, logs one
 `WARN` per process with `sync.Once`, skips the replay convergence loop, and
 continues.
 
-<!-- source: internal/component/plugin/registry/registry.go -- OptionalDependencies -->
+<!-- source: internal/component/plugin/registry/registry.go -- OptionalDependencies, StartAfter, ResolveDependencies, detectCycles, TopologicalTiers -->
 
 ## Address family registration
 
@@ -582,7 +604,7 @@ functional tests, and the checks for dependencies with no narrower owner.
 The website plugin catalog in `../gh-pages/docs/features/plugins/` is generated
 from `registry.Registration` fields by `./le site build`, and
 `internal/le/site/plugins.go` owns the producer. `Name`, `Description`, `ConfigRoots`,
-`Dependencies`, `OptionalDependencies` and `YANG` are public catalog data.
+`Dependencies`, `OptionalDependencies`, `StartAfter` and `YANG` are public catalog data.
 
 Local prose or display metadata goes in a `PLUGIN.md` next to that plugin's
 `register.go`, with front matter (`area`, `summary`, `tags`) and a Markdown

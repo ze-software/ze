@@ -88,8 +88,8 @@ func (s *Server) stageTransition(proc *process.Process, pluginName string, compl
 }
 
 // runPluginStartup handles five-phase plugin startup:
-// Phase 1: Start explicit plugins, wait for registration.
-// Phase 2: Auto-load plugins for config paths (e.g., fib { kernel {} } triggers fib-kernel).
+// Phase 1: Auto-load config-path plugins and their already-selected prerequisites.
+// Phase 2: Start the remaining explicit plugins.
 // Phase 3: Auto-load plugins for unclaimed families.
 // Phase 4: Auto-load plugins for custom event types (e.g., update-rpki triggers bgp-rpki-decorator).
 // Phase 5: Auto-load plugins for custom send types (e.g., enhanced-refresh triggers bgp-route-refresh).
@@ -100,18 +100,25 @@ func (s *Server) runPluginStartup() {
 	// Config-path plugins run first because they establish infrastructure
 	// (like the BGP reactor) that explicit and family plugins depend on.
 	autoLoadConfigPaths := s.getConfigPathPlugins()
-	if len(autoLoadConfigPaths) > 0 {
+	autoCount := len(autoLoadConfigPaths)
+	configPhase, explicitPhase, err := startupSelectedPhases(autoLoadConfigPaths, s.config.Plugins)
+	if err != nil {
+		s.startupErr = fmt.Errorf("selected plugin startup ordering failed: %w", err)
+		s.signalStartupComplete()
+		return
+	}
+	if len(configPhase) > 0 {
 		logger().Debug("auto-loading plugins for config paths",
-			"count", len(autoLoadConfigPaths))
+			"count", len(configPhase))
 
 		if s.reactor != nil {
-			s.reactor.AddAPIProcessCount(len(autoLoadConfigPaths))
+			s.reactor.AddAPIProcessCount(autoCount)
 		}
 
-		if err := s.runPluginPhase(autoLoadConfigPaths); err != nil {
+		if err := s.runPluginPhase(configPhase); err != nil {
 			logger().Error("auto-load config path plugin startup failed", "error", err)
 			if s.reactor != nil {
-				s.reactor.AddAPIProcessCount(-len(autoLoadConfigPaths))
+				s.reactor.AddAPIProcessCount(-autoCount)
 			}
 			s.startupErr = fmt.Errorf("config-path plugin startup failed: %w", err)
 			s.signalStartupComplete()
@@ -121,9 +128,9 @@ func (s *Server) runPluginStartup() {
 
 	// Phase 2: Explicit plugins (from config plugin { external ... } section).
 	// These run after config-path plugins so infrastructure is available.
-	if len(s.config.Plugins) > 0 {
-		logger().Debug("starting explicit plugins", "count", len(s.config.Plugins))
-		if err := s.runPluginPhase(s.config.Plugins); err != nil {
+	if len(explicitPhase) > 0 {
+		logger().Debug("starting explicit plugins", "count", len(explicitPhase))
+		if err := s.runPluginPhase(explicitPhase); err != nil {
 			logger().Error("explicit plugin startup failed", "error", err)
 			s.signalStartupComplete()
 			return
@@ -195,6 +202,82 @@ func (s *Server) runPluginStartup() {
 
 	// Signal that all plugin phases are complete
 	s.signalStartupComplete()
+}
+
+// selectedPluginGraph resolves registration edges (implementation names) to
+// selected process labels. Every alias of a prerequisite must finish before
+// its consumers. registryRow uses the engine's RegistryName producer and gives
+// external programs no compiled-in edges, even beside a same-named internal
+// implementation. The original execution configs are never rewritten.
+func selectedPluginGraph(groups ...[]plugin.PluginConfig) map[string][]string {
+	graph := make(map[string][]string)
+	rows := make(map[string]*registry.Registration)
+	instances := make(map[string][]string)
+	for _, group := range groups {
+		for _, cfg := range group {
+			graph[cfg.Name] = nil
+			reg := registryRow(cfg)
+			rows[cfg.Name] = reg
+			implementation := cfg.Name
+			if reg != nil {
+				implementation = reg.Name
+			}
+			instances[implementation] = append(instances[implementation], cfg.Name)
+		}
+	}
+	for name, reg := range rows {
+		if reg == nil {
+			continue
+		}
+		for _, edges := range [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter} {
+			for _, dependency := range edges {
+				for _, target := range instances[dependency] {
+					if !slices.Contains(graph[name], target) {
+						graph[name] = append(graph[name], target)
+					}
+				}
+			}
+		}
+	}
+	return graph
+}
+
+// startupSelectedPhases preserves the config-path-before-explicit contract
+// except where an already-selected explicit prerequisite must run earlier.
+// It never resolves dependencies or activates a plugin. All selected edges
+// are checked together, so a cycle cannot hide across the two phase inputs.
+func startupSelectedPhases(configPaths, explicit []plugin.PluginConfig) ([]plugin.PluginConfig, []plugin.PluginConfig, error) {
+	graph := selectedPluginGraph(configPaths, explicit)
+	if _, err := registry.TopologicalGraphTiers(graph); err != nil {
+		return nil, nil, err
+	}
+	early := make(map[string]bool, len(configPaths))
+	queue := make([]string, 0, len(graph))
+	for _, cfg := range configPaths {
+		early[cfg.Name] = true
+		queue = append(queue, cfg.Name)
+	}
+	for len(queue) > 0 {
+		dependencies := graph[queue[0]]
+		queue = queue[1:]
+		for _, dependency := range dependencies {
+			if early[dependency] {
+				continue
+			}
+			early[dependency] = true
+			queue = append(queue, dependency)
+		}
+	}
+	first := slices.Clone(configPaths)
+	remaining := make([]plugin.PluginConfig, 0, len(explicit))
+	for _, cfg := range explicit {
+		if early[cfg.Name] {
+			first = append(first, cfg)
+		} else {
+			remaining = append(remaining, cfg)
+		}
+	}
+	return first, remaining, nil
 }
 
 // signalStartupComplete freezes registries for lock-free dispatch and
@@ -297,18 +380,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	}
 
 	// Step (b): Compute dependency tiers from plugin configs.
-	names := make([]string, len(plugins))
-	external := make(map[string]bool, len(plugins))
-	for i, p := range plugins {
-		names[i] = p.Name
-		// The tiers order what this daemon starts, so a block that named a
-		// program takes its edges from that program's declaration and never from
-		// a same-named compiled-in registration.
-		if p.RunsExternalProgram() {
-			external[p.Name] = true
-		}
-	}
-	tiers, err := registry.TopologicalTiers(names, external)
+	tiers, err := registry.TopologicalGraphTiers(selectedPluginGraph(plugins))
 	if err != nil {
 		logger().Error("tier computation failed", "error", err)
 		pm.Stop()

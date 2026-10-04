@@ -106,6 +106,12 @@ compiled in, and the file list is the directory holding the module the
 registration carries. The public plugin catalog publishes both.
 <!-- source: internal/le/repo/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
 
+The inventory keeps startup ordering separate from dependencies. Its JSON uses
+`start-after` (omitted when empty), and its plugin table labels the same metadata
+**Start after**. These names only constrain startup when both plugins are
+selected; they never activate another plugin. BFD starts after `interface` when
+both are selected, but selecting BFD alone does not load `interface`.
+
 ## Design Principle
 
 The self-documenting property emerges from the registration architecture:

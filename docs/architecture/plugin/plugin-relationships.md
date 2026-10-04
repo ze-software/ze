@@ -80,6 +80,16 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 **Bus subscribes:** None.
 
+BFD (`internal/component/bfd/register.go`) starts after `interface` when both are
+selected: the interface component publishes logical-to-kernel bindings before
+BFD configures pinned sessions. Its `StartAfter` declaration is order-only, not
+a dependency that activates an interface backend for BFD-only configurations.
+Runtime protocol clients use the same binding boundary before a session reaches
+the BFD engine.
+
+<!-- source: internal/component/bfd/register.go -- StartAfter -->
+<!-- source: internal/component/bfd/session_identity.go -- canonicalRequest -->
+
 ---
 
 ### rib

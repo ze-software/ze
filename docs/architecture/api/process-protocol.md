@@ -550,6 +550,19 @@ are started at once (single ProcessManager), but the 5-stage handshake is
 sequenced tier by tier. Tier 0 completes its full handshake -- including command
 registration -- before tier 1 begins.
 
+The config-path and explicit selections are checked together before spawning.
+An explicitly selected prerequisite of a config-path plugin moves into the
+config-path phase, transitively, so an order-only `StartAfter` edge cannot be
+lost at the phase boundary. Unrelated explicit plugins remain in phase 2.
+This reordering never selects a new plugin and never borrows the edges of a
+compiled-in namesake for an external program. Registration edges name the
+resolved implementation, not the operator's process label: a renamed provider
+or consumer retains its ordering. Each edge expands to every selected alias of
+its target implementation; the original process labels and execution configs
+remain unchanged. Cycle preflight, phase promotion, and per-phase handshakes use
+this same process-label graph.
+<!-- source: internal/component/plugin/server/startup.go -- selectedPluginGraph, startupSelectedPhases, runPluginStartup, runPluginPhase -->
+
 ```
 Tier computation (Kahn's algorithm / BFS layering):
   Tier 0: plugins with no dependencies      (e.g., bgp-adj-rib-in)
@@ -1278,8 +1291,8 @@ when config doesn't specify families.
 the engine automatically loads the internal plugin for that family (if one exists).
 
 **Five-phase plugin startup:**
-1. **Phase 1:** Config-path plugins start first (for example, BGP, interface, and FIB infrastructure plugins)
-2. **Phase 2:** Explicit plugins from `plugin { external ... }` start after config-path infrastructure is available
+1. **Phase 1:** Config-path plugins start first (for example, BGP, interface, and FIB infrastructure plugins), together with any already-selected explicit prerequisites they need.
+2. **Phase 2:** Remaining explicit plugins from `plugin { external ... }` start after config-path infrastructure is available.
 3. **Phase 3:** The engine checks which configured families are still unclaimed. Internal plugins are auto-loaded only for unclaimed families.
 4. **Phase 4:** The engine checks which custom event types are referenced in peer `receive` config but not produced by any running plugin. Producing plugins and their transitive dependencies are auto-loaded. For example, `receive [ update-rpki ]` auto-loads `bgp-rpki-decorator` and its dependency `bgp-rpki`.
 5. **Phase 5:** The engine checks which custom send types are referenced in peer `send` config but not enabled by any running plugin. Enabling plugins and their transitive dependencies are auto-loaded. For example, `send [ enhanced-refresh ]` auto-loads `bgp-route-refresh`.

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
@@ -111,6 +112,115 @@ func TestPluginCatalogCarriesTheFieldsThePageShows(t *testing.T) {
 	dependency := readArtifact(t, paths.Output, pluginsDirectory+"/bgp-adj-rib-in/"+pageMirrorFile)
 	if !strings.Contains(dependency, "- Optional dependency for: [`bgp-rs`](../bgp-rs/index.md)") {
 		t.Error("bgp-adj-rib-in does not say that bgp-rs uses it optionally")
+	}
+}
+
+// TestPluginStartupOrderingReachesConsumers publishes inventory metadata and
+// renders the catalog, both detail directions, and the derived plugin text.
+// Order-only targets must remain separate from both dependency categories.
+func TestPluginStartupOrderingReachesConsumers(t *testing.T) {
+	paths := pluginCatalogPaths(t)
+	content, err := marshalPluginRegistry([]repoinventory.Plugin{
+		{
+			Name: "bfd", Description: "Bidirectional forwarding detection",
+			StartAfter: []string{"interface", "unpublished"},
+			SourceDir:  "internal/component/bfd",
+		},
+		{
+			Name: "interface", Description: "Interface management",
+			SourceDir: "internal/component/iface",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(content, `"start_after": [`+"\n      \"interface\"") {
+		t.Fatalf("published registry loses startup ordering: %s", content)
+	}
+	if err := os.WriteFile(filepath.Join(paths.Output, filepath.FromSlash(pluginFile)), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderPluginCatalog(paths); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, surface := range []struct {
+		path string
+		want []string
+	}{
+		{
+			pluginsDest,
+			[]string{
+				`<span class="chip">Start after:interface</span>`,
+				`<dt>Start after</dt><dd><code>interface</code>, <code>unpublished</code>`,
+				"0 declare dependencies",
+			},
+		},
+		{
+			pluginsDirectory + "/" + pageMirrorFile,
+			[]string{"- [`bfd`](bfd/index.md): Start after `interface`, `unpublished` (order only)."},
+		},
+		{
+			pluginsDirectory + "/bfd/" + pageIndexFile,
+			[]string{
+				"<h3>Start after</h3>",
+				`<a href="../interface/"><code>interface</code></a>`,
+				"<code>unpublished</code>",
+				"never auto-loads a plugin",
+			},
+		},
+		{
+			pluginsDirectory + "/bfd/" + pageMirrorFile,
+			[]string{
+				"- Required: None\n- Optional: None",
+				"- Start after: [`interface`](../interface/index.md), `unpublished`",
+			},
+		},
+		{
+			pluginsDirectory + "/interface/" + pageIndexFile,
+			[]string{"<h3>Starts before</h3>", `<a href="../bfd/"><code>bfd</code></a>`},
+		},
+		{
+			pluginsDirectory + "/interface/" + pageMirrorFile,
+			[]string{
+				"- Required dependency for: None\n- Optional dependency for: None",
+				"- Starts before: [`bfd`](../bfd/index.md)",
+			},
+		},
+	} {
+		page := readArtifact(t, paths.Output, surface.path)
+		for _, want := range surface.want {
+			if !strings.Contains(page, want) {
+				t.Errorf("%s is missing %q", surface.path, want)
+			}
+		}
+	}
+
+	catalog := readArtifact(t, paths.Output, pluginsDest)
+	_, card, found := strings.Cut(catalog, `id="plugin-bfd"`)
+	if !found {
+		t.Fatal("catalog has no BFD card")
+	}
+	_, search, found := strings.Cut(card, `data-search="`)
+	if !found {
+		t.Fatal("BFD card has no search metadata")
+	}
+	search, _, found = strings.Cut(search, `"`)
+	if !found {
+		t.Fatal("BFD search metadata has no closing quote")
+	}
+	if !strings.Contains(search, "interface unpublished") {
+		t.Errorf("BFD search drops order-only targets: %s", search)
+	}
+
+	var inputs llmsInputs
+	if err := json.Unmarshal([]byte(content), &inputs.Plugins); err != nil {
+		t.Fatal(err)
+	}
+	var derived textbuf.Buffer
+	writeLLMSPlugins(&derived, &inputs)
+	if !strings.Contains(derived.String(), "Dependencies: none. Optional: none. Start after (order only): interface, unpublished.") {
+		t.Errorf("derived text loses order-only semantics: %s", derived.String())
 	}
 }
 
@@ -386,6 +496,7 @@ func TestThePublishedRegistryStatesEveryFieldTheCatalogShows(t *testing.T) {
 		`"source_dir": "internal/plugins/static"`,
 		`"yang_files": [` + "\n      \"internal/plugins/static/yang/ze-static-conf.yang\"",
 		`"dependencies": []`,
+		`"start_after": []`,
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("the published registry is missing %q, it is\n%s", want, content)

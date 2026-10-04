@@ -86,8 +86,9 @@ type SessionRequest struct {
 	// zero to let the routing table choose.
 	Local netip.Addr
 
-	// Interface is the egress interface name (single-hop only). Empty
-	// for multi-hop sessions.
+	// Interface is the logical egress interface name supplied by a client
+	// (single-hop only). The BFD service binds it to a kernel device before
+	// constructing the engine's key. Empty for multi-hop sessions.
 	Interface string
 
 	// VRF identifies the routing/VRF instance. Empty means default VRF.
@@ -160,6 +161,7 @@ type AuthSettings struct {
 //
 // The key intentionally excludes timer parameters: two clients with
 // different timers but the same path share one session per RFC 5882.
+// Interface is the bound kernel device name, matching transport ingress.
 type Key struct {
 	Peer      netip.Addr
 	Local     netip.Addr

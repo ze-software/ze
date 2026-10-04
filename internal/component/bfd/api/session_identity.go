@@ -12,10 +12,10 @@ type LinkAddress struct {
 	Prefix netip.Prefix
 }
 
-// Link is one candidate egress link: the name a client writes in
-// configuration, the VRF the link is in, and the addresses it carries. The BFD
-// component builds the list from the interface component and passes it to
-// Canonical; a client never assembles one.
+// Link is one candidate egress link: its kernel device name, the VRF the link
+// is in, and the addresses it carries. The BFD component binds a client's
+// logical interface before passing the backend's link table to Canonical;
+// a client never assembles one.
 type Link struct {
 	Name string
 	// VRF is the routing instance this link is in, DefaultVRF when it is in

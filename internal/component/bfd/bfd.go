@@ -194,12 +194,6 @@ func (r *runtimeState) applyConfig(cfg *pluginConfig) error {
 // have their shutdown bit re-applied so an operator flipping `shutdown
 // true/false` on a reload takes effect immediately.
 func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
-	// Publish the config BEFORE loopFor consults it so the new
-	// loops pick up top-level knobs (bindV6, persistDir) on their
-	// first start. r.cfg is only read from loopFor/pluginService
-	// under runtimeStateGuard which applyPinned also holds.
-	r.cfg = cfg
-
 	// A pinned session is a client like any other, so its key goes through
 	// the same canonicalization the protocol clients get (api.SessionRequest.Canonical).
 	// A configured session and a strict-mode BGP peer to one neighbor then
@@ -208,11 +202,17 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 	wanted := make(map[api.Key]sessionConfig, len(cfg.sessions))
 	requests := make(map[api.Key]api.SessionRequest, len(cfg.sessions))
 	for _, s := range cfg.sessions {
-		req := s.toSessionRequest(cfg.profiles)
-		req = req.Canonical(api.Topology{Links: links})
+		req, err := canonicalRequest(s.toSessionRequest(cfg.profiles), links)
+		if err != nil {
+			return err
+		}
 		wanted[req.Key()] = s
 		requests[req.Key()] = req
 	}
+	// Resolve the entire candidate before publishing any of it: a refused
+	// selector must retain the active profiles, loop settings and handles.
+	// loopFor still needs the accepted candidate before opening new sockets.
+	r.cfg = cfg
 
 	// Release sessions absent from the new config.
 	for key, handle := range r.pinned {
@@ -326,7 +326,7 @@ func resolveLoopDevices(wanted map[api.Key]sessionConfig) map[loopKey]string {
 			st.sawEmptyIface = true
 			continue
 		}
-		st.ifaces[s.iface] = struct{}{}
+		st.ifaces[key.Interface] = struct{}{}
 	}
 
 	out := make(map[loopKey]string, len(states))
@@ -534,7 +534,10 @@ func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle
 	if err != nil {
 		return nil, err
 	}
-	normalized := req.Canonical(api.Topology{Links: connectedLinks()})
+	normalized, err := canonicalRequest(req, connectedLinks())
+	if err != nil {
+		return nil, err
+	}
 	lk := loopKey{vrf: normalized.VRF, mode: normalized.Mode}
 	loop, err := s.state.loopFor(lk, loopDeviceFor(normalized))
 	if err != nil {

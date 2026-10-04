@@ -43,9 +43,12 @@ type Plugin struct {
 	// OptionalDependencies are plugins this one uses when they are loaded and
 	// runs without when they are not.
 	OptionalDependencies []string `json:"optional-dependencies,omitempty"`
-	ConfigRoots          []string `json:"config-roots,omitempty"`
-	RFCs                 []string `json:"rfcs,omitempty"`
-	Features             string   `json:"features,omitempty"`
+	// StartAfter orders startup only when both plugins are selected; it never
+	// activates the named plugins.
+	StartAfter  []string `json:"start-after,omitempty"`
+	ConfigRoots []string `json:"config-roots,omitempty"`
+	RFCs        []string `json:"rfcs,omitempty"`
+	Features    string   `json:"features,omitempty"`
 	// SourceDir is the repository-relative package directory this plugin
 	// registers from, and YANGFiles are the repository-relative paths of every
 	// YANG file beside it. plugins.go derives both from the registration; a
@@ -159,16 +162,17 @@ func summaryRow(tb *textbuf.Buffer, name string, count int) {
 // writePlugins renders the plugin table.
 func (inv Inventory) writePlugins(tb *textbuf.Buffer) {
 	tb.Str("\n## Plugins (").Int(int64(len(inv.Plugins))).Str(")\n\n")
-	tb.Str("| Name | Description | Families | Caps | Deps | RFCs | YANG |\n")
-	tb.Str("|------|-------------|----------|------|------|------|------|\n")
-	// Indexed rather than ranged by value: a Plugin is 176 bytes, and the
-	// table is one row per registered plugin.
+	tb.Str("Start after orders selected plugins only; it never activates a plugin.\n\n")
+	tb.Str("| Name | Description | Families | Caps | Deps | Start after | RFCs | YANG |\n")
+	tb.Str("|------|-------------|----------|------|------|-------------|------|------|\n")
+	// Index the rows to avoid copying plugin metadata.
 	for i := range inv.Plugins {
 		plugin := &inv.Plugins[i]
 		tb.Str("| ").Str(plugin.Name).Str(" | ").Str(plugin.Description).Str(" | ").
 			Join(plugin.Families, ", ").Str(" | ")
 		writeCapabilityCodes(tb, plugin.Capabilities)
 		tb.Str(" | ").Join(plugin.Dependencies, ", ").Str(" | ").
+			Join(plugin.StartAfter, ", ").Str(" | ").
 			Join(plugin.RFCs, ", ").Str(" | ").Str(mark(plugin.HasYANG)).Str(" |\n")
 	}
 }

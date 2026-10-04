@@ -400,20 +400,15 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 	if pm == nil {
 		return nil
 	}
-	names := make([]string, 0, len(stopped))
-	external := make(map[string]bool)
+	selected := make([]plugin.PluginConfig, 0, len(stopped))
 	for name := range stopped {
 		proc := pm.GetProcess(name)
 		if proc == nil {
 			continue
 		}
-		names = append(names, name)
-		cfg := proc.Config()
-		if cfg.RunsExternalProgram() {
-			external[name] = true
-		}
+		selected = append(selected, proc.Config())
 	}
-	tiers, err := registry.TopologicalTiers(names, external)
+	tiers, err := registry.TopologicalGraphTiers(selectedPluginGraph(selected))
 	if err != nil {
 		return fmt.Errorf("config reload: order plugin removal: %w", err)
 	}
