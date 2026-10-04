@@ -19,9 +19,9 @@ import (
 // smoke test, a generator that only needs to complete). It must carry a reason.
 const escapeComment = "test-asserts-nothing:"
 
-// failureSelectors are the method names that can fail a test, on *testing.T,
-// *testing.B, *testing.F, or an assertion helper's receiver. Skip and SkipNow
-// are deliberately absent: skipping is not failing.
+// failureSelectors are the method names that can fail a test, on testing.TB,
+// *testing.T, *testing.B, *testing.F, or an assertion helper's receiver. Skip
+// and SkipNow are deliberately absent: skipping is not failing.
 var failureSelectors = map[string]bool{
 	"Error": true, "Errorf": true,
 	"Fatal": true, "Fatalf": true,
@@ -129,8 +129,8 @@ func packageFuncs(parsed map[string]*ast.File, order []string) map[pkgKey]map[st
 	return out
 }
 
-// testingIdents collects every identifier bound to *testing.T, *testing.B or
-// *testing.F within a node, including the parameters of subtest closures
+// testingIdents collects identifiers bound to testing.TB or *testing.T/B/F,
+// including the parameters of subtest closures
 // (`t.Run("x", func(t *testing.T) {...})`), since those routinely rebind the
 // name. ast.Inspect descends into FuncLit, so one pass covers them all.
 func testingIdents(node ast.Node) map[string]bool {
@@ -141,11 +141,12 @@ func testingIdents(node ast.Node) map[string]bool {
 			return true
 		}
 		for _, field := range fnType.Params.List {
-			star, isStar := field.Type.(*ast.StarExpr)
-			if !isStar {
-				continue
+			typ := field.Type
+			star, isStar := typ.(*ast.StarExpr)
+			if isStar {
+				typ = star.X
 			}
-			selector, isSelector := star.X.(*ast.SelectorExpr)
+			selector, isSelector := typ.(*ast.SelectorExpr)
 			if !isSelector {
 				continue
 			}
@@ -155,9 +156,18 @@ func testingIdents(node ast.Node) map[string]bool {
 			}
 			switch selector.Sel.Name {
 			case "T", "B", "F":
-				for _, name := range field.Names {
-					out[name.Name] = true
+				if !isStar {
+					continue
 				}
+			case "TB":
+				if isStar {
+					continue
+				}
+			default:
+				continue
+			}
+			for _, name := range field.Names {
+				out[name.Name] = true
 			}
 		}
 		return true
@@ -382,7 +392,7 @@ func (s scope) withTesting(extra map[string]bool) scope {
 //
 // depth bounds helper following; 1 means "follow helpers one level", which is
 // where the cost and benefit of this detector sit. sc.testing holds the
-// identifiers bound to *testing.T/B/F in scope. It is passed in rather than
+// identifiers bound to testing.TB or *testing.T/B/F in scope. It is passed in rather than
 // derived from body alone, because a test's own `t` parameter is declared in
 // the FuncDecl's signature, not inside its block.
 func canFail(body *ast.BlockStmt, sc scope, depth int) bool {

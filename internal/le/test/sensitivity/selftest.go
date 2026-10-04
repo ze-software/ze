@@ -61,6 +61,18 @@ func TestA(t *testing.T) { t.Run("s", func(t *testing.T) { t.Errorf("x") }) }`, 
 import "testing"
 func mustEq(t *testing.T, a, b int) { if a != b { t.Fatalf("ne") } }
 func TestA(t *testing.T) { mustEq(t, 1, 1) }`, 0},
+	{"testing.TB helper assertions count", `package p
+import "testing"
+func mustEq(tb testing.TB, a, b int) { if a != b { tb.Errorf("ne") } }
+func TestA(t *testing.T) { mustEq(t, 1, 2) }`, 0},
+	{"testing.TB without an assertion credits nothing", `package p
+import "testing"
+func helper(tb testing.TB) { tb.Helper() }
+func TestA(t *testing.T) { helper(t) }`, 1},
+	{"a business TB receiver is not a testing receiver", `package p
+import ("testing"; "example.com/business")
+func helper(tb business.TB) { tb.Errorf("not a test assertion") }
+func TestA(t *testing.T) { helper(business.New()) }`, 1},
 	{"t.Skip alone is not a failure path", `package p
 import "testing"
 func TestA(t *testing.T) { t.Skip("later") }`, 1},
@@ -166,6 +178,12 @@ func TestA(t *testing.T) { check.AssertIt(t, 1) }`, 0},
 	{"a helper in another package that cannot fail credits nothing", `package p
 import ("testing"; "example.test/check")
 func TestA(t *testing.T) { _ = check.Build(t) }`, 1},
+	{"an asserting testing.TB helper in another package credits the caller", `package p
+import ("testing"; "example.test/check")
+func TestA(t *testing.T) { check.AssertTB(t, 2) }`, 0},
+	{"an inert testing.TB helper in another package credits nothing", `package p
+import ("testing"; "example.test/check")
+func TestA(t *testing.T) { check.BuildTB(t) }`, 1},
 	{"a package outside the module is never followed", `package p
 import ("testing"; "example.com/other/check")
 func TestA(t *testing.T) { check.AssertIt(t, 1) }`, 1},
@@ -177,6 +195,8 @@ const crossHelperSource = `package check
 import "testing"
 func AssertIt(t *testing.T, got int) { if got != 1 { t.Fatalf("ne") } }
 func Build(t *testing.T) string { return t.TempDir() }
+func AssertTB(tb testing.TB, got int) { if got != 1 { tb.Fatalf("ne") } }
+func BuildTB(tb testing.TB) { tb.Helper() }
 `
 
 // tagCase is one synthetic build constraint and whether it is an orphan.

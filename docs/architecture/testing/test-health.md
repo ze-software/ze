@@ -42,6 +42,10 @@ red.
 Benchmarks and fuzz targets are exempt: a benchmark measures, and a fuzz target
 delegates its oracle to the engine. Assertion helpers are followed one level;
 import aliases are resolved so `require` under a different name still counts.
+Testing receivers include the `testing.TB` interface as well as pointers to
+`testing.T`, `testing.B` and `testing.F`. Taking that interface alone is not an
+assertion: a helper still needs a failure call. A different package's `TB` type
+does not count.
 
 ### tag-orphan
 
