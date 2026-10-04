@@ -759,7 +759,16 @@ under two ADD-PATH identifiers, MED 10 then MED 50, and requires pmacct's readin
 of the Loc-RIB stream to carry the MED 10 best and never the MED 50 path, told
 apart by their AS_PATHs since Ze's Loc-RIB Route Monitoring carries no MED, because
 Ze advertises no best path to a BGP peer and the Loc-RIB feed is where a foreign
-implementation can observe its election), PATHS-LIMIT,
+implementation can observe its election), an RFC 8277 labelled withdrawal
+(`bgp-labeled-withdraw-compatibility-frr` has the raw injector announce 10.10.0.0/24 under
+label 100 and 10.11.0.0/24 under label 101 in ipv4/mpls-label, then withdraw 10.10.0.0/24 alone
+with the Compatibility value 0x800000 in the label field. FRR, fed through bgp-rs, must hold both
+routes, then lose 10.10.0.0/24 with exactly one logged withdrawal while the injector session stays
+Established. The checker then stops the injector, FRR must lose 10.11.0.0/24 through bgp-rs's
+peer-down withdrawals, and its log must still hold one withdrawal of 10.10.0.0/24. bgp-rs relays
+the withdrawal's bytes unchanged, so FRR losing the route alone cannot tell whether Ze read it:
+Ze's reading decides what bgp-rs keeps in its route inventory, and a misread withdrawal leaves
+10.10.0.0/24 there to be withdrawn a second time at peer down), PATHS-LIMIT,
 max-prefix cease, a reload of the global router-id (`bgp-reload-global-router-id`
 starts Ze with 10.255.0.1, reloads it to 10.255.0.2, and requires BIRD, a static
 peer, and FRR, which Ze adds after the reload with `create bgp peer`, each to
