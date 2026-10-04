@@ -149,6 +149,10 @@
                     "why": "Ze's internal metrics backend: counters, gauges, and histograms against a private registry."
                 },
                 {
+                    "module": "github.com/prometheus/client_model",
+                    "why": "The metric sample types the L2TP subscriber tests and the BGP interop lab read a gauge's current value through."
+                },
+                {
                     "module": "github.com/prometheus/common",
                     "why": "Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel."
                 },
@@ -176,6 +180,10 @@
                 {
                     "module": "golang.org/x/net",
                     "why": "Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth."
+                },
+                {
+                    "module": "golang.org/x/sync",
+                    "why": "errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure."
                 },
                 {
                     "module": "golang.org/x/sys",
