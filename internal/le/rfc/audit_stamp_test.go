@@ -2,6 +2,7 @@ package rfc
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -643,9 +644,7 @@ func TestPartialAuditRequiresVerifiedClaims(t *testing.T) {
 	for _, field := range []string{fingerprintTests, fingerprintUnits, fingerprintCode, verdictFieldNote} {
 		t.Run(field, func(t *testing.T) {
 			copy := map[string]any{}
-			for key, value := range entry {
-				copy[key] = value
-			}
+			maps.Copy(copy, entry)
 			delete(copy, field)
 			if len(verdictClaims(selftestStem, selftestRIDSend, copy, collected.Requirements[0], collected.Tags)) == 0 {
 				t.Fatal("missing prerequisite accepted")

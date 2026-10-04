@@ -194,10 +194,8 @@ func parsePartial(rest, where string) (*Annotation, error) {
 	if filepath.IsAbs(path) {
 		return nil, fmt.Errorf("%s: {partial} producer must be repo-relative", where)
 	}
-	for _, part := range strings.Split(path, "/") {
-		if part == ".." {
-			return nil, fmt.Errorf("%s: {partial} producer must remain inside the repository", where)
-		}
+	if slices.Contains(strings.Split(path, "/"), "..") {
+		return nil, fmt.Errorf("%s: {partial} producer must remain inside the repository", where)
 	}
 	if strings.HasSuffix(path, "_test.go") {
 		return nil, fmt.Errorf("%s: {partial} producer names a test, not production code", where)
@@ -254,7 +252,7 @@ func partialWordBoundary(text string, offset int) bool {
 	}
 	left, _ := utf8.DecodeLastRuneInString(text[:offset])
 	right, _ := utf8.DecodeRuneInString(text[offset:])
-	return !(partialWordRune(left) && partialWordRune(right))
+	return !partialWordRune(left) || !partialWordRune(right)
 }
 
 func partialWordRune(r rune) bool {

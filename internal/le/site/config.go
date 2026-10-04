@@ -113,11 +113,11 @@ func runtimePlugins(output string) ([]registryPlugin, error) {
 		return nil, err
 	}
 	runtime := make([]registryPlugin, 0, len(published))
-	for _, plugin := range published {
-		if strings.HasPrefix(plugin.SourceDir, testPluginPrefix) {
+	for i := range published {
+		if strings.HasPrefix(published[i].SourceDir, testPluginPrefix) {
 			continue
 		}
-		runtime = append(runtime, plugin)
+		runtime = append(runtime, published[i])
 	}
 	return runtime, nil
 }
@@ -164,9 +164,9 @@ func sortedTreeSections(tree map[string]configNode) []string {
 // `bgp`, or a nested path such as `fib/kernel`.
 func configOwnerMap(plugins []registryPlugin) map[string][]registryPlugin {
 	owners := make(map[string][]registryPlugin)
-	for _, plugin := range plugins {
-		for _, root := range plugin.ConfigRoots {
-			owners[root] = append(owners[root], plugin)
+	for i := range plugins {
+		for _, root := range plugins[i].ConfigRoots {
+			owners[root] = append(owners[root], plugins[i])
 		}
 	}
 	return owners
@@ -187,8 +187,8 @@ func refuseOrphanConfigRoots(tree map[string]configNode, owners map[string][]reg
 			continue
 		}
 		names := make([]string, 0, len(plugins))
-		for _, plugin := range plugins {
-			names = append(names, plugin.Name)
+		for i := range plugins {
+			names = append(names, plugins[i].Name)
 		}
 		orphans = append(orphans, root+" (declared by "+strings.Join(names, ", ")+")")
 	}
@@ -290,7 +290,8 @@ func configOwnershipData(owners map[string][]registryPlugin) map[string]configOw
 	data := make(map[string]configOwnership, len(owners))
 	for path, plugins := range owners {
 		entry := configOwnership{Label: configOwnerLabel(plugins)}
-		for _, plugin := range plugins {
+		for i := range plugins {
+			plugin := &plugins[i]
 			owner := configOwner{Name: plugin.Name, YANG: []configYANGRef{}}
 			for _, file := range plugin.YangFiles {
 				owner.YANG = append(owner.YANG, configYANGRef{
@@ -399,7 +400,8 @@ func configOwnerMirrorLine(plugins []registryPlugin) string {
 		return ""
 	}
 	stated := make([]string, 0, len(plugins))
-	for _, plugin := range plugins {
+	for i := range plugins {
+		plugin := &plugins[i]
 		links := make([]string, 0, len(plugin.YangFiles))
 		for _, file := range plugin.YangFiles {
 			links = append(links, "["+filepath.Base(file)+"]("+repositoryBlob+"/"+file+")")

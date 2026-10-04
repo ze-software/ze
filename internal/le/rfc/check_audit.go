@@ -426,7 +426,8 @@ func partialProofClaims(tree string, req Requirement, tags []Tag) ([]string, err
 
 func partialCoverRefusals(rid string, covers map[Cover][]Tag, verdicts []DiscriminationVerdict) []string {
 	proven := map[Cover]bool{}
-	for _, verdict := range verdicts {
+	for i := range verdicts {
+		verdict := &verdicts[i]
 		if verdict.Verified() && verdict.Record.Proves() {
 			proven[verdict.Record.Cover()] = true
 		}

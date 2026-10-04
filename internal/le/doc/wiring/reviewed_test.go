@@ -60,7 +60,7 @@ func writeReviewed(t *testing.T, root string, rows ...string) {
 
 // reviewedRowFor answers one row for the fixture's claim on Documented.
 func reviewedRowFor(commit, reason string) string {
-	return "| docs/one.md | `internal/x/x.go` | Documented | " + commit + " | " + reason + " |"
+	return "| docs/one.md | `internal/x/x.go` | Documented | " + commit + " | " + reason + " |" // <!-- doc-links: ignore (source exists only in the disposable reviewed-claim fixture) -->
 }
 
 // driftResult answers the doc-drift result of one Run through the gate entry.

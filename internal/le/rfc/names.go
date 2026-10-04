@@ -70,7 +70,10 @@ func rfcNumberStem(base string) string {
 	if digits == 0 {
 		return ""
 	}
-	if 3+digits >= len(base) || base[3+digits] != '_' {
+	if 3+digits >= len(base) {
+		return ""
+	}
+	if base[3+digits] != '_' {
 		return ""
 	}
 	return base[:3+digits]
@@ -153,7 +156,10 @@ func judgeTestFileName(file namedTestFile, stems map[string]bool) (nameVerdict, 
 	if file.Marker.Present {
 		return judgeNamingMarker(file, nameStem)
 	}
-	if nameStem == "" || file.TagStems[nameStem] {
+	if nameStem == "" {
+		return nameVerdict{}, false
+	}
+	if file.TagStems[nameStem] {
 		return nameVerdict{}, false
 	}
 	var tb textbuf.Buffer
@@ -189,7 +195,10 @@ const legacyRFCToken = "rfc"
 // Every other element is kept as it was, so no underscore is added or lost.
 func topicForStem(topic, stem string) string {
 	body, isTest := strings.CutSuffix(topic, testFileSuffix)
-	if !isTest || body == "" {
+	if !isTest {
+		return topic
+	}
+	if body == "" {
 		return topic
 	}
 	tokens := strings.Split(body, "_")
@@ -342,7 +351,10 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 	for _, sub := range testRoots {
 		root := treePath(tree, sub)
 		info, statErr := os.Stat(root)
-		if statErr != nil || !info.IsDir() {
+		if statErr != nil {
+			continue
+		}
+		if !info.IsDir() {
 			continue
 		}
 		walkErr := filepath.WalkDir(root, func(full string, entry os.DirEntry, err error) error {
@@ -360,7 +372,10 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 				return nil
 			}
 			carrier, held := CarrierFor(rel, carriers)
-			if !held || carrier.Kind != kindUnit {
+			if !held {
+				return nil
+			}
+			if carrier.Kind != kindUnit {
 				return nil
 			}
 			src, readErr := readFile(full, rel)

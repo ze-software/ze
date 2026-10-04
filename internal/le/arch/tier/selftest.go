@@ -29,6 +29,9 @@ import (
 // fixtureModule is the module path every fixture checkout declares.
 const fixtureModule = "example.com/m"
 
+const fixtureModuleFile = "go.mod"
+const fixtureModuleContents = "module " + fixtureModule + "\n"
+
 // nestedFixtureRoot is a real plugin search root and a nested sub-plugin
 // namespace. An engine there is a correctly placed sub-plugin of its host.
 const nestedFixtureRoot = "internal/component/firewall/plugins"
@@ -98,7 +101,7 @@ func placementFixture() map[string]string {
 	nested := tb.Str(nestedFixtureRoot).Str("/sub/r.go").String()
 
 	return map[string]string{
-		"go.mod": "module example.com/m\n",
+		fixtureModuleFile: fixtureModuleContents,
 
 		// An edge engine in component that nothing depends on belongs in
 		// plugins.
@@ -186,7 +189,7 @@ func manifestFixture() map[string]string {
 // coreFixture answers the third fixture checkout: the core import direction.
 func coreFixture() map[string]string {
 	return map[string]string{
-		"go.mod": "module example.com/m\n",
+		fixtureModuleFile: fixtureModuleContents,
 		// A core-to-core import is never a violation.
 		"internal/core/clean/lib.go": "package clean\n",
 		"internal/core/ok/self.go":   blankImport("ok", "internal/core/clean"),
@@ -640,7 +643,7 @@ func runSelftest() (any, int) {
 // A grouped NLRI owner, an owner-local helper and shared host contracts coexist.
 func ownershipFixture() map[string]string {
 	return map[string]string{
-		"go.mod":                  "module example.com/m\n",
+		fixtureModuleFile:         fixtureModuleContents,
 		FeatureGatesManifest:      "# no compile-out gates\n",
 		Golangci:                  "run:\n  build-tags:\n    - ze_core\nlinters: {}\n",
 		NonEngineCategories:       "internal/component/bgp framework fixture host\ninternal/component/plugin framework fixture composition\n",

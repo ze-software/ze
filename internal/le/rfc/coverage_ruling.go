@@ -46,7 +46,10 @@ func ownerRuledMove(req Requirement, polarity string, held map[Cover][]Tag, appr
 	}
 	units := 0
 	for cover := range held {
-		if cover.RID != req.RID || cover.Polarity != polarity {
+		if cover.RID != req.RID {
+			continue
+		}
+		if cover.Polarity != polarity {
 			continue
 		}
 		units++

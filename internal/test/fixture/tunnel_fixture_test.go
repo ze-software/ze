@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5" //nolint:gosec // RADIUS wire protocol requires MD5
 	"encoding/binary"
+	"errors"
 	"net"
 	"strconv"
 	"testing"
@@ -109,9 +110,15 @@ func TestTunnelL2TPAccountingEchoAfterHandshakeDeadline(t *testing.T) {
 	if err := server.SetReadDeadline(time.Now().Add(25 * time.Millisecond)); err != nil {
 		t.Fatal(err)
 	}
-	if n, _, err := server.ReadFromUDP(buffer[:]); err == nil {
+	n, _, err = server.ReadFromUDP(buffer[:])
+	if err == nil {
 		t.Fatalf("silent peer emitted %x", buffer[:n])
-	} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+	}
+	var timeout net.Error
+	if !errors.As(err, &timeout) {
+		t.Fatalf("silent peer read failed without a timeout: %v", err)
+	}
+	if !timeout.Timeout() {
 		t.Fatalf("silent peer read failed without a timeout: %v", err)
 	}
 }

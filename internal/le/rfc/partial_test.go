@@ -2,6 +2,7 @@
 package rfc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -68,7 +69,7 @@ func TestPartialRequirementCheckReportsScope(t *testing.T) {
 	if req.Text != partialSentence+" (§2)" || req.RID != selftestRIDSend || req.Section != "2" || req.Level != levelMust {
 		t.Fatalf("identity/source changed: %+v", req)
 	}
-	for n := 0; n <= 2; n++ {
+	for n := range 3 {
 		findings := evaluate([]Requirement{req}, collected.Tags[:n], collected.Enrolled)
 		if (len(findings) == 0) != (n == 2) {
 			t.Errorf("%d polarities: %+v", n, findings)
@@ -246,7 +247,7 @@ func TestPartialKeepsExtractionAndClaimIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(extraction) != string(again) {
+	if !bytes.Equal(extraction, again) {
 		t.Fatal("scope rewrote extraction")
 	}
 	if verdicts := verifyFixture(t, files, map[string]string{selftestSummaryRel: plain}, record); !verdicts[0].Verified() {

@@ -421,8 +421,8 @@ func requirementRow(req Requirement, found []Tag, audited string, in RenderInput
 		}
 		marks = append(marks, tb.String())
 		if req.Annotation.Kind == AnnotationPartial {
-			marks = append(marks, "Parent quote: "+req.Text)
-			marks = append(marks, "Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit.")
+			marks = append(marks, "Parent quote: "+req.Text,
+				"Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit.")
 			if audited == VerdictEnforced {
 				marks = append(marks, "**invalid audit: enforced on partial scope**")
 			}

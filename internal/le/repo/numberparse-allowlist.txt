@@ -29,7 +29,6 @@
 1 internal/component/bfd/auth/persist.go
 3 internal/component/bfd/config.go
 2 internal/component/bgp/config/bgp_routes.go
-1 internal/component/bgp/config/loader_create.go
 1 internal/component/bgp/config/peers.go
 1 internal/component/bgp/config/resolve.go
 3 internal/component/bgp/config/routeattr.go
@@ -52,7 +51,7 @@
 1 internal/component/bgp/plugins/nlri/flowspec/config.go
 1 internal/component/bgp/plugins/nlri/flowspec/config_builder.go
 2 internal/component/bgp/plugins/nlri/labeled/encode.go
-2 internal/component/bgp/plugins/nlri/mup/encode.go
+1 internal/component/bgp/plugins/nlri/mup/encode.go
 1 internal/component/bgp/plugins/nlri/mvpn/config.go
 6 internal/component/bgp/plugins/nlri/srpolicy/config.go
 2 internal/component/bgp/plugins/nlri/srpolicy/encode.go

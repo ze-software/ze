@@ -928,6 +928,8 @@ func leRFCPartialProof(ctx context.Context) (err error) {
 	const rid = "RFC99999-2-1"
 	const summary = "rfc/short/" + stem + ".md"
 	const producer = "internal/le/rfc/ui_partial_fixture.go::UIPartialGapContext"
+	const gap = "MUST be zero when sent"
+	const tested = "ignored on receipt."
 	const sentence = "A widget MUST be zero when sent and ignored on receipt."
 	const marker = `{partial: tested "ignored on receipt."; gap "MUST be zero when sent"; native sending is absent at ` + producer + `}`
 	_, statErr := os.Stat(filepath.Join(tree, summary))
@@ -964,7 +966,7 @@ func leRFCPartialProof(ctx context.Context) (err error) {
 		leRFCAnswersRequireNoError(encodeErr, "encode scope")
 		if strings.Contains(string(encoded), rid) {
 			found = true
-			for _, fact := range []string{sentence, "ignored on receipt.", "MUST be zero when sent", producer} {
+			for _, fact := range []string{sentence, tested, gap, producer} {
 				leRFCAnswersRequire(strings.Contains(string(encoded), fact), "scope omits %q: %s", fact, encoded)
 			}
 		}
@@ -977,15 +979,14 @@ func leRFCPartialProof(ctx context.Context) (err error) {
 		}
 		result := runLE(args...)
 		leRFCAnswersRequire(result.code == check.code, "pipe changed check exit: %s", operator)
-		for _, fact := range []string{rid, "ignored on receipt.", "MUST be zero when sent"} {
+		for _, fact := range []string{rid, tested, gap} {
 			leRFCAnswersRequire(strings.Contains(result.stdout, fact), "%s omitted scoped fact %q", operator, fact)
 		}
 	}
 	index := runLE("rfc", actionIndexUpdate)
 	leRFCAnswersRequire(index.code == 0, "index-update refused valid scope: %s", index.stderr)
-	shard, readErr := os.ReadFile(filepath.Join(tree, "rfc/requirements/"+stem+".md"))
-	leRFCAnswersRequireNoError(readErr, "read scoped shard")
-	for _, fact := range []string{rid, "ignored on receipt.", "MUST be zero when sent", "zero whole-requirement credit"} {
+	shard := leRFCAnswersRead(tree, "rfc/requirements/"+stem+".md")
+	for _, fact := range []string{rid, tested, gap, "zero whole-requirement credit"} {
 		leRFCAnswersRequire(strings.Contains(string(shard), fact), "shard omitted %q", fact)
 	}
 	for _, control := range []struct{ row, refusal string }{
@@ -997,13 +998,12 @@ func leRFCPartialProof(ctx context.Context) (err error) {
 		leRFCAnswersRequire(bad.code == 2 && strings.Contains(bad.stdout, control.refusal), "invalid scope was accepted: %s", bad.stdout)
 		badIndex := runLE("rfc", actionIndexUpdate)
 		leRFCAnswersRequire(badIndex.code == 2, "index-update accepted invalid scope")
-		unchanged, readErr := os.ReadFile(filepath.Join(tree, "rfc/requirements/"+stem+".md"))
-		leRFCAnswersRequireNoError(readErr, "read refused writer's shard")
+		unchanged := leRFCAnswersRead(tree, "rfc/requirements/"+stem+".md")
 		leRFCAnswersRequire(bytes.Equal(shard, unchanged), "refused index-update changed shard")
 	}
 	write(summary, meta+row)
 	write("scratch/pending-partial.json", `{"rfc":"`+stem+`","requirements":{"`+rid+`":{"verdict":"enforced","note":"whole sentence supposedly proven"}}}`)
-	stamp := runLE("rfc", "audit-stamp", "stem", stem, "from", filepath.Join(tree, "scratch/pending-partial.json"))
+	stamp := runLE("rfc", "audit-stamp", "stem", stem, "from", filepath.Join(tree, "scratch", "pending-partial.json"))
 	leRFCAnswersRequire(stamp.code == 2 && strings.Contains(stamp.stderr+stamp.stdout, "cannot be 'enforced'"), "whole verdict accepted: %s%s", stamp.stdout, stamp.stderr)
 	_, statErr = os.Stat(filepath.Join(tree, "rfc/audit/"+stem+".json"))
 	leRFCAnswersRequire(os.IsNotExist(statErr), "refused stamp wrote audit")

@@ -318,8 +318,14 @@ func judgeRenameTarget(tree, target string, source namedTestFile, judged renameJ
 	if _, statErr := os.Lstat(treePath(tree, target)); statErr == nil {
 		refusal.Taken = true
 	}
-	if carrier, held := CarrierFor(target, judged.Carriers); !held || carrier.Kind != kindUnit {
-		return refusal, nil
+	{
+		carrier, held := CarrierFor(target, judged.Carriers)
+		if !held {
+			return refusal, nil
+		}
+		if carrier.Kind != kindUnit {
+			return refusal, nil
+		}
 	}
 	moved := namedTestFile{Rel: target, TagStems: source.TagStems, Marker: source.Marker}
 	refusal.Naming, refusal.Misnamed = judgeTestFileName(moved, judged.Stems)
@@ -329,10 +335,19 @@ func judgeRenameTarget(tree, target string, source namedTestFile, judged renameJ
 // cleanRepoPath reports whether rel is a clean, relative, slash-separated path
 // that stays inside the checkout.
 func cleanRepoPath(rel string) bool {
-	if rel == "" || path.IsAbs(rel) || filepath.IsAbs(rel) {
+	if rel == "" {
 		return false
 	}
-	if path.Clean(rel) != rel || strings.Contains(rel, "\\") {
+	if path.IsAbs(rel) {
+		return false
+	}
+	if filepath.IsAbs(rel) {
+		return false
+	}
+	if path.Clean(rel) != rel {
+		return false
+	}
+	if strings.Contains(rel, "\\") {
 		return false
 	}
 	return rel != ".." && !strings.HasPrefix(rel, "../")
@@ -379,7 +394,10 @@ func planEvidence(tree string, pairs []renamePair) ([]renameFile, error) {
 			return nil, parseErr(tb.Str(dir).Str(": cannot read: ").Err(err))
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), jsonSuffix) {
+			if entry.IsDir() {
+				continue
+			}
+			if !strings.HasSuffix(entry.Name(), jsonSuffix) {
 				continue
 			}
 			rel := path.Join(dir, entry.Name())
@@ -404,10 +422,16 @@ func planEvidence(tree string, pairs []renamePair) ([]renameFile, error) {
 
 // discriminationPathField holds a record's `unit` and `producer` values.
 func discriminationPathField(found evidenceString) bool {
-	if found.Key || len(found.Path) != 3 {
+	if found.Key {
 		return false
 	}
-	if found.Path[0] != "records" || found.Path[1] != evidenceArrayStep {
+	if len(found.Path) != 3 {
+		return false
+	}
+	if found.Path[0] != "records" {
+		return false
+	}
+	if found.Path[1] != evidenceArrayStep {
 		return false
 	}
 	return found.Path[2] == "unit" || found.Path[2] == "producer"
@@ -416,7 +440,13 @@ func discriminationPathField(found evidenceString) bool {
 // auditPathKey holds the keys of a requirement's `tests`, `units` and `code`
 // fingerprint maps.
 func auditPathKey(found evidenceString) bool {
-	if !found.Key || len(found.Path) != 3 || found.Path[0] != "requirements" {
+	if !found.Key {
+		return false
+	}
+	if len(found.Path) != 3 {
+		return false
+	}
+	if found.Path[0] != "requirements" {
 		return false
 	}
 	switch found.Path[2] {
@@ -472,7 +502,11 @@ func evidenceStrings(text []byte) ([]evidenceString, error) {
 			return nil, err
 		}
 		if delim, ok := token.(json.Delim); ok {
-			if delim == '{' || delim == '[' {
+			if delim == '{' {
+				stack = append(stack, evidenceFrame{Object: delim == '{', WantKey: delim == '{'})
+				continue
+			}
+			if delim == '[' {
 				stack = append(stack, evidenceFrame{Object: delim == '{', WantKey: delim == '{'})
 				continue
 			}
@@ -537,7 +571,10 @@ func rewriteEvidencePaths(text []byte, pairs []renamePair, fields func(evidenceS
 			continue
 		}
 		start := candidate.End - len(candidate.Value) - 2
-		if start < written || string(text[start:candidate.End]) != `"`+candidate.Value+`"` {
+		if start < written {
+			return nil, 0, errors.New("the path " + candidate.Value + " is escaped, so it is not rewritten in place")
+		}
+		if string(text[start:candidate.End]) != `"`+candidate.Value+`"` {
 			return nil, 0, errors.New("the path " + candidate.Value + " is escaped, so it is not rewritten in place")
 		}
 		out = append(out, text[written:start]...)
@@ -738,7 +775,12 @@ func trackedFilesMentioning(tree string, pairs []renamePair) ([]string, error) {
 func applyRename(tree string, plan renamePlan) (RenameReport, error) {
 	for _, file := range slices.Concat(plan.Evidence, plan.Cited) {
 		current, err := os.ReadFile(treePath(tree, file.Rel)) // #nosec G304 -- a file this plan read
-		if err != nil || !bytes.Equal(current, file.Original) {
+		if err != nil {
+			var tb textbuf.Buffer
+			return RenameReport{}, errors.New(tb.Str(file.Rel).
+				Str(": changed since the rename read it; nothing was written, run the rename again").String())
+		}
+		if !bytes.Equal(current, file.Original) {
 			var tb textbuf.Buffer
 			return RenameReport{}, errors.New(tb.Str(file.Rel).
 				Str(": changed since the rename read it; nothing was written, run the rename again").String())
@@ -947,7 +989,10 @@ func proposeRenames(tree, under, output string) (ProposeReport, error) {
 	var candidates []nameVerdict
 	shared := map[string]int{}
 	for _, verdict := range verdicts {
-		if verdict.Target == "" || !underDirectory(verdict.Rel, under) {
+		if verdict.Target == "" {
+			continue
+		}
+		if !underDirectory(verdict.Rel, under) {
 			continue
 		}
 		if stemOfFileName(path.Base(verdict.Rel), stems) != "" {
@@ -1025,7 +1070,10 @@ func readRenamePlan(tree, rel string) ([]renamePair, error) {
 	var pairs []renamePair
 	for index, line := range strings.Split(string(raw), "\n") {
 		text := strings.TrimSpace(line)
-		if text == "" || strings.HasPrefix(text, "#") {
+		if text == "" {
+			continue
+		}
+		if strings.HasPrefix(text, "#") {
 			continue
 		}
 		fields := strings.Fields(text)
@@ -1056,7 +1104,11 @@ func renameAnswer(args leaction.Arguments) (any, int) {
 			forms++
 		}
 	}
-	if forms != 1 || args.Has(keyFrom) != args.Has(keyTo) {
+	if forms != 1 {
+		leaction.ReportError(errors.New("rfc rename takes exactly one of: from <old> to <new>, plan <file>, propose <file>"))
+		return nil, 2
+	}
+	if args.Has(keyFrom) != args.Has(keyTo) {
 		leaction.ReportError(errors.New("rfc rename takes exactly one of: from <old> to <new>, plan <file>, propose <file>"))
 		return nil, 2
 	}

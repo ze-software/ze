@@ -773,7 +773,7 @@ func TestEvidenceStringsRefusesAllButOneValue(t *testing.T) {
 func TestRenameListsBraceCitationsLeftOnTheOldPath(t *testing.T) {
 	root := renameFixture(t)
 	const braceRel = "docs/brace-notes.md"
-	layFixture(t, root, map[string]string{braceRel: "The pair is `internal/sample/widget{_test,}.go`.\n"})
+	layFixture(t, root, map[string]string{braceRel: "The pair is `internal/sample/widget{_test,}.go`.\n"}) // <!-- doc-links: ignore (paths belong to the disposable rename fixture) -->
 	commitFixture(t, root, "a brace citation")
 	report, err := renameFiles(root, renameOne())
 	if err != nil {

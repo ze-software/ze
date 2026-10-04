@@ -2,6 +2,7 @@
 package site
 
 import (
+	"bytes"
 	"encoding/json"
 	"html"
 	"os"
@@ -2761,7 +2762,10 @@ func TestPartialProofPublicationsAgree(t *testing.T) {
 			t.Fatal("malformed scope was published as an ordinary or missing row")
 		}
 		after, err := os.ReadFile(filepath.Join(paths.Output, rfcLedgerFile))
-		if err != nil || string(after) != string(body) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(after, body) {
 			t.Fatal("refused publication replaced the valid artifact")
 		}
 	}

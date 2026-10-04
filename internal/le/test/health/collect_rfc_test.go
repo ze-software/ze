@@ -142,8 +142,14 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			density := metric.Data.get("proof_density").(object)
-			annotations := metric.Data.get("annotations").(object)
+			density, ok := metric.Data.get("proof_density").(object)
+			if !ok {
+				t.Fatalf("proof_density is not an object: %T", metric.Data.get("proof_density"))
+			}
+			annotations, ok := metric.Data.get("annotations").(object)
+			if !ok {
+				t.Fatalf("annotations is not an object: %T", metric.Data.get("annotations"))
+			}
 			if density.get("numerator") != 0 || density.get("denominator") != 1 || annotations.get(rfc.AnnotationPartial) != 1 ||
 				annotations.get(rfc.AnnotationGap) != 0 || metric.Data.get("gated_without_any_test") != 0 {
 				t.Fatalf("health collection conflated scope, whole proof or untested gaps: %+v", metric)
@@ -160,7 +166,10 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			wholeDensity := whole.Data.get("proof_density").(object)
+			wholeDensity, ok := whole.Data.get("proof_density").(object)
+			if !ok {
+				t.Fatalf("whole proof_density is not an object: %T", whole.Data.get("proof_density"))
+			}
 			if wholeDensity.get("numerator") != 1 || wholeDensity.get("denominator") != density.get("denominator") {
 				t.Fatalf("health ignored authored scope or changed its denominator: %+v", whole)
 			}

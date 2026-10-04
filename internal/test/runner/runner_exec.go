@@ -1254,7 +1254,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// daemonStopped is set when an arm below already stopped and reaped fgProc,
 	// so the teardown after the switch leaves it alone.
 	daemonStopped := false
-	// A failed fence still MUST drain and save the dialogue before returning.
+	// A failed fence still MUST drain and save the dialog before returning.
 	fenceFailed := false
 
 	switch {

@@ -322,7 +322,7 @@ func TestDefaultAwaitStderrTimeoutDerivesFromTestBudget(t *testing.T) {
 
 // TestFailedAwaitSavesDialogue runs real child processes through runTest and
 // checks the files a failed fence leaves, including bytes written at shutdown.
-// The failure remains a timeout; saving its dialogue must not turn it green.
+// The failure remains a timeout; saving its dialog must not turn it green.
 func TestFailedAwaitSavesDialogue(t *testing.T) {
 	for _, tc := range []struct {
 		name      string

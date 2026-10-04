@@ -19,9 +19,9 @@ import (
 // mention and the two non-path links must report nothing.
 func TestCitedPathsMatchesTheLinkSweep(t *testing.T) {
 	lines := []string{
-		"see `internal/absent/names_test.go` for the rule",
-		"`internal/absent/names.go::stemPrefix` mints it",
-		"[the gates](docs/absent/gates.md)",
+		"see `internal/absent/names_test.go` for the rule", // <!-- doc-links: ignore (intentionally absent target in a disposable citation fixture) -->
+		"`internal/absent/names.go::stemPrefix` mints it",  // <!-- doc-links: ignore (intentionally absent target in a disposable citation fixture) -->
+		"[the gates](docs/absent/gates.md)",                // <!-- doc-links: ignore (intentionally absent target in a disposable citation fixture) -->
 		"[here](#anchor) and [there](https://example.com/x)",
 		"a plain internal/absent/plain_test.go mention",
 	}
