@@ -12,6 +12,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"maps"
 	"net/netip"
 	"sync"
 	"testing"
@@ -196,9 +197,7 @@ func mixedForward(t *testing.T, run mixedRun, payload []byte, dests ...*Peer) ma
 		case <-time.After(300 * time.Millisecond):
 			mu.Lock()
 			out := make(map[netip.Addr][]mixedMsg, len(got))
-			for addr, msgs := range got {
-				out[addr] = msgs
-			}
+			maps.Copy(out, got)
 			mu.Unlock()
 			return out
 		}
@@ -251,9 +250,10 @@ func mixedAttr(code byte, value []byte) []byte {
 	return append([]byte{0x80, code, byte(len(value))}, value...)
 }
 
-// mixedReach is an MP_REACH_NLRI value of afi/safi with next-hop field nh.
-func mixedReach(afi uint16, safi byte, nh, nlri []byte) []byte {
-	v := []byte{byte(afi >> 8), byte(afi), safi, byte(len(nh))}
+// mixedReach is an IPv6 (AFI 2) MP_REACH_NLRI value of safi with next-hop field
+// nh.
+func mixedReach(safi byte, nh, nlri []byte) []byte {
+	v := []byte{0x00, 0x02, safi, byte(len(nh))}
 	v = append(v, nh...)
 	v = append(v, 0) // Reserved.
 	return mixedAttr(14, append(v, nlri...))
@@ -319,7 +319,7 @@ func TestMixedFamilyUpdateRefusedIsWithdrawnPerFamily(t *testing.T) {
 	passedAddr := netip.MustParseAddr("2001:db8:1::6")
 	payload := buildUpdatePayload(mixedAttrs(
 		mixedAttr(15, mixedUnreachValue(1, 1, mixedV4MPPfx)),
-		mixedReach(2, 1, mixedGlobalNH, mixedV6Prefix),
+		mixedReach(1, mixedGlobalNH, mixedV6Prefix),
 	), nil)
 	wantV4 := mixedUnreachValue(1, 1, mixedV4MPPfx)
 	wantV6 := mixedUnreachValue(2, 1, mixedV6Prefix)
@@ -402,7 +402,7 @@ func TestMixedUpdateWithdrawsOnlyTheLinkLocalOnlyField(t *testing.T) {
 	destAddr := netip.MustParseAddr(llnhOffSegmentAddr)
 	payload := buildUpdatePayload(mixedAttrs(
 		[]byte{0x40, 3, 4, 192, 0, 2, 1},
-		mixedReach(2, 1, mixedLLNH, mixedV6Prefix),
+		mixedReach(1, mixedLLNH, mixedV6Prefix),
 	), mixedV4Legacy)
 
 	for _, run := range mixedRails(t, nil) {
@@ -439,7 +439,7 @@ func TestUnspecifiedGlobalPairWithdrawnFromMultihopPeer(t *testing.T) {
 	offLink := netip.MustParseAddr(llnhOffSegmentAddr)
 	onLink := netip.MustParseAddr(llnhOnSegmentAddr)
 	pair := append(make([]byte, 16), netip.MustParseAddr("fe80::9").AsSlice()...)
-	payload := buildUpdatePayload(mixedAttrs(mixedReach(2, 1, pair, mixedV6Prefix)), nil)
+	payload := buildUpdatePayload(mixedAttrs(mixedReach(1, pair, mixedV6Prefix)), nil)
 
 	for _, run := range mixedRails(t, nil) {
 		rail := railName(run)
@@ -479,7 +479,7 @@ func TestVPNLinkLocalOnlyNextHopWithdrawnFromMultihopPeer(t *testing.T) {
 	nlri := []byte{24 + 64 + 64, 0x00, 0x01, 0x01}
 	nlri = append(nlri, make([]byte, 8)...)
 	nlri = append(nlri, mixedV6Prefix[1:]...)
-	payload := buildUpdatePayload(mixedAttrs(mixedReach(2, 128, nh, nlri)), nil)
+	payload := buildUpdatePayload(mixedAttrs(mixedReach(128, nh, nlri)), nil)
 
 	for _, run := range mixedRails(t, nil) {
 		rail := railName(run)
@@ -517,7 +517,7 @@ func TestASPathResolveFailureCostsWithheldDestinationNothing(t *testing.T) {
 	offLink := netip.MustParseAddr(llnhOffSegmentAddr)
 	onLink := netip.MustParseAddr(llnhOnSegmentAddr)
 	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 1, 5, 0, 0, 0xfd, 0xe9}
-	attrs = append(attrs, mixedReach(2, 1, mixedLLNH, mixedV6Prefix)...)
+	attrs = append(attrs, mixedReach(1, mixedLLNH, mixedV6Prefix)...)
 	payload := buildUpdatePayload(attrs, nil)
 
 	for _, run := range mixedRails(t, nil) {
@@ -533,6 +533,49 @@ func TestASPathResolveFailureCostsWithheldDestinationNothing(t *testing.T) {
 		}
 		assert.Equal(t, mixedUnreachValue(2, 1, mixedV6Prefix), unreach, "%s: the route is withdrawn", rail)
 		assert.Empty(t, got[onLink], "%s: the unresolvable AS_PATH suppresses the route on the link", rail)
+	}
+}
+
+// TestReceivedLinkLocalOnlyWithdrawnFromPeerWithoutCapability relays, on both
+// rails under next hop unchanged, a route received with the Link-Local-only
+// next hop fe80::1 to two destinations on the link: one that negotiated the
+// Link-Local Next Hop Capability and one that did not.
+//
+// The next hop is the received one, never one this speaker chose, and the
+// refusal still holds: RFC 2545 Section 3 makes the Global address mandatory in
+// the next hop field, and draft-ietf-idr-linklocal-capability Section 3 says a
+// Link-Local-only Next Hop "received without the Link-Local Next Hop Capability
+// having been negotiated is not conformant with [RFC2545]". Section 4 then answers for the route:
+// "treat-as-withdraw (Section 2 of [RFC7606]) is used."
+//
+// VALIDATES: the destination without the capability is announced nothing and
+// written the withdrawal of 2001:db8:7::/64, while the one with it is announced
+// fe80::1 unchanged.
+// PREVENTS: a received Link-Local-only next hop crossing, unchanged, to a
+// session that cannot carry it, which the written-next-hop gate never saw.
+func TestReceivedLinkLocalOnlyWithdrawnFromPeerWithoutCapability(t *testing.T) {
+	without := netip.MustParseAddr(llnhOnSegmentAddr)
+	with := netip.MustParseAddr("2001:db8:1::5")
+	payload := buildUpdatePayload(mixedAttrs(mixedReach(1, mixedLLNH, mixedV6Prefix)), nil)
+
+	for _, run := range mixedRails(t, nil) {
+		rail := railName(run)
+		refused := mixedDest(t, without.String())
+		refused.negotiated.Load().LinkLocalNextHop = false
+		refused.fwdFacts.Store(refused.buildForwardFacts())
+		got := mixedForward(t, run, payload, refused, mixedDest(t, with.String()))
+
+		msgs := got[without]
+		require.NotEmpty(t, msgs, "%s: the destination without the capability is written the withdrawal", rail)
+		var unreach []byte
+		for _, m := range msgs {
+			assert.False(t, m.hasReach, "%s: no Link-Local-only next hop crosses: %x", rail, m.reachNH)
+			unreach = append(unreach, m.unreach...)
+		}
+		assert.Equal(t, mixedUnreachValue(2, 1, mixedV6Prefix), unreach, "%s: the route is withdrawn", rail)
+
+		require.Len(t, got[with], 1, "%s: the destination with the capability is owed the route", rail)
+		assert.Equal(t, mixedLLNH, got[with][0].reachNH, "%s: fe80::1 crosses unchanged", rail)
 	}
 }
 

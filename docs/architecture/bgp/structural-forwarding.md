@@ -267,7 +267,13 @@ link-local-only and this peer is more than one IP hop away". Section 4: "If,
 after completing these procedures, there are no IPv6 next hop addresses included
 in the next hop, the BGP route MUST not be advertised to its peer. Instead,
 treat-as-withdraw (Section 2 of [RFC7606]) is used." A directly attached
-destination receives the Link-Local-only next hop unchanged. A next-hop rewrite
+destination that negotiated the Link-Local Next Hop Capability (capability 77)
+receives the Link-Local-only next hop unchanged. One that did not is withheld
+the route and sent its withdrawal, whether this speaker wrote the next hop or
+relayed the received one: RFC 2545 Section 3 puts the Global address in the
+field, and the draft's Section 3 calls a Link-Local-only Next Hop "received
+without the Link-Local Next Hop Capability having been negotiated" "not
+conformant with [RFC2545]". A next-hop rewrite
 (`self`, a filter) replaces the address before the question is asked, so it
 passes. Rewriting to self under `auto` towards an external peer is not done yet.
 

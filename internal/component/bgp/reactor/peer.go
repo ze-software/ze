@@ -1534,7 +1534,8 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 //
 // It is the ONE test for that refusal. The announce rail asks it of the address
 // it resolves (resolveNextHop above), and the two forward rails ask it of the
-// next hop they write (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go).
+// next hop they emit, written or received (egressNextHopLinkLocalOnlyRefused,
+// forward_next_hop.go).
 // Next hop self resolves to the session's connected endpoint on every rail, and
 // on a session that runs over a link-local address that endpoint is link-local,
 // so a rail that skipped this test would send what the others refuse.

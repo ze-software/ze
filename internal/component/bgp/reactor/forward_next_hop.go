@@ -280,8 +280,8 @@ func egressNextHopIsLinkLocalOnly(mods *filterapi.ModAccumulator, base nextHopVa
 }
 
 // egressNextHopLinkLocalOnlyRefused answers, for ONE destination, whether the
-// MP_REACH_NLRI next hop this speaker is about to write for it is a
-// Link-Local-only Next Hop the destination's session may not carry.
+// MP_REACH_NLRI next hop it is about to be sent is a Link-Local-only Next Hop
+// the destination's session may not carry.
 //
 // draft-ietf-idr-linklocal-capability Section 2: "When the capability has not
 // been negotiated, the procedures in this document do not apply." Section 5
@@ -289,13 +289,18 @@ func egressNextHopIsLinkLocalOnly(mods *filterapi.ModAccumulator, base nextHopVa
 // (peer.go) holds both, and the announce rail (Peer.resolveNextHop) asks the same
 // method, so the rails cannot disagree.
 //
-// Only a next hop this speaker WRITES is asked: one recorded in mods by a
-// configured next-hop mode or a filter. Next hop self is built from the
-// session's connected endpoint (precomputeNextHop, peer_forward_facts.go), and on
-// a session that runs over a link-local address that endpoint is link-local. A
-// received Link-Local-only next hop passed along unchanged is not this speaker's
-// choice, and the route-reflector rule of Section 4 governs it
-// (egressNextHopIsLinkLocalOnly above).
+// The address asked is the one the rebuild will emit, whoever chose it: one
+// recorded in mods by a configured next-hop mode or a filter, or the received
+// one relayed unchanged. Next hop self is built from the session's connected
+// endpoint (precomputeNextHop, peer_forward_facts.go), and on a session that
+// runs over a link-local address that endpoint is link-local. A received
+// Link-Local-only next hop is refused too, because RFC 2545 Section 3 makes the
+// Global address mandatory in the field: "A BGP speaker shall advertise to its
+// peer in the Network Address of Next Hop field the global IPv6 address of the
+// next hop, potentially followed by the link-local IPv6 address of the next
+// hop." The draft's Section 3 says the Link-Local-only form "received without
+// the Link-Local Next Hop Capability having been negotiated is not conformant
+// with [RFC2545]".
 //
 // A destination base with no MP_REACH_NLRI carries no field to write the
 // address into, so it answers false.
@@ -303,16 +308,16 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 	if base.mpFamily == (family.Family{}) {
 		return false
 	}
-	written, set := modsNextHop(mods)
-	if !set {
-		return false
+	emitted := base
+	if written, set := modsNextHop(mods); set {
+		emitted = written
 	}
 	// A valid second address is the 32-octet RFC 2545 Section 3 pair, whose
 	// first address is the Global one: never the Link-Local-only form.
-	if written.mpLL.IsValid() {
+	if !emitted.linkLocalOnly() {
 		return false
 	}
-	return dest.linkLocalOnlyNextHopRefused(written.mp, base.mpFamily)
+	return dest.linkLocalOnlyNextHopRefused(emitted.mp, base.mpFamily)
 }
 
 // egressNextHopGlobalHalf returns, for ONE destination more than one IP hop

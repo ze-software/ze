@@ -68,7 +68,8 @@ func llnhReflectedPayload(nextHop string) []byte {
 }
 
 // llnhClient builds an established internal peer that is a route-reflector
-// client of this speaker.
+// client of this speaker. It negotiated IPv6 unicast and the Link-Local Next Hop
+// Capability, so the draft's procedures apply to its session (Section 2).
 //
 // connected is the interface table its link scope is settled against, which is
 // what sameLinkLayerSegment (link_scope.go) reads. nextHopSelf asks for the
@@ -91,7 +92,8 @@ func llnhClient(t *testing.T, addr string, connected []netip.Prefix, nextHopSelf
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families: map[family.Family]bool{family.IPv6Unicast: true},
+		families:         map[family.Family]bool{family.IPv6Unicast: true},
+		LinkLocalNextHop: true,
 	})
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)

@@ -54,7 +54,8 @@ func llnhReceivedPairPayload() []byte {
 
 // llnhExternalPeer builds an established external peer (AS 65002) at addr whose
 // configured next-hop mode is mode. connected is the interface table its link
-// scope is settled against.
+// scope is settled against. It negotiated IPv6 unicast and the Link-Local Next
+// Hop Capability, so the draft's procedures apply to its session (Section 2).
 func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode uint8) *Peer {
 	t.Helper()
 	settings := &PeerSettings{
@@ -69,7 +70,8 @@ func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode 
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families: map[family.Family]bool{family.IPv6Unicast: true},
+		families:         map[family.Family]bool{family.IPv6Unicast: true},
+		LinkLocalNextHop: true,
 	})
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
