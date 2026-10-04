@@ -439,7 +439,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// leaves out a source the rename refuses, such as one edited in the working
 	// tree, and its report names the field left-out. Only the propose report
 	// moved; no record, audit or ledger verdict moved.
-	const want = "559e527211cea62f885a22d93c4fc7f9d1add196a919ae1a58b328ce8cca7cf1"
+	//
+	// Re-sealed 2026-10-04 for review round 10 of the naming rule, over the bytes
+	// that fix commit commits. Only doc comments in names.go and rename.go moved:
+	// they now say which refusals pairRefusals sees, and that a refusal judged on
+	// an evidence record is seen only by the batch's rewrite. No behavior moved.
+	const want = "d5e1ac74ead54551f9ebfda198b0be95a9ae628963989985b2456ee4a1bc9cfd"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

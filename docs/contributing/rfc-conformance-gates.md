@@ -1266,7 +1266,10 @@ source that is untracked or differs from HEAD, and a target that already
 exists, moves the build suffix or fails the naming rule, is left out and named
 with its reason, as is a target two findings share, and so is a file named for
 another RFC, which has to be read before it moves. No pair in a proposed plan
-is one that refuses its batch. The output
+draws a refusal from its paths, its source's state or its target. A refusal
+judged on an evidence record, an escaped path spelling or evidence that is not
+one JSON value, is judged by the batch's rewrite alone, so `propose` does not
+see it, and the rename then refuses the whole batch rather than writing it. The output
 file is created, never overwritten. Run `./le rfc index-update` after a rename.
 <!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, pairRefusals, planCitations, proposeRenames, judgeRenameTarget -->
 <!-- source: internal/le/doc/citation/policed.go -- Policed, Excluded -->
@@ -1331,8 +1334,12 @@ is untracked or differs from HEAD, and, through `judgeRenameTarget`, a taken
 name, a moved build suffix and a name the naming rule refuses for the source's
 tags and marker. A finding judges names, not the working tree, so it sets the
 source's state aside: a name and its tags disagree whoever is editing the file.
-A command a finding names is therefore one the rename takes once its source
-matches HEAD, and `propose`, whose pairs run now, leaves such a source out.
+A command a finding names therefore draws none of the refusals one pair draws
+from its paths, its source's state and its target once its source matches HEAD,
+and `propose`, whose pairs run now, leaves an edited source out. A refusal
+judged on an evidence record, an escaped path spelling or evidence that is not
+one JSON value, is judged by the batch's rewrite alone, so neither the finding
+nor `propose` sees it, and the rename refuses the batch rather than writing it.
 Two files sharing a target is the one refusal a single pair cannot see, and the
 check counts it across its findings.
 <!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames, verdictRename, repairBlocked, pairBlocked -->

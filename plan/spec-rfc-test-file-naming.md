@@ -620,7 +620,7 @@ Totals in b3ff2855fb: 26 untagged renamed, 13 untagged marked, 6 mismatches rena
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 9, with rounds 7, 8 and 9 authorised by the owner (Thomas, 2026-10-03); round 10 is pending the owner's authorisation (round 9 scope: the round 8 fixes in 981bdeb19f; round 8 scope: the round 7 fixes in b892cd4e03; round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
+| Rounds | 10, with rounds 7 to 10 authorised by the owner (Thomas, 2026-10-03/04) (round 10 scope: the round 9 fixes in 3a97549349; round 9 scope: the round 8 fixes in 981bdeb19f; round 8 scope: the round 7 fixes in b892cd4e03; round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -730,7 +730,17 @@ Recorded with this round: a stale RFC 8050 comment in `internal/mrt/bgp.go` and 
 | R9-1 | ISSUE | `proposeRenames` judged only the target, through `repairBlocked` and `judgeRenameTarget`, while `refusePair` also refuses on the source side (`sourceDiffersFromHead`: untracked, or edited in the working tree), so a misnamed tagged file another session had edited was proposed and then refused the whole batch. Third miss in one class after R7-1 and R8-1: each fix routed one more refusal through a shared predicate and left the rest behind | `internal/le/rfc/rename.go` `proposeRenames`, `refusePair`; `internal/le/rfc/names.go` `repairBlocked` | Fixed by closing the class: every refusal one pair can draw lives in one predicate, `pairRefusals`, which answers a typed `pairRefusal` (unclean path, non-test file, other directory, source state, unreadable source, and the `judgeRenameTarget` target refusals). `refusePair` renders all of it; `proposeRenames` renders its first reason through `pairBlocked` with the shared-target count; `repairBlocked` does the same for a finding after setting the source's working-tree state aside, since a finding judges names. The gates page says so, and that a finding's command is one the rename takes once its source matches HEAD. `TestRenameProposeLeavesOutEditedSource` (committed file edited in the working tree: 0 pairs, 1 left out with the rename's reason), red before the fix, shaped like the reviewer's probe. The three earlier propose tests now commit their fixture, because a pair on an untracked source is one the rename refuses |
 | R9-2 | NOTE | `ProposeReport.Collisions` called every left-out pair a collision, though most reasons are not | `internal/le/rfc/rename.go` `ProposeReport` | Fixed: renamed `LeftOut`, JSON key `left-out`; no reader of the old key exists outside the package's own tests (grep of `internal/`, `cmd/`, `docs/`, `ai/`) |
 
-`TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`. A round 10 review is pending the owner's authorisation.
+`TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`. Round 10 is authorised by the owner (Thomas, 2026-10-03/04, with rounds 7 to 9).
+
+### Round 10 (scope: the round 9 fixes in 3a97549349; authorised by the owner, Thomas, 2026-10-03/04)
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| R10-1 | ISSUE | Two sentences of the gates page ("No pair in a proposed plan is one that refuses its batch"; "A command a finding names is therefore one the rename takes once its source matches HEAD") and the matching doc comments claimed more than `pairRefusals` answers: a refusal judged on an evidence record (an escaped path spelling such as `\/`, evidence that is not one JSON value) is judged by the batch's rewrite alone, so propose wrote a pair whose rename then refused the batch (reviewer probe `TestR10ProbeProposeEscapedEvidence`) | `docs/contributing/rfc-conformance-gates.md`; `internal/le/rfc/rename.go` `proposeRenames`; `internal/le/rfc/names.go` `repairBlocked` | Fixed by option (a), main-thread decision: both sentences and both comments now say that a proposed pair, and a finding's command once its source matches HEAD, draws none of the refusals one pair draws from its paths, its source's state and its target, and that an evidence-record refusal is seen by neither propose nor a finding: the rename refuses the whole batch, so it fails closed. No behavior changed |
+| R10-2 | NOTE | Raised by the round 10 review on a cold path | `internal/le/rfc` | Accepted by the main thread: a cold path, no change |
+| R10-3 | NOTE | Raised by the round 10 review on a refusal path | `internal/le/rfc` | Accepted by the main thread: it fails closed, no change |
+
+The reviewer's nine mutants over `pairRefusals`, `pairBlocked`, `repairBlocked` and `refusePair` (session scratch `r10mut/m1` to `m9`) were each killed by at least one test. `TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`, where only comments moved.
 
 ## Phase 2 progress
 

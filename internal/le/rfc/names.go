@@ -460,8 +460,12 @@ func verdictRename(verdict nameVerdict) string {
 // (pairRefusal.SourceState) is set aside: `./le rfc check` reports a name and
 // tag disagreement that holds whether or not another session is editing the
 // file, and the rename refuses an edited source with its own reason. A command
-// a finding names is therefore one the rename takes once its source matches
-// HEAD. proposeRenames writes pairs to run now, so it keeps that refusal.
+// a finding names therefore draws none of the refusals one pair draws from its
+// paths, its source's state and its target once its source matches HEAD.
+// proposeRenames writes pairs to run now, so it keeps the source-state refusal.
+// A refusal judged on an evidence record (an escaped path spelling, evidence
+// that is not one JSON value) is judged by the batch's rewrite alone, so neither
+// a finding nor proposeRenames sees it, and the rename refuses the batch whole.
 func repairBlocked(tree string, verdict nameVerdict, target string, claimants int,
 	judged renameJudgement) (string, error) {
 	pair := renamePair{Source: verdict.Rel, Target: target}

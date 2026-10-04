@@ -916,9 +916,12 @@ func (r ProposeReport) Text() string {
 //
 // Left out and reported: a pair the rename would refuse, source side and target
 // side, judged by pairRefusals, the predicate refusePair applies, and a target
-// two findings share, so the plan never holds a pair that refuses its batch;
-// and a file already named for ANOTHER stem, whose name and tags disagree and
-// must be read before anything moves. The output is created, never overwritten.
+// two findings share, so no pair in the plan draws a refusal from its paths,
+// its source's state or its target; and a file already named for ANOTHER stem, whose name and tags disagree and
+// must be read before anything moves. A refusal judged on an evidence record
+// (an escaped path spelling, evidence that is not one JSON value) is judged by
+// the batch's rewrite alone and is not seen here, so the rename refuses that
+// batch whole rather than writing it. The output is created, never overwritten.
 func proposeRenames(tree, under, output string) (ProposeReport, error) {
 	if under != "" && !cleanRepoPath(under) {
 		return ProposeReport{}, errors.New("rfc rename propose: under must be a clean directory inside the checkout")
