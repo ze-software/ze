@@ -30,12 +30,12 @@ func (s *Session) observeReceivedWire(wire []byte) {
 // crossing writes uses at most the BGP maximum (65535 octets) of lazy storage.
 // No staged-but-unflushed UPDATE is reported as sent.
 type observedBGPWriter struct {
-	writer io.Writer
-	session *Session
-	partial []byte
-	context atomic.Uint32
+	writer    io.Writer
+	session   *Session
+	partial   []byte
+	context   atomic.Uint32
 	transport *sessionTransport
-	invalid bool
+	invalid   bool
 }
 
 func (w *observedBGPWriter) Write(data []byte) (int, error) {
@@ -49,6 +49,7 @@ func (w *observedBGPWriter) Write(data []byte) (int, error) {
 // observe frames accepted transport bytes, including n > 0 with an error.
 // RFC 6396 Section 4.4.2: "Only one BGP message SHALL be encoded in the
 // BGP4MP_MESSAGE Subtype."
+// The observer therefore preserves each accepted frame boundary.
 func (w *observedBGPWriter) observe(data []byte) {
 	for len(data) > 0 {
 		if len(w.partial) != 0 {
@@ -96,11 +97,18 @@ func (w *observedBGPWriter) observe(data []byte) {
 	}
 }
 
-// dispatchObservedWire uses immutable epoch metadata, not the Peer occupying a
-// current lookup slot. It must not acquire Peer or Session locks: teardown can
-// flush a transport while holding Session.mu.
-func (r *Reactor) dispatchObservedWire(peer plugin.PeerInfo, wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
-	peer.MessageContextID = ctxID
+// dispatchObservedWire borrows the immutable epoch identity for this synchronous
+// call. Callers MUST keep that identity unchanged for the connection's lifetime.
+// It must not acquire Peer or Session locks: teardown can flush a transport while
+// holding Session.mu. Each call builds its own observer metadata so concurrent
+// send and receive observation never mutate the shared epoch identity.
+func (r *Reactor) dispatchObservedWire(epoch *plugin.PeerInfo, wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
+	peer := plugin.PeerInfo{
+		Address: epoch.Address, AddressStr: epoch.AddressStr,
+		LocalAddress: epoch.LocalAddress, LocalAddressStr: epoch.LocalAddressStr,
+		LocalAS: epoch.LocalAS, PeerAS: epoch.PeerAS, RouterID: epoch.RouterID,
+		MessageContextID: ctxID,
+	}
 	if ctx := bgpctx.Registry.Get(ctxID); ctx != nil {
 		peer.PeerAS = ctx.PeerASN()
 	}

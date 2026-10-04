@@ -311,6 +311,21 @@ validation. Full contract and workflow: `test/draft/README.md`, or the
 <!-- source: internal/test/runner/draft_dir.go -- SuiteDir, isDraftPath, DraftDirName -->
 <!-- source: internal/test/runner/draft_dir_test.go -- TestDraftDirIsInvisibleToRepoGates ratchet -->
 
+### Readiness markers between fixture processes
+
+`le test fixture plugin/wait-file <path>` waits for the named regular file.
+The observer and the wait step MUST use the same run-relative path: both inherit
+the runner's fresh working directory, so a marker from a previous run cannot
+release the current run. The wait is bounded by its context and 201 polls spaced
+100 milliseconds apart; absence is an error, not a successful setup step.
+
+`plugin/attach-process-dynamic-group-wait` is a separate no-argument helper.
+It waits for the fixed marker written by its own dynamic-group observer, not a
+caller-selected file. Export fixtures use `plugin/wait-file` with their own
+markers so the source peer cannot start before the intended observer releases it.
+
+<!-- source: internal/test/fixture/plugin_fixture_02_events.go -- waitFileDriver02, dynamicGroupWait02, waitForMarker02 -->
+
 ### Changing a live test that already passes
 
 An edit to a `.ci` or `.et` under `test/` that removes an `expect=`, empties a

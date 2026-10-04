@@ -3,16 +3,16 @@
 # confederation boundary" (RFC 1997, Well-known Communities). Ze runs a stand-alone AS,
 # which the same sentence says to consider a confederation itself, so the boundary is the
 # AS boundary and the external client (AS 65002) is outside it. Asserted on the daemon's
-# own wire: the prefix never reaches that session in any framing.
+# own wire: the prefix is never announced on that session; its withdrawal is required.
 # RFC requirement: RFC1997-Well-1 negative -- the clause's condition is "outside a BGP
 # confederation boundary". The internal client (AS 65000) is inside it, so the SAME route
 # carrying the SAME community IS advertised there.
 #
 # WHY A .ci AND NOT ONLY THE UNIT TESTS. The unit tests prove the decision function and the
-# rail that asks it. Only a running daemon proves the route never reaches a socket, and the
+# rail that asks it. Only a running daemon proves the route is not announced on a socket, and the
 # egress rails are where a leak actually happens.
 #
-# NON-VACUITY (ai/rules/interop-and-goal-validation.md). "The prefix is absent" passes when
+# NON-VACUITY (ai/rules/interop-and-goal-validation.md). "The announcement is absent" passes when
 # nothing is advertised at all, so this run carries two controls, both on the SAME external
 # session the reject guards:
 #   1. the FENCE route 192.0.2.0/24, tagged with an ordinary community, IS delivered there;
@@ -45,9 +45,11 @@ EOF_SOURCE
 stdin=internal:terminator=EOF_INTERNAL
 option=tcp_connections:value=1
 option=timeout:value=30s
+option=linger:value=true
 # NEGATIVE control: an internal peer is inside the confederation boundary, so it receives
 # the NO_EXPORT route. 180A0000 is the NLRI 10.0.0.0/24.
-expect=bgp:conn=1:seq=1:contains=180A0000
+expect=bgp:conn=1:seq=1:announced=180A0000
+expect=bgp:conn=1:seq=2:announced=18C00002
 EOF_INTERNAL
 
 # External destination -- AS 65002, on 127.0.0.3. Every assertion about the prohibition
@@ -55,11 +57,14 @@ EOF_INTERNAL
 stdin=external:terminator=EOF_EXTERNAL
 option=tcp_connections:value=1
 option=timeout:value=30s
+option=linger:value=true
+# A refused announcement is withdrawn to invalidate any previous generation.
+expect=bgp:conn=1:seq=1:withdrawn=180A0000
 # POSITIVE control: the fence route DOES reach this session, so the reject below cannot
 # pass by the session having received nothing. 18C00002 is the NLRI 192.0.2.0/24.
-expect=bgp:conn=1:seq=1:contains=18C00002
-# THE ASSERTION: 10.0.0.0/24 never reaches this external session, in any framing.
-reject=bgp:conn=1:pattern=180A0000
+expect=bgp:conn=1:seq=2:announced=18C00002
+# THE ASSERTION: 10.0.0.0/24 is never announced to this external session.
+reject=bgp:conn=1:scope=announced:pattern=180A0000
 EOF_EXTERNAL
 
 # Observer: hold the daemon up until the fence has actually been written to the external

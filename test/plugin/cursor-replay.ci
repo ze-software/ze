@@ -7,6 +7,9 @@ stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=update:value=send-default-route
+# The observer starts its cursor commands after eor-sent. Its peer MUST remain
+# connected after this expectation until the observer finishes those commands.
+option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 

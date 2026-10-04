@@ -70,18 +70,24 @@ func newRecordedGRPlugin() (*grPlugin, *dispatchRecorder) {
 // terminates has its advertised families' received routes retained and marked stale.
 func TestRFC4724SessionDownRetainsAndMarksRoutesStale(t *testing.T) {
 	for _, both := range []bool{false, true} {
-		t.Run(map[bool]string{false:"ipv4-only", true:"both-families"}[both], func(t *testing.T) {
+		t.Run(map[bool]string{false: "ipv4-only", true: "both-families"}[both], func(t *testing.T) {
 			gp, rib := newGRWithRealRIB(t)
 			cap := testCap(120, famIPv4)
-			if both { cap.Families = append(cap.Families, famIPv6) }
+			if both {
+				cap.Families = append(cap.Families, famIPv6)
+			}
 			gp.peerCaps[testPeer] = cap
-			rib.received(testPeer, "18c63364", grReceivedAttrs)
+			rib.received("18c63364", grReceivedAttrs)
 			rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
 			require.Len(t, rib.routes("2001:db8::/32"), 1)
 			gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
-			rib.down(testPeer)
+			rib.down()
 			rib.requireStale("198.51.100.0/24", 1)
-			if both { rib.requireStale("2001:db8::/32", 1) } else { require.Empty(t, rib.routes("2001:db8::/32")) }
+			if both {
+				rib.requireStale("2001:db8::/32", 1)
+			} else {
+				require.Empty(t, rib.routes("2001:db8::/32"))
+			}
 		})
 	}
 }
@@ -92,10 +98,10 @@ func TestRFC4724SessionDownRetainsAndMarksRoutesStale(t *testing.T) {
 // advertised the Graceful Restart Capability; a peer without it loses its routes.
 func TestRFC4724SessionDownWithoutCapabilityRetainsNothing(t *testing.T) {
 	gp, rib := newGRWithRealRIB(t)
-	rib.received(testPeer, "18c63364", grReceivedAttrs)
+	rib.received("18c63364", grReceivedAttrs)
 	require.Len(t, rib.routes("198.51.100.0/24"), 1)
 	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
-	rib.down(testPeer)
+	rib.down()
 	require.Empty(t, rib.routes("198.51.100.0/24"))
 }
 

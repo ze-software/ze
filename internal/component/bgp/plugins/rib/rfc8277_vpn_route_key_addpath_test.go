@@ -24,8 +24,8 @@ func TestRFC8277VPNAddPathLabelsAreOneElection(t *testing.T) {
 	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	peer := newOpaqueAddPathPeer(r, pe, vpnv4Family)
 
-	path7 := framedKey(7, vpnv4NLRI(100, vpnRouteKeyRD, 8, 0x0a))
-	path9 := framedKey(9, vpnv4NLRI(101, vpnRouteKeyRD, 8, 0x0a))
+	path7 := framedKey(7, vpnv4NLRI(100, vpnRouteKeyRD, 0x0a))
+	path9 := framedKey(9, vpnv4NLRI(101, vpnRouteKeyRD, 0x0a))
 	peer.Insert(vpnv4Family, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), path7)
 	peer.Insert(vpnv4Family, unicastAttrs([4]byte{10, 0, 0, 1}, 20, 100), path9)
 
@@ -43,13 +43,13 @@ func TestRFC8277VPNAddPathLabelsAreOneElection(t *testing.T) {
 		}
 	}
 
-	relabeled := framedKey(9, vpnv4NLRI(300, vpnRouteKeyRD, 8, 0x0a))
+	relabeled := framedKey(9, vpnv4NLRI(300, vpnRouteKeyRD, 0x0a))
 	peer.Insert(vpnv4Family, unicastAttrs([4]byte{10, 0, 0, 1}, 20, 100), relabeled)
 	if got := peer.FamilyLen(vpnv4Family); got != 2 {
 		t.Fatalf("paths after relabeling path 9 = %d, want 2", got)
 	}
 
-	compat := framedKey(9, vpnv4NLRI(0, vpnRouteKeyRD, 8, 0x0a))
+	compat := framedKey(9, vpnv4NLRI(0, vpnRouteKeyRD, 0x0a))
 	compat[5], compat[6], compat[7] = 0x80, 0x00, 0x00
 	if !peer.Withdraw(vpnv4Family, compat) {
 		t.Fatalf("withdrawal of path 9 with Compatibility 0x800000 removed nothing")

@@ -40,7 +40,7 @@ func opaqueFamilyCases() []opaqueFamilyCase {
 		0x00, 0x06, 0x41, // MPLS Label1 100
 	}
 	return []opaqueFamilyCase{
-		{name: "vpnv4", fam: vpnv4Family, key: vpnv4NLRI(100, [8]byte{0, 0, 0, 0, 0, 0, 0, 1}, 8, 0x0a)},
+		{name: "vpnv4", fam: vpnv4Family, key: vpnv4NLRI(100, [8]byte{0, 0, 0, 0, 0, 0, 0, 1}, 0x0a)},
 		{name: "evpn", fam: family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, key: evpn},
 	}
 }

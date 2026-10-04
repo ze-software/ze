@@ -141,14 +141,20 @@ func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp
 			return false
 		}
 		oldEntry, have := ps.lookup(pathID)
-		if !have || !fingerprintMatches(oldEntry, fp, attrLen) {
+		if !have {
+			return false
+		}
+		if !fingerprintMatches(oldEntry, fp, attrLen) {
 			return false
 		}
 		ps.refresh(pathID, messageID)
 		return true
 	}
 	oldEntry, exists := r.opaque[key]
-	if !exists || !fingerprintMatches(oldEntry, fp, attrLen) {
+	if !exists {
+		return false
+	}
+	if !fingerprintMatches(oldEntry, fp, attrLen) {
 		return false
 	}
 	if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID {

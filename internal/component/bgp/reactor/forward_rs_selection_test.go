@@ -48,8 +48,8 @@ func BenchmarkReactorForwardRSMixedRetry(b *testing.B) {
 			mp := []byte{0, 2, 1, 16}
 			mp = append(mp, netip.MustParseAddr("fe80::1").AsSlice()...)
 			mp = append(mp, 0, 64, 0x20, 0x01, 0x0d, 0xb8, 0, 7, 0, 0)
-			attrs := append(body.PathAttributes, makeAttr(0x80, 14, mp)...)
-			wire := wireu.NewWireUpdate(buildModTestPayload(attrs, body.NLRI), h.update.WireUpdate.SourceCtxID())
+			body.PathAttributes = append(body.PathAttributes, makeAttr(0x80, 14, mp)...)
+			wire := wireu.NewWireUpdate(buildModTestPayload(body.PathAttributes, body.NLRI), h.update.WireUpdate.SourceCtxID())
 			wire.SetMessageID(1)
 			h.update.WireUpdate = wire
 			for _, peer := range h.dests {

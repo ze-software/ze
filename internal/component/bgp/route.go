@@ -25,7 +25,7 @@ type Route struct {
 	MsgID     uint64        `json:"msg-id,omitempty"`
 	Family    family.Family `json:"family"`
 	Prefix    string        `json:"prefix"`
-	PathID    uint32        `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
+	PathID    uint32        `json:"path-id,omitempty"`  // RFC 7911: ADD-PATH path identifier
 	AddPath   bool          `json:"add-path,omitempty"` // Distinguishes ADD-PATH identifier zero from no identifier.
 	NextHop   string        `json:"next-hop"`
 	Timestamp time.Time     `json:"timestamp,omitzero"`

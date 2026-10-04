@@ -368,16 +368,18 @@ func plugin14OTCEgressFilter(ctx context.Context, plugin *sdk.Plugin) error {
 	if plugin14Number(source["updates-received"]) < 1 {
 		return fmt.Errorf("source peer UPDATE never reached ze: %v", source)
 	}
-	leaked := plugin14Number(dest["updates-sent"]) - plugin14Number(dest["eor-sent"])
-	if leaked != 0 {
-		return fmt.Errorf("provider route leaked to the provider dest peer: %v", dest)
+	// A policy refusal withdraws the previous generation. The peer fixture
+	// requires the withdrawal and rejects an announcement of the same NLRI.
+	updates := plugin14Number(dest["updates-sent"]) - plugin14Number(dest["eor-sent"])
+	if updates != 1 {
+		return fmt.Errorf("provider destination was not sent exactly one withdrawal UPDATE: %v", dest)
 	}
 	_, adj, _ := plugin14DispatchMap(ctx, plugin, "show bgp adj-rib-in status")
 	total := -1
 	if value, exists := adj["total-routes"]; exists {
 		total = plugin14Number(value)
 	}
-	fmt.Fprintf(os.Stderr, "OK: route accepted from the provider source (%d in adj-rib-in), %d routes beyond EOR sent to the provider dest\n", total, leaked)
+	fmt.Fprintf(os.Stderr, "OK: route accepted from the provider source (%d in adj-rib-in), %d withdrawal UPDATE sent to the provider dest\n", total, updates)
 	return nil
 }
 

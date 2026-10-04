@@ -56,7 +56,7 @@ func p12FilterDriver(name string, registration sdk.Registration, handler sdk.Fil
 		var marker string
 		if name == "filter-export-modify-test" {
 			if len(args) != 1 {
-				return fmt.Errorf("%s requires an absolute readiness marker path", name)
+				return fmt.Errorf("%s requires a readiness marker path", name)
 			}
 			marker = args[0]
 			_ = os.Remove(marker)
@@ -78,18 +78,13 @@ func p12FilterDriver(name string, registration sdk.Registration, handler sdk.Fil
 			go func() {
 				var scenarioErr error
 				if marker != "" {
-					// The gate is `request quiesce` and NOT peer2's eor-sent,
-					// because the two stopped meaning the same thing on
-					// 2026-09-18: ze no longer holds its own End-of-RIB for a
-					// process that creates routes, so the marker is written
-					// near the START of the initial sync's tail rather than at
-					// its end, and eor-sent now rises while that sync is still
-					// finishing. What this gate needs is the fact it always
-					// meant, "peer2 is settled", which pendingSync answers and
-					// quiesce waits on (reactor/peer.go). Reading the marker
-					// instead let the source peer start too early and its
-					// routes were never forwarded.
-					if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != rpc.StatusDone {
+					// Quiesce alone cannot prove peer2 has connected: a peer
+					// that has not started yet has no pending work to drain.
+					// Observe its initial EOR first, then drain before the
+					// marker permits the source peer to send its route.
+					if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "eor-sent", 1) {
+						scenarioErr = fmt.Errorf("peer2 never sent its initial end-of-rib before the source peer started")
+					} else if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != rpc.StatusDone {
 						scenarioErr = fmt.Errorf("peer2 did not settle before the source peer started: status=%s: %w", status, err)
 					} else if err := os.WriteFile(marker, []byte("ready"), 0o600); err != nil {
 						scenarioErr = err

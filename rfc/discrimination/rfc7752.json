@@ -86,7 +86,7 @@
       "claim-sha": "aff0a7ef4fbf9e13",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "30c94d2d7968d7b5",
+      "producer-sha": "1c87a9d9522cb3b4",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "325bdcb6def12adb",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "30c94d2d7968d7b5",
+      "producer-sha": "1c87a9d9522cb3b4",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

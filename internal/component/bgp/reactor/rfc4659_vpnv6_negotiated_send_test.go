@@ -1,4 +1,4 @@
-// Design: docs/architecture/behavior/capability-negotiation.md -- a family is sent only once negotiated
+// Design: docs/architecture/wire/capabilities.md -- a family is sent only once negotiated
 // RFC: rfc/short/rfc4659.md -- RFC4659-3.4-1, labeled IPv6 VPN NLRI only between capable PEs
 // Related: peer_static_wire.go -- sendStaticRoutes, the configured-route send under test
 

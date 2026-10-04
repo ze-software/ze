@@ -4,6 +4,7 @@ package reactor
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
@@ -114,23 +115,38 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 	t.Cleanup(releaseHandoff)
 	mrtCollisionWait(t, func() bool { return peer.SessionState() == fsm.StateActive }, "passive session ready")
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { listener.Close() })
+	t.Cleanup(func() {
+		if err := listener.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
+	})
 	dial := func() (net.Conn, net.Conn) {
 		t.Helper()
-		client, err := net.Dial("tcp", listener.Addr().String())
+		client, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { client.Close() })
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("close client: %v", err)
+			}
+		})
 		server, err := listener.Accept()
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { server.Close() })
+		t.Cleanup(func() {
+			// Collision resolution or peer shutdown may close this socket first.
+			if err := server.Close(); err != nil {
+				if !errors.Is(err, net.ErrClosed) {
+					t.Errorf("close server: %v", err)
+				}
+			}
+		})
 		if err := client.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
 			t.Fatal(err)
 		}
@@ -201,7 +217,7 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 		}
 		var octet [1]byte
 		n, err := third.Read(octet[:])
-		if n != 0 || err != io.EOF {
+		if n != 0 || !errors.Is(err, io.EOF) {
 			t.Fatalf("third arrival was not refused before OPEN: read=%d error=%v byte=%x", n, err, octet)
 		}
 		releaseHandoff()

@@ -50,7 +50,7 @@ type MPReach struct {
 	NextHop   netip.Addr
 	LinkLocal netip.Addr // set when the next hop is the 32-byte RFC 2545 form
 	Prefixes  []netip.Prefix
-	PathIDs []uint32
+	PathIDs   []uint32
 }
 
 // MPUnreach is a decoded MP_UNREACH_NLRI attribute (RFC 4760 Section 4).
@@ -58,7 +58,7 @@ type MPUnreach struct {
 	AFI      uint16
 	SAFI     uint8
 	Prefixes []netip.Prefix
-	PathIDs []uint32
+	PathIDs  []uint32
 }
 
 // Aggregator is a decoded AGGREGATOR attribute (RFC 4271 Section 5.1.7).

@@ -270,7 +270,7 @@ func TestSentRawReplayBatchesKeepAttrs(t *testing.T) {
 		if !ok {
 			t.Fatal("split batch has no NLRI action")
 		}
-		for _, raw := range strings.Fields(entries) {
+		for raw := range strings.FieldsSeq(entries) {
 			if got[raw] {
 				t.Fatalf("prefix replayed twice: %s", raw)
 			}

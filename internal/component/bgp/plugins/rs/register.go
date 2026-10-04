@@ -94,7 +94,7 @@ func init() {
 // RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes,
 // whether transitive or non-transitive, SHOULD NOT be updated by the route server
 // (unless enforced by local IXP operator configuration) and SHOULD be passed on
-// to other route server clients."
+// to other route server clients.".
 func preserveOpaqueAttributes(peer filterapi.PeerFilterInfo) bool {
 	return peer.RSClient
 }

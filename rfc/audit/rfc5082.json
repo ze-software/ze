@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-03",
+  "audited": "2026-10-04",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5082-3-2": {
@@ -31,13 +31,13 @@
       "code": {
         "internal/core/network/ttl_linux.go::setIPTTL": "09ae7e3dcba3563e"
       },
-      "note": "RFC5082 Section 3 forbids decrementing the TTL of a GTSM-enabled session, in the local-output architecture paragraph. Owner-approved single-positive is appropriate: a transit decrement is not a negative input to this local-output rule. TestGTSMConfiguredEgressDoesNotDecrement configures RealDialer.OutTTL=255, uses an isolated namespace/veth and route lookup, and checks SYN/data TTL at the adjacent receiving interface rather than loopback or getsockopt. RealDialer.DialContext invokes setIPTTL before the connection handshake; parseTTLSettings derives 255 from ttl max. The native setIPTTL-disable record is the observation evidence; retired loopback/value-set tuples are not evidence for this verdict.",
+      "note": "Independent post-lint judgment after reading the full RFC and actual socket boundary. RFC 5082 Section 3: 'On some architectures, the TTL of control plane originated traffic is under some configurations decremented in the forwarding plane. The TTL of GTSM-enabled sessions MUST NOT be decremented.' TestGTSMConfiguredEgressDoesNotDecrement configures RealDialer.OutTTL=255 and observes both SYN and exact data payload at the adjacent veth in a separate namespace. Every captured sender packet must carry TTL exactly 255. newTCPEgress creates two network namespaces, addresses the MTU-1500 veth and checks the route's egress link, so local delivery cannot substitute for the claimed path. Its promoted-field Veth literal retains Name, MTU, PeerName and PeerNamespace. receive/receiveFrame now return errors that the calling test makes fatal; IP total length, IP/TCP header bounds, peer link, bounded frame count, socket timeout and owned packet clone still guard the observer. Actual producer network.go::DialContext sets IP_TTL before the SYN through ttl_linux.go::setIPTTL; Linux's local-output path emits the captured packets. A TTL-setting omission or decrement to 254 fails the exact on-wire assertion. The owner's single-positive local-output scope is retained: there is no legitimate negative input for this invariant, and normal transit forwarding decrement is not the prohibited local-output behavior. This does not invent IPv6, ICMP or transit proof for this IPv4 carrier. Reviewed parent's job-network-wire-observers-privileged-cdc8e23e.log lines 43-46: this unit PASS, package PASS, no skip. Parent reports native Linux -race and only the test executable elevated via -exec 'sudo -n' within fixture-created private namespaces. Earlier pre-body privilege/restore failure proves nothing. Existing native setIPTTL-panic discrimination must be renewed for the changed unit; this audit neither executed nor claims that red.",
       "requirement_sha": "a5e061d662e2b62b",
       "tests": {
-        "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "5d7221d669e107a1"
+        "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "3ade5e6d3280ac81"
       },
       "units": {
-        "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "98554fe674e83959"
+        "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "571f0b8662657b04"
       },
       "verdict": "enforced"
     },

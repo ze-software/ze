@@ -2,6 +2,7 @@ package runner
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -39,9 +40,9 @@ var derivedASExpectations = []struct {
 	},
 }
 
-// TestPeerASDerivationReachesEveryCIFile runs the AS derivation over every `.ci`
-// in the tree, asserts it refuses none, and asserts it actually DERIVED the
-// declaration a known set of files needs.
+// TestPeerASDerivationReachesEveryCIFile runs the AS derivation over every native
+// encoding-runner `.ci`, refuses any parse failure, and checks declarations for
+// known peer shapes.
 //
 // VALIDATES: two halves that fail differently. `declarePeerAS` fails closed
 // without failing any file that exists, and it puts the right `option=asn` line
@@ -59,63 +60,18 @@ var derivedASExpectations = []struct {
 // package links the whole daemon: a build failure anywhere in it takes this
 // coverage down with it, which is exactly what happened on 2026-09-08.
 //
-// **The corpus has a hole this test cannot close.** A `.ci` written in a dialect
-// this parser does not read fails at its first line, so `Discover` marks it
-// ParseFailed before `declarePeerAS` is ever called and the derivation never
-// sees it. `test/exabgp-compat/` is the largest group of them, each refused at
-// line 1 with `option:file missing path=`. The count is logged rather than left
-// silent, so a reader knows how much of the tree this gate did not reach.
+// Decode and ExaBGP compatibility files have different execution parsers:
+// DecodingTests.parseCIFile and cli.parseExaBGPCI, respectively. They never call
+// declarePeerAS. Exclude those root populations before native discovery, not by
+// accepting errors afterwards: every native parse failure MUST fail this gate,
+// whether it occurs before, during, or after AS derivation.
+// The shared draft boundary also keeps unpromoted fixtures outside repo gates.
 func TestPeerASDerivationReachesEveryCIFile(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "test")
-	dirs := map[string]bool{}
-	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".ci") {
-			dirs[filepath.Dir(path)] = true
-		}
-		return nil
-	})
+	derived, err := peerASCorpus(filepath.Join("..", "..", "..", "test"))
 	if err != nil {
-		t.Fatalf("walk %s: %v", root, err)
+		t.Fatal(err)
 	}
-	if len(dirs) == 0 {
-		// Deliberately fatal, not a skip. A gate that disappears when its input
-		// moves reads green forever (ai/rules/evidence.md).
-		t.Fatalf("no .ci directories found under %s", root)
-	}
-
-	derived := map[string][]string{}
-	checked, unreached := 0, 0
-	for dir := range dirs {
-		ResetNickCounter()
-		tests := NewEncodingTests(filepath.Join("..", "..", ".."))
-		if discErr := tests.Discover(dir); discErr != nil {
-			t.Errorf("%s: discover: %v", dir, discErr)
-			continue
-		}
-		for _, rec := range tests.Registered() {
-			checked++
-			if rec.ParseFailed {
-				unreached++
-				// errors.Is, not a list of message substrings. The list was a
-				// second declaration of every refusal message, and the first
-				// message added after it was written went uncounted: a file
-				// refused that way was recorded as never reaching the derivation
-				// and the gate passed over it.
-				if errors.Is(rec.Error, errASDerivation) {
-					t.Errorf("%s: the AS derivation refused this file: %v", rec.CIFile, rec.Error)
-				}
-				continue
-			}
-			derived[filepath.ToSlash(rec.CIFile)] = declaredASLines(rec)
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no .ci records parsed; the gate covered nothing")
-	}
-	t.Logf("parsed %d .ci; %d never reached the derivation because they failed to parse first", checked, unreached)
+	t.Logf("parsed %d native .ci records without discovery failures", len(derived))
 
 	for _, want := range derivedASExpectations {
 		lines, parsed := lookupDerived(derived, want.file)
@@ -132,6 +88,154 @@ func TestPeerASDerivationReachesEveryCIFile(t *testing.T) {
 				t.Errorf("%s: derived %v, want it to carry %q (%s)", want.file, lines, line, want.why)
 			}
 		}
+	}
+}
+
+// peerASCorpus selects the native runner's population before parsing. A foreign
+// dialect is not a native parse failure; a native parse failure is never omitted.
+func peerASCorpus(root string) (map[string][]string, error) {
+	decodeRoot := filepath.Join(root, "decode")
+	compatRoot := filepath.Join(root, "exabgp-compat")
+	dirs := map[string]bool{}
+	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if info.IsDir() {
+			if isDraftPath(root, path) {
+				return filepath.SkipDir
+			}
+			if path == decodeRoot {
+				return filepath.SkipDir
+			}
+			if path == compatRoot {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(path, ".ci") {
+			dirs[filepath.Dir(path)] = true
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walk native .ci corpus: %w", err)
+	}
+	if len(dirs) == 0 {
+		return nil, errors.New("no native .ci directories found")
+	}
+
+	derived := map[string][]string{}
+	for dir := range dirs {
+		ResetNickCounter()
+		tests := NewEncodingTests(filepath.Dir(root))
+		if err := tests.Discover(dir); err != nil {
+			return nil, fmt.Errorf("discover %s: %w", dir, err)
+		}
+		for _, rec := range tests.Registered() {
+			if rec.ParseFailed {
+				return nil, fmt.Errorf("%s: native .ci parse failed: %w", rec.CIFile, rec.Error)
+			}
+			derived[filepath.ToSlash(rec.CIFile)] = declaredASLines(rec)
+		}
+	}
+	if len(derived) == 0 {
+		return nil, errors.New("no native .ci records parsed")
+	}
+	return derived, nil
+}
+
+// TestPeerASCorpusRejectsNativeParseFailures proves that discovery cannot hide
+// failures before derivation or inside it, even beneath foreign-looking names.
+func TestPeerASCorpusRejectsNativeParseFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		path string
+		body string
+		want error
+	}{
+		{
+			name: "missing native option path",
+			path: "plugin/bad.ci",
+			body: "option=file:wrong.conf\n",
+			want: errOptionFileMissingPath,
+		},
+		{
+			name: "nested decode remains native",
+			path: "plugin/decode/bad.ci",
+			body: "option=file:wrong.conf\n",
+			want: errOptionFileMissingPath,
+		},
+		{
+			name: "nested compatibility name remains native",
+			path: "plugin/exabgp-compat/bad.ci",
+			body: "option=file:wrong.conf\n",
+			want: errOptionFileMissingPath,
+		},
+		{
+			name: "nested draft name remains native",
+			path: "plugin/draft/bad.ci",
+			body: "option=file:wrong.conf\n",
+			want: errOptionFileMissingPath,
+		},
+		{
+			name: "malformed consumed config",
+			path: "plugin/bad.ci",
+			body: "stdin=peer:terminator=EOF_PEER\n" +
+				"expect=bgp:conn=1:seq=1:hex=FFFF001304\nEOF_PEER\n" +
+				"stdin=ze-bgp:terminator=EOF_CONF\nbgp { peer 'broken\nEOF_CONF\n" +
+				"cmd=background:seq=1:exec=le test peer --port 1179:stdin=peer\n" +
+				"cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp\n",
+			want: errASDerivation,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, tc.path)
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(tc.body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := peerASCorpus(root)
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("corpus error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+// TestPeerASCorpusUsesExecutionParsers keeps foreign dialects and unpromoted
+// drafts outside this oracle while retaining intentional native config rejection.
+func TestPeerASCorpusUsesExecutionParsers(t *testing.T) {
+	root := t.TempDir()
+	for path, body := range map[string]string{
+		"exabgp-compat/encoding/conf.ci": "option=file:conf.conf\n",
+		"decode/message.ci":              "expect=json:json={}\n",
+		"draft/plugin/unfinished.ci":     "option=file:wrong.conf\n",
+		"parse/reject-config.ci": "stdin=bad:terminator=EOF_BAD\n" +
+			"bgp { peer 'broken\nEOF_BAD\n" +
+			"cmd=foreground:seq=1:exec=ze config validate -:stdin=bad\n" +
+			"expect=exit:code=1\n",
+	} {
+		target := filepath.Join(root, path)
+		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	derived, err := peerASCorpus(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(derived) != 1 {
+		t.Fatalf("native population = %v, want only intentional config rejection", derived)
+	}
+	if _, exists := lookupDerived(derived, "parse/reject-config.ci"); !exists {
+		t.Fatal("intentional native config rejection was omitted")
 	}
 }
 

@@ -72,13 +72,13 @@ func TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod(t *testing.T) {
 				{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600},
 			}}
 			declareLocalLLGR(gp, family.IPv4Unicast)
-			rib.received(testPeer, "18c63364", grReceivedAttrs)
-			rib.received(testPeer, "18c63365", grReceivedAttrs+"c00804ffff0007")
+			rib.received("18c63364", grReceivedAttrs)
+			rib.received("18c63365", grReceivedAttrs+"c00804ffff0007")
 			require.Len(t, rib.routes("198.51.101.0/24"), 1)
 
 			rfc9494Down(gp, path.structured)
 
-			rib.down(testPeer)
+			rib.down()
 			rib.requireStale("198.51.100.0/24", 2)
 			require.Contains(t, rib.communities("198.51.100.0/24"), uint32(0xffff0006))
 			require.Empty(t, rib.routes("198.51.101.0/24"))
@@ -105,12 +105,12 @@ func TestRFC9494BothTimesZeroRetainsNothing(t *testing.T) {
 				{Family: family.IPv4Unicast, ForwardState: true, LLST: 0},
 			}}
 			declareLocalLLGR(gp, family.IPv4Unicast)
-			rib.received(testPeer, "18c63364", grReceivedAttrs)
+			rib.received("18c63364", grReceivedAttrs)
 			require.Len(t, rib.routes("198.51.100.0/24"), 1)
 
 			rfc9494Down(gp, path.structured)
 
-			rib.down(testPeer)
+			rib.down()
 			require.Empty(t, rib.routes("198.51.100.0/24"))
 			assert.False(t, gp.state.peerActive(testPeer), "no LLST timer is armed for a zero Long-Lived Stale Time")
 		})
@@ -139,9 +139,9 @@ func TestRFC9494RestartTimeThenLongLivedStaleTime(t *testing.T) {
 		{Family: family.IPv4Unicast, ForwardState: true, LLST: 1},
 	}}
 	declareLocalLLGR(gp, family.IPv4Unicast)
-	rib.received(testPeer, "18c63364", grReceivedAttrs)
+	rib.received("18c63364", grReceivedAttrs)
 	rfc9494Down(gp, false)
-	rib.down(testPeer)
+	rib.down()
 	rib.requireStale("198.51.100.0/24", 1)
 	require.NotContains(t, rib.communities("198.51.100.0/24"), uint32(0xffff0006))
 

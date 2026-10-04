@@ -116,19 +116,21 @@
       "verdict": "enforced"
     },
     "RFC9687-4.3-8": {
-      "note": "Forbidden: a BGP message sent without restarting the SendHoldTimer. TestRFC9687SendRestartsTheSendHoldTimer (SendRawMessage) and TestRFC9687EveryWriterRestartsTheSendHoldTimer (writeMessage/writeMessageWithin, SendUpdate, sendWithdraw, sendRawUpdateBody) each prove the restart by surviving 1.2x SendHoldTime with one send in the middle; the silence negative is sound. Still undriven writers that carry their own resetSendHoldTimer call: the forward pool (forward_pool.go fwdBatchHandler, session_write.go flushFwdDirty), SendAnnounce and SendUpdateHeld; dropping the restart from any of them leaves every tagged unit green.",
+      "note": "RFC 9687 Section 4.3: \"Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.\" Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "e84a6c54182b7346",
       "tests": {
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "086561be38e103f0",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "1c6abec57f3d0efd"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
+        "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "caf79c94ea2902c8",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "ef727ea44a115c14",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "7581328442f256ff"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9687-4.3-9": {
       "note": "Forbidden behaviour: a SendHoldTimer armed when the negotiated HoldTime is zero, or stopped when it is not. TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer asserts armed() false and the session still Established after 10x the SendHoldTime; TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer asserts armed() true and the expiry at a negotiated 90 s. The SendHoldTime-zero half has no violating input: sendHoldDuration never returns zero.",

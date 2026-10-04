@@ -233,24 +233,22 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 		matchingPeers = append(matchingPeers, peer)
 	}
-	if only != nil {
-		for _, peer := range only {
-			settings := peer.Settings()
-			if r.peers[settings.PeerKey()] != peer {
-				continue
-			}
-			if settings.Address == sourcePeerAddr {
-				continue
-			}
-			pf := peer.forwardFacts()
-			if pf == nil {
-				continue
-			}
-			if hasActiveFilter(pf.exportFilters) {
-				continue
-			}
-			matchingPeers = append(matchingPeers, peer)
+	for _, peer := range only {
+		settings := peer.Settings()
+		if r.peers[settings.PeerKey()] != peer {
+			continue
 		}
+		if settings.Address == sourcePeerAddr {
+			continue
+		}
+		pf := peer.forwardFacts()
+		if pf == nil {
+			continue
+		}
+		if hasActiveFilter(pf.exportFilters) {
+			continue
+		}
+		matchingPeers = append(matchingPeers, peer)
 	}
 	r.mu.RUnlock()
 

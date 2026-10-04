@@ -46,7 +46,7 @@ func lowLiveSettings(address string, local, remote uint32) *PeerSettings {
 
 // lowLiveRouter uses the same server ownership and registered plugins as the
 // daemon. Routes enter only over the remote socket, never through a RIB setter.
-func lowLiveRouter(t *testing.T, settings ...*PeerSettings) (*Reactor, []*lowLivePeer) {
+func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 	t.Helper()
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	for _, s := range settings {
@@ -94,7 +94,7 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) (*Reactor, []*lowLiv
 		lowEventually(t, func() bool { return p.State() == PeerStateEstablished && !p.pendingSync() }, "peer initial sync")
 		out = append(out, v)
 	}
-	return r, out
+	return out
 }
 
 // readFrames runs once per remote peer. Its owner MUST close remote and join
@@ -157,11 +157,11 @@ func (p *lowLivePeer) announcement(prefix []byte) []byte {
 	return nil
 }
 
-func lowInstalledAttributes(peer string, prefix []byte) []byte {
+func lowInstalledAttributes(prefix []byte) []byte {
 	var attrs []byte
 	bgprib.RIBDumpBridge.DumpRIB(registry.RIBDumpVisitor{
 		OnPeer: func(address string, _ uint32, _ [4]byte, _ bool) uint16 {
-			if address == peer {
+			if address == "192.0.2.1" {
 				return 1
 			}
 			return 0
@@ -195,15 +195,15 @@ func TestRFC7705NoPrependInstalledAndAdvertised(t *testing.T) {
 	source.LocalASNoPrepend = true
 	source.LoopAllowOwnAS = 1
 	dest := lowLiveSettings("192.0.2.2", 65000, 65000)
-	_, peers := lowLiveRouter(t, source, dest)
+	peers := lowLiveRouter(t, source, dest)
 	for i, path := range [][]byte{{2, 1, 0, 0, 0xfd, 0xea}, {2, 2, 0, 0, 0xfd, 0xea, 0, 0, 0xfd, 0xf2}} {
 		prefix := []byte{24, 203, 0, byte(113 + i)}
 		attrs := []byte{0x40, 1, 1, 0, 0x40, 2, byte(len(path))}
 		attrs = append(attrs, path...)
 		attrs = append(attrs, 0x40, 3, 4, 192, 0, 2, 1)
 		peers[0].send(t, message.PackTo(&message.Update{PathAttributes: attrs, NLRI: prefix}, nil))
-		lowEventually(t, func() bool { return lowInstalledAttributes("192.0.2.1", prefix) != nil }, "installed received route")
-		lowAssertAttribute(t, lowInstalledAttributes("192.0.2.1", prefix), attribute.AttrASPath, path)
+		lowEventually(t, func() bool { return lowInstalledAttributes(prefix) != nil }, "installed received route")
+		lowAssertAttribute(t, lowInstalledAttributes(prefix), attribute.AttrASPath, path)
 		lowEventually(t, func() bool { return peers[1].announcement(prefix) != nil }, "internal advertisement")
 		lowAssertAttribute(t, peers[1].announcement(prefix), attribute.AttrASPath, path)
 	}
@@ -228,16 +228,16 @@ func TestRFC7705MigrationWireSemantics(t *testing.T) {
 			dest := lowLiveSettings("192.0.2.2", 65000, tc.remote)
 			dest.MigrationAS = tc.migration
 			dest.RouteReflectorClient = true
-			_, peers := lowLiveRouter(t, source, dest)
+			peers := lowLiveRouter(t, source, dest)
 			path := []byte{2, 1, 0, 0, 0xfc, 0x00}
 			attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 6}
 			attrs = append(attrs, path...)
 			attrs = append(attrs, 0x40, 3, 4, 198, 51, 100, 1, 0x40, 5, 4, 0, 0, 0, 231)
 			prefix := []byte{24, 203, 0, 113}
 			peers[0].send(t, message.PackTo(&message.Update{PathAttributes: attrs, NLRI: prefix}, nil))
-			lowEventually(t, func() bool { return lowInstalledAttributes("192.0.2.1", prefix) != nil }, "migration receive installation")
-			lowAssertAttribute(t, lowInstalledAttributes("192.0.2.1", prefix), attribute.AttrASPath, path)
-			lowAssertAttribute(t, lowInstalledAttributes("192.0.2.1", prefix), attribute.AttrLocalPref, []byte{0, 0, 0, 231})
+			lowEventually(t, func() bool { return lowInstalledAttributes(prefix) != nil }, "migration receive installation")
+			lowAssertAttribute(t, lowInstalledAttributes(prefix), attribute.AttrASPath, path)
+			lowAssertAttribute(t, lowInstalledAttributes(prefix), attribute.AttrLocalPref, []byte{0, 0, 0, 231})
 			lowEventually(t, func() bool { return peers[1].announcement(prefix) != nil }, "migration reflected UPDATE")
 			got := peers[1].announcement(prefix)
 			lowAssertAttribute(t, got, attribute.AttrASPath, path)

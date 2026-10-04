@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -93,8 +95,16 @@ func TestRFC6396WireMessagesNeverCoalesce(t *testing.T) {
 	first := buildUpdateMsg(buildUpdateBody(sampleAttrs(), []byte{24, 10, 1, 1}))
 	second := buildUpdateMsg(buildUpdateBody(sampleAttrs(), []byte{24, 10, 1, 2, 24, 10, 1, 3}))
 	server, client := net.Pipe()
-	defer server.Close()
-	defer client.Close()
+	t.Cleanup(func() {
+		if err := server.Close(); err != nil {
+			t.Errorf("close server: %v", err)
+		}
+	})
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("close client: %v", err)
+		}
+	})
 	go writeAllAndClose(client, first, second)
 	reader := bufio.NewReaderSize(server, 65536)
 	for range 3 {
@@ -120,8 +130,18 @@ func TestMRTActualDirectionalOPENs(t *testing.T) {
 	startSession(t, s)
 	path, stop := recordSessionWire(t, s)
 	server, client := net.Pipe()
-	defer server.Close()
-	defer client.Close()
+	t.Cleanup(func() {
+		if err := server.Close(); err != nil {
+			t.Errorf("close server: %v", err)
+		}
+	})
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("close client: %v", err)
+		}
+	})
+	require.NoError(t, client.SetDeadline(time.Now().Add(5*time.Second)))
+	require.NoError(t, server.SetDeadline(time.Now().Add(5*time.Second)))
 	sent := make(chan []byte, 1)
 	go func() {
 		header := make([]byte, 19)
@@ -143,8 +163,32 @@ func TestMRTActualDirectionalOPENs(t *testing.T) {
 	require.NotEmpty(t, local)
 	peerOpen := &message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x02020302}
 	remote := message.PackTo(peerOpen, nil)
-	go func() { client.Write(remote); var ka [19]byte; io.ReadFull(client, ka[:]) }()
+	exchanged := make(chan error, 1)
+	finished := make(chan struct{})
+	t.Cleanup(func() {
+		// MUST close before joining if a session assertion ended the test.
+		if err := client.Close(); err != nil {
+			t.Errorf("close exchange client: %v", err)
+		}
+		<-finished
+	})
+	go func() {
+		defer close(finished)
+		n, err := client.Write(remote)
+		if err != nil {
+			exchanged <- err
+			return
+		}
+		if n != len(remote) {
+			exchanged <- io.ErrShortWrite
+			return
+		}
+		var ka [19]byte
+		_, err = io.ReadFull(client, ka[:])
+		exchanged <- err
+	}()
 	require.NoError(t, s.ReadAndProcess())
+	require.NoError(t, <-exchanged)
 	stop()
 	var opens [][]byte
 	var subtypes []uint16

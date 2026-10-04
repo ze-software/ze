@@ -22,8 +22,7 @@ func TestRFC6396NumericFieldsUseExternalNetworkOrder(t *testing.T) {
 	name := strings.Repeat("a", 0x0102)
 	pitWire := []byte{192, 0, 2, 9, 1, 2}
 	pitWire = append(pitWire, name...)
-	pitWire = append(pitWire, 1, 2)
-	pitWire = append(pitWire, 2, 0, 0, 0, 0, 192, 0, 2, 1, 0x12, 0x34, 0x56, 0x78)
+	pitWire = append(pitWire, 1, 2, 2, 0, 0, 0, 0, 192, 0, 2, 1, 0x12, 0x34, 0x56, 0x78)
 	for range 0x0101 {
 		pitWire = append(pitWire, 0, 0, 0, 0, 0, 192, 0, 2, 1, 0x12, 0x34)
 	}
@@ -77,7 +76,8 @@ func TestRFC6396NumericFieldsUseExternalNetworkOrder(t *testing.T) {
 			subtype = mrt.BGP4MPMessageAS4
 		}
 		fields = append(fields, 0x23, 0x45, 0, 1, 192, 0, 2, 1, 192, 0, 2, 2)
-		wire := append(fields, buildBGPMessage(4, nil)...)
+		wire := bytes.Clone(fields)
+		wire = append(wire, buildBGPMessage(4, nil)...)
 		buf = make([]byte, len(wire))
 		n = mrt.WriteBGP4MPMessage(buf, 0, &hdr, as4, buildBGPMessage(4, nil))
 		if n != len(wire) || !bytes.Equal(buf, wire) {

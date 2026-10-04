@@ -12,22 +12,22 @@ import (
 	"github.com/ze-software/ze/internal/mrt"
 )
 
-// mpReachAttr builds a full RFC 4760 MP_REACH_NLRI attribute.
-func mpReachAttr(afi uint16, safi uint8, nextHop, nlri []byte) mrt.PathAttribute {
+// mpReachAttr builds a full RFC 4760 IPv6 unicast MP_REACH_NLRI attribute.
+func mpReachAttr(nextHop, nlri []byte) mrt.PathAttribute {
 	v := make([]byte, 0, 5+len(nextHop)+len(nlri))
-	v = binary.BigEndian.AppendUint16(v, afi)
-	v = append(v, safi, byte(len(nextHop)))
+	v = binary.BigEndian.AppendUint16(v, 2)
+	v = append(v, 1, byte(len(nextHop)))
 	v = append(v, nextHop...)
 	v = append(v, 0) // Reserved
 	v = append(v, nlri...)
 	return mrt.PathAttribute{Code: mrt.AttrMPReachNLRI, Value: v}
 }
 
-// mpUnreachAttr builds an RFC 4760 MP_UNREACH_NLRI attribute.
-func mpUnreachAttr(afi uint16, safi uint8, nlri []byte) mrt.PathAttribute {
+// mpUnreachAttr builds an RFC 4760 IPv6 unicast MP_UNREACH_NLRI attribute.
+func mpUnreachAttr(nlri []byte) mrt.PathAttribute {
 	v := make([]byte, 0, 3+len(nlri))
-	v = binary.BigEndian.AppendUint16(v, afi)
-	v = append(v, safi)
+	v = binary.BigEndian.AppendUint16(v, 2)
+	v = append(v, 1)
 	v = append(v, nlri...)
 	return mrt.PathAttribute{Code: mrt.AttrMPUnreachNLRI, Value: v}
 }
@@ -41,7 +41,7 @@ func TestMPReachCount_IPv6Announcements(t *testing.T) {
 		32, 0x20, 0x01, 0x0d, 0xb8, // 2001:db8::/32
 		48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, // 2001:db8:1::/48
 	}
-	attrs := []mrt.PathAttribute{mpReachAttr(2, 1, nh[:], nlri)}
+	attrs := []mrt.PathAttribute{mpReachAttr(nh[:], nlri)}
 	count, ok := mpReachCount(attrs, false)
 	assert.Equal(t, 2, count)
 	assert.True(t, ok, "an intact attribute must report a complete count")
@@ -52,7 +52,7 @@ func TestMPUnreachCount_IPv6Withdrawals(t *testing.T) {
 	// PREVENTS: an IPv6 withdrawal rendering as W=0, indistinguishable from a
 	// record that withdraws nothing.
 	nlri := []byte{32, 0x20, 0x01, 0x0d, 0xb8}
-	attrs := []mrt.PathAttribute{mpUnreachAttr(2, 1, nlri)}
+	attrs := []mrt.PathAttribute{mpUnreachAttr(nlri)}
 	count, ok := mpUnreachCount(attrs, false)
 	assert.Equal(t, 1, count)
 	assert.True(t, ok, "an intact attribute must report a complete count")
@@ -91,12 +91,12 @@ func TestMPCounts_MalformedAttributeIsReportedNotSilentlyZero(t *testing.T) {
 		32, 0x20, 0x01, 0x0d, 0xb8, // 2001:db8::/32 -- decodes
 		48, 0x20, 0x01, // /48 claims 6 octets, only 2 follow -- truncated
 	}
-	attrs := []mrt.PathAttribute{mpReachAttr(2, 1, nh[:], partial)}
+	attrs := []mrt.PathAttribute{mpReachAttr(nh[:], partial)}
 	count, ok = mpReachCount(attrs, false)
 	assert.Equal(t, 1, count, "the prefix decoded before the damage must survive")
 	assert.False(t, ok, "and the record must still be reported as incomplete")
 
-	unreach := []mrt.PathAttribute{mpUnreachAttr(2, 1, partial)}
+	unreach := []mrt.PathAttribute{mpUnreachAttr(partial)}
 	count, ok = mpUnreachCount(unreach, false)
 	assert.Equal(t, 1, count)
 	assert.False(t, ok)

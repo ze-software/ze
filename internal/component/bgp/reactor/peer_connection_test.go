@@ -121,4 +121,3 @@ func TestPeerResolvePendingCollision_NoSession(t *testing.T) {
 	assert.Equal(t, client, conn, "should return the pending connection for caller to handle")
 	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
 }
-

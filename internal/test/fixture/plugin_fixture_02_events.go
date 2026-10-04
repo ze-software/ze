@@ -21,7 +21,7 @@ type eventScenario02 func(context.Context, *sdk.Plugin, <-chan string, <-chan st
 func init() {
 	Register("plugin/attach-process-dynamic-group", dynamicGroupDriver02)
 	Register("plugin/attach-process-dynamic-group-wait", dynamicGroupWait02)
-	Register("plugin/wait-file", dynamicGroupWait02)
+	Register("plugin/wait-file", waitFileDriver02)
 	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{eventUpdate, eventState}, receiveFilterState02))
 	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02))
 	Register("plugin/labeled-withdraw-event", eventObserver02("labeled-withdraw-event", []string{eventUpdate}, labeledWithdrawEvent02))
@@ -562,7 +562,19 @@ func dynamicGroupWait02(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("unexpected arguments: %v", args)
 	}
-	path := dynamicGroupMarker02
+	return waitForMarker02(ctx, dynamicGroupMarker02)
+}
+
+// waitFileDriver02 waits for the marker its producer names, independently of
+// the dynamic-group fixture's fixed marker.
+func waitFileDriver02(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return errors.New("wait-file requires one readiness marker path")
+	}
+	return waitForMarker02(ctx, args[0])
+}
+
+func waitForMarker02(ctx context.Context, path string) error {
 	for range 201 {
 		if regularFileExists02(path) {
 			return nil
@@ -673,7 +685,10 @@ func labeledWithdrawEvent02(ctx context.Context, plugin *sdk.Plugin, events <-ch
 			return fmt.Errorf("LABELED-EVENT: no ipv4/mpls-label withdrawal event arrived")
 		}
 		_, kind, direction := eventFacts02(event)
-		if kind != eventUpdate || direction != directionReceived {
+		if kind != eventUpdate {
+			continue
+		}
+		if direction != directionReceived {
 			continue
 		}
 		if labeledEntries02(eventBody02(event)) {

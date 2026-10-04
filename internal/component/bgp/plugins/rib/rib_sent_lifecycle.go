@@ -101,7 +101,10 @@ func (r *RIBManager) reconcileSentSourceLocked(source netip.Addr, selected famil
 					writes = append(writes, sentLifecycleWrite{peer: destination.String(), command: command})
 					continue
 				}
-				if len(community) == 0 || level < storage.DepreferenceThreshold {
+				if len(community) == 0 {
+					continue
+				}
+				if level < storage.DepreferenceThreshold {
 					continue
 				}
 				if !attachSentCommunity(&entry, community) {
@@ -188,7 +191,7 @@ func attachSentCommunity(entry *ribOutEntry, community []byte) bool {
 
 func (r *RIBManager) dispatchSentLifecycle(writes []sentLifecycleWrite) {
 	for _, write := range writes {
-		meta := map[string]any{"rib-lifecycle": true, "replay": true}
+		meta := map[string]any{"rib-lifecycle": true, metaKeyReplay: true}
 		r.updateRouteWithMeta(write.peer, write.command, meta)
 	}
 }

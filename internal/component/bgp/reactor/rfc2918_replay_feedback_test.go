@@ -20,10 +20,10 @@ import (
 
 func refreshFeedbackBatch() bgptypes.NLRIBatch {
 	return bgptypes.NLRIBatch{
-		Family: family.IPv4Unicast,
-		NLRIs: []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0)},
+		Family:  family.IPv4Unicast,
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
-		Replay: true,
+		Replay:  true,
 	}
 }
 

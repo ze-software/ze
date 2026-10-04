@@ -1,4 +1,4 @@
-// Design: docs/architecture/wire/pppoe.md -- Access Concentrator PPP start
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- Access Concentrator PPP start
 // RFC: rfc/short/rfc2516.md
 //
 // RFC 2516 Section 7: "The Maximum-Receive-Unit (MRU) option MUST NOT be

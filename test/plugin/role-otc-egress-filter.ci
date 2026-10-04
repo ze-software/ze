@@ -25,7 +25,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Dest peer (Provider, ASN 65002) on 127.0.0.2. If egress suppression works,
-# it should see only EOR and no UPDATE.
+# it should see EOR and a withdrawal, never an announcement of the provider route.
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -41,6 +41,8 @@ option=linger:value=true
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=00
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:withdrawn=180A0000
+reject=bgp:conn=1:scope=announced:pattern=180A0000
 EOF_DEST
 
 # Native compiled fixture: plugin/role-otc-egress-filter

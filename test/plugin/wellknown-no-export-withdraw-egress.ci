@@ -67,18 +67,21 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B40010
 # CONTROL 3: an internal peer is inside the confederation boundary, so it receives BOTH
 # halves. ze splits the mixed shape before sending it (RFC 7606 Section 5.1), withdrawal
 # first, so the withdrawal and the announcement arrive as two messages in that order.
-expect=bgp:conn=2:seq=1:contains=18C63364
-expect=bgp:conn=2:seq=2:contains=180A0000
+expect=bgp:conn=2:seq=1:withdrawn=18C63364
+expect=bgp:conn=2:seq=2:announced=180A0000
+expect=bgp:conn=2:seq=3:announced=18C00002
 
 # conn=3, the EXTERNAL destination -- AS 65002, on 127.0.0.3. Every assertion about the
 # prohibition and its limit lives here.
 # CONTROL 1, and the point of this test: the withdrawal half REACHES the refused peer.
-expect=bgp:conn=3:seq=1:contains=18C63364
+expect=bgp:conn=3:seq=1:withdrawn=18C63364
+# The refused announcement also invalidates any previously advertised generation.
+expect=bgp:conn=3:seq=1:withdrawn=180A0000
 # CONTROL 2: the fence route reaches this session too, so control 1 cannot pass by way of
 # some unrelated message.
-expect=bgp:conn=3:seq=2:contains=18C00002
-# THE ASSERTION: 10.0.0.0/24 never reaches this external session, in any framing.
-reject=bgp:conn=3:pattern=180A0000
+expect=bgp:conn=3:seq=2:announced=18C00002
+# THE ASSERTION: 10.0.0.0/24 is never announced to this external session.
+reject=bgp:conn=3:scope=announced:pattern=180A0000
 EOF_PEER
 
 # Observer: hold the daemon up until the fence has been written to the external

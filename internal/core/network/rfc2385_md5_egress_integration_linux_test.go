@@ -10,6 +10,7 @@ import (
 	"crypto/md5" //nolint:gosec // RFC 2385 fixes the wire algorithm to MD5.
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"testing"
@@ -75,10 +76,15 @@ func TestRFC2385CapturedSegmentsHaveIndependentDigests(t *testing.T) {
 	var finEnd [2]uint32
 	var dataOctets [2]int
 	for range 64 {
-		packet := path.receive(t)
+		packet, err := path.receive()
+		if err != nil {
+			t.Fatal(err)
+		}
 		tcp := packet[int(packet[0]&15)*4:]
 		// RFC 2385 Sections 2.0 and 3.0: read the option, then recompute it.
-		assertRFC2385Digest(t, packet, rfc2385Key)
+		if err := assertRFC2385Digest(packet); err != nil {
+			t.Fatal(err)
+		}
 		direction := 0
 		if packet[15] == 2 {
 			direction = 1
@@ -101,7 +107,10 @@ func TestRFC2385CapturedSegmentsHaveIndependentDigests(t *testing.T) {
 			t.Fatalf("signed packet exceeds configured MTU: %d", len(packet))
 		}
 		if tcp[13]&2 != 0 {
-			mss := rfc2385Option(t, tcp, 2)
+			mss, err := rfc2385Option(tcp, 2)
+			if err != nil {
+				t.Fatal(err)
+			}
 			// RFC 6691 Section 3.2 corrects RFC 2385 Section 4.3: options
 			// reduce data length, not the advertised MSS (1500 - 20 - 20).
 			if !bytes.Equal(mss, []byte{2, 4, 5, 180}) {
@@ -134,7 +143,7 @@ func TestRFC2385UnsignedSYNACKDoesNotDisableSignatures(t *testing.T) {
 	}
 	var destination [8]byte
 	copy(destination[:], link.Attrs().HardwareAddr)
-	observed := make(chan struct{})
+	observed := make(chan error)
 	// The observer owns only the peer-namespace packet socket, not new sockets.
 	// The caller MUST join it before newTCPEgress cleanup closes that socket.
 	go rfc2385ObserveUnsignedSYNACK(t, path, injector, destination, observed)
@@ -143,7 +152,9 @@ func TestRFC2385UnsignedSYNACKDoesNotDisableSignatures(t *testing.T) {
 	if conn != nil {
 		closeOrLog(t, conn)
 	}
-	<-observed
+	if observationErr := <-observed; observationErr != nil {
+		t.Fatal(observationErr)
+	}
 	var timeout net.Error
 	if !errors.As(err, &timeout) {
 		t.Fatalf("unsigned SYNACK dial result = %v, want timeout", err)
@@ -153,16 +164,26 @@ func TestRFC2385UnsignedSYNACKDoesNotDisableSignatures(t *testing.T) {
 	}
 }
 
-// rfc2385ObserveUnsignedSYNACK MUST close done so the caller joins before cleanup.
-func rfc2385ObserveUnsignedSYNACK(t *testing.T, path *tcpEgress, injector int, destination [8]byte, done chan<- struct{}) {
+// rfc2385ObserveUnsignedSYNACK MUST publish the result so the caller joins before cleanup.
+func rfc2385ObserveUnsignedSYNACK(t *testing.T, path *tcpEgress, injector int, destination [8]byte, done chan<- error) {
 	defer close(done)
-	syn := path.receive(t)
+	done <- rfc2385CheckUnsignedSYNACK(t, path, injector, destination)
+}
+
+// rfc2385CheckUnsignedSYNACK returns wire failures to the calling test.
+func rfc2385CheckUnsignedSYNACK(t *testing.T, path *tcpEgress, injector int, destination [8]byte) error {
+	syn, err := path.receive()
+	if err != nil {
+		return err
+	}
 	tcp := syn[int(syn[0]&15)*4:]
 	if tcp[13] != 2 {
-		t.Fatalf("first packet flags = %02x, want SYN", tcp[13])
+		return fmt.Errorf("first packet flags = %02x, want SYN", tcp[13])
 	}
 	// RFC 2385 Section 2.0: the initial SYN proves signing was configured.
-	assertRFC2385Digest(t, syn, rfc2385Key)
+	if err := assertRFC2385Digest(syn); err != nil {
+		return err
+	}
 	response := rfc2385Packet(binary.BigEndian.Uint16(tcp[2:4]), binary.BigEndian.Uint16(tcp[:2]), nil)
 	copy(response[12:16], syn[16:20])
 	copy(response[16:20], syn[12:16])
@@ -171,13 +192,16 @@ func rfc2385ObserveUnsignedSYNACK(t *testing.T, path *tcpEgress, injector int, d
 	rfc2385Checksums(response)
 	protocol := binary.NativeEndian.Uint16([]byte{8, 0})
 	if err := unix.Sendto(injector, response, 0, &unix.SockaddrLinklayer{Ifindex: path.peerLink, Protocol: protocol, Halen: 6, Addr: destination}); err != nil {
-		t.Fatal(err)
+		return fmt.Errorf("inject unsigned SYNACK: %w", err)
 	}
 	// Seeing our actual outgoing SYNACK on AF_PACKET distinguishes injection
 	// from constructing a byte slice that never reached the sender.
 	seenSYNACK := false
 	for range 16 {
-		packet := path.receive(t)
+		packet, err := path.receive()
+		if err != nil {
+			return err
+		}
 		segment := packet[int(packet[0]&15)*4:]
 		if packet[15] == 2 {
 			if bytes.Equal(packet, response) {
@@ -187,20 +211,22 @@ func rfc2385ObserveUnsignedSYNACK(t *testing.T, path *tcpEgress, injector int, d
 			continue
 		}
 		if !seenSYNACK {
-			t.Fatal("sender answered before the injected SYNACK was observed")
+			return errors.New("sender answered before the injected SYNACK was observed")
 		}
 		if segment[13] != 2 {
-			t.Fatalf("unsigned SYNACK changed sender state: flags=%02x", segment[13])
+			return fmt.Errorf("unsigned SYNACK changed sender state: flags=%02x", segment[13])
 		}
 		if !bytes.Equal(segment[:8], tcp[:8]) {
-			t.Fatal("not a retransmission of the same connection's SYN")
+			return errors.New("not a retransmission of the same connection's SYN")
 		}
 		// RFC 2385 Section 2.0: signing survives the remote's unsigned answer.
-		assertRFC2385Digest(t, packet, rfc2385Key)
+		if err := assertRFC2385Digest(packet); err != nil {
+			return err
+		}
 		t.Logf("signed SYN retransmission=%x", packet)
-		return
+		return nil
 	}
-	t.Fatal("no signed SYN retransmission after unsigned SYNACK")
+	return errors.New("no signed SYN retransmission after unsigned SYNACK")
 }
 
 // newRFC2385Egress reuses the configured egress and adds a bidirectional capture.
@@ -272,9 +298,16 @@ func TestRFC2385UnconfiguredSocketSendsNoSignature(t *testing.T) {
 	defer closeOrLog(t, conn)
 	var syns int
 	for range 8 {
-		packet := path.receive(t)
+		packet, err := path.receive()
+		if err != nil {
+			t.Fatal(err)
+		}
 		tcp := packet[int(packet[0]&15)*4:]
-		if rfc2385Option(t, tcp, 19) != nil {
+		option, err := rfc2385Option(tcp, 19)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if option != nil {
 			t.Fatal("application configured no key but socket emitted MD5")
 		}
 		if tcp[13]&2 != 0 {
@@ -364,7 +397,7 @@ func rfc2385ExpectReply(t *testing.T, path *tcpEgress, port uint16, want bool) {
 		}
 		poll := []unix.PollFd{{Fd: int32(path.capture), Events: unix.POLLIN}}
 		n, err := unix.Poll(poll, int(remaining.Milliseconds())+1)
-		if err == unix.EINTR {
+		if errors.Is(err, unix.EINTR) {
 			continue
 		}
 		if err != nil {
@@ -373,14 +406,20 @@ func rfc2385ExpectReply(t *testing.T, path *tcpEgress, port uint16, want bool) {
 		if n == 0 {
 			break
 		}
-		packet, err := path.receiveFrame(t, buffer[:], unix.MSG_DONTWAIT)
-		if err == unix.EAGAIN || err == unix.EINTR {
+		packet, err := path.receiveFrame(buffer[:], unix.MSG_DONTWAIT)
+		if errors.Is(err, unix.EAGAIN) {
+			continue
+		}
+		if errors.Is(err, unix.EINTR) {
 			continue
 		}
 		if err != nil {
 			t.Fatalf("capture configured egress: %v", err)
 		}
-		if packet == nil || packet[15] != 2 {
+		if len(packet) < 40 {
+			continue
+		}
+		if packet[15] != 2 {
 			continue
 		}
 		tcp := packet[int(packet[0]&15)*4:]
@@ -394,7 +433,9 @@ func rfc2385ExpectReply(t *testing.T, path *tcpEgress, port uint16, want bool) {
 			t.Fatalf("valid signed control received flags=%02x, want SYNACK", tcp[13])
 		}
 		// RFC 2385 Section 2.0: the positive control uses an independent digest.
-		assertRFC2385Digest(t, packet, rfc2385Key)
+		if err := assertRFC2385Digest(packet); err != nil {
+			t.Fatal(err)
+		}
 		t.Logf("valid independently signed SYN received SYNACK=%x", packet)
 		return
 	}
@@ -464,23 +505,25 @@ func rfc2385Digest(packet []byte, key string) [16]byte {
 }
 
 // assertRFC2385Digest checks the whole option, not merely a successful peer transfer.
-func assertRFC2385Digest(t *testing.T, packet []byte, key string) {
-	t.Helper()
+func assertRFC2385Digest(packet []byte) error {
 	tcp := packet[int(packet[0]&15)*4:]
-	option := rfc2385Option(t, tcp, 19)
+	option, err := rfc2385Option(tcp, 19)
+	if err != nil {
+		return err
+	}
 	if len(option) != 18 {
-		t.Fatalf("MD5 option = %x, want Kind 19 Length 18", option)
+		return fmt.Errorf("MD5 option = %x, want Kind 19 Length 18", option)
 	}
 	// RFC 2385 Section 2.0: recompute without using the kernel's verifier.
-	digest := rfc2385Digest(packet, key)
+	digest := rfc2385Digest(packet, rfc2385Key)
 	if !bytes.Equal(option[2:], digest[:]) {
-		t.Fatalf("captured digest=%x independently computed=%x packet=%x", option[2:], digest, packet)
+		return fmt.Errorf("captured digest=%x independently computed=%x packet=%x", option[2:], digest, packet)
 	}
+	return nil
 }
 
 // rfc2385Option walks the actual TCP data-offset interval and rejects duplicates.
-func rfc2385Option(t *testing.T, tcp []byte, kind byte) []byte {
-	t.Helper()
+func rfc2385Option(tcp []byte, kind byte) ([]byte, error) {
 	var found []byte
 	options := tcp[20 : int(tcp[12]>>4)*4]
 	for offset := 0; offset < len(options); {
@@ -492,22 +535,22 @@ func rfc2385Option(t *testing.T, tcp []byte, kind byte) []byte {
 			continue
 		}
 		if offset+2 > len(options) {
-			t.Fatal("TCP option has no length")
+			return nil, errors.New("TCP option has no length")
 		}
 		size := int(options[offset+1])
 		if size < 2 {
-			t.Fatal("TCP option length below two")
+			return nil, errors.New("TCP option length below two")
 		}
 		if offset+size > len(options) {
-			t.Fatal("TCP option crosses data offset")
+			return nil, errors.New("TCP option crosses data offset")
 		}
 		if options[offset] == kind {
 			if found != nil {
-				t.Fatalf("repeated TCP option kind %d", kind)
+				return nil, fmt.Errorf("repeated TCP option kind %d", kind)
 			}
 			found = options[offset : offset+size]
 		}
 		offset += size
 	}
-	return found
+	return found, nil
 }

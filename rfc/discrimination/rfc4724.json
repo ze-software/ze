@@ -189,25 +189,47 @@
       "break": "body of handleEOREvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4724-4.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownRetainsAndMarksRoutesStale",
+      "unit-sha": "dca45f370d2126a0",
+      "claim-sha": "f1ee712f89116f4a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr.go::retainPeerFamilies",
+      "producer-sha": "740db32a519db963",
+      "break": "body of retainPeerFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownWithoutCapabilityRetainsNothing",
+      "unit-sha": "4cc9b2095c981746",
+      "claim-sha": "7fdd301c390b6a6a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
+      "producer-sha": "234fea99bea959c6",
+      "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4724-4.2-4",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesBeforeMarking",
-      "unit-sha": "2bba7c6be56fa304",
-      "claim-sha": "f8cf4394872a0710",
+      "unit-sha": "84f7f8495bf1c22a",
+      "claim-sha": "a1e534ed89d0149c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "5923c611ec89c6a3",
+      "producer-sha": "7655eb537449ccc6",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4724-4.2-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes",
-      "unit-sha": "90e83b38cdd62c46",
-      "claim-sha": "3768b563e1763230",
+      "unit-sha": "6b22b2188da10be1",
+      "claim-sha": "c9f832ee1e2df9e3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "5923c611ec89c6a3",
+      "producer-sha": "7655eb537449ccc6",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -218,7 +240,7 @@
       "claim-sha": "60cec9dee84474d5",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
-      "producer-sha": "3301692037860930",
+      "producer-sha": "a25995d8706e455b",
       "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

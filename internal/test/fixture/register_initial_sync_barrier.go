@@ -33,32 +33,24 @@ func init() {
 	Register("plugin/initial-sync-barrier-raw", initialSyncBarrierRaw)
 }
 
-// initialSyncBarrierRaw pushes one route through the RAW rail while the peer's
-// initial-sync End-of-RIB is still owed, then reports the session ready.
+// initialSyncBarrierRaw starts a raw injection as soon as the peer establishes,
+// reports session ready, and waits for the independent initial-sync End-of-RIB.
 //
-// The order it produces on the wire is the whole assertion: the injected route,
-// then the marker. RFC 4724 Section 4 owes the marker once the initial routing
-// update completes, and the owner ruled on 2026-08-30 that a plugin-injected
-// route belongs to that update, so the marker MUST wait for this process. The
-// binding in the .ci grants `send [ raw ]` and no other send word, so the raw
-// arm of ProcessBinding.MayPushRoutes is what puts this process in the barrier.
+// RFC 4724 Section 4: "The End-of-RIB marker MUST be sent by a BGP speaker to its
+// peer once it completes the initial routing update (including the case when
+// there is no update to send) for an address family after the BGP session is
+// established." The API Sync Protocol in docs/architecture/api/architecture.md
+// defines that update as ze's own table; sendInitialRoutes does not wait for this
+// process's ready signal.
 //
-// It waits for ESTABLISHMENT rather than for eor-sent, which is the opposite of
-// what the announce fixtures beside it do. Those take the marker as their
-// go-ahead, so they can never observe a marker that failed to wait; this one
-// races the marker on purpose, and the barrier is what gives that race one
-// outcome.
-//
-// The poll is deliberately tight. The barrier releases at the sync timeout
-// whether or not this process reports ready, so a slow poll would let the
-// timeout rather than the barrier decide the order, and the test would then pass
-// against a daemon that never waited.
+// The observer starts on establishment rather than eor-sent so injection can
+// overlap initial sync. Raw messages bypass opQueue and share the session's
+// writeMu with the marker. The .ci MUST assert both frames in one unordered
+// sequence and MUST keep the peer alive until this observer has read eor-sent.
+// This observer MUST retain that counter barrier before it requests shutdown.
 func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
-	// The Stage-1 declaration is what puts this process in the peer's
-	// initial-sync barrier. It is the only route an external plugin has to
-	// that declaration: nothing in the daemon's compile-time registry names
-	// this process, so without it the barrier would be empty and the marker
-	// would race the injection this fixture exists to order.
+	// Keep the reporter declaration and ready signal paired. This exercises
+	// session-ready bookkeeping without treating it as a marker-order barrier.
 	reg := sdk.Registration{SignalsSessionReady: true}
 	return Observe(ctx, "raw-injector", reg, func(ctx context.Context, plugin *sdk.Plugin) error {
 		established := Poll(ctx, 400, 5*time.Millisecond, func() bool {
@@ -72,9 +64,8 @@ func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
 			return err
 		}
 
-		// The signal the barrier waits for. Without it the peer's marker leaves
-		// at the sync timeout instead, which is late rather than wrong, and
-		// which would leave this fixture proving nothing about the barrier.
+		// Finish the declared reporter's work. This signal does not release or
+		// order sendInitialRoutes' independently emitted marker.
 		if _, err := plugin01RequireDone(ctx, plugin, "request peer 127.0.0.1 plugin session ready"); err != nil {
 			return err
 		}
@@ -82,12 +73,8 @@ func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
 		if !plugin01WaitCounter(ctx, plugin, "*", "eor-sent", 1, 100) {
 			return errors.New("the peer never reported eor-sent, so the marker never reached the wire")
 		}
-		// States what this observer SAW, which is the injection acknowledged
-		// and the marker counted. The ORDER of the two on the wire is asserted
-		// by the .ci hex expectations and by nothing here: this fixture reads
-		// counters, never frames, so a line claiming an order would pass in a
-		// run where the marker went first (measured 2026-08-30, forcing the red
-		// phase by deleting the SendRaw arm of ProcessBinding.MayPushRoutes).
+		// The counter proves a successful marker write, not its order against
+		// the injection. The .ci separately requires both complete wire frames.
 		fmt.Fprintln(os.Stderr, "OK: the raw route was injected and the end-of-rib was counted")
 		return nil
 	})

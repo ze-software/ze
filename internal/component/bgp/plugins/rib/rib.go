@@ -92,6 +92,8 @@ const (
 	// protocolNameBGP is the protocol a redistribute route carries. It is the
 	// name an operator writes, not the config root, even where they agree.
 	protocolNameBGP = "bgp"
+	// metaKeyReplay marks re-advertisements and their sent-event feedback.
+	metaKeyReplay = "replay"
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -790,8 +792,9 @@ func runRIBPlugin(conn net.Conn) int {
 	return 0
 }
 
-// updateRoute sends a route update command to matching peers via the engine.
-func (r *RIBManager) updateRoute(peerSelector, command string) {
+// updateRoute clears the route-update cursor for matching peers via the engine.
+func (r *RIBManager) updateRoute(peerSelector string) {
+	const command = "update cursor done"
 	if r.updateHook != nil {
 		r.updateHook(command, nil)
 		return
@@ -865,7 +868,7 @@ func (r *RIBManager) dispatch(event *Event) {
 // handleSent processes sent UPDATE events.
 // Stores routes in ribOut for replay on reconnect.
 func (r *RIBManager) handleSent(event *Event) {
-	if _, replay := event.RouteMeta["replay"]; replay {
+	if _, replay := event.RouteMeta[metaKeyReplay]; replay {
 		return
 	}
 	if _, lifecycle := event.RouteMeta["rib-lifecycle"]; lifecycle {
@@ -907,7 +910,7 @@ func (r *RIBManager) handleSent(event *Event) {
 	}
 	sourceMessageID, _ := event.RouteMeta["source-message-id"].(float64)
 	_, configStatic := event.RouteMeta["config-static"]
-	_, replay := event.RouteMeta["replay"]
+	_, replay := event.RouteMeta[metaKeyReplay]
 
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()

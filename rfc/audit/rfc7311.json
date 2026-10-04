@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-04",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7311-3-1": {
@@ -112,17 +112,25 @@
       "verdict": "enforced"
     },
     "RFC7311-3.4.3-2": {
-      "note": "Forbidden: any Section 3.4.3 computation exceeding or wrapping past 0xffffffffffffffff. The tagged unit TestAIGPForwardedMetricsReachFinalWire case saturate asserts max-5 plus 30 equals the maximum for the next-hop-self interior addition, and case interior shows 130 is not clamped. The recursive procedure sums (Xattr+Y, Xattr+D) are not asserted in a unit tagged for this id; the sysrib saturation assertion in TestAIGPRecursiveDistanceUsesReceivedMetrics is tagged only for 3.4.3-4 and 3.4.3-7, and the direct-link addition (link-policy) is not tested near the maximum.",
+      "note": "RFC 7311 \u00a73.4.3: \"In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff. Increasing the AIGP value MUST NOT cause the value to wrap around.\" All tagged carriers were read. internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire pins ordinary interior addition 100+30=130 and overflowing max-5+30=max. rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears adds unresolved direct-link exact 107 and saturated max. rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire drives real Loc-RIB recursive metric changes and socket advertisements: initial 100+200+7=307, max-5 overflows recursive+terminal addition, max-50 overflows only the subsequent source addition, and finite 400 restores exact 507 rather than using the previous advertised maximum. Producers internal/core/rib/igpcost/igpcost.go::Add/Resolve and reactor/forward_aigp.go::applyFactsAIGP/replay path saturate each accumulation. Separate ordinary and overflow subcases discriminate both polarities without malformed packets. This closes the earlier direct and recursive arithmetic gaps, but is not proof of operator link-cost provenance or all RFC7311 behavior. No checks or red observation executed by this judge.",
       "requirement_sha": "b0ac1abb10e91bc0",
       "tests": {
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "1a701ac0896c4262",
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "1a701ac0896c4262",
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "b7c71e460d127db3",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "b7c71e460d127db3"
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "b7c71e460d127db3",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire": "a56d44bb4e9e7781",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire#2": "a56d44bb4e9e7781"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "96b9643d495e7fcb",
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "96b9643d495e7fcb",
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d0354c9b21293131",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d0354c9b21293131"
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d0354c9b21293131",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire": "46acb226ba33a426",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire#2": "46acb226ba33a426"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7311-3.4.3-4": {
       "note": "Forbidden: after next-hop-self over (a) an IGP-learned route or (b) a non-recursive static route, not adding the R1-R2 distance to A, or adding the wrong quantity. TestAIGPForwardedMetricsReachFinalWire case interior asserts 100 plus 30 equals 130 on the wire and case unchanged keeps 100 without next-hop-self. TestAIGPRecursiveStaticDistance asserts a non-recursive static route yields its configured distance 25 and TestAIGPRecursiveDistanceUsesReceivedMetrics that the terminal interior metric 30 is added once. The wire test takes its distance from an igpcost stub, so the resolver and the adder are proved in separate units.",
@@ -146,26 +154,32 @@
       "verdict": "enforced"
     },
     "RFC7311-3.4.3-6": {
-      "note": "Forbidden: after next-hop-self over a direct EBGP link with no IGP, advertising the AIGP value unchanged (increase of zero). Case link-policy (unresolved, link cost 7) asserts 107, so a missing increase goes red. The tagged negative is case zero-refused, which uses a RESOLVED interior route of cost 0: that is the 3.4.3-5 scenario, not a direct link with no IGP. No tagged case has Resolved false with link cost 0, so an implementation that advertises the unchanged metric on an unresolved direct link with no configured cost passes.",
+      "note": "RFC 7311 \u00a73.4.3: \"It is possible that R1 and R2 above are EBGP neighbors and that there is a direct link between them on which no IGP is running. Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount. The amount of the increase SHOULD be such that it is properly comparable to the IGP metrics.\" Both tagged carriers internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire and rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears assert 100+7=107 at final wire and now include unresolved direct-link cost zero with AIGP absent, closing the previous missing input case. They nevertheless call forward_aigp.go::applyFactsAIGP directly with a literal sourceLinkMetric. Neither traverses sourceAIGPLinkMetric or the actual general/route-server source-cost plumbing; changing that plumbing to use the destination peer metric can leave both green. Current producer correctly chooses source Settings().AIGPLinkMetric when the received next hop is the source peer, but the row does not prove that provenance. In addition, zero-cost suppression avoids an unchanged metric but does not itself prove the RFC-mandated nonzero increase; the RFC explicitly permits dropping for missing recursive AIGP, not as an equivalent direct-link increase. Keep weak instead of promoting helper arithmetic to the whole direct-link obligation. No production change or policy invention authorized.",
       "requirement_sha": "34dc4991d650d0ca",
       "tests": {
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "1a701ac0896c4262",
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "1a701ac0896c4262",
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "b7c71e460d127db3",
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "b7c71e460d127db3"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "96b9643d495e7fcb",
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "96b9643d495e7fcb",
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d0354c9b21293131",
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d0354c9b21293131"
       },
       "verdict": "weak"
     },
     "RFC7311-3.4.3-7": {
-      "note": "Forbidden: a change in the AIGP TLV value of a recursively resolved next hop (clause (a)) not triggering a new AIGP computation for the route. TestAIGPReadvertisesFromReceivedGeneration and TestAIGPDistanceChangeReselectsRetainedRoutes change an IGP or Loc-RIB metric (clause (b)) and the RIB test calls reselectAIGPRoutes by hand. TestAIGPRecursiveDistanceUsesReceivedMetrics changes a recursive route's AIGP (400) but calls IGPMetric by hand, proving the value is read when asked, not that the change triggers a recomputation or re-advertisement. No tagged assertion goes red if a recursive AIGP change is never acted on.",
+      "note": "RFC 7311 \u00a73.4.3: \"The AIGP TLV value of a given route depends on (a) the AIGP TLV values of all the next hops that are recursively resolved during this procedure, and (b) the IGP distance to any next hop that is not recursively resolved. Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route. Whether a change due to (b) triggers a new AIGP computation depends upon whether the change in IGP distance exceeds a configurable threshold.\" Read all four tagged carriers. reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire now changes a recursive BGP received AIGP in the actual Loc-RIB and waits for real forwarding-worker/socket output, without new source UPDATE or manual replay; expected 307/max/507/max/507 distinguishes notification loss, missing recomputation and accumulation from prior advertisement. reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration separately proves source generation survives cache eviction and exact 107 then 111. plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes and sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics are supplementary manual recomputation assertions, not credited as automatic-trigger proof. Producers reactor/aigp_readvertise.go::runAIGPAdvertisements/readvertiseAIGP/replayAIGP subscribe to Loc-RIB changes and recompute from retained received bytes using igpcost.Resolve; source AIGP is not an operator/MED substitute. The recursive carrier closes the prior clause-(a) trigger gap; the finite-after-saturation cases supply a distinct negative. This does not promote configurable clause-(b) threshold policy or runtime verification.",
       "requirement_sha": "24ac0e8d720b866d",
       "tests": {
         "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes": "a175c0306331c18a",
         "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes#2": "a175c0306331c18a",
         "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "ce590389e4bbbd78",
         "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "ce590389e4bbbd78",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire": "a56d44bb4e9e7781",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire#2": "a56d44bb4e9e7781",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "6b2760c11598d15e",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "6b2760c11598d15e"
       },
@@ -174,10 +188,12 @@
         "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes#2": "977fced45ca931f5",
         "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "0ffaafa1dae93609",
         "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "0ffaafa1dae93609",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire": "46acb226ba33a426",
+        "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire#2": "46acb226ba33a426",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "5208f23ea0e3c2ec",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "5208f23ea0e3c2ec"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7311-4.1-1": {
       "note": "Forbidden: running a Section 9.1.2.2 tie-breaker before the AIGP step. TestAIGPSelectsStoredRoutesBeforeASPath gives peer B the lower AIGP sum (20 plus 10) and the longer AS_PATH (3 versus 1); require.Equal(nhB, winner.NextHop) goes red if AS_PATH length, the first 9.1.2.2 tie-breaker, runs first. Negatives assert LOCAL_PREF (Section 9.1.1, not a tie-breaker) still wins before AIGP and that a missing AIGP is not metric zero.",

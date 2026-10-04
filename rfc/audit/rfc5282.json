@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5282-3-1": {
@@ -230,8 +233,8 @@
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "2d69d15f1cde2ecb",
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "2d69d15f1cde2ecb",
-        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity": "47518a83342144a4",
-        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA": "47518a83342144a4"
+        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity": "9e2292e1b4bcf13a",
+        "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA": "9e2292e1b4bcf13a"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused": "0dfb1c546a3d73a3",

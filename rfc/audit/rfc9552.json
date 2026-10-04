@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -520,16 +520,16 @@
       "verdict": "enforced"
     },
     "RFC9552-8.2.2-10": {
-      "note": "Re-judged 2026-10-02 (BGP c24 judge) after the ls tag move. Reactor positives drive a TLV overrunning the attribute and a trailing half-header (both sum-to-length failures) to Attribute Discard with a tombstone; the negative keeps a well-formed attribute byte-identical. Added positive ls.TestRFC7752MalformedTLVNotPreserved: the ls decoder's walk (iterateAttrTLVs, decodeAllAttrTLVs) refuses an overrunning TLV with ErrBGPLSTruncated and AttrTLVsToJSON yields nothing; recorded red on iterateAttrTLVs. The recognized sub-TLV clause stays vacuous on the session path because ze recognizes no BGP-LS Attribute TLV there (rfc7606_bgpls.go).",
+      "note": "RFC 9552 Section 8.2.2: \"A BGP-LS Speaker MUST perform the following syntactic validation of the BGP-LS Attribute to determine if it is malformed.\" All three bullets read: sum-to-attribute length, RFC7606 attribute syntax, valid TLV lengths and sub-TLV lengths when recognized. reactor/rfc9552_test.go TestRFC9552BGPLSAttributeTLVOverrunDiscarded/TestRFC9552BGPLSAttributeTrailingOctetsDiscarded assert exact AttributeDiscard, removal/tombstone and retained MP_REACH (overrun case); TestRFC9552BGPLSAttributeWellFormedIsKept requires ActionNone and byte-identical attribute. nlri/ls/rfc7752_test.go TestRFC7752MalformedTLVNotPreserved adds the offline overrun/refusal and fixed-layout decoder check. The isolated malformed field is a TLV length, not the outer UPDATE framing. Producer validateBGPLSAttr checks TLV boundaries, reached only after the generic ValidateUpdateRFC7606AddPath framing walk. The recognized-sub-TLV condition remains untriggered on this propagation path: it recognizes no attribute TLV and does not invoke the offline semantic decoders. Section 8.2.2 explicitly forbids propagator fixed-layout semantic validation even with a coexisting consumer; this is the existing capability boundary, not a new exclusion. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Whole normative list (rfc/full/rfc9552.txt:2538-2548): \"A BGP-LS Speaker MUST perform the following syntactic validation of the BGP-LS Attribute to determine if it is malformed. The sum of all TLV lengths found in the BGP-LS Attribute corresponds to the BGP-LS Attribute length. The syntactic correctness of the Attributes (including the BGP-LS Attribute) have been verified as per [RFC7606]. The length of each TLV and, when the TLV is recognized then, the length of its sub-TLVs in the BGP-LS Attribute are valid.\"",
       "requirement_sha": "05cb46a7f146c441",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "ac9195f646a95bc1",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "600df28992081178",
         "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTLVOverrunDiscarded": "5ea76a94f6a82a7c",
         "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTrailingOctetsDiscarded": "5ea76a94f6a82a7c",
         "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeWellFormedIsKept": "5ea76a94f6a82a7c"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6a89cc723cdc4dc9",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "18b9bf6d13926af9",
         "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTLVOverrunDiscarded": "b050181a77cfc64b",
         "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTrailingOctetsDiscarded": "abbf4bf2ed29c3d5",
         "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeWellFormedIsKept": "d355d6272aaf7240"

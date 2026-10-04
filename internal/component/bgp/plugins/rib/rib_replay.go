@@ -322,7 +322,7 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 	// which is best-effort and only logged). Without this reset, the first
 	// group's full-attribute command merges against the stale cursor and
 	// announces phantom attributes the new route does not carry. (I4)
-	r.updateRoute(peerAddr, "update cursor done")
+	r.updateRoute(peerAddr)
 
 	sortGroupsForMinimalDeltas(groups)
 
@@ -330,7 +330,7 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 	for i := range groups {
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
-		meta := map[string]any{"replay": true}
+		meta := map[string]any{metaKeyReplay: true}
 		if g.StaleLevel > 0 {
 			meta["stale"] = g.StaleLevel
 		}
@@ -342,7 +342,7 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 		}
 	}
 
-	r.updateRoute(peerAddr, "update cursor done")
+	r.updateRoute(peerAddr)
 	r.dispatchPeerAction(peerAddr, "plugin session ready")
 }
 
@@ -366,7 +366,7 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 
 	// Reset stale cursor state from a prior aborted replay before the first
 	// group merges against it (see replayRoutesWithCursor). (I4)
-	r.updateRoute(peerAddr, "update cursor done")
+	r.updateRoute(peerAddr)
 
 	sortGroupsForMinimalDeltas(groups)
 
@@ -375,7 +375,7 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 	for i := range groups {
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
-		meta := map[string]any{"replay": true}
+		meta := map[string]any{metaKeyReplay: true}
 		if g.StaleLevel > 0 {
 			meta["stale"] = g.StaleLevel
 		}
@@ -388,7 +388,7 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 		}
 	}
 
-	r.updateRoute(peerAddr, "update cursor done")
+	r.updateRoute(peerAddr)
 	return total
 }
 

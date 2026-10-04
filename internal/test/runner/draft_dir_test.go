@@ -75,6 +75,7 @@ func TestDraftDirIsInvisibleToRepoChecks(t *testing.T) {
 	}{
 		{"internal/test/runner/accept_only.go", "isDraftPath(testDir, p)", "accept-only lint"},
 		{"internal/test/runner/ci_fixture_test.go", "isDraftPath(root, path)", "BGP frame-length fixtures"},
+		{"internal/test/runner/peer_asn_corpus_test.go", "isDraftPath(root, path)", "peer AS derivation corpus"},
 		{"internal/le/doc/wiring/checks.go", "entry.Name() == DraftDir", "documentation wiring"},
 		{"internal/le/rfc/carriers.go", "strings.HasPrefix(rel, draftPrefix)", "RFC evidence"},
 	} {

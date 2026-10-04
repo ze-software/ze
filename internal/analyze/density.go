@@ -168,7 +168,6 @@ func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, wire mrt.BGPMe
 		}
 	}
 
-
 	st.totalUpdates++
 	st.totalAnnNLRI += annCount
 	st.totalWdNLRI += wdCount

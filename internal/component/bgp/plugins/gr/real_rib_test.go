@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -34,7 +35,16 @@ func newGRWithRealRIB(t *testing.T) (*grPlugin, *realGRRIB) {
 	r := &realGRRIB{t: t, ctx: ctx, mux: mux}
 	finished := make(chan struct{})
 	go func() { defer close(finished); registry.Lookup("bgp-rib").RunEngine(plugin) }()
-	t.Cleanup(func() { cancel(); mux.Close(); plugin.Close(); <-finished })
+	t.Cleanup(func() {
+		cancel()
+		if err := mux.Close(); err != nil {
+			t.Errorf("close RIB mux: %v", err)
+		}
+		if err := plugin.Close(); err != nil {
+			t.Errorf("close RIB plugin pipe: %v", err)
+		}
+		<-finished
+	})
 	next := func() *rpc.Request {
 		select {
 		case request := <-mux.Requests():
@@ -95,7 +105,7 @@ func (r *realGRRIB) event(event map[string]any) {
 	require.NoError(r.t, err)
 }
 
-func (r *realGRRIB) received(peer, wire, attributes string) {
+func (r *realGRRIB) received(wire, attributes string) {
 	r.t.Helper()
 	raw, err := hex.DecodeString(wire)
 	require.NoError(r.t, err)
@@ -111,7 +121,7 @@ func (r *realGRRIB) received(peer, wire, attributes string) {
 	// bytes. The consumer intentionally admits no route without an operation.
 	r.event(map[string]any{
 		"type": "update",
-		"peer": map[string]any{"remote": map[string]any{"address": peer}},
+		"peer": map[string]any{"remote": map[string]any{"address": testPeer}},
 		"raw":  map[string]any{"attributes": attributes, "nlri": map[string]string{"ipv4/unicast": wire}},
 		"nlri": map[string]any{"ipv4/unicast": []map[string]any{{"action": "add", "next-hop": "192.0.2.1", "nlri": prefixes}}},
 	})
@@ -124,8 +134,8 @@ func (r *realGRRIB) up(peer string) {
 	r.event(map[string]any{"type": "state", "state": "up", "peer": map[string]any{"remote": map[string]any{"address": peer}}})
 }
 
-func (r *realGRRIB) down(peer string) {
-	r.event(map[string]any{"type": "state", "state": "down", "peer": map[string]any{"remote": map[string]any{"address": peer}}})
+func (r *realGRRIB) down() {
+	r.event(map[string]any{"type": "state", "state": "down", "peer": map[string]any{"remote": map[string]any{"address": testPeer}}})
 }
 
 func (r *realGRRIB) routes(prefix string) []map[string]any {

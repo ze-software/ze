@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -40,12 +40,12 @@
       "note": "(a) forbidden: an EPE-enabled BGP session advertised as a Link NLRI whose BGP-LS Attribute lacks the PeerNode SID TLV 1101. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts exportTLVValues(linkAttrs, 1101) equals exactly the assigned SID; TestRFC9086NativeLinkWithoutPeerNodeRefused asserts a BGP Link snapshot with no 1101 is refused (replace errors, no command emitted).",
       "requirement_sha": "a237fa9f14cfadd4",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "de280b1c094e08d4"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "5f3cfdb2d2321a90"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "5f3cfdb2d2321a90",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067"
       },
       "verdict": "enforced"
     },
@@ -63,23 +63,29 @@
       "verdict": "enforced"
     },
     "RFC9086-5-3": {
-      "note": "rejudge 2026-10-02 (c35 judge): origination clause unchanged, HEAD TestRFC9086NativePeerSIDReservedFlagsZero +/- (reserved flag bits and Reserved field of the source cleared on the emitted PeerNode SID, revert records on clearOriginatedReserved). Receive clause, the c33 gap closed: TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived now drives the registered decoders of 1101/1102/1103 over conforming TLVs, a 7-octet label TLV (Flags 0xcf vs 0xc0, label 24000) and an 8-octet index TLV (Flags 0x0f vs 0x00, index 24000), asserting no refusal and identical V/L, Weight 5 and SID for each set/clear pair. An ignore clause has no refusal to assert, so the set/clear comparison is its proof: author probes c35p/9086-refuse (decodePeerSID refuses Flags&0x0f) and 9086-fold2 (reserved nibble folded into V/L) both turn it red, 9086-green passes. Duplicates RFC9086-5-5, which quotes the same single S5 sentence (D-3 merge owed, see the c35 judge row).",
+      "note": "RFC 9086 Section 5: \"Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received.\" All six current covers read. TestRFC9086OriginatedPeerSIDRsvdBitsZero and TestRFC9086SourceRsvdBitsNeverOriginated compare emitted flags for conforming 0xc0 and forbidden-source 0xcf. TestRFC9086NativePeerSIDReservedFlagsZero checks defined flags/weight/SID survive while reserved bits/field clear. TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived drives all three registered SID decoders with BOTH conforming seven-octet label and eight-octet index forms, with reserved flags set/clear, requiring equal meaningful flags, weight and SID. The older TestRFC9086PeerSIDIgnoresReservedFields additionally accepts nonzero reserved field; its eight-octet V/L-set fixture is not relied on as the conforming receive witness. clearOriginatedReserved handles 1101/1102/1103; decodePeerSID reads flags without rejecting reserved bits and decodes SID independently. Both originate and receive clauses are genuinely exercised in historical supported scope; no PeerAdj/PeerSet origin feature is claimed. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "8c984fd02855eedf",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "82eb3a8bd223fd22",
+        "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "82eb3a8bd223fd22",
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "a041abb18f874b0e",
         "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "13c55f324c7d165f"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "a3d1695f2324dd74",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "a3d1695f2324dd74",
+        "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "3dfd56c9ea55abec",
+        "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "ce50bdc9826537ab",
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "0943cd48780de072",
         "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "74c2d9af6264b12b"
       },
       "verdict": "enforced"
     },
     "RFC9086-7-1": {
-      "note": "Clauses: configure/enable/disable advertisement of PeerNode, of PeerAdj, of PeerSet, and control of which information goes to which internal or external peer. (b) TestRFC9086NativeConfigurationEnableDisable asserts config enables a PeerNode advertisement and label and removing the config withdraws both, enforced for PeerNode only. No tagged unit asserts an option for PeerAdj or PeerSet (Ze originates neither) or any per-receiving-peer control of what is advertised.",
-      "requirement_sha": "ecf2c6e8a2e8af8f",
+      "note": "RFC 9086 Section 7 whole sentence: \"The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.\" Current requirement text ends at PeerNode SID and the remaining clauses are disclosed on RFC9086-7-2; the source sentence and historical capability boundary have not changed. TestRFC9086NativeConfigurationEnableDisable genuinely proves configure/enable/disable for PeerNode: parsed operator configuration yields label 16007 plus exact PeerNode TLV, removing configuration removes forwarding labels and emits collector withdrawals while the session remains up. Producers epe_config.go ParseConfig and epe_source.go publishLocked implement only PeerNode assignment. No current tagged unit proves PeerAdj/PeerSet options or per-recipient information control, and the row's previous weak judgment explicitly bound the whole sentence. Preserve weak rather than upgrading solely because the summary was truncated; the existing RFC9086-7-2 gap remains intact, with no new exclusion or feature implementation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+      "requirement_sha": "e719b13ef5fd8bc1",
       "tests": {
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable": "d17e6e623cb153b8",
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "d17e6e623cb153b8"

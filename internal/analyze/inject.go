@@ -117,7 +117,10 @@ func runInject(args []string) int {
 	var sent uint64
 	handler := &mrt.Handler{
 		OnMessage: func(_ mrt.Header, _ uint32, m *mrt.MessageRecord) error {
-			if len(m.BGPMessage.Bytes) < 19 || m.BGPMessage.Bytes[18] != 2 {
+			if len(m.BGPMessage.Bytes) < 19 {
+				return nil
+			}
+			if m.BGPMessage.Bytes[18] != 2 {
 				return nil
 			}
 			if err := checkReplayUpdate(m.BGPMessage); err != nil {

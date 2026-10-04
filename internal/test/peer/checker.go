@@ -130,6 +130,22 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("expect=bgp invalid seq=%q (must be >= 1): %q", seqStr, rule)
 		}
 
+		if attribute, present := kv["attribute"]; present {
+			if _, _, err := parseUpdateAttributeRule(attribute); err != nil {
+				return 0, 0, "", fmt.Errorf("expect=bgp attribute: %w", err)
+			}
+			if kv["announced"] == "" && kv["withdrawn"] == "" {
+				return 0, 0, "", fmt.Errorf("expect=bgp attribute requires announced or withdrawn: %q", rule)
+			}
+			if kv["announced"] != "" && kv["withdrawn"] != "" {
+				return 0, 0, "", fmt.Errorf("expect=bgp attribute requires exactly one NLRI field: %q", rule)
+			}
+			for _, other := range []string{"hex", "prefix", "contains", "ordered"} {
+				if kv[other] != "" {
+					return 0, 0, "", fmt.Errorf("expect=bgp attribute cannot combine with %s: %q", other, rule)
+				}
+			}
+		}
 		if hexVal := kv["hex"]; hexVal != "" {
 			content = strings.ToUpper(strings.ReplaceAll(hexVal, ":", ""))
 			return conn, seq, content, nil
@@ -144,12 +160,29 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			content = tb.Str("contains:").Str(strings.ToUpper(strings.ReplaceAll(containsVal, ":", ""))).String()
 			return conn, seq, content, nil
 		}
+		for _, field := range []string{"announced", "withdrawn"} {
+			needle := kv[field]
+			if needle == "" {
+				continue
+			}
+			needle = strings.ToUpper(needle)
+			if len(needle)%2 != 0 {
+				return 0, 0, "", fmt.Errorf("expect=bgp invalid %s hex: %q", field, rule)
+			}
+			if strings.Trim(needle, "0123456789ABCDEF") != "" {
+				return 0, 0, "", fmt.Errorf("expect=bgp invalid %s hex: %q", field, rule)
+			}
+			if attribute := kv["attribute"]; attribute != "" {
+				return conn, seq, field + ":" + needle + ":" + strings.ToUpper(attribute), nil
+			}
+			return conn, seq, field + ":" + needle, nil
+		}
 		if orderedVal := kv["ordered"]; orderedVal != "" {
 			var tb textbuf.Buffer
 			content = tb.Str("ordered:").Str(strings.ToUpper(strings.ReplaceAll(orderedVal, ":", ""))).String()
 			return conn, seq, content, nil
 		}
-		return 0, 0, "", fmt.Errorf("expect=bgp missing hex, prefix, contains, or ordered: %q", rule)
+		return 0, 0, "", fmt.Errorf("expect=bgp missing hex, prefix, contains, announced, withdrawn, or ordered: %q", rule)
 	}
 
 	// action=notification:conn=N:seq=N:text=...
@@ -371,6 +404,21 @@ func (c *Checker) Init() bool {
 // enforced too. A message whose content matches only a non-front ordered
 // needle consumes nothing (out-of-order delivery is a mismatch).
 func (c *Checker) consumeMatches(stream string) bool {
+	// Scoped checks name NLRI fields, not message counts. A packed UPDATE may
+	// satisfy several checks in this group, but never in the next sequence.
+	scopedMatched := false
+	for i := 0; i < len(c.messages); {
+		if _, _, scoped := scopedUpdateRule(c.messages[i]); scoped && matchRule(c.messages[i], stream) {
+			c.messages = append(c.messages[:i], c.messages[i+1:]...)
+			scopedMatched = true
+			continue
+		}
+		i++
+	}
+	if scopedMatched {
+		c.updateMessagesIfRequired()
+		return true
+	}
 	for i, check := range c.messages {
 		if strings.HasPrefix(check, "ordered:") {
 			continue
@@ -849,8 +897,14 @@ func (c *Checker) nextSigtermAction() bool {
 // matchRule checks if received matches the check rule.
 // Rules starting with "prefix:" match if received starts with the suffix.
 // Rules starting with "contains:" match if received contains the suffix.
+// Scoped rules match only their UPDATE NLRI fields.
 // All other rules use exact case-insensitive comparison.
 func matchRule(check, received string) bool {
+	if field, needle, ok := scopedUpdateRule(check); ok {
+		// RFC 4271 Section 4.3; RFC 4760 Sections 3 and 4.
+		matched, valid := matchUpdateField(received, needle, field)
+		return valid && matched
+	}
 	if after, ok := strings.CutPrefix(check, "prefix:"); ok {
 		return strings.HasPrefix(strings.ToUpper(received), strings.ToUpper(after))
 	}

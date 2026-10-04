@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -36,12 +37,12 @@
       "note": "Both clauses asserted through runSession on an operational session. Positive: KeepAlive Time 1s on both sides, empty LIB so no other message is due, the next three PDUs must each be a KeepAlive and each gap at most 1s, so a sender slower than the KeepAlive Time or one sending nothing fails. Negative (dual-tagged with RFC5036-3.5.4.1-1): ze proposes 60s, the peer 1s, the input on which a sender pacing from its own proposal leaves the peer 20s without a message; each gap must stay within the negotiated 1s. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.",
       "requirement_sha": "8dacd29a7ef3b171",
       "tests": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "e896d95bc2804911",
-        "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "c0aa8fdb104978d5"
+        "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "c0aa8fdb104978d5",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "e896d95bc2804911"
       },
       "units": {
-        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "49d1690fd38aa1b4",
-        "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "036ce51bb000a1ab"
+        "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "036ce51bb000a1ab",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "49d1690fd38aa1b4"
       },
       "verdict": "enforced"
     },
@@ -75,8 +76,8 @@
       "note": "RFC5036 section 2.5.3 item 2.c: the live OpenReceivedKeepAliveEstablishesSession test first proves OPENREC after acceptable Initialization, then requires Operational on peer KeepAlive and timeout-only wire silence. OpenReceivedWaitsForPeerKeepAlive instead withholds that message, requires timeout (not EOF), and pins OPENREC. Reviewed processMessages, handleInit, keepaliveReceived, ReadLoop and runSession; acceptance is not inferred from TCP connect.",
       "requirement_sha": "f104bdec6f8845ac",
       "tests": {
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "5c84a426fe4ed18b"
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "79faa4a67fd8bdbe",
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "79faa4a67fd8bdbe"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
@@ -88,9 +89,9 @@
       "note": "The live positive requires acceptable Initialization followed by peer KeepAlive before Operational. Independent negative controls withhold KeepAlive or send it before any peer Initialization. The latter now requires fatal Shutdown 0x8000000a referencing KeepAlive 9, EOF and no recorded SessionUp after joining the worker; it no longer blesses premature KeepAlive silence. The former requires OPENREC and timeout-only silence. These distinguish both required peer messages.",
       "requirement_sha": "42b6e4999220dac8",
       "tests": {
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes": "5c84a426fe4ed18b",
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "5c84a426fe4ed18b"
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes": "79faa4a67fd8bdbe",
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "79faa4a67fd8bdbe",
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "79faa4a67fd8bdbe"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes": "043234a8c4115477",
@@ -100,15 +101,15 @@
       "verdict": "enforced"
     },
     "RFC5036-2.5.4-1": {
-      "note": "OPENREC common guard in Session.processMessages precedes body dispatch. OpenReceivedOtherMessageRejected delegates to testInitializationOtherMessageRejected: twelve non-KeepAlive types, valid Mapping/Address/Initialization/Shutdown controls and unknown U=0/U=1 require fatal Shutdown, exact offending reference, EOF, no SessionUp after worker exit and no applied mapping/address. Section 2.5.3 overrides unknown-message U handling during initialization; section 3.5.1.1 expressly requires a Shutdown response here. Live KeepAlive control requires OPENREC to Operational and timeout-only silence, not EOF. Prior twelve-case red evidence preserved.",
+      "note": "Independently rejudged after the quotation-ending prose period changed TestRFC5036OpenReceivedOtherMessageRejected. RFC 5036 Section 2.5.4 says: \"Note that a Shutdown message is implemented as a Notification message with a Status TLV indicating a fatal error.\" Its OPENREC table requires KeepAlive -> OPERATIONAL and any other LDP message -> NON EXISTENT with Error Notification and transport close (rfc/full/rfc5036.txt:884-927). Section 3.5.1.1 says: \"When an LSR receives a Shutdown message during session initialization, it SHOULD transmit a Shutdown message and then close the transport connection.\" Section 2.5.3 also overrides message U-bit handling before establishment (lines 847-853). Q1 yes: the two tagged carriers assert these two table branches, not merely the implementation's current error return. Q2 yes by source analysis: TestRFC5036OpenReceivedOtherMessageRejected delegates to testInitializationOtherMessageRejected, whose twelve non-KeepAlive cases demand Notification/Status TLV, exact fatal Shutdown 0x8000000a, offending message ID/type, then actual EOF before test cleanup; after the worker exits they demand no SessionUp, no Operational state and no installed Mapping or Address. Removing refusal, sending another status, silently closing, or leaving the transport open fails an assertion. TestRFC5036OpenReceivedKeepAliveEstablishesSession requires OPENREC after the live Initialization exchange, then exact Operational state after a valid peer KeepAlive and timeout-only silence, which rejects data and EOF. Q3 yes: complete version-1 PDUs reach the type guard; Mapping, Address, Address Withdraw, Initialization and Shutdown have structured bodies, while other complete message headers deliberately exercise type rejection before body decoding. The guard in internal/plugins/ldp/session.go::processMessages (lines 457-495) precedes decoding and dispatch; body errors cannot satisfy the required Shutdown/referring-message/EOF combination, and unknown U=0/U=1 cannot bypass it. Q4 yes for this whole checklist row: both KeepAlive acceptance and all non-KeepAlive type classes, including Shutdown and both unknown U bits, are exercised. These are distinct polarity assertions: repository positive labels the refusal obligation's non-KeepAlive trigger, while negative is a genuinely conforming KeepAlive control, not a second malformed input. Producer chain: processMessages calls sendNotification and returns the rejection; ReadLoop propagates it; internal/plugins/ldp/register.go::runSession defers Session.Stop, whose close resets StateNonExistent. keepaliveReceived implements the accepted transition; handleInit establishes OPENREC and initAccepted. internal/plugins/ldp/wire.go::encodeNotification encodes the asserted status and offending reference. Test sources: internal/plugins/ldp/rfc5036_openrec_test.go:13-37,89-97,108-213; helpers readNotificationStatus, expectClosed, expectSilence and runSessionForTest were read. Existing discrimination records name keepaliveReceived for the negative carrier and processMessages for the positive carrier; their whole-producer panic breaks prove sensitivity only to those breaks, not each clause independently. No new execution or fingerprint calculation was performed in this audit; parent owns the already-queued positive-carrier native renewal. No whole-RFC or adjacent gap closure is claimed.",
       "requirement_sha": "f25ab01f6ac48f49",
       "tests": {
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedOtherMessageRejected": "5c84a426fe4ed18b"
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "79faa4a67fd8bdbe",
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedOtherMessageRejected": "79faa4a67fd8bdbe"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedOtherMessageRejected": "407b94360c3bcfae"
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedOtherMessageRejected": "17b2f92ec087af0c"
       },
       "verdict": "enforced"
     },
@@ -116,8 +117,8 @@
       "note": "OPENSENT common guard in Session.processMessages accepts only Initialization. OpenSentOtherMessageRejected uses twelve other types including KeepAlive, valid Shutdown/Mapping/Address and both unknown U bits; requires fatal Shutdown with offending reference, EOF, no SessionUp and no applied mapping/address. The live acceptable Initialization control requires a KeepAlive response and OPENREC, then peer KeepAlive reaches Operational without Notification or close (strict timeout). This judges both complete table branches, not solely non-establishment.",
       "requirement_sha": "a8c162467598e293",
       "tests": {
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
-        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenSentOtherMessageRejected": "5c84a426fe4ed18b"
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "79faa4a67fd8bdbe",
+        "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenSentOtherMessageRejected": "79faa4a67fd8bdbe"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",

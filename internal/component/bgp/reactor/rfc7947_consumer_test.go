@@ -31,28 +31,34 @@ func lowRSAttributes() []byte {
 // session and compares each whole attribute (flags included) at the recipient.
 // RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients."
 // RFC requirement: RFC7947-2.2-1 positive -- real ingress and recipient wire preserve ORIGIN, AS_PATH, NEXT_HOP, MED, community, unknown optional transitive and unknown optional non-transitive attributes, including their flags.
-// RFC requirement: RFC7947-2.2-1 negative -- nondefault ORIGIN and distinct opaque optional attribute bytes cannot be replaced by defaults, stripped, or marked Partial on route-server redistribution.
 func TestRFC7947AllAttributesReachClient(t *testing.T) {
 	source := lowLiveSettings("192.0.2.1", 65000, 65002)
 	dest := lowLiveSettings("192.0.2.2", 65000, 65003)
 	source.RSClient, dest.RSClient = true, true
-	_, peers := lowLiveRouter(t, source, dest)
+	peers := lowLiveRouter(t, source, dest)
 	attrs := lowRSAttributes()
 	prefix := []byte{24, 203, 0, 113}
 	peers[0].send(t, message.PackTo(&message.Update{PathAttributes: attrs, NLRI: prefix}, nil))
 	lowEventually(t, func() bool { return peers[1].announcement(prefix) != nil }, "route-server client advertisement")
 	got := peers[1].announcement(prefix)
-	if !bytes.Equal(got, attrs) { t.Fatalf("route-server attribute transparency: got %x, want %x", got, attrs) }
+	if !bytes.Equal(got, attrs) {
+		t.Fatalf("route-server attribute transparency: got %x, want %x", got, attrs)
+	}
 }
 
 // TestRouteServerTransparencyStopsAtOrdinaryPeer keeps the RFC 7947 exception
 // confined to client redistribution when a reactor also serves ordinary BGP.
+// RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes,
+// whether transitive or non-transitive, SHOULD NOT be updated by the route
+// server (unless enforced by local IXP operator configuration) and SHOULD be
+// passed on to other route server clients."
+// RFC requirement: RFC7947-2.2-1 negative -- transparency is confined to route-server clients: the same ingress preserves optional attributes for a client but strips unknown non-transitive attributes and sets unknown-transitive Partial for an ordinary peer.
 func TestRouteServerTransparencyStopsAtOrdinaryPeer(t *testing.T) {
 	source := lowLiveSettings("192.0.2.1", 65000, 65002)
 	client := lowLiveSettings("192.0.2.2", 65000, 65003)
 	ordinary := lowLiveSettings("192.0.2.3", 65000, 65000)
 	source.RSClient, client.RSClient = true, true
-	_, peers := lowLiveRouter(t, source, client, ordinary)
+	peers := lowLiveRouter(t, source, client, ordinary)
 	attrs := lowRSAttributes()
 	prefix := []byte{24, 203, 0, 114}
 	peers[0].send(t, message.PackTo(&message.Update{PathAttributes: attrs, NLRI: prefix}, nil))
@@ -102,42 +108,70 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 	for round := range 2 {
 		calls := make(map[string]int)
 		acceptedAddr := f.destination.settings.Address.String()
-		if round == 1 { acceptedAddr = other.settings.Address.String() }
+		if round == 1 {
+			acceptedAddr = other.settings.Address.String()
+		}
 		f.r.policyFilterSeam = func(_, _, _, address string, _ uint32, text string) PolicyResponse {
 			calls[address]++
-			if address == acceptedAddr { return PolicyResponse{Action: PolicyAccept} }
+			if address == acceptedAddr {
+				return PolicyResponse{Action: PolicyAccept}
+			}
 			return PolicyResponse{Action: PolicyReject}
 		}
 		before := []int{len(aigpSocketBodies(t, f.conn)), len(aigpSocketBodies(t, otherConn))}
-		prefix := []byte{24, 203, 0, byte(113+round)}
+		prefix := []byte{24, 203, 0, byte(113 + round)}
 		id := f.receive(t, buildUpdatePayload(lowRSAttributes(), prefix))
 		update, ok := f.r.recentUpdates.Get(id)
-		if !ok { t.Fatal("source UPDATE missing from cache") }
+		if !ok {
+			t.Fatal("source UPDATE missing from cache")
+		}
 		// RFC 7947 Section 2.1: no policy-agnostic send before fallback.
 		skipped, sent := reactorForwardRS(f.r, update, id, f.source.settings.Address, f.source)
-		if sent != 0 || len(skipped) != 2 { t.Fatalf("policy fallback = %v, sent=%d", skipped, sent) }
-		if err := (&reactorAPIAdapter{r: f.r}).ForwardUpdate(selector.All(), id, "aigp-forwarder", plugin.ProcessSender("aigp-forwarder")); err != nil { t.Fatal(err) }
+		if sent != 0 || len(skipped) != 2 {
+			t.Fatalf("policy fallback = %v, sent=%d", skipped, sent)
+		}
+		if err := (&reactorAPIAdapter{r: f.r}).ForwardUpdate(selector.All(), id, "aigp-forwarder", plugin.ProcessSender("aigp-forwarder")); err != nil {
+			t.Fatal(err)
+		}
 		forwardSocketBarrier(t, f.r)
 		for i, conn := range []*recordingConn{f.conn, otherConn} {
 			p := f.destination
-			if i == 1 { p = other }
-			if calls[p.settings.Address.String()] != 1 { t.Fatalf("policy calls by client = %v", calls) }
+			if i == 1 {
+				p = other
+			}
+			if calls[p.settings.Address.String()] != 1 {
+				t.Fatalf("policy calls by client = %v", calls)
+			}
 			bodies := aigpSocketBodies(t, conn)
 			if i != round {
 				// A rejected client is announced nothing. It is written the
 				// withdrawal of the prefix instead (RFC 7606 Section 2
 				// treat-as-withdraw), because it may hold an earlier generation.
-				if len(bodies) != before[i]+1 { t.Fatalf("policy-rejected client received %d additional UPDATEs, want the one withdrawal", len(bodies)-before[i]) }
+				if len(bodies) != before[i]+1 {
+					t.Fatalf("policy-rejected client received %d additional UPDATEs, want the one withdrawal", len(bodies)-before[i])
+				}
 				w, err := message.UnpackUpdate(bodies[len(bodies)-1])
-				if err != nil { t.Fatal(err) }
-				if len(w.NLRI) != 0 { t.Fatalf("policy-rejected client was announced %x", w.NLRI) }
-				if !bytes.Equal(w.WithdrawnRoutes, prefix) { t.Fatalf("policy-rejected client withdrawal %x, want %x", w.WithdrawnRoutes, prefix) }
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(w.NLRI) != 0 {
+					t.Fatalf("policy-rejected client was announced %x", w.NLRI)
+				}
+				if !bytes.Equal(w.WithdrawnRoutes, prefix) {
+					t.Fatalf("policy-rejected client withdrawal %x, want %x", w.WithdrawnRoutes, prefix)
+				}
 				continue
 			}
-			if len(bodies) != before[i]+1 { t.Fatalf("accepted client received %d additional UPDATEs, want 1", len(bodies)-before[i]) }
+			if len(bodies) != before[i]+1 {
+				t.Fatalf("accepted client received %d additional UPDATEs, want 1", len(bodies)-before[i])
+			}
 			u, err := message.UnpackUpdate(bodies[len(bodies)-1])
-			if err != nil { t.Fatal(err) }
-			if !bytes.Equal(u.NLRI, prefix) { t.Fatalf("wrong NLRI %x", u.NLRI) }
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(u.NLRI, prefix) {
+				t.Fatalf("wrong NLRI %x", u.NLRI)
+			}
 			lowAssertAttribute(t, u.PathAttributes, attribute.AttrOrigin, []byte{2})
 		}
 	}

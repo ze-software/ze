@@ -378,6 +378,16 @@ an empty path emits no `as-path` token at all.
 (`internal/component/bgp/reactor/reactor_api_forward.go`), so the text carries
 the path as stored.
 
+**Export rejection suppresses the advertisement, not the withdrawal.**
+`(*Reactor).forwardUpdateCore` converts a policy-rejected announcement into a
+withdrawal. `test/plugin/path-asn-filter-export-reject.ci` therefore requires the
+subject in withdrawn NLRI, rejects it only in announced NLRI, and then requires
+a permitted announcement on the same session. The receiver publishes a
+run-local completion marker after checking that fence; `pathASNExportDriver02`
+waits for this acknowledgment before requesting shutdown. An `updates-sent`
+total alone cannot distinguish the initial EOR plus the subject withdrawal from
+delivery of the permitted announcement.
+
 **A leaf TYPE is enforced by the parse; a leaf BOUND is enforced only by the
 module walk.** The `uint32` on each ASN leaf, the `uint8` range on an `nth`
 index, and the unknown-keyword refusal all fire in `config.ParseTreeWithYANG`, so

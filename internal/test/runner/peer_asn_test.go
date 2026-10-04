@@ -1,11 +1,14 @@
 package runner
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
@@ -27,13 +30,16 @@ func ciPeer(name, dial, source, remoteAS string) string {
 		"\t}"
 }
 
-// recordWith builds a Record carrying one config file and one peer block driven
-// by one ze-peer command.
+// recordWith builds a Record carrying one daemon configuration and one peer
+// script, each named by the command that consumes it.
 func recordWith(config, block string) *Record {
 	return &Record{
 		TmpfsFiles:  map[string]tmpfs.File{"ze-bgp.conf": {Path: "ze-bgp.conf", Content: []byte(config)}},
 		StdinBlocks: map[string][]byte{"peer": []byte(block)},
-		RunCommands: []RunCommand{{Seq: 1, Exec: "le test peer --port 1179", Stdin: "peer"}},
+		RunCommands: []RunCommand{
+			{Seq: 1, Exec: "le test peer --port 1179", Stdin: "peer"},
+			{Seq: 2, Exec: "ze start ze-bgp.conf"},
+		},
 	}
 }
 
@@ -444,5 +450,326 @@ func TestDeclarePeerASLeavesAniBGPPeerUnreached(t *testing.T) {
 	}
 	if strings.Contains(block, "value=65000") {
 		t.Errorf("block = %q, want no line invented for the iBGP peer", block)
+	}
+}
+
+// TestDeclarePeerASClassifiesConfigConsumers derives the real peer's AS while
+// sidecars contain both invalid config syntax and valid, conflicting BGP text.
+// PREVENTS: treating a completion marker, script or unused block as configuration.
+func TestDeclarePeerASClassifiesConfigConsumers(t *testing.T) {
+	record := recordWith(
+		ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001")),
+		"expect=bgp:conn=1:seq=1:hex=FFFF001304\n"+
+			"action=rewrite:conn=1:seq=2:source=fence.src:dest=fence.received\n")
+	record.TmpfsFiles["fence.src"] = tmpfs.File{
+		Path: "fence.src", Content: []byte("peer2 received the rejected route's withdrawal and the permitted fence\n"),
+	}
+	decoy := ciConfig(ciPeer("decoy", "127.0.0.1", "127.0.0.1", "65099"))
+	// Neither suffix nor valid configuration syntax establishes consumption.
+	record.TmpfsFiles["unused.conf"] = tmpfs.File{Path: "unused.conf", Content: []byte(decoy)}
+	record.StdinBlocks["unused-config"] = []byte(decoy)
+	record.StdinBlocks["unused-script"] = []byte(
+		"action=rewrite:source=unused.conf:dest=ze-bgp.conf\nunmatched ' quote\n")
+
+	if err := declarePeerAS(record); err != nil {
+		t.Fatalf("declarePeerAS with raw sidecars: %v", err)
+	}
+	if got := declaredASLines(record); !slices.Equal(got, []string{"option=asn:value=65001"}) {
+		t.Fatalf("derived declarations = %v, want only the consumed configuration's AS 65001", got)
+	}
+}
+
+// TestDeclarePeerASConfigurationCarriers proves that selection follows each
+// supported daemon input, including extension-independent file and reload paths.
+func TestDeclarePeerASConfigurationCarriers(t *testing.T) {
+	leroot.RegisterForwarding("test peer-asn-config-probe")
+	for _, carrier := range []string{"daemon file", "daemon stdin", "wrapped stdin", "option file tmpfs", "reload source"} {
+		t.Run(carrier, func(t *testing.T) {
+			config := ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001"))
+			record := recordWith(config, "expect=bgp:conn=1:seq=1:hex=FFFF001304\n")
+			switch carrier {
+			case "daemon file":
+				record.RunCommands[1].Exec = "ze start ./configuration.src"
+				delete(record.TmpfsFiles, "ze-bgp.conf")
+				record.TmpfsFiles["configuration.src"] = tmpfs.File{Path: "configuration.src", Content: []byte(config)}
+			case "daemon stdin":
+				record.RunCommands[1].Exec = "ze -"
+				record.RunCommands[1].Stdin = "ze-bgp"
+				record.StdinBlocks["ze-bgp"] = []byte(config)
+				delete(record.TmpfsFiles, "ze-bgp.conf")
+			case "wrapped stdin":
+				record.RunCommands[1].Exec = "le test peer-asn-config-probe -- ze -"
+				record.RunCommands[1].Stdin = "ze-bgp"
+				record.StdinBlocks["ze-bgp"] = []byte(config)
+				delete(record.TmpfsFiles, "ze-bgp.conf")
+			case "option file tmpfs":
+				record.RunCommands = record.RunCommands[:1]
+				record.ConfigFile = filepath.Join(t.TempDir(), "configuration.src")
+				record.TmpfsFiles["configuration.src"] = tmpfs.File{Path: "configuration.src", Content: []byte(config)}
+				delete(record.TmpfsFiles, "ze-bgp.conf")
+			case "reload source":
+				record.TmpfsFiles["ze-bgp.conf"] = tmpfs.File{Path: "ze-bgp.conf", Content: []byte("bgp {}\n")}
+				record.TmpfsFiles["reload.src"] = tmpfs.File{Path: "reload.src", Content: []byte(config)}
+				record.StdinBlocks["peer"] = append(record.StdinBlocks["peer"],
+					[]byte("action=rewrite:conn=1:seq=2:source=reload.src:dest=ze-bgp.conf\n")...)
+			}
+			if err := declarePeerAS(record); err != nil {
+				t.Fatalf("declarePeerAS: %v", err)
+			}
+			if got := declaredASLines(record); !slices.Equal(got, []string{"option=asn:value=65001"}) {
+				t.Fatalf("derived declarations = %v, want consumed AS 65001", got)
+			}
+		})
+	}
+}
+
+// TestDeclarePeerASRefusesMalformedConfigInputs keeps fail-closed parsing on
+// real inputs, including the transitive ancestors of a reload destination.
+func TestDeclarePeerASRefusesMalformedConfigInputs(t *testing.T) {
+	for _, carrier := range []string{"daemon file", "daemon stdin", "option file", "reload source", "transitive reload source"} {
+		t.Run(carrier, func(t *testing.T) {
+			config := ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001"))
+			record := recordWith(config, "expect=bgp:conn=1:seq=1:hex=FFFF001304\n")
+			const malformed = "bgp { description 'unterminated\n"
+			wantPath := "ze-bgp.conf"
+			switch carrier {
+			case "daemon file":
+				record.TmpfsFiles["ze-bgp.conf"] = tmpfs.File{Path: "ze-bgp.conf", Content: []byte(malformed)}
+			case "daemon stdin":
+				record.RunCommands[1].Exec = "ze -"
+				record.RunCommands[1].Stdin = "ze-bgp"
+				record.StdinBlocks["ze-bgp"] = []byte(malformed)
+				delete(record.TmpfsFiles, "ze-bgp.conf")
+			case "option file":
+				record.RunCommands = record.RunCommands[:1]
+				record.ConfigFile = filepath.Join(t.TempDir(), "ze-bgp.conf")
+				delete(record.TmpfsFiles, "ze-bgp.conf")
+				if err := os.WriteFile(record.ConfigFile, []byte(malformed), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			case "reload source":
+				wantPath = "reload.src"
+				record.TmpfsFiles[wantPath] = tmpfs.File{Path: wantPath, Content: []byte(malformed)}
+				record.StdinBlocks["peer"] = append(record.StdinBlocks["peer"],
+					[]byte("action=rewrite:conn=1:seq=2:source=reload.src:dest=ze-bgp.conf\n")...)
+			case "transitive reload source":
+				wantPath = "ancestor.src"
+				record.TmpfsFiles["reload.src"] = tmpfs.File{Path: "reload.src", Content: []byte(config)}
+				record.TmpfsFiles[wantPath] = tmpfs.File{Path: wantPath, Content: []byte(malformed)}
+				record.StdinBlocks["peer"] = append(record.StdinBlocks["peer"], []byte(
+					"action=rewrite:conn=1:seq=2:source=ancestor.src:dest=reload.src\n"+
+						"action=rewrite:conn=1:seq=3:source=reload.src:dest=ze-bgp.conf\n")...)
+			}
+			err := declarePeerAS(record)
+			if !errors.Is(err, errASDerivation) {
+				t.Fatalf("error = %v, want an AS derivation refusal", err)
+			}
+			for _, want := range []string{wantPath, "unterminated"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error = %v, want it to identify %q", err, want)
+				}
+			}
+		})
+	}
+}
+
+// TestPathASNExportFenceParsesWithDerivedAS exercises the real .ci consumer
+// that failed discovery when its raw receiver acknowledgment contained an apostrophe.
+func TestPathASNExportFenceParsesWithDerivedAS(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	tests := NewEncodingTests(root)
+	record, err := tests.parseAndAdd(filepath.Join(root, "test", "plugin", "path-asn-filter-export-reject.ci"))
+	if err != nil {
+		t.Fatalf("parse path-asn-filter-export-reject.ci: %v", err)
+	}
+	for _, block := range []string{"peer", "peer2"} {
+		payload, exists := record.StdinBlocks[block]
+		if !exists {
+			t.Fatalf("missing peer stdin block %q", block)
+		}
+		for _, want := range []string{
+			"option=asn:peer=127.0.0.1:value=65001",
+			"option=asn:peer=127.0.0.2:value=65002",
+		} {
+			if !strings.Contains(string(payload), want) {
+				t.Errorf("%s lacks derived declaration %q", block, want)
+			}
+		}
+	}
+}
+
+// TestDeclarePeerASTransitiveReloadSources requires AS declarations from the
+// entire rewrite ancestry. A cycle must not duplicate or stall that traversal.
+func TestDeclarePeerASTransitiveReloadSources(t *testing.T) {
+	record := recordWith(
+		ciConfig(ciPeer("first", "127.0.0.1", "127.0.0.1", "65001")),
+		"expect=bgp:conn=1:seq=1:hex=FFFF001304\n"+
+			"action=rewrite:conn=1:seq=2:source=ancestor.src:dest=middle.src\n"+
+			"action=rewrite:conn=1:seq=3:source=middle.src:dest=ze-bgp.conf\n"+
+			"action=rewrite:conn=1:seq=4:source=ze-bgp.conf:dest=middle.src\n")
+	// The first action creates middle.src; no initial file exists for it.
+	record.CIFile = filepath.Join(t.TempDir(), "fixture.ci")
+	record.TmpfsFiles["ancestor.src"] = tmpfs.File{
+		Path:    "ancestor.src",
+		Content: []byte(ciConfig(ciPeer("second", "127.0.0.2", "127.0.0.2", "65002"))),
+	}
+	if err := declarePeerAS(record); err != nil {
+		t.Fatalf("declarePeerAS: %v", err)
+	}
+	want := []string{
+		"option=asn:peer=127.0.0.1:value=65001",
+		"option=asn:peer=127.0.0.2:value=65002",
+	}
+	if got := declaredASLines(record); !slices.Equal(got, want) {
+		t.Fatalf("derived declarations = %v, want both consumed AS declarations %v", got, want)
+	}
+}
+
+// TestDeclarePeerASDaemonInputsFollowExecutionOrder checks the same per-daemon
+// filename assignment that a rewrite uses, even when commands appear out of order.
+func TestDeclarePeerASDaemonInputsFollowExecutionOrder(t *testing.T) {
+	config := ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001"))
+	record := recordWith(config, "expect=bgp:conn=1:seq=1:hex=FFFF001304\n"+
+		"action=rewrite:conn=1:seq=2:source=malformed.src:dest=daemon-2/ze-later.conf\n")
+	delete(record.TmpfsFiles, "ze-bgp.conf")
+	record.StdinBlocks["earlier"] = []byte(config)
+	record.StdinBlocks["later"] = []byte(config)
+	record.RunCommands[1] = RunCommand{Seq: 3, Exec: "ze -", Stdin: "later"}
+	record.RunCommands = append(record.RunCommands, RunCommand{Seq: 2, Exec: "ze -", Stdin: "earlier"})
+	record.TmpfsFiles["malformed.src"] = tmpfs.File{
+		Path: "malformed.src", Content: []byte("bgp { description 'unterminated\n"),
+	}
+	err := declarePeerAS(record)
+	if !errors.Is(err, errASDerivation) {
+		t.Fatalf("error = %v, want refusal of the second daemon's malformed reload", err)
+	}
+	if !strings.Contains(err.Error(), "malformed.src") {
+		t.Fatalf("error = %v, want the selected reload input's name", err)
+	}
+}
+
+// TestDeclarePeerASExplicitStartFilename exercises the consumer, not just argv
+// recognition: bare filenames must contribute AS declarations or fail parsing.
+func TestDeclarePeerASExplicitStartFilename(t *testing.T) {
+	for _, path := range []string{"routing", "routing.src"} {
+		for _, input := range []struct {
+			name      string
+			malformed bool
+		}{
+			{name: "valid"},
+			{name: "malformed", malformed: true},
+		} {
+			t.Run(path+"/"+input.name, func(t *testing.T) {
+				config := ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001"))
+				if input.malformed {
+					config = "bgp { description 'unterminated\n"
+				}
+				record := recordWith(config, "expect=bgp:conn=1:seq=1:hex=FFFF001304\n")
+				delete(record.TmpfsFiles, "ze-bgp.conf")
+				record.RunCommands[1].Exec = "ze start " + path
+				record.TmpfsFiles[path] = tmpfs.File{Path: path, Content: []byte(config)}
+				err := declarePeerAS(record)
+				if input.malformed {
+					if !errors.Is(err, errASDerivation) {
+						t.Fatalf("error = %v, want refusal of malformed configuration %s", err, path)
+					}
+					if !strings.Contains(err.Error(), path) {
+						t.Fatalf("error = %v, want the selected configuration's name %s", err, path)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatalf("declarePeerAS: %v", err)
+				}
+				if got := declaredASLines(record); !slices.Equal(got, []string{"option=asn:value=65001"}) {
+					t.Fatalf("derived declarations = %v, want consumed AS 65001", got)
+				}
+			})
+		}
+	}
+}
+
+// TestDeclarePeerASReadsDaemonFileOnDisk resolves a directly named daemon input
+// beside the .ci, rather than assuming every daemon input is embedded.
+func TestDeclarePeerASReadsDaemonFileOnDisk(t *testing.T) {
+	config := ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001"))
+	record := recordWith(config, "expect=bgp:conn=1:seq=1:hex=FFFF001304\n")
+	record.CIFile = filepath.Join(t.TempDir(), "fixture.ci")
+	record.RunCommands[1].Exec = "ze start routing"
+	delete(record.TmpfsFiles, "ze-bgp.conf")
+	if err := os.WriteFile(filepath.Join(filepath.Dir(record.CIFile), "routing"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := declarePeerAS(record); err != nil {
+		t.Fatalf("declarePeerAS: %v", err)
+	}
+	if got := declaredASLines(record); !slices.Equal(got, []string{"option=asn:value=65001"}) {
+		t.Fatalf("derived declarations = %v, want on-disk AS 65001", got)
+	}
+}
+
+// TestDeclarePeerASStartFlagsSelectOnlyConfig proves that value-less start
+// flags neither become filenames nor invent a configuration for stored-mode starts.
+func TestDeclarePeerASStartFlagsSelectOnlyConfig(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		exec string
+		want []string
+	}{
+		{name: "cli", exec: "ze start --cli routing", want: []string{"option=asn:value=65001"}},
+		{name: "web-only config", exec: "ze start --web-only --web 3443 routing", want: []string{"option=asn:value=65001"}},
+		{name: "web-only without config", exec: "ze start --web-only --web 3443"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config := ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001"))
+			record := recordWith(config, "expect=bgp:conn=1:seq=1:hex=FFFF001304\n")
+			delete(record.TmpfsFiles, "ze-bgp.conf")
+			record.TmpfsFiles["routing"] = tmpfs.File{Path: "routing", Content: []byte(config)}
+			record.RunCommands[1].Exec = tt.exec
+			if err := declarePeerAS(record); err != nil {
+				t.Fatalf("declarePeerAS: %v", err)
+			}
+			if got := declaredASLines(record); !slices.Equal(got, tt.want) {
+				t.Fatalf("derived declarations = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestDeclarePeerASRefusesUnavailableRewriteSources distinguishes generated
+// intermediates from missing leaves and cycles with no readable initial source.
+func TestDeclarePeerASRefusesUnavailableRewriteSources(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		actions string
+		want    string
+	}{
+		{
+			name: "missing leaf",
+			actions: "action=rewrite:conn=1:seq=2:source=missing.src:dest=middle.src\n" +
+				"action=rewrite:conn=1:seq=3:source=middle.src:dest=ze-bgp.conf\n",
+			want: "missing.src",
+		},
+		{
+			name: "unanchored cycle",
+			actions: "action=rewrite:conn=1:seq=2:source=loop.src:dest=middle.src\n" +
+				"action=rewrite:conn=1:seq=3:source=middle.src:dest=loop.src\n" +
+				"action=rewrite:conn=1:seq=4:source=middle.src:dest=ze-bgp.conf\n",
+			want: "no readable rewrite source",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			record := recordWith(
+				ciConfig(ciPeer("real", "127.0.0.1", "127.0.0.1", "65001")),
+				"expect=bgp:conn=1:seq=1:hex=FFFF001304\n"+tt.actions)
+			record.CIFile = filepath.Join(t.TempDir(), "fixture.ci")
+			err := declarePeerAS(record)
+			if !errors.Is(err, errASDerivation) {
+				t.Fatalf("error = %v, want an AS derivation refusal", err)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want %q", err, tt.want)
+			}
+		})
 	}
 }

@@ -91,7 +91,7 @@ func TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes(t *testing.T)
 // closes without making the session operational or applying a mapping/address.
 // Unknown types exercise both U bits. RFC 5036 Section 3.5.1.1: "When an LSR
 // receives a Shutdown message during session initialization, it SHOULD transmit
-// a Shutdown message and then close the transport connection."
+// a Shutdown message and then close the transport connection.".
 func TestRFC5036OpenReceivedOtherMessageRejected(t *testing.T) {
 	testInitializationOtherMessageRejected(t, StateOpenReceived)
 }

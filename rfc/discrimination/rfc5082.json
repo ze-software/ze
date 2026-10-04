@@ -115,7 +115,7 @@
       "rid": "RFC5082-3-3",
       "polarity": "positive",
       "unit": "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement",
-      "unit-sha": "f2bc767ae984d353",
+      "unit-sha": "098071757cd68ee5",
       "claim-sha": "37bcce2b5732b4a4",
       "route": "revert",
       "producer": "internal/core/network/ttl_linux.go::setIPTTL",

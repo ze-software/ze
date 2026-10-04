@@ -15,6 +15,8 @@ import (
 )
 
 // ParseRejectRule reads one `reject=bgp:conn=N:pattern=<hex>` line.
+// Optional scope=announced or scope=withdrawn restricts the search to NLRI fields;
+// pattern then returns the normalized "scope:HEX" rule used by the checker.
 //
 // isReject is false for any other line, and then conn and pattern are unset.
 //
@@ -52,6 +54,12 @@ func ParseRejectRule(rule string) (conn int, pattern string, isReject bool, err 
 	}
 	if strings.Trim(pattern, "0123456789ABCDEF") != "" {
 		return 0, "", true, fmt.Errorf("reject=bgp pattern %q is not hexadecimal: %q", pattern, rule)
+	}
+	if scope := kv["scope"]; scope != "" {
+		if scope != "announced" && scope != "withdrawn" {
+			return 0, "", true, fmt.Errorf("reject=bgp invalid scope=%q (want announced or withdrawn): %q", scope, rule)
+		}
+		pattern = scope + ":" + pattern
 	}
 	return conn, pattern, true, nil
 }
@@ -120,7 +128,7 @@ func (c *Checker) rejection(msg *Message) (string, bool) {
 	}
 	stream := msg.Stream()
 	for _, needle := range needles {
-		if indexByteAligned(stream, needle, 0) >= 0 {
+		if rejectedUpdateField(needle, stream) {
 			return needle, true
 		}
 	}

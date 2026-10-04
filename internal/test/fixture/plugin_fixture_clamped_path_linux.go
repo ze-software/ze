@@ -586,7 +586,10 @@ func isolatedNetnsDriver(ctx context.Context, args []string) error {
 	if plan.routeMTU != 0 || len(plan.farDaemons) != 0 {
 		return errors.New("isolated-netns takes neither route-mtu nor far-daemon")
 	}
-	if plan.ipv6 || len(plan.peers) != 0 {
+	if plan.ipv6 {
+		return errors.New("isolated-netns takes neither ipv6 nor peer: it has no link to carry either")
+	}
+	if len(plan.peers) != 0 {
 		return errors.New("isolated-netns takes neither ipv6 nor peer: it has no link to carry either")
 	}
 	runtime.LockOSThread()

@@ -20,7 +20,7 @@
       "claim-sha": "1a2655168075fc2a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
-      "producer-sha": "61de16c2a7d6e3ff",
+      "producer-sha": "b895764b89e72d25",
       "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -81,6 +81,17 @@
     {
       "rid": "RFC7313-5-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",
+      "unit-sha": "534b0c18560045de",
+      "claim-sha": "7c5becc27415890e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshSubtypeUnknown",
+      "producer-sha": "e9dacbb8a3d807f7",
+      "break": "body of routeRefreshSubtypeUnknown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7313-5-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7313_reactor_b_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
       "unit-sha": "2f946ea90cbc886e",
       "claim-sha": "9ffce23af0de80c5",
@@ -95,17 +106,6 @@
       "unit": "internal/component/bgp/reactor/rfc7313_reactor_b_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
       "unit-sha": "2f946ea90cbc886e",
       "claim-sha": "721340ce2df1341f",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshSubtypeUnknown",
-      "producer-sha": "e9dacbb8a3d807f7",
-      "break": "body of routeRefreshSubtypeUnknown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7313-5-3",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",
-      "unit-sha": "534b0c18560045de",
-      "claim-sha": "7c5becc27415890e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshSubtypeUnknown",
       "producer-sha": "e9dacbb8a3d807f7",

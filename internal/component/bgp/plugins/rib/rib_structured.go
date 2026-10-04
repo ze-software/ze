@@ -363,7 +363,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	msgID := se.MessageID
 	// Replay and RIB-owned lifecycle writes are feedback, not new ownership.
 	// Delayed feedback MUST NOT restore purged routes or their old attributes.
-	if _, replay := se.Meta["replay"]; replay {
+	if _, replay := se.Meta[metaKeyReplay]; replay {
 		return
 	}
 	if _, lifecycle := se.Meta["rib-lifecycle"]; lifecycle {
@@ -384,7 +384,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	// based on its outbound route filtering policy."
 	// Config owns initial advertisement, but refresh needs its sent routes too.
 	_, configStatic := se.Meta["config-static"]
-	_, replay := se.Meta["replay"]
+	_, replay := se.Meta[metaKeyReplay]
 
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {

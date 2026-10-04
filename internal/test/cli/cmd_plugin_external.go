@@ -7,6 +7,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -48,6 +49,12 @@ func CmdPluginExternal(args []string) int {
 		slog.Error("plugin-external: plugin has no RunEngine", "name", name)
 		return 1
 	}
+	// The parent owns this process's stderr relay. Restore that pipe before
+	// the engine logger captures os.Stderr: a refusing engine logs and closes
+	// its SDK connection, and the parent's startup rollback can then kill us
+	// before main flushes a child-owned crashlog queue. Runtime crash capture
+	// remains armed; only this test launcher's extra stderr relay ends here.
+	crashlog.Flush()
 	if reg.ConfigureEngineLogger != nil {
 		reg.ConfigureEngineLogger(plugin.CanonicalSubsystemName(name))
 	}

@@ -29,18 +29,19 @@ EOF_PEER
 # THE FENCE IS WHAT MAKES THE REJECTION DISCRIMINATE. A rejection is only
 # evidence if the forbidden bytes had their chance to arrive before the peer
 # publishes its verdict. Both forwards cross ONE TCP stream in the order peer1
-# sent them, so the fence (seq=2) cannot arrive before the subject route would
+# sent them, so the fence cannot arrive before the subject route would
 # have. option=linger is NOT that mechanism: Peer.completed
 # (internal/test/peer/reject.go) prints the success token BEFORE it enters the
 # linger loop, and failedCheckPeers (internal/test/runner/peer_contract.go) reads
-# that token, so a rejection the linger loop finds is detected and cannot fail
-# the test.
+# that token, so a rejection the linger loop finds overrides the earlier success.
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=2:contains=180A0900
-reject=bgp:conn=1:pattern=180A0000
+expect=bgp:conn=1:seq=2:withdrawn=180A0000
+expect=bgp:conn=1:seq=3:announced=180A0900
+reject=bgp:conn=1:scope=announced:pattern=180A0000
 EOF_PEER2
 
 # ze bgp configuration: the export filter sits on peer2, the peer ze forwards TO.

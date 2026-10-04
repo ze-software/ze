@@ -3,28 +3,36 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5575-4-1": {
-      "note": "Forbidden: exchanging flow specification rules without the Multiprotocol (Code 1) capability in OPEN. TestIPv4FlowSpecNegotiatesMultiprotocolCapability only checks the plugin registers ipv4/flow and then builds a capability.Multiprotocol in the test itself, so mp.Code()==1 is tautological; no assertion reads a real OPEN, and nothing goes red if sendOpen omits the capability or flow routes go to a peer that did not negotiate it.",
+      "note": "RFC 5575 Section 4: \"Implementations wishing to exchange flow specification rules MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760].\" RFC 8955 Section 4 restates this obligation; the existing superseded disposition is retained. TestIPv4FlowSpecNegotiatesMultiprotocolCapability is only registration/constructed-capability evidence. The current reactor/rfc5575_capability_wire_test.go TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily additionally decodes buildOpen OptionalParams produced from real parsed configuration, verifies Code-1 families, and sends through AnnounceNLRIBatch. Matching SAFI sends exactly the required MP_REACH bytes; advertising only the other FlowSpec SAFI returns ErrNoPeersAcceptedFamily and writes zero bytes. Producers session_negotiate.go buildOpen, capability.Negotiate and reactor_api_batch.go AnnounceNLRIBatch/buildBatchAnnounceUpdate were read. Distinct matched/mismatched negotiation arms are a genuine positive/negative pair. Removed only the now-false single-polarity annotation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "6e0283b093f53403",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "d1ac0adabd9cefbe"
+        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "d1ac0adabd9cefbe",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "44aafccadd4f630f",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "44aafccadd4f630f"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "b6c6a9ba63ffd546"
+        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "b6c6a9ba63ffd546",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "e03305f2198350e1",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "e03305f2198350e1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5575-4-2": {
-      "note": "Forbidden: an MP capability (AFI, SAFI) pair that differs from the pair the application's NLRI is sent under. TestFlowSpecIPv4Basic and TestFlowSpecVPNFamily assert family constants (1,133) and (1,134) only; no assertion compares the capability pair with the MP_REACH AFI/SAFI the encoder emits (encode.go chooses afi separately), so an encoder writing another SAFI stays green.",
+      "note": "RFC 5575 Section 4: \"The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type.\" Successor RFC 8955 Section 4 makes the pairs explicit: \"The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=1, SAFI=133) for IPv4 Flow Specification and (AFI=1, SAFI=134) for VPNv4 Flow Specification.\" types_test.go TestFlowSpecIPv4Basic/TestFlowSpecVPNFamily pin both constants. TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily now compares parsed production OPEN pairs to exact MP_REACH output for both flow and flow-vpn, retaining the VPN RD, and rejects the crossed SAFI without output. AnnounceNLRIBatch checks the negotiated batch.Family and buildBatchAnnounceUpdate passes that same AFI/SAFI to NewMPReachNLRI. Wrong wire SAFI and shared-AFI negotiation leakage both fail. Removed only the stale single-polarity marker; successor policy remains unchanged. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "cc0ead3ebab90fe6",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "13a03de15f8818cf",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "13a03de15f8818cf"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "13a03de15f8818cf",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "44aafccadd4f630f",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "44aafccadd4f630f"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "7748623b97c07367",
-        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "7d7302c0c9c040b9"
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "7d7302c0c9c040b9",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "e03305f2198350e1",
+        "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "e03305f2198350e1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5575-4-3": {
       "note": "Forbidden: components out of strict type order (descending or repeated). TestFlowSpecComponentsAscendingOrder (positive) adds out of order and asserts wire order 1,3,5,12, red on insertion-order emission; TestFlowSpecJoinsRepeatedTypeIntoOneComponent asserts one Type 4 component; TestParseFlowSpecRefusesRepeatedComponentType require.ErrorIs ErrFlowSpecDuplicateType goes red if a repeat is accepted.",
@@ -72,17 +80,21 @@
       "verdict": "weak"
     },
     "RFC5575-5.1-1": {
-      "note": "Forbidden: an ordering that depends on arrival order. TestFlowSpecPrecedenceFromWire always parses the expected-first rule first, so an arrival-order tie-break still yields Compare(a,b)<0 and Compare(b,a)>0; the negative tag says reversing arrival order cannot reverse precedence, but no case parses the pair in the reverse order or feeds the ordering from two arrival sequences.",
+      "note": "RFC 5575 Section 5.1: \"This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network.\" RFC 8955 Section 5.1 restates arrival independence and network consistency. TestFlowSpecPrecedenceFromWire checks both comparison signs and self equality across prefix, component and received-byte cases. TestRFC5575PrecedenceIndependentOfArrival additionally parses independent copies in BOTH insertion orders, sorts through production Compare, and requires identical exact output for overlapping prefixes and differing component types. Compare reads components/bytes, not identity or arrival metadata. This is no longer a one-order test masquerading as an arrival-order negative. No new supersession exclusion was introduced. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "84505218df9a4cde",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "328da0a428605906",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "328da0a428605906"
+        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "328da0a428605906",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival": "ea091712a54bda67",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival#2": "ea091712a54bda67"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "12fd4ff344e8089e",
-        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "12fd4ff344e8089e"
+        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "12fd4ff344e8089e",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival": "9a1a036e6ae2d51c",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival#2": "9a1a036e6ae2d51c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5575-7-1": {
       "note": "Forbidden: non-zero bytes in the five octets before the DSCP, or the DSCP elsewhere. TestFlowSpecTrafficMarkingReservedBytesZero asserts ec[2..6]==0 and ec[7]==dscp with type 0x80/0x09; red on either. {single-polarity} marker present.",

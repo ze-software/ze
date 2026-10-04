@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5443-2-1": {
@@ -8,8 +11,8 @@
       "tests": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric": "9e546619d1947e81",
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "9e546619d1947e81",
-        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "3bffe7b1a1620ca8",
-        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443OperationalLinkAdvertisedAtConfiguredCost": "3bffe7b1a1620ca8"
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "c9958c38f3f744bf",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443OperationalLinkAdvertisedAtConfiguredCost": "c9958c38f3f744bf"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncForcesMaxMetric": "48f00387b467bac9",
@@ -25,8 +28,8 @@
       "tests": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "9e546619d1947e81",
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncMaxMetricValue": "9e546619d1947e81",
-        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "3bffe7b1a1620ca8",
-        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "3bffe7b1a1620ca8"
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "c9958c38f3f744bf",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "c9958c38f3f744bf"
       },
       "units": {
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncDisabledIsNoOp": "f62d5cb141facec8",
@@ -74,8 +77,8 @@
       "note": "Re-judged 2026-09-29. Level: RFC 5443 section 4 reads lowercase 'should only be applied to the IP link cost'; under D-3 a lowercase keyword keeps the row's MUST level, so no correction is owed. TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric originates both LSAs from one not-synchronized snapshot: the Router-LSA link is 0xFFFF and the TE Link LSA (teOriginateType1, decoded) keeps the TE metric defaulted from the configured IP cost, 100. TestRFC5443CostOutLeavesExplicitTEMetric covers the explicit te-metric branch (50 unchanged). Both branches of applyTELinkAttributes are covered and a TE metric raised by the cost-out goes red. The false 'Ze originates no TE LSA' tags were removed from TestLDPSyncTECostUntouched.",
       "requirement_sha": "8e556c550ab9d30c",
       "tests": {
-        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric": "3bffe7b1a1620ca8",
-        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric": "3bffe7b1a1620ca8"
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric": "c9958c38f3f744bf",
+        "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric": "c9958c38f3f744bf"
       },
       "units": {
         "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric": "1a1f4507e06d8374",

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-04",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7911-2-1": {
@@ -99,73 +99,85 @@
       "verdict": "enforced"
     },
     "RFC7911-5-1": {
-      "note": "Quoted sentence: to send multiple paths the speaker MUST advertise Send/Receive 2 or 3 and MUST receive 1 or 3 from the peer, for the corresponding <AFI, SAFI>. Clause 'local advertises 2 or 3': TestFromNegotiatedAddPath rows Receive/Send and Receive/Both require wantSend false (red if a Receive-only local could send). Clause 'peer sent 1 or 3': rows Send/Send and Both/Send require wantSend false. Clause 'for the corresponding <AFI, SAFI>': no tagged unit negotiates ADD-PATH for one family on one side and another family on the other; baseCapsWithAddPath uses one family on both sides and only ipv4Family is read, so a family-blind Negotiate stays green.",
+      "note": "RFC 7911 Section 5: \"For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding <AFI, SAFI>.\" All three current carriers read: capability/negotiated_test.go TestNegotiateAddPath, context/rfc7911_negotiated_test.go TestFromNegotiatedAddPath (all nine direction-mode pairs), capability/rfc7911_family_scope_test.go TestRFC7911AddPathNegotiationIsPerFamily. The new matrix crosses IPv4/IPv6 and unicast/multicast, both send-capable local modes and both receive-capable peer modes, while MP negotiation offers all families; exactly the intersection family can send. Thus local Receive-only, remote Send-only, wrong AFI and wrong SAFI independently cannot grant send. Negotiate keys both mode maps by the full Family and FromNegotiatedSend/Recv preserve the directional result. This closes the prior family-blindness gap rather than merely re-sealing it. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Post-lint independent source rejudgment: TestRFC7911AddPathNegotiationIsPerFamily now computes matchingFamilies = (localFamily == remoteFamily), then wantSend = matchingFamilies && (fam == localFamily). By equality transitivity this is exactly (fam == localFamily && fam == remoteFamily): false for crossed AFI or SAFI; true only for the matching queried family. All three session families are offered by MP on both sides, so lack of MP negotiation cannot mask leakage. All four local-send/remote-receive combinations and all nine family pairs still run. Re-read both companion carriers, including the nine direction-mode context matrix, and Negotiate maps indexed by the full Family. Positive and negative tags test distinct matrix inputs. Enforced remains; all four existing records on this changed unit require native renewal, which is not observed here.",
       "requirement_sha": "1b66371d2804b242",
       "tests": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "79de3d0b159f3a42",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily": "f7ae5c583612a411",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily#2": "f7ae5c583612a411",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "055ce769d1683da3",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "055ce769d1683da3"
       },
       "units": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "3544b2bad14868e7",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily": "4343053f8c55e97b",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily#2": "4343053f8c55e97b",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "7467bf6d5e9676fc",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "7467bf6d5e9676fc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7911-5-2": {
-      "note": "Same sentence as RFC7911-5-1 (the row's obligation is the second MUST: receive Send/Receive 1 or 3 from the peer). TestFromNegotiatedAddPath rows Send/Send and Both/Send require wantSend false, red if ze sends when the peer never advertised Receive; TestNegotiateAddPath asserts AddPathSend for Both/Receive. The per-<AFI, SAFI> clause has no assertion: every tagged case puts the same single family on both sides, so a Negotiate that paired the peer's Receive for IPv6 with local Send for IPv4 would pass.",
+      "note": "RFC 7911 Section 5: \"For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding <AFI, SAFI>.\" All three current carriers read: capability/negotiated_test.go TestNegotiateAddPath, context/rfc7911_negotiated_test.go TestFromNegotiatedAddPath (all nine direction-mode pairs), capability/rfc7911_family_scope_test.go TestRFC7911AddPathNegotiationIsPerFamily. The new matrix crosses IPv4/IPv6 and unicast/multicast, both send-capable local modes and both receive-capable peer modes, while MP negotiation offers all families; exactly the intersection family can send. Thus local Receive-only, remote Send-only, wrong AFI and wrong SAFI independently cannot grant send. Negotiate keys both mode maps by the full Family and FromNegotiatedSend/Recv preserve the directional result. This closes the prior family-blindness gap rather than merely re-sealing it. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Post-lint independent source rejudgment: the family-equality hoist preserves the truth table, not merely the assertion count. A queried family is send-enabled exactly when localFamily == remoteFamily == fam; crossed AFI, crossed SAFI, or a different queried family are false. Both remote Receive and Both and local Send and Both are crossed while MP offers all families. The companion TestNegotiateAddPath pins Both/Receive to exact Send, and TestFromNegotiatedAddPath tests all nine modes including peer Send-only disabling transmission. Negotiate reads localModes[f] and remoteModes[f] for each negotiated family. Enforced remains, with native renewal owed for both polarities of each row on the changed family-scope unit.",
       "requirement_sha": "1b66371d2804b242",
       "tests": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "79de3d0b159f3a42",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily": "f7ae5c583612a411",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily#2": "f7ae5c583612a411",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "055ce769d1683da3",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "055ce769d1683da3"
       },
       "units": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "3544b2bad14868e7",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily": "4343053f8c55e97b",
+        "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily#2": "4343053f8c55e97b",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "7467bf6d5e9676fc",
         "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "7467bf6d5e9676fc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7911-5-3": {
-      "note": "Quoted span: MUST follow RFC 4271 procedures for an <AFI, SAFI> unless ADD-PATH send is advertised and receive is received for it. Forbidden: emitting Path Identifiers to a peer that did not negotiate. TestForwardSplitConvertsAddPathContext (negative) asserts every destination prefix is 4 bytes and equals the plain NLRI; TestForwardPathIDLeavesNonAddPathDestinationAlone likewise. Positive TestForwardSplitSameContextKeepsRawSplit asserts the extended encoding. Per-<AFI, SAFI> clause unasserted: fixtures set ADD-PATH for IPv4 unicast only and send only IPv4, so a family-blind generator passes. TestRFC7606Section54ReadsTypedNLRIUnderAddPath is tagged 5-3 positive but proves receive-side parsing (RFC7911-5-5's rule).",
+      "note": "RFC 7911 Section 5: \"A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>, in which case the speaker MUST generate a route update for the <AFI, SAFI> based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document.\" TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily now negotiates actual Send/Receive for one of IPv4 unicast, IPv6 unicast or IPv4 multicast, announces every family, and compares exact plain/extended wire NLRI against family-specific expected bytes. Existing TestForwardSplitConvertsAddPathContext strips identifiers for an unnegotiated destination; TestForwardPathIDLeavesNonAddPathDestinationAlone retains the plain zero-copy body; TestForwardSplitSameContextKeepsRawSplit checks exact prefixes, regenerated distinct identifiers and splitting. Producers announceFactsFor/buildBatchAnnounceUpdate and EncodingContext.AddPath read the sent family, not any-family negotiation. The incorrectly receive-side tag is absent from this row now. Positive and crossed-family negative arms exercise the actual conditional rule; a family-blind generator fails. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "2f4282463a2b43ec",
       "tests": {
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily": "3df0cd2b9584b35a",
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily#2": "3df0cd2b9584b35a",
         "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitConvertsAddPathContext": "dbf22f188bff5ed9",
         "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit": "dbf22f188bff5ed9",
-        "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "cbf13b4b5c120df7",
-        "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "ddf20aa815d433a8"
+        "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "cbf13b4b5c120df7"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily": "0a01148bebc6151e",
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily#2": "0a01148bebc6151e",
         "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitConvertsAddPathContext": "bccf1cdd632bbb94",
         "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit": "ed4ab5145bf85647",
-        "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "0f01203fb3b57761",
-        "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "1e89a4919af9496b"
+        "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "0f01203fb3b57761"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7911-5-4": {
-      "note": "Quoted sentence: follow RFC 4271 unless ADD-PATH negotiated for the <AFI, SAFI>, in which case MUST generate updates based on the combination of prefix and Path Identifier with the extended NLRI encoding. Plain encoding when not negotiated: TestWriteAnnounceUpdateWithAddPath nNoAddPath+4==nAddPath and TestSplitUpdateEndToEnd. Extended encoding when negotiated: TestSplitUpdateAddPathEndToEnd round-trips 4-octet ids. Unasserted: 'based on the combination of the address prefix and the Path Identifier' (no 5-4 unit sends two paths for one prefix and asserts both are generated, so a prefix-keyed generator passes), and the per-<AFI, SAFI> clause. TestForwardPathIDWithdrawOfUnknownPathLeavesNothing is tagged 5-4 but quotes and proves RFC7911-5-6.",
+      "note": "RFC 7911 Section 5: \"A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>, in which case the speaker MUST generate a route update for the <AFI, SAFI> based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document.\" TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily additionally sends identifiers 7 and 9 for the SAME prefix and requires both extended entries exactly; all crossed AFI/SAFI outputs remain plain. reactor_test.go TestWriteAnnounceUpdateWithAddPath contributes the width/control check (not sufficient alone); rfc7911_forward_split_test.go TestSplitUpdateAddPathEndToEnd and TestSplitUpdateEndToEnd retain exact concatenated extended/plain NLRI through splitting. Producers buildBatchAnnounceUpdate generate from each NLRI and the destination family-specific addPath fact. Prefix-only collapse, wrong identifiers, family leakage, or adding the four octets without negotiation fail. The unrelated unknown-withdraw tag is no longer attached to this row. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "99c8bfd146a20695",
       "tests": {
-        "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDWithdrawOfUnknownPathLeavesNothing": "f3dfecee2242a333",
-        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateAddPathEndToEnd": "ea85b6f16916323f",
-        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateEndToEnd": "ea85b6f16916323f",
         "internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath": "590d9861717bf190",
-        "internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath#2": "590d9861717bf190"
+        "internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath#2": "590d9861717bf190",
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily": "3df0cd2b9584b35a",
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily#2": "3df0cd2b9584b35a",
+        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateAddPathEndToEnd": "ea85b6f16916323f",
+        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateEndToEnd": "ea85b6f16916323f"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDWithdrawOfUnknownPathLeavesNothing": "f712fb2de060cae4",
-        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateAddPathEndToEnd": "362ec6151fa20826",
-        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateEndToEnd": "3334e2733a257d76",
         "internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath": "4d914ddac00e6e36",
-        "internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath#2": "4d914ddac00e6e36"
+        "internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath#2": "4d914ddac00e6e36",
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily": "0a01148bebc6151e",
+        "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily#2": "0a01148bebc6151e",
+        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateAddPathEndToEnd": "362ec6151fa20826",
+        "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateEndToEnd": "3334e2733a257d76"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7911-5-5": {
-      "note": "Forbidden: applying one <AFI, SAFI>'s ADD-PATH state to another. TestRFC7911AddPathStateAppliesPerFamily negotiates ADD-PATH for exactly one of IPv4/IPv6 unicast and asserts the exact RFC 7606 action per family: path-id encoding accepted only for the ADD-PATH family, plain encoding accepted only for the other, each wrong pairing SessionReset, on both orientations. Buffers are chosen so the misread is structurally fatal (path-id octet 0x21/0x81 as prefix length), isolating the per-family parse choice.",
+      "note": "RFC 7911 Section 5: \"The peer SHALL act accordingly in processing an UPDATE message related to a particular <AFI, SAFI>.\" Read together with the immediately preceding full send/receive negotiation and extended-(prefix,Path Identifier) encoding sentence. All four current carriers read: TestRFC7911AddPathStateAppliesPerFamily, TestEnforceRFC7606_MPAddPathLargePathIDAccepted, TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted and TestRFC7606Section54ReadsTypedNLRIUnderAddPath. The receive matrix positively accepts only the encoding selected for each family and negatively requires exact SessionReset on wrong framing in both IPv4/IPv6 orientations; large identifier octets isolate the framing misread. The typed test now installs a real receive context and verifies the recognized EVPN route retains its identifier while the unknown route disappears. enforceRFC7606 and typedNLRIEdit consult recvCtx.AddPathFor on the specific family. This is receive-side evidence, not an extra generation claim. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "fd396f7cd202829b",
       "tests": {
         "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily": "75b4ff7b6ed1bd04",
@@ -173,7 +185,8 @@
         "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
         "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
         "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
-        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04"
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
+        "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "34430c253621f2bb"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily": "da5d88f2c8b20920",
@@ -181,7 +194,8 @@
         "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "b1a86e67ee138224",
         "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "b1a86e67ee138224",
         "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "968617fdd0387cf2",
-        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "968617fdd0387cf2"
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "968617fdd0387cf2",
+        "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d3d62cdd889ef0c3"
       },
       "verdict": "enforced"
     }

@@ -61,7 +61,7 @@ func TestLLGRRefreshReplacesMutatedAttributes(t *testing.T) {
 // TestLLGRRefreshFingerprintStorageModes covers the direct, ADD-PATH and opaque
 // fingerprint rails, with both raw-byte and parse-once insertion APIs.
 func TestLLGRRefreshFingerprintStorageModes(t *testing.T) {
-	t.Parallel()
+	// Keep storage-mode mutations of the shared attribute pools sequential.
 	for _, tc := range []struct {
 		name    string
 		fam     family.Family
@@ -75,7 +75,7 @@ func TestLLGRRefreshFingerprintStorageModes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, parsed := range []bool{false, true} {
 				peer := storage.NewPeerRIB("192.0.2.1")
-				defer peer.Release()
+				t.Cleanup(peer.Release)
 				peer.SetAddPath(tc.fam, tc.addPath)
 				attrs := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 				peer.Insert(tc.fam, attrs, tc.nlri)

@@ -42,13 +42,13 @@ func TestVPNWithdrawPromotesTheOtherPE(t *testing.T) {
 				t.Fatalf("register context: %v", err)
 			}
 
-			nlriA := vpnv4NLRI(100, vpnRouteKeyRD, 8, 0x0a)
-			nlriB := vpnv4NLRI(101, vpnRouteKeyRD, 8, 0x0a)
+			nlriA := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
+			nlriB := vpnv4NLRI(101, vpnRouteKeyRD, 0x0a)
 			feedReceived(r, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriA))
 			feedReceived(r, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 200, nlriB))
 			before := len(vpnBestChanges(bus, vpnv4Family))
 
-			withdrawn := vpnv4NLRI(0, vpnRouteKeyRD, 8, 0x0a)
+			withdrawn := vpnv4NLRI(0, vpnRouteKeyRD, 0x0a)
 			withdrawn[1], withdrawn[2], withdrawn[3] = tc.compatibility[0], tc.compatibility[1], tc.compatibility[2]
 			feedReceived(r, peA, ctxID, vpnv4WithdrawBody(withdrawn))
 

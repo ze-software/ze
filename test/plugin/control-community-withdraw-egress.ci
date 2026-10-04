@@ -88,20 +88,22 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D020000002240010
 # conn=2, the EXCLUDED client -- AS 65002, on 127.0.0.2. Every assertion about the exclusion
 # and its limit lives here.
 # THE POINT OF THIS TEST: the withdrawal half REACHES the excluded client.
-expect=bgp:conn=2:seq=1:contains=18C63364
+expect=bgp:conn=2:seq=1:withdrawn=18C63364
+# The refused announcement also invalidates any previously advertised generation.
+expect=bgp:conn=2:seq=1:withdrawn=180A0000
 # CONTROL 1: the fence reaches this session too, so the assertion above cannot pass by way
 # of some unrelated message.
-expect=bgp:conn=2:seq=2:contains=18C00002
-# THE ASSERTION: 10.0.0.0/24 never reaches this client, in any framing.
-reject=bgp:conn=2:pattern=180A0000
+expect=bgp:conn=2:seq=2:announced=18C00002
+# THE ASSERTION: 10.0.0.0/24 is never announced to this client.
+reject=bgp:conn=2:scope=announced:pattern=180A0000
 
 # conn=3, the INCLUDED client -- AS 65003, on 127.0.0.3. CONTROL 2.
 # The control community names 65002 only, so this client receives BOTH halves. ze splits
 # the mixed shape before sending it (RFC 7606 Section 5.1), withdrawal first, so the two
 # halves arrive as two messages in that order, and the fence follows.
-expect=bgp:conn=3:seq=1:contains=18C63364
-expect=bgp:conn=3:seq=2:contains=180A0000
-expect=bgp:conn=3:seq=3:contains=18C00002
+expect=bgp:conn=3:seq=1:withdrawn=18C63364
+expect=bgp:conn=3:seq=2:announced=180A0000
+expect=bgp:conn=3:seq=3:announced=18C00002
 EOF_PEER
 
 # Observer: hold the daemon up until the fence has reached the excluded client, which proves

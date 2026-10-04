@@ -103,7 +103,10 @@ func (cache *fwdParseCache) forwardWire(base *wireu.WireUpdate, preserveOpaque b
 			out = make([]byte, len(payload))
 			written = copy(out, payload[:attrStart+start])
 		}
-		if out == nil || drop {
+		if out == nil {
+			continue
+		}
+		if drop {
 			continue
 		}
 		n := copy(out[written:], attrs[start:iter.Offset()])

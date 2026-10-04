@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net"
 	"runtime"
 	"testing"
@@ -45,7 +47,10 @@ func TestGTSMConfiguredEgressDoesNotDecrement(t *testing.T) {
 	}
 	seenSYN, seenData := false, false
 	for range 32 {
-		packet := path.receive(t)
+		packet, err := path.receive()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if !bytes.Equal(packet[12:16], []byte{192, 0, 2, 1}) {
 			continue
 		}
@@ -105,7 +110,7 @@ func newTCPEgress(t *testing.T, key string) *tcpEgress {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = peer.Close() })
-	pair := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "gtsm-peer", MTU: 1500}, PeerName: "gtsm-send", PeerNamespace: netlink.NsFd(int(sender))}
+	pair := &netlink.Veth{Name: "gtsm-peer", MTU: 1500, PeerName: "gtsm-send", PeerNamespace: netlink.NsFd(int(sender))}
 	if err := netlink.LinkAdd(pair); err != nil {
 		t.Fatal(err)
 	}
@@ -172,47 +177,64 @@ func newTCPEgress(t *testing.T, key string) *tcpEgress {
 	return &tcpEgress{listener: listener, capture: capture, peerLink: peerLink.Attrs().Index}
 }
 
+const truncatedIPv4TCPCapture = "truncated IPv4/TCP capture"
+
 // receive returns one complete IPv4 TCP packet captured on the peer's link.
-func (p *tcpEgress) receive(t *testing.T) []byte {
-	t.Helper()
+func (p *tcpEgress) receive() ([]byte, error) {
 	var buffer [1600]byte
 	for range 64 {
-		packet, err := p.receiveFrame(t, buffer[:], 0)
+		packet, err := p.receiveFrame(buffer[:], 0)
 		if err != nil {
-			t.Fatalf("capture configured egress: %v", err)
+			return nil, fmt.Errorf("capture configured egress: %w", err)
 		}
 		if packet != nil {
-			return bytes.Clone(packet)
+			return bytes.Clone(packet), nil
 		}
 	}
-	t.Fatal("no TCP packet on configured egress")
-	return nil
+	return nil, errors.New("no TCP packet on configured egress")
 }
 
 // receiveFrame consumes one frame; nil without error means non-IPv4/TCP traffic.
 // A returned packet borrows buffer. Deadline owners pass MSG_DONTWAIT and check
 // their deadline between frames, including frames this filter discards.
-func (p *tcpEgress) receiveFrame(t *testing.T, buffer []byte, flags int) ([]byte, error) {
-	t.Helper()
+func (p *tcpEgress) receiveFrame(buffer []byte, flags int) ([]byte, error) {
 	n, source, err := unix.Recvfrom(p.capture, buffer, flags)
 	if err != nil {
 		return nil, err
 	}
 	link, ok := source.(*unix.SockaddrLinklayer)
-	if !ok || link.Ifindex != p.peerLink {
-		t.Fatal("packet did not arrive on the configured peer link")
+	if !ok {
+		return nil, errors.New("packet did not arrive on the configured peer link")
 	}
-	if n < 40 || buffer[0]>>4 != 4 || buffer[9] != 6 {
+	if link.Ifindex != p.peerLink {
+		return nil, errors.New("packet did not arrive on the configured peer link")
+	}
+	if n < 40 {
+		return nil, nil
+	}
+	if buffer[0]>>4 != 4 {
+		return nil, nil
+	}
+	if buffer[9] != 6 {
 		return nil, nil
 	}
 	size := int(binary.BigEndian.Uint16(buffer[2:4]))
 	ipHeader := int(buffer[0]&15) * 4
-	if size > n || ipHeader < 20 || size < ipHeader+20 {
-		t.Fatal("truncated IPv4/TCP capture")
+	if size > n {
+		return nil, errors.New(truncatedIPv4TCPCapture)
+	}
+	if ipHeader < 20 {
+		return nil, errors.New(truncatedIPv4TCPCapture)
+	}
+	if size < ipHeader+20 {
+		return nil, errors.New(truncatedIPv4TCPCapture)
 	}
 	tcpHeader := int(buffer[ipHeader+12]>>4) * 4
-	if tcpHeader < 20 || size < ipHeader+tcpHeader {
-		t.Fatal("truncated TCP options")
+	if tcpHeader < 20 {
+		return nil, errors.New("truncated TCP options")
+	}
+	if size < ipHeader+tcpHeader {
+		return nil, errors.New("truncated TCP options")
 	}
 	return buffer[:size], nil
 }

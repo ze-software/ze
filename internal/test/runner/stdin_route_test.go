@@ -143,3 +143,34 @@ func TestCIStdinPipesForEveryOtherBinary(t *testing.T) {
 		})
 	}
 }
+
+// TestZeDaemonConfigArgIndexExplicitStart recognizes arbitrary filenames after
+// start without turning a later argument of a non-daemon command into config.
+func TestZeDaemonConfigArgIndexExplicitStart(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "extensionless", args: []string{"start", "routing"}, want: 1},
+		{name: "arbitrary suffix", args: []string{"start", "routing.src"}, want: 1},
+		{name: "filename is start", args: []string{"start", "start"}, want: 1},
+		{name: "leading flag", args: []string{"--debug", "start", "routing"}, want: 2},
+		{name: "value flag", args: []string{"start", "--plugin", "routing", "configuration"}, want: 3},
+		{name: "stdin", args: []string{"start", "-"}, want: 1},
+		{name: "cli flag", args: []string{"start", "--cli", "routing"}, want: 2},
+		{name: "web-only flag", args: []string{"start", "--web-only", "--web", "3443", "routing"}, want: 4},
+		{name: "web-only without config", args: []string{"start", "--web-only", "--web", "3443"}, want: -1},
+		{name: "unknown flag follows start grammar", args: []string{"start", "--unknown", "routing"}, want: 2},
+		{name: "missing operand", args: []string{"start"}, want: -1},
+		{name: "ambiguous bare name", args: []string{"routing"}, want: -1},
+		{name: "validate remains piped", args: []string{"config", "validate", "-"}, want: -1},
+		{name: "decode remains piped", args: []string{"bgp", "decode", "-"}, want: -1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := zeDaemonConfigArgIndex(tt.args); got != tt.want {
+				t.Fatalf("zeDaemonConfigArgIndex(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}

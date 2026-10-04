@@ -209,3 +209,6 @@
 # rejection with a declarative `await=stderr:contains=`, so the whole tmpfs block
 # went with the sleep. The ceiling this closes on is 52, which is the count.
 -3
+
+# Native .ci fixtures contain no remaining time.sleep( calls.
+-52

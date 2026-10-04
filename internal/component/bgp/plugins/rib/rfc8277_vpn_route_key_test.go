@@ -32,8 +32,8 @@ func TestVPNRouteKeyTwoPEsDifferentLabelsMeetInOneElection(t *testing.T) {
 	r.peerMeta[peB] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
-	nlriA := vpnv4NLRI(100, vpnRouteKeyRD, 8, 0x0a)
-	nlriB := vpnv4NLRI(101, vpnRouteKeyRD, 8, 0x0a)
+	nlriA := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
+	nlriB := vpnv4NLRI(101, vpnRouteKeyRD, 0x0a)
 	feedReceived(r, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 200, nlriA))
 	feedReceived(r, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlriB))
 
@@ -75,8 +75,8 @@ func TestRFC8277VPNRelabelReplacesTheRoute(t *testing.T) {
 	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
-	first := vpnv4NLRI(100, vpnRouteKeyRD, 8, 0x0a)
-	second := vpnv4NLRI(200, vpnRouteKeyRD, 8, 0x0a)
+	first := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
+	second := vpnv4NLRI(200, vpnRouteKeyRD, 0x0a)
 	feedReceived(r, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, first))
 	feedReceived(r, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, second))
 
@@ -122,9 +122,9 @@ func TestVPNWithdrawIgnoresCompatibilityValue(t *testing.T) {
 	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
-	announced := vpnv4NLRI(100, vpnRouteKeyRD, 8, 0x0a)
+	announced := vpnv4NLRI(100, vpnRouteKeyRD, 0x0a)
 	feedReceived(r, pe, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, announced))
-	withdrawn := vpnv4NLRI(0, vpnRouteKeyRD, 8, 0x0a)
+	withdrawn := vpnv4NLRI(0, vpnRouteKeyRD, 0x0a)
 	withdrawn[1], withdrawn[2], withdrawn[3] = 0x80, 0x00, 0x00
 	feedReceived(r, pe, ctxID, vpnv4WithdrawBody(withdrawn))
 

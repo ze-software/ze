@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-04",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -20,30 +20,36 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2": {
-      "note": "The sentence is about BFD hold-down procedures. Both tagged units (TestSessionBFDStrictWithholdsKeepalive, TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise) build the session through newStrictSession, which passes a hold-down of 0 to newStrictSessionOn, so no tagged case has a hold-down configured. They prove that a Down BFD session does not stop the connection and OPEN exchange; a hold-down implementation that delayed the TCP connection or OPEN until the interval elapsed would leave every tagged assertion green. TestSessionBFDStrictHoldDownDelaysEstablishment configures 400 ms but is not tagged and asserts the delay, not that the connection is made during it.",
+      "note": "Draft Section 10: \"That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker.\" The preceding sentence requires the FSM enabled, while the following paragraph permits Established to wait for hold-down. TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN configures 400 ms, reads the actual local OPEN from an accepted connection, processes the remote OPEN/KEEPALIVE with an unadvanced FakeClock, and distinguishes Down pending from Up running hold-down. session_bfd_strict_test.go TestSessionBFDStrictWithholdsKeepalive and TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise confine the gate to negotiated strict mode. Producers advanceAfterOpen and bfdStrictHolds gate KEEPALIVE/establishment, not the already observed TCP/OPEN exchange. Delaying connection/OPEN until hold-down elapsed or bypassing the hold-down assertion fails. This closes the old zero-hold-down fixture gap without demanding Established prematurely. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "147354055071d5da",
       "tests": {
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN": "5eb453df0541999a",
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN#2": "5eb453df0541999a",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise": "56ded9ff159b946a",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "56ded9ff159b946a"
       },
       "units": {
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN": "f3fe5353eb37ee48",
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN#2": "f3fe5353eb37ee48",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise": "7f491a6cc1b7a834",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "579b89c70c27687d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1": {
-      "note": "Clause 1 (MUST NOT occur with BfdEnabled FALSE) is enforced: TestSessionBFDStrictConfigChangedWithBFDDisabled calls raiseBFDStrictConfigChanged on an OpenSent session with BFD.Enabled false and asserts the state stays OpenSent and no message is written; raising Event 35 would take the fsm.go OpenSent arm (crc.Reset, change to Idle, Cease/Other Configuration Change on the wire), so both assertions go red. Clause 2 (the local system triggers a BfdAdminDown instead) has no discriminating assertion: the session has no pending BFD sub-state, where handleBFDEvent treats BfdAdminDown as a no-op, so a producer that raised no event at all, or any other inert event, passes. A case with a pending sub-state (SubStateOpenSentBfdUpPending, where BfdAdminDown advances) is needed to prove the substitution.",
+      "note": "Draft Section 4 Event 35: \"If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead.\" session_bfd_strict.go raiseBFDStrictConfigChanged chooses AdminDown when disabled. All three carriers were read: session_bfd_strict_test.go TestSessionBFDStrictConfigChangedUsesConfigSubcode positively pins enabled Cease/Other Configuration Change and Idle; TestSessionBFDStrictConfigChangedWithBFDDisabled pins no event-side effect outside a pending substate; draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go TestDraftBFDDisabledConfigChangeReleasesPendingSession now checks BOTH pending substates, exact OpenConfirm/Established state, cleared substate and an actual KEEPALIVE. Thus suppressing Event 35 without substituting AdminDown fails rather than satisfying only the first sentence. The enabled/disabled inputs differ in the governing condition, and no unrelated malformed UPDATE confounds the outcome. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "32263e0950a6fff0",
       "tests": {
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDDisabledConfigChangeReleasesPendingSession": "5eb453df0541999a",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedUsesConfigSubcode": "56ded9ff159b946a",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedWithBFDDisabled": "56ded9ff159b946a"
       },
       "units": {
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDDisabledConfigChangeReleasesPendingSession": "1e7f9b9c0077d82e",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedUsesConfigSubcode": "e414b0e657401415",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedWithBFDDisabled": "9f5556d67d8467f9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1": {
       "note": "Forbidden: a strict-mode speaker sending an OPEN without capability 74. TestBFDStrictCapabilityInSentOpen builds peers from configuration and counts code-74 TLVs in the octets sendOpen writes: exactly one with bfd strict, zero with strict under a disabled bfd block and with a bfd block without strict. Red if sendOpen drops or duplicates 74 or emits it without strict-mode enabled. The settings-level units remain as supporting evidence.",

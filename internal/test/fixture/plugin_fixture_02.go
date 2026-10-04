@@ -475,8 +475,8 @@ func updateReceivedObserver02(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 // pathASNExportDriver02 drives path-asn-filter-export-reject.ci. It takes the
-// absolute path of the readiness marker the .ci waits on before it starts the
-// source peer.
+// path of the readiness marker the .ci waits on before it starts the source peer.
+// Relative paths resolve in the runner's fresh per-test working directory.
 //
 // Two barriers, and each closes a hole that would make the file assert nothing.
 //
@@ -487,15 +487,14 @@ func updateReceivedObserver02(ctx context.Context, plugin *sdk.Plugin) error {
 // The marker is written after peer2's own initial-sync end-of-rib, which is the
 // shape redistribute-export-modify.ci already uses.
 //
-// The updates-sent count is the second. It is a lifetime total and counts the
-// end-of-rib, so two is the count that says the fence forward reached the wire.
-// The subject route crosses the same TCP stream ahead of the fence, so that
-// count is also what says the suppressed route had its chance to arrive. The
-// reject= clause of the .ci is evidence only after it.
+// The receiver's completion marker is the second barrier. Its action=rewrite
+// runs only after it checks the subject withdrawal and the permitted fence
+// announcement. EOR plus the withdrawal can already make updates-sent two, so
+// that total cannot establish whether the permitted route reached the receiver.
 func pathASNExportDriver02() Driver {
 	return func(ctx context.Context, args []string) error {
 		if len(args) != 1 {
-			return errors.New("path-asn-filter-export-reject requires an absolute readiness marker path")
+			return errors.New("path-asn-filter-export-reject requires a readiness marker path")
 		}
 		marker := args[0]
 		_ = os.Remove(marker) //nolint:errcheck // a stale marker from an earlier run is the only thing this can remove
@@ -509,8 +508,8 @@ func pathASNExportDriver02() Driver {
 			}
 			defer os.Remove(marker) //nolint:errcheck // scratch cleanup, so a removal failure changes no assertion
 
-			if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2) {
-				return errors.New("ze never wrote the fence UPDATE to peer2")
+			if err := waitForMarker02(ctx, "path-asn-export.received"); err != nil {
+				return fmt.Errorf("peer2 never confirmed receipt of the permitted fence: %w", err)
 			}
 			return nil
 		})

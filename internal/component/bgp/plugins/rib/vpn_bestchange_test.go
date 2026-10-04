@@ -19,12 +19,12 @@ import (
 var vpnv4Family = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 
 // vpnv4NLRI builds one RFC 4364 Section 4.3.4 VPN-IPv4 NLRI for an IPv4
-// prefix. The single length octet counts the 24-bit label stack and the
+// /8 prefix. The single length octet counts the 24-bit label stack and the
 // 64-bit Route Distinguisher as well as the prefix, which is exactly why
 // store.NLRIToPrefix refuses these bytes: 10.0.0.0/8 gives 96, and no IPv4
 // prefix length exceeds 32.
-func vpnv4NLRI(label uint32, rd [8]byte, prefixLen byte, prefixOctets ...byte) []byte {
-	nlri := []byte{24 + 64 + prefixLen}
+func vpnv4NLRI(label uint32, rd [8]byte, prefixOctets ...byte) []byte {
+	nlri := []byte{24 + 64 + 8}
 	// RFC 8277 Section 2.1: the 20-bit Label Value sits in the high-order bits
 	// of the three octets; the bottom-of-stack bit is the lowest.
 	nlri = append(nlri, byte(label>>12), byte(label>>4), byte(label<<4)|0x01)
@@ -116,7 +116,7 @@ func TestVPNv4BestChangeIsPublished(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	rd := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
-	nlri := vpnv4NLRI(100, rd, 8, 0x0a) // label 100, RD 0:0, 10.0.0.0/8
+	nlri := vpnv4NLRI(100, rd, 0x0a) // label 100, RD 0:0, 10.0.0.0/8
 
 	// Peer A announces with MED 200.
 	feedReceived(r, peerA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 200, nlri))
@@ -205,8 +205,8 @@ func TestVPNv4BestChangeKeysOnTheWholeNLRI(t *testing.T) {
 	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
-	nlriVRF1 := vpnv4NLRI(100, [8]byte{0, 0, 0, 0, 0, 0, 0, 1}, 8, 0x0a)
-	nlriVRF2 := vpnv4NLRI(200, [8]byte{0, 0, 0, 0, 0, 0, 0, 2}, 8, 0x0a)
+	nlriVRF1 := vpnv4NLRI(100, [8]byte{0, 0, 0, 0, 0, 0, 0, 1}, 0x0a)
+	nlriVRF2 := vpnv4NLRI(200, [8]byte{0, 0, 0, 0, 0, 0, 0, 2}, 0x0a)
 
 	feedReceived(r, peer, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 100, nlriVRF1))
 	feedReceived(r, peer, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlriVRF2))

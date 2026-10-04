@@ -23,6 +23,11 @@
 #
 # SHAPE: taken from bgp-rs-community-strip-multi.ci -- two peers, conn mapped by
 # remote IP, the general forwarding rail (no rs-fast-path on the source).
+# These are ordinary BGP sessions, not transparent rs-client sessions. RFC 7947
+# Section 2.2 says optional recognized and unrecognized attributes "SHOULD NOT be
+# updated by the route server"; enabling that role would test its transparency
+# exception instead of RFC 4271's Partial-bit obligation. The bgp-rs attachments
+# below provide forwarding without opting either session into that exception.
 #
 # RFC requirement: RFC4271-5-3 positive -- "the unrecognized transitive optional
 # attribute of that path MUST be passed, along with the path, to other BGP peers
@@ -56,10 +61,9 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # attribute with the same value and the same length, and flags E0 rather than
 # the C0 that arrived -- Optional and Transitive kept, Partial now 1.
 #
-# This one positive assertion is also the negative one. Before the stamp existed
-# the octet forwarded here was C0, so this byte string was absent, and it cannot
-# be satisfied by a withdrawal (which carries no path attributes) nor by the
-# source's own echo (those bytes exist only after the rewrite).
+# This assertion requires the rewritten flag and the preserved code, length and
+# value. A withdrawal has no path attributes, and the source frame carries C0,
+# so neither can satisfy the receiver's E0FA04DEADBEEF expectation.
 #
 # NO End-of-RIB rule for conn=2, deliberately: bgp-rs-reactor-fastpath.ci
 # measured the forward beating the receiver's EOR onto the wire.
@@ -106,7 +110,6 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
-			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -144,7 +147,6 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
-			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

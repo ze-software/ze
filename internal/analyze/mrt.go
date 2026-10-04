@@ -185,7 +185,7 @@ func readMRTRecords(r io.Reader, h mrtHandler) error {
 				offset = 4
 			}
 			payload := data[offset:]
-			if subtype == mrt.BGP4MPStateChange || subtype == mrt.BGP4MPStateChangeAS4 {
+			if subtype == mrt.BGP4MPStateChange {
 				state, err := mrt.DecodeBGP4MPStateChange(subtype, payload)
 				if err != nil {
 					return err
@@ -195,7 +195,20 @@ func readMRTRecords(r io.Reader, h mrtHandler) error {
 				}
 				continue
 			}
-			if subtype == mrt.BGP4MPEntry || subtype == mrt.BGP4MPSnapshot {
+			if subtype == mrt.BGP4MPStateChangeAS4 {
+				state, err := mrt.DecodeBGP4MPStateChange(subtype, payload)
+				if err != nil {
+					return err
+				}
+				if err := contexts.ObserveState(state); err != nil {
+					return err
+				}
+				continue
+			}
+			if subtype == mrt.BGP4MPEntry {
+				continue
+			}
+			if subtype == mrt.BGP4MPSnapshot {
 				continue
 			}
 			record, err := mrt.DecodeBGP4MPMessage(subtype, payload)
@@ -475,7 +488,7 @@ func forEachRIBEntry(data []byte, subtype uint16, fn func(peerIndex uint16, attr
 // NLRI counting. The zero value is ready to use.
 type malformedCounter struct {
 	records int
-	cause error
+	cause   error
 }
 
 func (m *malformedCounter) note(err error) {

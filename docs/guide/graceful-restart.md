@@ -265,6 +265,23 @@ configuration is identical. Retention means routes in the received RIB:
 replaying a locally configured static route after reconnect does not demonstrate
 that a received route survived either restart period.
 
+The timer fixture `llgr-peer-stale-time-drives-timer.ci` gives the source a
+3-second LLST and a control peer 60 seconds, against Ze's local 3600. Its
+receiver acknowledges the control's initial route and LLGR_STALE advertisement
+before the source advertises. This order matters: each LLGR entry calls
+`clear bgp rib out` for the destination's whole family, not just the routes
+from the peer entering LLGR. The source's later transition must therefore
+deliver its two retained routes and the already-stale control route, each
+with LLGR_STALE in the same UPDATE as that route. Only the receiver grants
+route-server and RIB output; the strict source and control peers receive only
+the observer's release markers. Destination acknowledgments fence the real
+TCP closes, the stale phase, and both short-LLST expiry withdrawals. The
+control remains in the received RIB and is forbidden from being withdrawn
+on the receiver's wire.
+<!-- source: internal/test/fixture/plugin_fixture_llgr_lifecycle.go -- llgrLifecycle -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- wireStateCallbacks -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
+
 The NO_LLGR decision uses the imported route, so a `modify` import policy that
 adds `65535:7` also excludes that route from LLGR retention. A route without the
 community remains eligible for the LLGR period.

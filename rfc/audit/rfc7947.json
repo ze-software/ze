@@ -2,17 +2,17 @@
   "audited": "2026-10-04",
   "requirements": {
     "RFC7947-2.2-1": {
-      "note": "SHOULD NOT update well-known attributes, and optional recognized and unrecognized attributes SHOULD NOT be updated and SHOULD be passed on. rsTransparencyBody carries only AS_PATH, NEXT_HOP and MED. It has no unrecognized optional attribute, transitive or not, so a route server that dropped an unrecognized non-transitive attribute per RFC 4271 section 5 passes every tagged unit. The tag prose also claims the fixture carries ORIGIN, and it does not.",
+      "note": "RFC 7947 Section 2.2: \"Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients.\" Independently re-read both current tagged bodies after the parent moved the negative tag. TestRFC7947AllAttributesReachClient sends a valid live-ingress UPDATE carrying nondefault ORIGIN, AS_PATH, NEXT_HOP, MED, community, and distinct unknown transitive/non-transitive values; exact whole-attribute equality at the client would fail on omission, rewriting, default substitution or spurious Partial. TestRouteServerTransparencyStopsAtOrdinaryPeer now supplies a separately tagged confining negative: the SAME source UPDATE reaches both recipients, the client retains all bytes, and the ordinary iBGP destination lacks unknown non-transitive code 242 while code 241 has flags 0xe0 and unchanged value 11:22:33. Both recipients must receive the actual prefix before assertions, excluding no-forward success. The only governing distinction is destination role; no unrelated malformed input is used. publishBase preserves client input, and forward_rs.go passes destination preserveOpaqueAttributes to forward_body.go forwardWire, whose ordinary branch strips/stamps without mutating the common input. Thus whole well-known/optional, recognized/unrecognized, transitive/non-transitive transparency is covered, with the explicit configuration exception not converted into a demand for policy overrides. The previous same-assertion double-tag gap is closed by the newly attached independent countercase, not by relabeling the old positive. Native proof for the new negative unit must be newly observed; an old negative record on TestRFC7947AllAttributesReachClient is not reusable. Independent source rejudgment only; no checks, tests or native commands executed. Post-lint rejudgment 2026-10-04: both units now take only peers from lowLiveRouter; the same live socket ingress, destination roles and exact outputs remain. The negative is still only on TestRouteServerTransparencyStopsAtOrdinaryPeer. Current source, not the stale derived ledger which still names the old negative carrier, determines the pair.",
       "requirement_sha": "0f08a7920d99c327",
       "tests": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "9bdf1a8f4ba34f7d",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "9bdf1a8f4ba34f7d"
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "0612347d65e663a2",
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "0612347d65e663a2"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "f28c3d1d5bb57296",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b74cbbdd0c83494d"
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "95b178d7041c6b4c",
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "fdf1850b6ad44ada"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7947-2.2.2.2-1": {
       "note": "The client must accept a leftmost AS that is not the RS AS, and MUST allow any such check to be disabled. TestLoopIngressAcceptsNonAdjacentLeftmostAS asserts acceptance of [65002 65003] from RS peer AS 65010, so any leftmost-AS equality check goes red. TestLoopIngressRejectsLocalASFromRouteServer shows the filter reads AS_PATH and rejects a local-AS loop on the same session. ze has no such check, so the disable clause holds by absence. Note: check.log reports both discrimination records for these units as producer-changed (loop.go moved), and they need re-recording.",
@@ -28,11 +28,11 @@
       "verdict": "enforced"
     },
     "RFC7947-x-1": {
-      "note": "SHOULD NOT prepend its own AS nor modify AS_PATH. TestReactorForwardRSTransparent asserts assert.Equal(payload, rawBodies[0]), so a prepend or any AS_PATH change goes red. The confining negative TestReactorForwardRSEBGPPrepend asserts the body grows toward a plain eBGP peer, so the rail can prepend and the transparency is a decision. Relay units and test/plugin/bgp-rs-relay-aspath-transparency.ci repeat the pair.",
+      "note": "RFC 7947 Section 2.2.2.1: \"As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.\" TestReactorForwardRSTransparent requires exact body identity, including the nonempty path; TestReactorForwardRSEBGPPrepend now has reachable NLRI, although its growth-only assertion remains weaker than an exact path oracle. The complete pair is independently supplied by TestRelayStoredRouteRSClientPreservesASPath/TestRelayStoredRoutePlainEBGPPrependsLocalAS and bgp-rs-relay-aspath-transparency.ci, which pin [65001] versus [65000,65001] on the plugin/replay path. checkRouteServerASPath additionally requires BIRD to decode exactly the originating client AS, a route present, and both sessions surviving. All seven tagged covers read; ordinary-peer controls confine the RS exception. Producers forwardUpdateCore/forwardUpdateValidated and the separate reactorForwardRS use destination RSClient facts for prepend decisions. No assertion of runtime completion is made here. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "d53a5657709f4770",
       "tests": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "9bdf1a8f4ba34f7d",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "9bdf1a8f4ba34f7d",
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "83fc2246be14e216",
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "83fc2246be14e216",
         "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "bc60396c1fa8a3c8",
         "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "bc60396c1fa8a3c8",
         "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "f04334a58fd00e7c",
@@ -40,8 +40,8 @@
         "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "04f9cb15a64d4a4c"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "f28c3d1d5bb57296",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b74cbbdd0c83494d",
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "054269a24c2b298c",
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e",
         "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "3b4fbb087fcf2d9c",
         "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "3ef63e3764265834",
         "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "f3bc15669480d296",
@@ -51,43 +51,43 @@
       "verdict": "enforced"
     },
     "RFC7947-x-2": {
-      "note": "NEXT_HOP MUST be passed unmodified. TestReactorForwardRSTransparent asserts byte-identity of a body carrying NEXT_HOP 10.0.0.254, so any rewrite goes red. Single-polarity positive per the row's marker.",
+      "note": "RFC 7947 Section 2.2.1: \"As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the \"third-party\" next-hop feature described in Section 5.1.3. of [RFC4271].\" The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule's confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "6f61efe4552f9700",
       "tests": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "9bdf1a8f4ba34f7d"
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "83fc2246be14e216"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b74cbbdd0c83494d"
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e"
       },
       "verdict": "enforced"
     },
     "RFC7947-x-3": {
-      "note": "MED SHOULD be propagated and SHOULD NOT be modified. Byte-identity in TestReactorForwardRSTransparent, whose fixture carries MED 100, goes red on a strip or a change. The confining negative in test/plugin/med-not-propagated-across-as.ci shows the RFC 4271 strip firing toward a plain eBGP peer. forward_med_test.go also carries a positive.",
+      "note": "RFC 7947 Section 2.2.3: \"Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.\" TestReactorForwardRSTransparent requires body identity with MED 100; TestForwardKeepsMEDForRouteServerClient pins no MED operation/no rebuild; med-not-propagated-across-as.ci separately compares complete actual UPDATEs at an RS client (MED retained unchanged) and ordinary eBGP destination (MED absent). applyFactsMED uses the RS destination exception and otherwise records suppression of a received, unmodified metric. Thus both propagation and unchanged value are asserted, and preserving MED for all destinations would fail the negative. No source capability was widened. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "91cb65f9bb46cfd0",
       "tests": {
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "d216c0c86115d31f",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "9bdf1a8f4ba34f7d",
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "83fc2246be14e216",
         "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
         "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
       },
       "units": {
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "35e5ce69bc0a0fa6",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b74cbbdd0c83494d",
+        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e",
         "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
         "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
       },
       "verdict": "enforced"
     },
     "RFC7947-x-4": {
-      "note": "Re-judged 2026-10-04 after f93a30fbfc; the tags moved to TestRFC7947ClientPolicyControlsWire, which closes the earlier weak finding. It runs reactorForwardRS (asserting zero policy-agnostic sends and both clients skipped), then ForwardUpdate through the socket worker with a per-client policy seam, and over two rounds that swap which client accepts it asserts: exactly one policy call per client; the accepting client gets exactly one UPDATE with the exact NLRI; the rejecting client gets exactly one UPDATE with no NLRI and WithdrawnRoutes equal to the prefix. Forwarding regardless of policy, or one client's acceptance leaking to the other, turns it red. The withdrawal on rejection is the owner's decision, which Section 2.1 neither requires nor forbids.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc; the tags moved to TestRFC7947ClientPolicyControlsWire, which closes the earlier weak finding. It runs reactorForwardRS (asserting zero policy-agnostic sends and both clients skipped), then ForwardUpdate through the socket worker with a per-client policy seam, and over two rounds that swap which client accepts it asserts: exactly one policy call per client; the accepting client gets exactly one UPDATE with the exact NLRI; the rejecting client gets exactly one UPDATE with no NLRI and WithdrawnRoutes equal to the prefix. Forwarding regardless of policy, or one client's acceptance leaking to the other, turns it red. The withdrawal on rejection is the owner's decision, which Section 2.1 neither requires nor forbids. Post-lint rejudgment 2026-10-04: re-read the entire current tagged body; formatting and expanded control blocks retain both destination-policy rounds, exact UPDATE counts and distinct announce-versus-withdraw assertions. RFC 7947 section 2.1: \"The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy.\" No second convention or additional policy behavior is credited.",
       "requirement_sha": "857304c8df464c87",
       "tests": {
-        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "5ff41db46d9f090f",
-        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "5ff41db46d9f090f"
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "0612347d65e663a2",
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "0612347d65e663a2"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "c181730ae2650b3c",
-        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "c181730ae2650b3c"
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "2d3341e1d6937a21",
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "2d3341e1d6937a21"
       },
       "verdict": "enforced"
     }

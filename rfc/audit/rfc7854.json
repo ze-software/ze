@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -65,8 +66,8 @@
       "note": "First verdict 2026-09-29. The row's sentence is the lead-in to the \u00a74.10 figure, the only statement of the Peer Up layout, so the obligation judged is that figure: Local Address (16), Local Port, Remote Port, Sent OPEN, Received OPEN after the per-peer header (Information TLVs are RFC7854-x-19, the OPEN contents RFC7854-x-8). Positive rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs reads each field raw at its offset from writePeerUp output and the exact total length. Negative ::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused: a valid Peer Up is accepted, the same cut 10 octets into the fixed fields is refused (decodePeerUp short check).",
       "requirement_sha": "5c02030c7a337d93",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs": "72508c9e38a649fc",
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused": "72508c9e38a649fc"
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs": "cd090a49b8ac15b0",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused": "cd090a49b8ac15b0"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs": "24e613050bb3832d",
@@ -91,8 +92,8 @@
       "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs reads the octets sender.go::sendInitiation writes off a pipe, checks type 4 and walks TLVs by hand from octet 6 to exactly the end, requiring >= 2. Negative (R1(a)) ::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused: a one-TLV Initiation is refused by the receiver. The refusal comes from decodeInitiation's sysName-presence check (RFC7854-x-18), not a count check, but every one-TLV Initiation lacks sysName or sysDescr, so no one-TLV input is accepted; the buffer is otherwise valid.",
       "requirement_sha": "bffb3b1b79b86a59",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs": "72508c9e38a649fc",
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused": "72508c9e38a649fc"
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs": "cd090a49b8ac15b0",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused": "cd090a49b8ac15b0"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs": "66ed54432cc92548",
@@ -186,8 +187,8 @@
       "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs reads the octets the sender's Termination path writes, walks TLVs from octet 6 to exactly the end, requires at least one and exactly one Reason TLV. Negative ::TestRFC7854TerminationWithNoTLVIsRefused: a 6-octet header-only Termination is refused (decodeTermination's missing-Reason branch, which any zero-TLV body reaches).",
       "requirement_sha": "6efafcc1b86cea17",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs": "72508c9e38a649fc",
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationWithNoTLVIsRefused": "72508c9e38a649fc"
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs": "cd090a49b8ac15b0",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationWithNoTLVIsRefused": "cd090a49b8ac15b0"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs": "59305636f679feab",
@@ -240,8 +241,8 @@
       "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs: writeRouteMirroring output decodes a per-peer header equal to the input at octet 6, then TLVs walked by hand from octet 48 to exactly the end, same types and values in order. Negative ::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused: the valid message is first accepted, then a 3-octet tail that is no TLV (length fixed up) is refused, so only the not-TLVs body differs.",
       "requirement_sha": "8511519b09039f18",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs": "72508c9e38a649fc",
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused": "72508c9e38a649fc"
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs": "cd090a49b8ac15b0",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused": "cd090a49b8ac15b0"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs": "5c4d00c3fa024361",
@@ -279,8 +280,8 @@
       "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow: the 4-octet count at octet 48 equals 3 and exactly three counter TLVs, walked by hand, run to the end with the input types and values. Negative ::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused: the valid report is first accepted, then count+1 (truncated entry) and count-1 (trailing data) are each refused by decodeStatisticsReport.",
       "requirement_sha": "e9b2e3e5e8e1814b",
       "tests": {
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused": "72508c9e38a649fc",
-        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow": "72508c9e38a649fc"
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused": "cd090a49b8ac15b0",
+        "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow": "cd090a49b8ac15b0"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused": "401b9ffa12005b7d",
@@ -370,14 +371,14 @@
       "tests": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "49dfad3eed97ec32",
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "49dfad3eed97ec32",
-        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "8a330a29c2d73330",
-        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "3c92f5bc82c93a53"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "3c92f5bc82c93a53",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "8a330a29c2d73330"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "0af7d40ff45810dc",
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "0af7d40ff45810dc",
-        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "0da122bdda46515a",
-        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "bb9c68add4058f2b"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "bb9c68add4058f2b",
+        "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "0da122bdda46515a"
       },
       "verdict": "enforced"
     },

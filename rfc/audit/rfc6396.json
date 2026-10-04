@@ -1,23 +1,26 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6396-1-1": {
-      "note": "Independent MRTJudge 2026-10-02. RFC6396 section 1: Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet. TestRFC6396NumericFieldsUseExternalNetworkOrder genuinely closes the old PIT/RIB/BGP4MP field hole: exact literal octets, asymmetric multi-byte values, and separate decoding of independent literals pin name/count/ASN, sequence/count/index/time/attribute-length, and AS2/AS4 ASN/interface/AFI fields. TestCommonHeaderRoundTrip pins its four common-header fields. Whole requirement remains weak: neither tagged unit exercises independently implemented extended-timestamp microseconds, state-change old/new state fields, RIB_GENERIC AFI, or legacy TABLE_DUMP numeric fields; a local endian reversal there survives these tags. The recorded WritePeerIndexTable panic establishes execution, not those missing field assertions. Single-positive annotation is appropriate for a deterministic encoding rule.",
+      "note": "Independent final source rejudgment after formatting. RFC 6396 section 1: \"Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet.\" The following sentence separately preserves routing-message field order; this row is the numeric-order sentence, not an assertion of every encapsulated protocol's semantics. Q1 yes: all three tagged units assert external network order rather than accepting a mutually wrong encoder/decoder roundtrip. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip checks the exact timestamp/type/subtype/length octets before decoding them. internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder independently constructs PIT name-length/count/AS2/AS4, RIB sequence/count/index/time/attribute-length and BGP4MP AS2/AS4/interface/AFI octets, compares writer output, then decodes the literals. internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields independently pins ET microseconds, both FSM state fields and AS widths, RIB_GENERIC sequence/AFI, and TABLE_DUMP view/sequence/time/ASN/attribute-length under both address widths. Q2 yes by source: asymmetric values and exact lengths/bytes/decoded values reject endian reversal, missing fields and offset shifts; formatted multi-line conditionals retain their failures. No runtime execution or renewed discrimination is claimed. Q3 yes for numeric layout: independent expected buffers and structural lengths reach the intended fields. Opaque repeated attribute bytes are not evidence of BGP attribute validity and are not parsed as such by these MRT envelope readers. Q4 yes across the implemented base-RFC numeric envelope fields; the three carriers are complementary, not each whole-scope alone. RFC 8050 Path Identifiers and RFC 6397 geolocation are separately specified extensions. Read internal/mrt/encode.go numeric writers and internal/mrt/decode.go readers: their 16/32-bit numeric operations are big-endian, while address and message octets are copied unchanged. The declared single positive polarity is appropriate to an encoder layout invariant without an alternate-endianness mode to reject. This judgment does not erase the separate RFC6396-4.4.3-1 AS_PATH-width gap.",
       "requirement_sha": "2760ee7de2407440",
       "tests": {
-        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "e61180c0b2ad8e39",
-        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "31a4363d23e23836"
+        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "fb2e8a7edf55af3c",
+        "internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields": "4f9b9c1a06dc7569",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "6e5ac96a9c02ebe6"
       },
       "units": {
         "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "449046ff5ce584d2",
-        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "79bee9db6a159232"
+        "internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields": "ba28388e6273f95d",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "79869150e6692262"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6396-4.2-2": {
       "note": "Forbidden: emitting a TABLE_DUMP (type 12) record for a 4-byte peer AS or a peer/prefix AFI mismatch. internal/plugins/mrt/dump_test.go::TestRibSubtype asserts only that ribSubtype maps AFIs to TABLE_DUMP_V2 subtype numbers; it never asserts the record Type field is TypeTableDumpV2 and never drives a 4-byte peer AS or a differing peer AFI through the dump, so stamping TypeTableDump on those records stays green.",
@@ -46,8 +49,8 @@
       "requirement_sha": "cf8b44fb065cbe2f",
       "tests": {
         "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "fb2e8a7edf55af3c",
-        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8": "31a4363d23e23836",
-        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8#2": "31a4363d23e23836",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8": "6e5ac96a9c02ebe6",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8#2": "6e5ac96a9c02ebe6",
         "internal/plugins/mrt/rfc6396_view_name_test.go::TestRFC6396DumpProducerEmitsNoViewName": "aa0a92dcef65f518"
       },
       "units": {
@@ -89,15 +92,19 @@
       "verdict": "enforced"
     },
     "RFC6396-4.4.2-2": {
-      "note": "Independent MRTJudge 2026-10-02. RFC6396 section 4.4.2: Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. TestOneBGPMessagePerBGP4MPRecord correctly migrates to the body-only callback and compares the complete reconstructed KEEPALIVE byte-for-byte, but still invokes OnBGPMessage only once. A writer coalescing consecutive callbacks can pass this sole tagged unit. The reactor observer test does assert many separate complete records, but is not tagged to this row. Keep the finding until the row owns consecutive-message evidence; the refreshed panic record cannot close the missing assertion.",
+      "note": "RFC 6396 \u00a74.4.2: \"Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype.\" In the surrounding paragraph the subtype is transparent to the actual message; the earlier paragraph includes marker, length and type. All three current tagged carriers now discriminate original-message boundaries: internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord sends KEEPALIVE/unequal-length UPDATE/KEEPALIVE and demands exactly three byte-identical records; internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis requires exactly one original packet despite two synthetic withdrawals or session reset; TestRFC6396WireMessagesNeverCoalesce requires the two unequal original packets while semantic delivery coalesces. Producers session_wire.go::observeReceivedWire and internal/plugins/mrt/component.go::OnBGPMessage observe/copy the complete original frame, not reconstructed semantic callbacks; internal/mrt/encode.go::WriteBGP4MPMessage writes one frame. Exact counts and bytes would reject merging, splitting, reconstruction or loss. The declared single positive polarity is justified for a producer cardinality invariant; these are not malformed-input rejection claims. This source judgment closes the prior one-call-only proof gap, not the separate AS4-width gap, nor a claim that runtime renewal has run. Post-lint rejudgment 2026-10-04: TestRFC6396WireMessagesNeverCoalesce retains unequal original frames, exact two-element byte equality and one semantic delivery; checked pipe closes cannot weaken those assertions. dispatchObservedWire now borrows an immutable seven-field epoch identity from Peer.runOnce and constructs call-local metadata before applying context ASN and actual transport/local-AS overrides. The changed cardinality carriers use recordSessionWire -> notifyWireMessage directly, not dispatchObservedWire; they must not claim proof of epoch identity. The untagged directional OPEN, migration and collision tests remain separate evidence.",
       "requirement_sha": "83fcb565bbdf4552",
       "tests": {
-        "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord": "0e955cefe41cb14e"
+        "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis": "985344e0aacdb40a",
+        "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireMessagesNeverCoalesce": "985344e0aacdb40a",
+        "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord": "573b6a9a2612e786"
       },
       "units": {
-        "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord": "c67fac046385aa00"
+        "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis": "d74f82b462a018e6",
+        "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireMessagesNeverCoalesce": "00fc3512d51b7e12",
+        "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord": "81af2b680be77a6c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc6396"

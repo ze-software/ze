@@ -15,16 +15,16 @@ func rfc4724SecondRestart(t *testing.T) *realGRRIB {
 	t.Helper()
 	gp, rib := newGRWithRealRIB(t)
 	gp.peerCaps[testPeer] = testCap(120, famIPv4, famIPv6)
-	rib.received(testPeer, "18c6336418c63365", grReceivedAttrs)
-	gp.handleStateEvent(testPeer, map[string]any{"state":"down", "reason":"tcp-failure"})
-	rib.down(testPeer)
+	rib.received("18c6336418c63365", grReceivedAttrs)
+	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
+	rib.down()
 	rib.requireStale("198.51.100.0/24", 1)
 	rib.requireStale("198.51.101.0/24", 1)
-	gp.handleStateEvent(testPeer, map[string]any{"state":"up"})
+	gp.handleStateEvent(testPeer, map[string]any{"state": "up"})
 	rib.up(testPeer)
-	rib.received(testPeer, "18c63365", grReceivedAttrs)
-	gp.handleStateEvent(testPeer, map[string]any{"state":"down", "reason":"tcp-failure"})
-	rib.down(testPeer)
+	rib.received("18c63365", grReceivedAttrs)
+	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
+	rib.down()
 	return rib
 }
 

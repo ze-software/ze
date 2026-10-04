@@ -5,23 +5,23 @@
       "rid": "RFC7947-2.2-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient",
-      "unit-sha": "e6f0312e03f46925",
+      "unit-sha": "67469c4df2c7b517",
       "claim-sha": "2abbe24000eb9d92",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::publishBase",
-      "producer-sha": "62822939dd1d4147",
+      "producer-sha": "cf237298722b119a",
       "break": "body of publishBase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7947-2.2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient",
-      "unit-sha": "e6f0312e03f46925",
-      "claim-sha": "4be58309aa5b1f04",
+      "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer",
+      "unit-sha": "3734f5b52cf13781",
+      "claim-sha": "a1c44330cb337c21",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::publishBase",
-      "producer-sha": "62822939dd1d4147",
-      "break": "body of publishBase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_body.go::forwardWire",
+      "producer-sha": "f07161e0c6812c8b",
+      "break": "body of forwardWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7947-2.2.2.2-1",

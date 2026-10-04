@@ -49,6 +49,15 @@ and writes `crashlog: N bytes of stderr dropped` into the stream where they went
 missing.
 <!-- source: internal/core/crashlog/stderr_queue.go -- stderrQueue -->
 
+The test-only `le test plugin-external` launcher ends its local stderr relay
+with `Flush` before configuring the engine logger. Its parent daemon owns the
+stderr pipe and relays those writes. A refusing engine can close its SDK
+connection immediately after logging, causing the parent to kill the child
+before a child-owned queue drains. Restoring the parent-managed pipe makes the
+diagnostic write finish before that close. Runtime crash-file capture remains
+armed; this exception changes neither ordinary daemon logging nor the SDK.
+<!-- source: internal/test/cli/cmd_plugin_external.go -- CmdPluginExternal -->
+
 **The build tag is `unix`, not `linux`.** `flock` works on darwin too, and crash
 capture must be testable during development.
 

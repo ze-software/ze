@@ -18,10 +18,10 @@ import (
 // and truncated low words in both directions. No negotiated context is injected.
 func TestMRTContextCapabilityASNBoundaries(t *testing.T) {
 	cases := []struct {
-		name                  string
-		actual, header        uint32
-		openAS                uint16
-		as4, wantUnavailable  bool
+		name                 string
+		actual, header       uint32
+		openAS               uint16
+		as4, wantUnavailable bool
 	}{
 		{"largest-two-octet", 65535, 65535, 65535, false, false},
 		{"first-four-octet", 65536, 65536, 23456, true, false},

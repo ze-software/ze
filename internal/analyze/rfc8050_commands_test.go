@@ -20,7 +20,7 @@ func TestRFC8050CommandsReadSubtypeContext(t *testing.T) {
 	nlri6 := []byte{0, 0, 0, 1, 32, 0x20, 1, 0x0d, 0xb8}
 	nh := netip.MustParseAddr("2001:db8::1").As16()
 	attrs := []byte{0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xe8}
-	for _, attr := range []mrt.PathAttribute{mpReachAttr(2, 1, nh[:], nlri6), mpUnreachAttr(2, 1, nlri6)} {
+	for _, attr := range []mrt.PathAttribute{mpReachAttr(nh[:], nlri6), mpUnreachAttr(nlri6)} {
 		attrs = append(attrs, 0x80, attr.Code, byte(len(attr.Value)))
 		attrs = append(attrs, attr.Value...)
 	}

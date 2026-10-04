@@ -1,22 +1,24 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7752-3.1-1": {
-      "note": "Re-judged 2026-10-02 (BGP c24 judge): TestRFC7752MalformedTLVNotPreserved changed only by a tag line (its RFC9552-5.1-3 negative moved to RFC9552-8.2.2-10); body unchanged. NLRI half holds: TestRFC7752UnknownTLVPreservedAndPropagated fails unless a Node NLRI with an unknown sub-TLV re-encodes byte-identically. Attribute half is proven here only by AttrTLVsToJSON keeping the bytes; the forwarded-UPDATE proof lives under the superseding RFC9552-5.1-3 (reactor/rfc9552_propagate_test.go) and is not tagged to this row. The negative exercises length-overrun framing (Section 6.2.2), a neighbouring rule.",
+      "note": "RFC 7752 Section 3.1: \"Unrecognized types MUST be preserved and propagated.\" Current successor RFC 9552 Section 5.1: \"Unknown and unsupported types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute.\" All current carriers read: nlri/ls/rfc7752_test.go TestRFC7752UnknownTLVPreservedAndPropagated checks opaque attribute bytes and exact Node NLRI re-encoding; reactor/rfc7752_unknown_forward_test.go TestRFC7752UnknownTLVsReachForwardDestinations adds exact forwarded NLRI AND attribute equality toward internal/external peers with mixed recognized/unknown and all-unknown attribute variants. Removing unknowns, dropping an all-unknown attribute or changing either propagated half fails. Producer forward_validation.go forwardUpdateCore forwards through the selected path; the receive syntax boundary validates framing without TLV semantics. The obsolete malformed-TLV negative is no longer a current tag for this row. The test header paraphrases RFC 9552 under an RFC 7752 label, but the binding is substantively the existing restated successor obligation; no new exemption. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "6bcc9dd8d408a468",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "ac9195f646a95bc1",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "ac9195f646a95bc1"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "600df28992081178",
+        "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations": "332e0cc9d3e5b4e2",
+        "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations#2": "332e0cc9d3e5b4e2"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6a89cc723cdc4dc9",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "69ac16c3974ad939"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "69ac16c3974ad939",
+        "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations": "81e6314ee95d6b1d",
+        "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations#2": "81e6314ee95d6b1d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7752-3.1-2": {
       "note": "Re-judged 2026-10-02 (BGP c22 judge): stale only because TestNoDescriptorEmitsADescendingTLVSequence lost its SRv6SIDs fixture line with the RFC 9552 D-8 field deletion; revert record on addressTLVs re-observed red. Finding of 2026-09-30 unchanged: the native Link producer encodeNativeLink emits the exact canonical sequence from ascending and interleaved descending sources.",
@@ -96,17 +98,21 @@
       "verdict": "enforced"
     },
     "RFC7752-3.2-6": {
-      "note": "TestRFC7752VPNFamilyIsAFI16388SAFI72 asserts only the BGPLSVPNFamily constant (16388, 72) and its name; no VPN link, node or prefix NLRI is built and shown to carry SAFI 72. The negative refuses decoding under other family names, a receive-side check rather than the encoding obligation.",
+      "note": "RFC 7752 Section 3.2 and RFC 9552 Section 5.2: \"VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 72.\" TestRFC7752VPNFamilyIsAFI16388SAFI72 pins the registered family and TestRFC7752NonLinkStateFamilyRefused confines decoder entrypoints. TestRFC7752VPNFamilyReachesMPReach now creates a real VPN Node NLRI with RD, sends through AnnounceNLRIBatch, and checks exact MP_REACH AFI/SAFI and unchanged NLRI bytes; its non-VPN SAFI 71 arm prevents conflating the families. The producer buildBatchAnnounceUpdate takes AFI/SAFI from batch.Family independently of Node/Link/Prefix contents, so this is wire evidence of the shared family boundary rather than only a constant assertion. Preserve the existing restated RFC9552-5.2-2 marker and historical VPN propagation scope. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "c926ab43db25b47a",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "ac9195f646a95bc1",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752VPNFamilyIsAFI16388SAFI72": "ac9195f646a95bc1"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "600df28992081178",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752VPNFamilyIsAFI16388SAFI72": "600df28992081178",
+        "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach": "13f778cefee6c309",
+        "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach#2": "13f778cefee6c309"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "5e07d0147ccb6a0b",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752VPNFamilyIsAFI16388SAFI72": "abe0c1f1dd31a89a"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752VPNFamilyIsAFI16388SAFI72": "abe0c1f1dd31a89a",
+        "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach": "cd7142c74095da8f",
+        "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach#2": "cd7142c74095da8f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7752-3.2.1.4-3": {
       "note": "{single-polarity: positive} carried on the row: the ordering duty is the sender's. Forbidden: node descriptor sub-TLVs out of ascending type order. TestRFC7752NodeDescriptorSubTLVsAscending fails unless NodeDescriptor.WriteTo emits exactly 512, 513, 514, 515, 516, 517 in that order. The native exporter builds its node descriptors through ls.NodeDescriptor (ls_export exportNodeID), so the asserted encoder is the one production uses.",
@@ -146,17 +152,21 @@
       "verdict": "enforced"
     },
     "RFC7752-6.2.2-2": {
-      "note": "Re-judged 2026-10-02 (BGP c24 judge): TestRFC7752MalformedTLVNotPreserved changed only by a tag line; body unchanged. Five listed checks. Asserted: a BGP-LS attribute TLV whose length overruns the attribute is refused (ErrBGPLSTruncated) and an exact-sum sequence is walked completely; a fixed-length TLV (1028 with 3 octets) is refused. The MP_REACH_NLRI sum, the MP_UNREACH_NLRI sum and the descriptor sum against Total NLRI Length have no assertion in either unit.",
+      "note": "RFC 7752 Section 6.2.2: \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" Read all five bullets: attribute sum, MP_REACH sum, MP_UNREACH sum, descriptor sum against Total NLRI Length, fixed-length TLV size. TestRFC7752AttrSyntacticChecks and TestRFC7752MalformedTLVNotPreserved pin exact complete attribute walk, attribute overrun and wrong-sized fixed TLV at the offline decoder. TestRFC7752LinkStateLengthSumsOnReceive now drives Node/Link/Prefix type envelopes through enforceRFC7606 with both MP_REACH and MP_UNREACH, exact-sum conforming controls, NLRI overrun, descriptor overrun and descriptor underrun. Negative asserts detection (not unchanged ActionNone); it does not claim a particular fault-handling action, which is a different requirement. The current normative authority is RFC 9552 Section 8.2.2: propagators must not perform fixed-layout semantic validation, and the existing syntax-only receive/semantic offline split is preserved. validateBGPLSAttr and typedNLRIEdit were read; no protocol feature or new supersession exclusion is inferred. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Whole normative list (rfc/full/rfc7752.txt:2163-2180): \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? Does any fixed-length TLV correspond to the TLV Length field in this document?\"",
       "requirement_sha": "d752ea60c051e852",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "ac9195f646a95bc1",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "ac9195f646a95bc1"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "600df28992081178",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "600df28992081178",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "14d7df2689c3064e",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "14d7df2689c3064e"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "cd3772465de11c9c",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6a89cc723cdc4dc9"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "18b9bf6d13926af9",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "96ccbd73aaa50e4d",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "96ccbd73aaa50e4d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc7752"

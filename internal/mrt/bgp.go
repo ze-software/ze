@@ -24,10 +24,10 @@ var (
 // BGPMessage keeps a complete wire message with its MRT encoding context.
 // Bytes borrows the record buffer; callers MUST copy it if they outlive that buffer.
 type BGPMessage struct {
-	Bytes   []byte
-	AddPath bool
+	Bytes      []byte
+	AddPath    bool
 	negotiated *capability.Negotiated
-	sent bool
+	sent       bool
 }
 
 // ParsedMessage is a parsed BGP message from an MRT record.
@@ -59,9 +59,9 @@ type ParsedUpdate struct {
 	WithdrawnPrefixes []netip.Prefix
 	Attributes        []PathAttribute
 	AnnouncedPrefixes []netip.Prefix
-	WithdrawnPathIDs []uint32
-	AnnouncedPathIDs []uint32
-	wire BGPMessage
+	WithdrawnPathIDs  []uint32
+	AnnouncedPathIDs  []uint32
+	wire              BGPMessage
 }
 
 // AddPathFor preserves the message's direction-specific family context.
@@ -298,9 +298,9 @@ func parseUpdate(body []byte, wire BGPMessage) (*ParsedUpdate, error) {
 
 	return &ParsedUpdate{
 		AddPath:           wire.AddPath,
-		wire: wire,
-		WithdrawnPathIDs: withdrawnIDs,
-		AnnouncedPathIDs: announcedIDs,
+		wire:              wire,
+		WithdrawnPathIDs:  withdrawnIDs,
+		AnnouncedPathIDs:  announcedIDs,
 		WithdrawnPrefixes: withdrawnPrefixes,
 		Attributes:        attributes,
 		AnnouncedPrefixes: announcedPrefixes,
@@ -384,7 +384,7 @@ func ParsePrefixesAFI(data []byte, afi uint16, addPath bool) ([]netip.Prefix, er
 
 // parsePrefixesAFI retains Path Identifiers only when the caller needs them.
 // RFC 7911 Section 3: \"the NLRI encoding MUST be extended by prepending the
-// Path Identifier field, which is of four octets.\"
+// Path Identifier field, which is of four octets.\".
 func parsePrefixesAFI(data []byte, afi uint16, addPath, retainIDs bool) ([]netip.Prefix, []uint32, error) {
 	var maxBits int
 	switch afi {
@@ -405,7 +405,7 @@ func parsePrefixesAFI(data []byte, afi uint16, addPath, retainIDs bool) ([]netip
 			if off+4 >= len(data) {
 				return prefixes, pathIDs, fmt.Errorf("%w: NLRI truncated inside the add-path Path Identifier at offset %d", ErrShortData, off)
 			}
-			pathID = binary.BigEndian.Uint32(data[off:off+4])
+			pathID = binary.BigEndian.Uint32(data[off : off+4])
 			off += 4
 		}
 		pfxLen := int(data[off])

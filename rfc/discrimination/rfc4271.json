@@ -178,6 +178,18 @@
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-5-3",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc4271-partial-unknown-transitive.ci",
+      "unit-sha": "6727b2ae01c25675",
+      "claim-sha": "99ba6264bbd2846f",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+      "producer-sha": "f3388c8f4f616c7e",
+      "break": "body of SetPartialOnUnrecognizedTransitive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=1:contains=E0FA04DEADBEEF"
+    },
+    {
       "rid": "RFC4271-5-6",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact",
@@ -471,7 +483,7 @@
       "claim-sha": "0ae35a67018f4c06",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-      "producer-sha": "e42eb5c938205968",
+      "producer-sha": "74e8937e8e7793ee",
       "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2123,7 +2135,7 @@
       "claim-sha": "71b8db6f0dd25d93",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
-      "producer-sha": "904d752d96d29eac",
+      "producer-sha": "07bd5b4c70e0a99c",
       "break": "body of buildFwdBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2167,7 +2179,7 @@
       "claim-sha": "603abba3fd4b331d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-      "producer-sha": "e42eb5c938205968",
+      "producer-sha": "74e8937e8e7793ee",
       "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2211,7 +2223,7 @@
       "claim-sha": "5cb2e07825ab4f0c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "30c94d2d7968d7b5",
+      "producer-sha": "1c87a9d9522cb3b4",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

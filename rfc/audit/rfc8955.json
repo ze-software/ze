@@ -147,19 +147,19 @@
       "verdict": "enforced"
     },
     "RFC8955-5.1-2": {
-      "note": "comparator cases cover lower type first, missing component, more-specific overlapping prefix, lower disjoint prefix, memcmp of operator bytes and received width; the integration test installs the covering discard first and shows the more-specific terminal rule still applies in the kernel",
+      "note": "RFC 8955 Section 5.1: \"The relative order of two Flow Specifications is determined by comparing their respective components.\" Whole rule read through the concluding sentence: \"If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one.\" compare_rfc8955_test.go TestFlowSpecPrecedenceFromWire pins lower component type, absent/present next component after an equal first component, most-specific overlapping prefix, lower disjoint prefix, equal-width memcmp and received-width byte ordering rather than numeric canonicalization; every pair asserts forward/reverse signs and self equality. Compare walks increasing component type, uses prefix specificity/address ordering, then common-byte comparison and reverse length comparison. TestSelectedFlowSpecKernelPacketSemantics adds actual Linux packet evidence: the covering discard installed first blocks traffic, then the narrower terminal mark admits the same packet with DSCP 10; T-set again reaches the covering discard. These are separate conforming/control states, not two labels on one assertion. Build constraints require integration+linux with namespace/nft privileges; a skipped host/guest run is NOT runtime proof. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Whole normative list (rfc/full/rfc8955.txt:840-863): \"The relative order of two Flow Specifications is determined by comparing their respective components. The algorithm starts by comparing the left-most components (lowest component type value) of the Flow Specifications. If the types differ, the Flow Specification with lowest numeric type value has higher precedence (and thus will match before) than the Flow Specification that doesn't contain that component type. If the component types are the same, then a type-specific comparison is performed (see below). If the types are equal, the algorithm continues with the next component. For IP prefix values (IP destination or source prefix), if one of the two prefixes to compare is a more specific prefix of the other, the more specific prefix has higher precedence. Otherwise, the one with the lowest IP value has higher precedence. For all other component types, unless otherwise specified, the comparison is performed by comparing the component data as a binary string using the memcmp() function as defined by [ISO_IEC_9899]. For strings with equal lengths, the lowest string (memcmp) has higher precedence. For strings of different lengths, the common prefix is compared. If the common prefix is not equal, the string with the lowest prefix has higher precedence. If the common prefix is equal, the longest string is considered to have higher precedence than the shorter one.\"",
       "requirement_sha": "5eb646f616d945eb",
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "328da0a428605906",
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "328da0a428605906",
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "4f7648cd1aea1d61",
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "4f7648cd1aea1d61"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "cddf304ba024a756",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "cddf304ba024a756"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "12fd4ff344e8089e",
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "12fd4ff344e8089e",
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "1063226399da508d",
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "1063226399da508d"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "a770f2869bd51ed2",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "a770f2869bd51ed2"
       },
       "verdict": "enforced"
     },
@@ -256,17 +256,17 @@
       "verdict": "enforced"
     },
     "RFC8955-7.3-2": {
-      "note": "the continuing case only pairs a marking with a later discard, so the test sees the discard and never the marking on the same packet; an implementation that skipped the first rule's actions when T is set would stay green. No case observes two actions from two matched rules applied together",
+      "note": "RFC 8955 Section 7.3: \"The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied.\" The same paragraph leaves interfering-action selection implementation-defined. TestSelectedFlowSpecKernelPacketSemantics now observes a received packet with the first rule's DSCP 10 AND exactly one increment of the later rule's sample counter; switching only the narrow rule to T-clear leaves the sample counter unchanged. Earlier controls prove T-set reaches a covering discard and that marking does not change the original DSCP used by later matching. rule_chains.go ruleChains/beforeMarkActions/markingTerms separate deferred marking and continuing action execution. Omitting the first action, the later action, or continuation fails independently, closing the earlier mark-plus-discard ambiguity. Requires a real privileged integration+linux execution; skips are not proof. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "476dfe1e6c45cf3e",
       "tests": {
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "4f7648cd1aea1d61",
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "4f7648cd1aea1d61"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "cddf304ba024a756",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "cddf304ba024a756"
       },
       "units": {
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "1063226399da508d",
-        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "1063226399da508d"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "a770f2869bd51ed2",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "a770f2869bd51ed2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8955-7.5-1": {
       "note": "encode through config and EncodeRoute pins every reserved octet and the two reserved bits zero for DSCP 0, 46, 63, and refuses 64 and above; decode renders 0xEE as mark:46 and 0x40 as mark:0; the .ci carries the reserved-bit community to a plugin",

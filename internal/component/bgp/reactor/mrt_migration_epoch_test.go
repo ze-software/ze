@@ -3,16 +3,18 @@ package reactor
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
 	"path/filepath"
-	"sync/atomic"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -40,17 +42,35 @@ func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 	connect := func() (*Session, net.Conn, []byte) {
 		s := NewSession(settings)
 		s.asMigrationFallback = &fallback
-		s.onWireMessage = func(wire []byte, id bgpctx.ContextID, sent bool, transport *sessionTransport) { r.dispatchObservedWire(peer, wire, id, sent, transport) }
+		s.onWireMessage = func(wire []byte, id bgpctx.ContextID, sent bool, transport *sessionTransport) {
+			r.dispatchObservedWire(&peer, wire, id, sent, transport)
+		}
 		startSession(t, s)
 		t.Cleanup(s.timers.StopAll)
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 		require.NoError(t, err)
-		defer listener.Close()
-		client, err := net.Dial("tcp", listener.Addr().String())
+		defer func() {
+			if err := listener.Close(); err != nil {
+				t.Errorf("close listener: %v", err)
+			}
+		}()
+		client, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", listener.Addr().String())
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			if err := client.Close(); err != nil {
+				t.Errorf("close client: %v", err)
+			}
+		})
 		server, err := listener.Accept()
 		require.NoError(t, err)
-		t.Cleanup(func() { client.Close(); server.Close() })
+		t.Cleanup(func() {
+			// Session teardown may already have closed its accepted socket.
+			if err := server.Close(); err != nil {
+				if !errors.Is(err, net.ErrClosed) {
+					t.Errorf("close server: %v", err)
+				}
+			}
+		})
 		require.NoError(t, client.SetDeadline(time.Now().Add(5*time.Second)))
 		require.NoError(t, s.Accept(server))
 		return s, client, readMRTTestPacket(t, client)
@@ -67,10 +87,12 @@ func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 	caps := []capability.Capability{&capability.ASN4{ASN: migrationLocalAS}, &capability.Multiprotocol{AFI: 1, SAFI: 1}, &capability.Multiprotocol{AFI: 2, SAFI: 1}, &capability.AddPath{Families: []capability.AddPathFamily{{AFI: 1, SAFI: 1, Mode: capability.AddPathReceive}, {AFI: 2, SAFI: 1, Mode: capability.AddPathSend}}}}
 	params, extended := buildOptionalParams(caps)
 	remoteOpen := message.PackTo(&message.Open{Version: 4, MyAS: migrationLocalAS, ASN4: migrationLocalAS, HoldTime: 90, BGPIdentifier: 0x0a000001, OptionalParams: params, ExtendedParams: extended}, nil)
-	_, err = client.Write(remoteOpen); require.NoError(t, err)
+	_, err = client.Write(remoteOpen)
+	require.NoError(t, err)
 	require.NoError(t, s.ReadAndProcess())
 	require.Equal(t, byte(4), readMRTTestPacket(t, client)[18])
-	_, err = client.Write(message.PackTo(message.NewKeepalive(), nil)); require.NoError(t, err)
+	_, err = client.Write(message.PackTo(message.NewKeepalive(), nil))
+	require.NoError(t, err)
 	require.NoError(t, s.ReadAndProcess())
 
 	// A standalone Session has no Peer to publish encoding contexts on
@@ -88,7 +110,8 @@ func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 	// Distinct classic and MP withdrawals need no NEXT_HOP or mandatory
 	// announcement attributes, and exercise opposite direction-specific modes.
 	incoming := buildUpdateMsg([]byte{0, 4, 24, 10, 1, 0, 0, 15, 0x80, 15, 12, 0, 2, 1, 1, 2, 3, 4, 32, 0x20, 1, 0x0d, 0xb9})
-	_, err = client.Write(incoming); require.NoError(t, err)
+	_, err = client.Write(incoming)
+	require.NoError(t, err)
 	require.NoError(t, s.ReadAndProcess())
 	outgoing := buildUpdateMsg([]byte{0, 8, 5, 6, 7, 8, 24, 10, 2, 0, 0, 11, 0x80, 15, 8, 0, 2, 1, 32, 0x20, 1, 0x0d, 0xba})
 	old := s.wireWriter
@@ -108,12 +131,16 @@ func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 	require.NoError(t, mrt.ReadFile(path, &mrt.Handler{OnMessage: func(h mrt.Header, _ uint32, record *mrt.MessageRecord) error {
 		if record.BGPMessage.Bytes[18] == 1 {
 			wantAS := uint32(migrationLegacyAS)
-			if bytes.Equal(record.BGPMessage.Bytes, firstOpen) { wantAS = migrationLocalAS }
+			if bytes.Equal(record.BGPMessage.Bytes, firstOpen) {
+				wantAS = migrationLocalAS
+			}
 			require.Equal(t, wantAS, record.LocalAS)
 			opens = append(opens, bytes.Clone(record.BGPMessage.Bytes))
 			return nil
 		}
-		if record.BGPMessage.Bytes[18] != 2 { return nil }
+		if record.BGPMessage.Bytes[18] != 2 {
+			return nil
+		}
 		updates++
 		require.Equal(t, uint32(migrationLegacyAS), record.LocalAS, "record identity must match the actual fallback OPEN, not configured LocalAS")
 		parsed, err := mrt.ParseBGPMessage(record.BGPMessage)
@@ -146,10 +173,10 @@ func readMRTTestPacket(t *testing.T, conn net.Conn) []byte {
 	header := make([]byte, 19)
 	_, err := io.ReadFull(conn, header)
 	require.NoError(t, err)
-	length := int(header[16])<<8|int(header[17])
+	length := int(header[16])<<8 | int(header[17])
 	require.GreaterOrEqual(t, length, 19)
-	wire := append(header, make([]byte, length-19)...)
-	_, err = io.ReadFull(conn, wire[19:])
+	header = append(header, make([]byte, length-19)...)
+	_, err = io.ReadFull(conn, header[19:])
 	require.NoError(t, err)
-	return wire
+	return header
 }

@@ -17,9 +17,9 @@ import (
 // sorter; the whole llgr-import-no-llgr.ci proves its peer-down consequence.
 func TestStateDependencyOrderUsesImplementationIdentity(t *testing.T) {
 	for _, tc := range []struct {
-		name string
+		name    string
 		configs []plugin.PluginConfig
-		want []string
+		want    []string
 	}{
 		{
 			name: "both implementations aliased",

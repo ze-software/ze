@@ -1,4 +1,4 @@
-// Design: docs/architecture/ike.md -- RFC 5282 Section 8 on the responder's Child SA selection.
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- RFC 5282 Section 8 on the responder's Child SA selection.
 // Related: rfc5282_aead_send_test.go -- the initiator's ESP offer and its re-check.
 
 package engine

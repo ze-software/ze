@@ -216,7 +216,6 @@ func TestMigrationOpenLocalASWithoutAPeer(t *testing.T) {
 
 // TestMigrationSessionIsIBGP holds the verdict every AS-scoped decision reads.
 //
-//
 // A remote AS outside the pair has no row here, because it is not a configuration this
 // table can build: Section 4.2 widens "ours" to exactly two ASNs, so setMigrationAS
 // refuses a third and the settings never reach a verdict. That refusal is asserted by

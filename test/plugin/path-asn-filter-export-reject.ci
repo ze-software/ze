@@ -20,8 +20,8 @@
 # observer's readiness marker. The route-server rail drops a forward whose
 # destination is not up yet and says "forward matched no target ... not-yet-up",
 # which would leave the export chain unconsulted and the file asserting nothing.
-# peer1 then lingers: a source that closes makes ze withdraw its routes, and the
-# withdrawal carries the subject's prefix bytes to peer2.
+# peer1 then lingers so source teardown cannot create the subject withdrawal;
+# that withdrawal must come from the export rejection itself.
 #
 # On export FilterUpdateInput.PeerAS carries the DESTINATION peer, so no token is
 # `direct` and `indirect` covers the whole path. 3356 is therefore matched at index
@@ -46,14 +46,22 @@ EOF_PEER
 stdin=peer2:terminator=EOF_PEER2
 option=tcp_connections:value=1
 option=timeout:value=20s
-# Both checks sit in ONE seq group, where they match in any order and each
-# consumes one message. ze's end-of-rib to peer2 waits on the initial-sync
-# barrier while the fence comes off the forward rail, so which of the two lands
-# first is a race ze owes nothing about (ci-format.md, "Within one seq group").
+option=linger:value=true
+# The observer sees peer2's initial EOR before releasing peer1. The rejected
+# announcement becomes a withdrawal, followed by the permitted announcement.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=1:seq=1:contains=180A0900
-reject=bgp:conn=1:pattern=180A0000
+expect=bgp:conn=1:seq=2:withdrawn=180A0000
+expect=bgp:conn=1:seq=3:announced=180A0900
+reject=bgp:conn=1:scope=announced:pattern=180A0000
+# Publish completion only after the receiver has checked the permitted fence.
+# The observer waits on this file before shutdown; a sent-message total cannot
+# distinguish EOR plus the withdrawal from delivery of the fence.
+action=rewrite:conn=1:seq=4:source=path-asn-export-fence.src:dest=path-asn-export.received
 EOF_PEER2
+
+tmpfs=path-asn-export-fence.src:terminator=EOF_FENCE
+peer2 received the rejected route's withdrawal and the permitted fence
+EOF_FENCE
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -67,7 +75,7 @@ plugin {
         use bgp-rs;
     }
     external test-path-asn-export {
-        run "le test fixture plugin/path-asn-filter-export-reject /tmp/ze-path-asn-export-$PORT.ready";
+        run "le test fixture plugin/path-asn-filter-export-reject path-asn-export.ready";
         encoder json;
     }
 }
@@ -157,9 +165,10 @@ EOF_CONF
 
 # Establish the forward target first. The observer writes the marker after peer2
 # sends its initial end-of-rib, then peer1 connects and supplies the routes.
+# Both processes inherit this run's work directory; no previous run can release it.
 cmd=background:seq=1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn -:stdin=ze-bgp:timeout=20s
-cmd=foreground:seq=3:exec=le test fixture plugin/wait-file /tmp/ze-path-asn-export-$PORT.ready:timeout=10s
+cmd=foreground:seq=3:exec=le test fixture plugin/wait-file path-asn-export.ready:timeout=10s
 cmd=background:seq=4:exec=le test peer --dial 127.0.0.4:$PORT:stdin=peer
 expect=exit:code=0
 # The export decision, the ASN that produced it, and the path it was read from.
@@ -172,6 +181,6 @@ expect=stderr:pattern=reject-asn reject.*as-path="65001 3356 65004"
 # The as-path is named because an end-of-rib is an empty update and is accepted
 # too: a bare "reject-asn accept" would be satisfied without the fence.
 expect=stderr:pattern=reject-asn accept.*as-path="65001 65005"
-# ze answers a rejected route with silence rather than with a NOTIFICATION, so
-# the session that carried the fence is the same session that carried the leak.
+# Export rejection withdraws the route without a NOTIFICATION, so the same
+# session remains available for the permitted fence.
 reject=stderr:pattern=notification (sent|send failed).*code="[^"]*Error"

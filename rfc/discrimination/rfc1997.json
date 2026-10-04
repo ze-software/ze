@@ -23,6 +23,90 @@
       "producer-sha": "1180e31db97ccb63",
       "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "7"
+    },
+    {
+      "rid": "RFC1997-Well-1",
+      "polarity": "positive",
+      "unit": "test/plugin/wellknown-no-export-egress.ci",
+      "unit-sha": "33443c676ea0169f",
+      "claim-sha": "afe9c396620c0d74",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "reject=bgp:conn=1:scope=announced:pattern=180A0000"
+    },
+    {
+      "rid": "RFC1997-Well-1",
+      "polarity": "negative",
+      "unit": "test/plugin/wellknown-no-export-egress.ci",
+      "unit-sha": "33443c676ea0169f",
+      "claim-sha": "7360225e8076b216",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=1:announced=180A0000"
+    },
+    {
+      "rid": "RFC1997-Well-1",
+      "polarity": "negative",
+      "unit": "test/plugin/wellknown-no-export-withdraw-egress.ci",
+      "unit-sha": "960664c2a2e50ffd",
+      "claim-sha": "90aa885c9d7f9777",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_build.go::buildWithdrawalPayload",
+      "producer-sha": "215bcdb3f55a6061",
+      "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=3:seq=1:withdrawn=18C63364"
+    },
+    {
+      "rid": "RFC1997-Well-2",
+      "polarity": "positive",
+      "unit": "test/plugin/wellknown-no-advertise-egress.ci",
+      "unit-sha": "1471f2273e2885ae",
+      "claim-sha": "93917f5c5ca7e500",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "reject=bgp:conn=1:scope=announced:pattern=180A0100"
+    },
+    {
+      "rid": "RFC1997-Well-2",
+      "polarity": "negative",
+      "unit": "test/plugin/wellknown-no-advertise-egress.ci",
+      "unit-sha": "1471f2273e2885ae",
+      "claim-sha": "3c771065f55f094f",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=2:announced=18C00002"
+    },
+    {
+      "rid": "RFC1997-Well-3",
+      "polarity": "positive",
+      "unit": "test/plugin/wellknown-no-advertise-egress.ci",
+      "unit-sha": "1471f2273e2885ae",
+      "claim-sha": "f9c0a499b78fdb51",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "reject=bgp:conn=1:scope=announced:pattern=180A0200"
+    },
+    {
+      "rid": "RFC1997-Well-3",
+      "polarity": "negative",
+      "unit": "test/plugin/wellknown-no-advertise-egress.ci",
+      "unit-sha": "1471f2273e2885ae",
+      "claim-sha": "70c43ff490b2cca2",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=1:announced=180A0200"
     }
   ]
 }

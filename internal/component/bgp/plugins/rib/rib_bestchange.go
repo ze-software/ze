@@ -1181,7 +1181,10 @@ func routeIdentity(fam family.Family, nlriBytes []byte, addPath, withdraw bool, 
 // winnerRoute returns what bestPrevRecord.route holds for the winner: its
 // wire route for a non-CIDR family, nothing for a CIDR prefix or no winner.
 func winnerRoute(winner *Candidate, cidr bool) string {
-	if winner == nil || cidr {
+	if winner == nil {
+		return ""
+	}
+	if cidr {
 		return ""
 	}
 	return winner.Route

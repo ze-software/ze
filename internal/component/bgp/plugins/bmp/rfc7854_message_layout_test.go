@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Design: the per-type message layouts of RFC 7854 Sections 4.3, 4.5, 4.7,
+// Design: docs/guide/bmp.md -- message layouts of RFC 7854 Sections 4.3, 4.5, 4.7,
 // 4.8 and 4.10, proved on the octets a collector receives (positive) and on
 // the receiver refusing a message that breaks the layout (negative).
 // Related: rfc7854_wire_header_test.go (common and per-peer header).

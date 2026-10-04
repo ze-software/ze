@@ -177,6 +177,9 @@ enable/disable state.
   Local-AS metadata comes from the OPEN built for that connection, including
   RFC 7705 migration fallback. Both directions and a retained outbound writer
   keep that epoch's identity when configuration or a replacement session changes.
+  Dispatch borrows that immutable connection identity by pointer and initializes
+  only the observer fields in a call-local record. Concurrent send and receive
+  callbacks cannot overwrite each other's directional context or endpoints.
 <!-- source: internal/component/bgp/reactor/session_wire.go — observeReceivedWire, observedBGPWriter -->
 <!-- source: internal/plugins/mrt/component.go — OnBGPMessage -->
 - Collision resolution transfers the winning socket and its already-read

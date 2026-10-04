@@ -61,10 +61,10 @@ func TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "all.mrt")
 	c.allMsgs = newAsyncWriter(mrtfmt.NewWriter(path), c.logger)
 	peer := &plugin.PeerInfo{
-		Address:      netip.MustParseAddr("192.0.2.1"),
-		LocalAddress: netip.MustParseAddr("192.0.2.2"),
-		PeerAS:       65001,
-		LocalAS:      65000,
+		Address:          netip.MustParseAddr("192.0.2.1"),
+		LocalAddress:     netip.MustParseAddr("192.0.2.2"),
+		PeerAS:           65001,
+		LocalAS:          65000,
 		MessageContextID: ctxID,
 	}
 	c.OnBGPMessage(peer, msgtype.TypeUPDATE, false, update)

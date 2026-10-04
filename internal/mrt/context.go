@@ -24,15 +24,15 @@ type SessionContexts struct {
 
 type sessionKey struct {
 	peer, local netip.Addr
-	iface uint16
+	iface       uint16
 }
 
 type sessionEvidence struct {
-	opens [2][]capability.Capability
-	seen [2]bool
-	asn [2]uint32
+	opens      [2][]capability.Capability
+	seen       [2]bool
+	asn        [2]uint32
 	negotiated *capability.Negotiated
-	used bool
+	used       bool
 }
 
 func contextKey(h *BGP4MPHeader) (sessionKey, error) {
@@ -67,7 +67,7 @@ func (c *SessionContexts) ObserveState(record *StateChangeRecord) error {
 // RFC 7911 Section 5: "that BGP speaker MUST advertise the ADD-PATH Capability
 // with the Send/Receive field set to either 2 or 3, and MUST receive from its peer
 // the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for
-// the corresponding <AFI, SAFI>."
+// the corresponding <AFI, SAFI>.".
 func (c *SessionContexts) ObserveMessage(subtype uint16, record *MessageRecord) error {
 	key, err := contextKey(&record.BGP4MPHeader)
 	if err != nil {
@@ -128,7 +128,11 @@ func (c *SessionContexts) ObserveMessage(subtype uint16, record *MessageRecord) 
 			evidence.used = true
 			return nil
 		}
-		if !openASNMatches(evidence.asn[0], record.PeerAS, IsAS4Subtype(subtype)) || !openASNMatches(evidence.asn[1], record.LocalAS, IsAS4Subtype(subtype)) {
+		if !openASNMatches(evidence.asn[0], record.PeerAS, IsAS4Subtype(subtype)) {
+			delete(c.peers, key)
+			return nil
+		}
+		if !openASNMatches(evidence.asn[1], record.LocalAS, IsAS4Subtype(subtype)) {
 			delete(c.peers, key)
 			return nil
 		}
@@ -204,7 +208,7 @@ func (m BGPMessage) AddPathFor(afi uint16, safi uint8) bool {
 
 // updateContext refuses to infer different families' modes from one subtype.
 // RFC 8050 Section 3: "These enhancements continue to encapsulate the entire
-// BGP message in the BGP message field."
+// BGP message in the BGP message field.".
 func (m BGPMessage) updateContext(withdrawn []byte, attrs []PathAttribute, nlri []byte) error {
 	if m.negotiated != nil {
 		return nil
@@ -229,7 +233,7 @@ func (m BGPMessage) updateContext(withdrawn []byte, attrs []PathAttribute, nlri 
 			if len(value) < 5 {
 				return ErrShortData
 			}
-			start = 5+int(value[3])
+			start = 5 + int(value[3])
 		}
 		if start > len(value) {
 			return ErrShortData

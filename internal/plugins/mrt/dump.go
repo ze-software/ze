@@ -259,7 +259,7 @@ func (c *Component) bgp4mpTypeSubtype(addPath bool) (uint16, uint16) {
 
 // updateAddPath reads only family fields, never copies or decodes the NLRI.
 // RFC 8050 Section 2: "new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396]
-// are required to signal to an MRT parser how to parse the NLRI."
+// are required to signal to an MRT parser how to parse the NLRI.".
 func updateAddPath(body []byte, ctxID bgpctx.ContextID) bool {
 	ctx := bgpctx.Registry.Get(ctxID)
 	if ctx == nil {

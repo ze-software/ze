@@ -15,15 +15,18 @@
 package runner
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/ci"
 )
 
 // configPeer is one BGP peer of the ze configuration a .ci embeds.
@@ -329,64 +332,225 @@ func addrKeys(peers []configPeer) (map[string]uint32, error) {
 	return byAddr, nil
 }
 
-// configuredPeerAS reads every BGP peer of the configurations a .ci names.
-//
-// All three carriers are read: a tmpfs= block, which is where nearly every .ci
-// puts its ze configuration; a stdin= block, which a number of tests pipe in
-// instead; and the on-disk file an option=file:path= names, which the runner has
-// already resolved into Record.ConfigFile. Leaving the third out made the
-// derivation answer "no peer AS is configured" for a file that configures one,
-// which is a reader failure wearing the shape of an answer.
+// configuredPeerAS reads only configuration consumed by the .ci's daemons.
+// Selected input is fail-closed: a syntax error is never an empty peer list.
+// Arbitrary tmpfs and stdin sidecars are not configuration, even when their
+// contents happen to spell valid BGP declarations.
 func configuredPeerAS(r *Record) ([]configPeer, error) {
-	peers := make([]configPeer, 0, len(r.TmpfsFiles)+len(r.StdinBlocks)+1)
-
-	// Every tmpfs= and stdin= block goes through the reader, including one that
-	// holds no ze configuration at all. A block the reader cannot tokenize
-	// therefore fails the whole .ci, and THAT IS DELIBERATE: fail-closed is the
-	// design of this file. A text nobody could read must stop the test rather
-	// than quietly contribute no peers, because "contributed nothing" and
-	// "declares nothing" are the two answers this package exists to keep apart.
-	// Do not turn this into a skip for non-config blocks; if a real .ci ever
-	// carries a block the tokenizer refuses, the block or the tokenizer is what
-	// changes.
-	read := func(where, text string) error {
-		found, err := peersFromConfig(text)
-		if err != nil {
-			var why textbuf.Buffer
-			why.Str(where).Str(": ").Str(err.Error())
-			return errors.New(why.String())
-		}
-		peers = append(peers, found...)
-		return nil
-	}
-	for _, path := range slices.Sorted(maps.Keys(r.TmpfsFiles)) {
-		if err := read(path, string(r.TmpfsFiles[path].Content)); err != nil {
-			return nil, err
-		}
-	}
-	for _, name := range slices.Sorted(maps.Keys(r.StdinBlocks)) {
-		if err := read(name, string(r.StdinBlocks[name])); err != nil {
-			return nil, err
-		}
-	}
-	if r.ConfigFile == "" {
-		return peers, nil
-	}
-	// A path the runner resolved and validated at parse time, so it is readable
-	// unless the tree moved under the run. Refused rather than skipped: swallowing
-	// the error here is the fail-open shape this whole file exists to remove,
-	// because a configuration nobody read and a configuration declaring nothing
-	// produce the same empty population.
-	content, err := os.ReadFile(r.ConfigFile) //nolint:gosec // the path came from option=file, checked against the test directory in parseOption
+	inputs, err := peerASConfigInputs(r)
 	if err != nil {
-		var why textbuf.Buffer
-		why.Str("the configuration option=file names cannot be read: ").Str(err.Error())
-		return nil, errors.New(why.String())
-	}
-	if err := read(r.ConfigFile, string(content)); err != nil {
 		return nil, err
 	}
+	var peers []configPeer
+	for _, path := range slices.Sorted(maps.Keys(inputs)) {
+		found, err := peersFromConfig(string(inputs[path]))
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		peers = append(peers, found...)
+	}
 	return peers, nil
+}
+
+// peerASConfigInputs follows configuration consumers, never filename suffixes
+// or the contents of unselected blocks. Reload sources become inputs only when
+// their rewrite destination is already a configuration input.
+func peerASConfigInputs(r *Record) (map[string][]byte, error) {
+	inputs := make(map[string][]byte)
+	targets := make(map[string]bool)
+	if r.ConfigFile != "" {
+		// The legacy runner substitutes an embedded file by basename, or
+		// copies the named on-disk input to that basename in the work directory.
+		path := filepath.Base(r.ConfigFile)
+		if file, ok := r.TmpfsFiles[path]; ok {
+			inputs[path] = file.Content
+		} else {
+			content, err := os.ReadFile(r.ConfigFile) //nolint:gosec // option=file was resolved by parseOption
+			if err != nil {
+				return nil, fmt.Errorf("the configuration option=file names cannot be read: %w", err)
+			}
+			inputs[path] = content
+		}
+		targets[path] = true
+	}
+
+	// Use the same execution order and filename allocator as runOrchestrated,
+	// without changing the record's runtime allocation state during discovery.
+	cmds := make([]*RunCommand, len(r.RunCommands))
+	for i := range r.RunCommands {
+		cmds[i] = &r.RunCommands[i]
+	}
+	slices.SortStableFunc(cmds, func(a, b *RunCommand) int { return cmp.Compare(a.Seq, b.Seq) })
+	var names Record
+	for _, cmd := range cmds {
+		if cmd.Exec == "" {
+			continue // Stop actions launch no process and consume no configuration.
+		}
+		parts, err := splitCommand(cmd.Exec)
+		if err != nil {
+			return nil, fmt.Errorf("cmd seq=%d: %w", cmd.Seq, err)
+		}
+		args := peerASDaemonArgs(parts)
+		index := zeDaemonConfigArgIndex(args)
+		if index < 0 {
+			continue
+		}
+		path := filepath.Clean(args[index])
+		if path == "-" {
+			content, ok := r.StdinBlocks[cmd.Stdin]
+			if !ok {
+				return nil, fmt.Errorf("daemon configuration stdin block %q not found", cmd.Stdin)
+			}
+			path = zeConfigFileName(&names, cmd.Stdin)
+			inputs[path] = content
+		}
+		targets[path] = true
+	}
+
+	rewrites, err := peerASRewriteSources(r)
+	if err != nil {
+		return nil, err
+	}
+	// Each distinct source enters the queue once, so even cyclic rewrite
+	// declarations terminate after the finite set of referenced paths.
+	queue := slices.Sorted(maps.Keys(targets))
+	rootCount := len(queue)
+	for i := 0; i < len(queue); i++ {
+		for _, source := range rewrites[queue[i]] {
+			if targets[source] {
+				continue
+			}
+			targets[source] = true
+			queue = append(queue, source)
+		}
+	}
+	var generated []string
+	for i, path := range queue {
+		if _, present := inputs[path]; present {
+			continue
+		}
+		if file, ok := r.TmpfsFiles[path]; ok {
+			inputs[path] = file.Content
+			continue
+		}
+		diskPath := path
+		if !filepath.IsAbs(diskPath) {
+			diskPath = filepath.Join(filepath.Dir(r.CIFile), path)
+		}
+		content, err := os.ReadFile(diskPath) //nolint:gosec // a configuration path explicitly consumed by this fixture
+		if err != nil {
+			// A rewrite may create an intermediate before the next action
+			// reads it. Initial daemon inputs and source leaves must exist;
+			// other failures (permissions, directories) are never deferred.
+			if errors.Is(err, os.ErrNotExist) {
+				if i >= rootCount {
+					if len(rewrites[path]) > 0 {
+						generated = append(generated, path)
+						continue
+					}
+				}
+			}
+			return nil, fmt.Errorf("configuration %s cannot be read: %w", path, err)
+		}
+		inputs[path] = content
+	}
+	if len(generated) == 0 {
+		return inputs, nil
+	}
+	// Prove generated paths have actual bytes upstream. Merely having a
+	// writer is insufficient: a cycle of absent sources creates nothing.
+	consumers := make(map[string][]string)
+	for _, dest := range queue {
+		for _, source := range rewrites[dest] {
+			consumers[source] = append(consumers[source], dest)
+		}
+	}
+	ready := slices.Sorted(maps.Keys(inputs))
+	resolved := make(map[string]bool, len(queue))
+	for _, path := range ready {
+		resolved[path] = true
+	}
+	// Each path becomes ready once, bounding the growing queue by the
+	// selected input population, including rewrite-created intermediates.
+	for i := 0; i < len(ready); i++ {
+		for _, dest := range consumers[ready[i]] {
+			if resolved[dest] {
+				continue
+			}
+			resolved[dest] = true
+			ready = append(ready, dest)
+		}
+	}
+	for _, path := range generated {
+		if !resolved[path] {
+			return nil, fmt.Errorf("configuration %s has no readable rewrite source", path)
+		}
+	}
+	return inputs, nil
+}
+
+// peerASDaemonArgs recognizes the direct and harness-wrapped daemon launches
+// whose configuration runOrchestrated routes into the test's work directory.
+func peerASDaemonArgs(parts []string) []string {
+	if parts[0] == binNameZe {
+		return parts[1:]
+	}
+	if parts[0] != binNameLE {
+		return nil
+	}
+	if !leHarnessArea(parts[1:]) {
+		return nil
+	}
+	for i := 1; i+1 < len(parts); i++ {
+		if parts[i] != "--" {
+			continue
+		}
+		if filepath.Base(parts[i+1]) == binNameZe {
+			return parts[i+2:]
+		}
+		return nil
+	}
+	return nil
+}
+
+// peerASRewriteSources reads only executable peer actions, not arbitrary
+// sidecar text that happens to contain an action=rewrite line.
+func peerASRewriteSources(r *Record) (map[string][]string, error) {
+	rewrites := make(map[string][]string)
+	add := func(line string) error {
+		after, ok := strings.CutPrefix(strings.TrimSpace(line), "action=rewrite:")
+		if !ok {
+			return nil
+		}
+		kv := ci.ParseKVPairs(strings.Split(after, ":"))
+		if kv["source"] == "" {
+			return errActionRewriteMissingSource
+		}
+		if kv["dest"] == "" {
+			return errActionRewriteMissingDest
+		}
+		dest := filepath.Clean(kv["dest"])
+		rewrites[dest] = append(rewrites[dest], filepath.Clean(kv["source"]))
+		return nil
+	}
+	if len(r.RunCommands) == 0 {
+		for _, line := range r.Expects {
+			if err := add(line); err != nil {
+				return nil, err
+			}
+		}
+	}
+	for _, name := range peerBlockNames(r) {
+		if _, consumed := blockPeerMode(r, name); !consumed {
+			continue
+		}
+		for line := range strings.SplitSeq(string(r.StdinBlocks[name]), "\n") {
+			if err := add(line); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return rewrites, nil
 }
 
 // peersFromConfig reads the BGP peers of one configuration text.

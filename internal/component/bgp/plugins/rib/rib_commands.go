@@ -703,7 +703,7 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 
 	for _, route := range routes {
 		cmd := formatRouteCommand(route)
-		meta := map[string]any{"replay": true}
+		meta := map[string]any{metaKeyReplay: true}
 		if route.StaleLevel > 0 {
 			meta["stale"] = route.StaleLevel
 		}

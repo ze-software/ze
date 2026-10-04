@@ -230,13 +230,15 @@ func (p *Peer) runOnce() error {
 	// forwardUpdateCore itself (egress_inject_filter.go).
 	if p.reactor != nil {
 		settings := p.settingsSnapshot()
+		// MUST remain immutable for this connection's lifetime: send and receive
+		// callbacks borrow it concurrently and build their own observer metadata.
 		wirePeer := plugin.PeerInfo{
 			Address: settings.Address, AddressStr: p.addrString,
 			LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
 			LocalAS: settings.LocalAS, PeerAS: settings.PeerAS, RouterID: settings.RouterID,
 		}
 		session.onWireMessage = func(wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
-			p.reactor.dispatchObservedWire(wirePeer, wire, ctxID, sent, endpoints)
+			p.reactor.dispatchObservedWire(&wirePeer, wire, ctxID, sent, endpoints)
 		}
 		session.egressRouteFilter = func(body []byte) (bool, []byte) {
 			return p.reactor.exportFilterForBody(p, body)

@@ -139,4 +139,3 @@ func grPeerFamiliesDriveMarkStale(ctx context.Context, plugin *sdk.Plugin) error
 	fmt.Fprintln(os.Stderr, "OK: the peer's declared family made ze dispatch mark-stale")
 	return nil
 }
-

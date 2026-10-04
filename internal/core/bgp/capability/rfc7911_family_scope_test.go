@@ -26,9 +26,10 @@ func TestRFC7911AddPathNegotiationIsPerFamily(t *testing.T) {
 						remote = append(remote, &Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI})
 					}
 					neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
+					matchingFamilies := localFamily == remoteFamily
 					for _, fam := range families {
 						got := neg.AddPathMode(fam)
-						wantSend := fam == localFamily && fam == remoteFamily
+						wantSend := matchingFamilies && fam == localFamily
 						canSend := got == AddPathSend || got == AddPathBoth
 						if canSend != wantSend {
 							t.Fatalf("local %v/%v remote %v/%v: family %v mode %v, want send=%v", localFamily, localMode, remoteFamily, remoteMode, fam, got, wantSend)

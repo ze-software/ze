@@ -688,17 +688,35 @@ func waitReady(ctx context.Context, path string, timeout time.Duration) {
 }
 
 func zeDaemonConfigArgIndex(args []string) int {
+	explicitStart := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch arg {
-		// "start" verb precedes a config path after spec-fixit-config-file-positional-grammar
-		case zeVerbStart, "-d", "--debug", "--insecure-web", "--color", "--no-color":
+		case zeVerbStart:
+			if explicitStart {
+				return i
+			}
+			explicitStart = true
+			continue
+		case "-d", "--debug", "--insecure-web", "--color", "--no-color":
 			continue
 		case "-f", "--server", "--name", "--token", "--plugin", "--pprof", "--chaos-seed", "--chaos-rate", "--mcp", "--mcp-token", "--web":
 			i++
 			continue
 		}
 
+		// The explicit verb owns its next positional operand; a filename
+		// does not need a suffix or a directory component to be configuration.
+		if explicitStart {
+			// Match startConfigPath: value-less flags are not positional
+			// operands, including flags the start command itself ignores.
+			if arg != "-" {
+				if strings.HasPrefix(arg, "-") {
+					continue
+				}
+			}
+			return i
+		}
 		if arg == "-" || strings.HasSuffix(arg, ".conf") || strings.HasSuffix(arg, ".cfg") || strings.HasSuffix(arg, ".yaml") || strings.HasSuffix(arg, ".yml") || strings.HasSuffix(arg, ".json") {
 			return i
 		}

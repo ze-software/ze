@@ -41,7 +41,7 @@ func checkReplayUpdate(wire mrt.BGPMessage) error {
 			if len(attr.Value) < 5 {
 				return mrt.ErrShortData
 			}
-			offset = 5+int(attr.Value[3])
+			offset = 5 + int(attr.Value[3])
 		}
 		if offset > len(attr.Value) {
 			return mrt.ErrShortData
