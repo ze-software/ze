@@ -212,6 +212,10 @@ type fanoutOpts struct {
 	// every number by 2x mid-comparison, including a case the change cannot
 	// touch -- so the two arms have to be interleaved under the same load.
 	dedupOff bool
+	// withdraw installs an egress step that refuses every destination, so each
+	// is sent the withdrawal of the route (buildWithdrawalPayload) instead of
+	// the announcement.
+	withdraw bool
 }
 
 // newFanoutHarnessWith builds the same fixture with the per-peer next-hop policy
@@ -324,6 +328,12 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 		// failed change.
 		updateGroups:    newUpdateGroupIndex(opts.groups),
 		forwardDedupOff: opts.dedupOff,
+	}
+
+	if opts.withdraw {
+		r.orderedEgressSteps = orderedEgressStepsFromFuncs(func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
+			return false
+		})
 	}
 
 	h.adapter = &reactorAPIAdapter{r: r}

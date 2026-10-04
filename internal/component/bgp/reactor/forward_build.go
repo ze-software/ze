@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -696,73 +697,139 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 // RFC 7606 Section 3(g): "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
 // [RFC4760] attribute appears more than once in the UPDATE message, then a
 // NOTIFICATION message MUST be sent". So the two MP halves share one attribute,
-// which needs them to name one AFI/SAFI. A source whose MP_UNREACH and MP_REACH
-// name different families needs two messages, and that shape is refused rather
-// than half sent. An MP_UNREACH_NLRI with no prefix is not carried: its value is
+// which needs them to name one AFI/SAFI. The forward rails split a source that
+// mixes NLRI-bearing fields before any gate (forwardUpdateSelected,
+// reactorForwardRS), so they hand this function one field at a time and never
+// two families; a payload that does name two is refused rather than half
+// converted. An MP_UNREACH_NLRI with no prefix is not carried: its value is
 // AFI/SAFI only, which is the RFC 4724 End-of-RIB marker.
 //
-// Copy-on-modify: when pp is non-nil and has a free buffer, the result is
-// written directly into the per-peer pool buffer. The caller stores the
-// returned index in fwdItem so releaseItem returns it after the worker
-// writes to TCP. When no per-peer buffer is available, falls back to
-// sync.Pool + a result copy, matching buildModifiedPayload's shape.
+// The result is written into buf, which MUST hold len(payload)+4 octets: the
+// result drops every attribute but one MP_UNREACH_NLRI header, so it is never
+// longer than the source plus one extended attribute header. Allocation-free.
 //
-// Returns (nil, 0) if the payload is malformed, withdraws nothing once
-// converted, or is the two-family shape above.
-func buildWithdrawalPayload(payload []byte, pp *peerPool) ([]byte, int) {
+// Returns the octets written, or 0 if the payload is malformed, withdraws
+// nothing once converted, is the two-family shape above, or buf is too small.
+func buildWithdrawalPayload(payload, buf []byte) int {
+	withdrawn, announced, mp, ok := withdrawalLayout(payload)
+	if !ok {
+		return 0
+	}
+	return writeWithdrawal(buf, withdrawn, announced, mp)
+}
+
+// withdrawalLayout finds what buildWithdrawalPayload withdraws: the legacy
+// prefixes (Withdrawn Routes, then NLRI) and the multiprotocol halves. It
+// reports false for every payload buildWithdrawalPayload refuses, except a
+// buffer too small. Allocation-free: every slice aliases payload.
+func withdrawalLayout(payload []byte) (withdrawn, announced []byte, mp withdrawalMPHalves, ok bool) {
 	if len(payload) < 4 {
-		return nil, 0
+		return nil, nil, withdrawalMPHalves{}, false
 	}
 	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	attrOffset := 2 + withdrawnLen
 	if len(payload) < attrOffset+2 {
-		return nil, 0
+		return nil, nil, withdrawalMPHalves{}, false
 	}
 	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
 	attrStart := attrOffset + 2
 	attrEnd := attrStart + attrLen
 	if len(payload) < attrEnd {
-		return nil, 0
+		return nil, nil, withdrawalMPHalves{}, false
 	}
-	withdrawn := payload[2:attrOffset]
-	announced := payload[attrEnd:]
+	withdrawn = payload[2:attrOffset]
+	announced = payload[attrEnd:]
 
-	mp, ok := findWithdrawalMPHalves(payload[attrStart:attrEnd])
+	mp, ok = findWithdrawalMPHalves(payload[attrStart:attrEnd])
 	if !ok {
-		return nil, 0
+		return nil, nil, withdrawalMPHalves{}, false
 	}
 	if len(withdrawn)+len(announced) > 65535 {
-		return nil, 0
+		return nil, nil, withdrawalMPHalves{}, false
 	}
 	if len(withdrawn)+len(announced)+len(mp.unreach)+len(mp.reach) == 0 {
-		return nil, 0
+		return nil, nil, withdrawalMPHalves{}, false
 	}
 
-	// The result drops every attribute but one MP_UNREACH_NLRI header, so it
-	// is never longer than the source plus one extended attribute header.
-	needSize := len(payload) + 4
-	buf, peerBufIdx, poolBuf := acquireModBuf(pp, needSize)
-	defer func() {
-		if poolBuf != nil {
-			modBufPool.Put(poolBuf)
-		}
-	}()
+	return withdrawn, announced, mp, true
+}
 
-	n := writeWithdrawal(buf, withdrawn, announced, mp)
+// withdrawalBySection reports whether a destination refused base must be sent
+// its withdrawal one NLRI-bearing field at a time, by forwarding each section of
+// base again (forwardBySection, reactorForwardRS), rather than as the one
+// merged withdrawal fwdWithdrawal builds.
+//
+// Only an UPDATE that mixes NLRI-bearing fields can need it, and it does in two
+// cases:
+//   - a next-hop gate refused it (nextHopWithheld). The legacy NEXT_HOP and the
+//     MP_REACH_NLRI next hop are separate fields, so the gate judged one
+//     family's routes; the other field's routes are owed to the destination.
+//     Re-forwarded per section, each meets the gates on its own, so only the
+//     refused field is withdrawn.
+//   - its MP_REACH_NLRI and MP_UNREACH_NLRI name two families. One merged
+//     withdrawal would need two MP_UNREACH_NLRI attributes, which RFC 7606
+//     Section 3(g) answers with a NOTIFICATION ("If the MP_REACH_NLRI attribute
+//     or the MP_UNREACH_NLRI [RFC4760] attribute appears more than once in the
+//     UPDATE message, then a NOTIFICATION message MUST be sent"), so
+//     buildWithdrawalPayload refuses it, and per section it is two messages.
+//
+// A gate that refuses the whole UPDATE (an egress policy, a well-known
+// community) keeps the merged withdrawal: every route it names shares the
+// attributes the gate judged.
+func withdrawalBySection(base *wireu.WireUpdate, nextHopWithheld bool) bool {
+	if !base.MixesNLRIFields() {
+		return false
+	}
+	if nextHopWithheld {
+		return true
+	}
+	_, _, _, ok := withdrawalLayout(base.Payload())
+	return !ok
+}
+
+// fwdWithdrawal holds the withdrawal one fan-out converted from one base wire,
+// so every destination a gate refuses that same base is handed the SAME
+// *wireu.WireUpdate. The conversion reads nothing but the base payload, so its
+// bytes are one answer for every destination, and the shared pointer is what
+// lets the fan-out's body cache (fwdBodyCacheKey) build the body once too.
+// One slot: destinations share the source wire unless a policy chain replaced
+// it, and a replaced base converts on its own. Not safe for concurrent use:
+// one fan-out owns one.
+type fwdWithdrawal struct {
+	base *wireu.WireUpdate
+	wire *wireu.WireUpdate
+}
+
+// of returns the withdrawal of every route base names (buildWithdrawalPayload),
+// or nil when it cannot be converted. The bytes live in a read-pool buffer the
+// update adopts (ReceivedUpdate.adoptFwdHandle), so they outlive every worker
+// that writes them, and are returned when the cache evicts the update. The
+// withdrawal keeps base's source identity: buildFwdBody keys ze's RFC 7911 Path
+// Identifier on it, and a withdraw that lost its source leaves under an
+// identifier the destination never received, which RFC 7911 Section 5 has it
+// silently ignore.
+func (w *fwdWithdrawal) of(update *ReceivedUpdate, base *wireu.WireUpdate) *wireu.WireUpdate {
+	if w.wire != nil && w.base == base {
+		return w.wire
+	}
+	payload := base.Payload()
+
+	h := bufMuxStd.Get()
+	if len(h.Buf) < len(payload)+4 {
+		returnReadBuffer(h)
+		h = bufMuxExt.Get()
+	}
+	n := buildWithdrawalPayload(payload, h.Buf)
 	if n == 0 {
-		if peerBufIdx > 0 && pp != nil {
-			pp.Return(peerBufIdx)
-		}
-		return nil, 0
+		returnReadBuffer(h)
+		return nil
 	}
+	update.adoptFwdHandle(h)
 
-	if peerBufIdx > 0 {
-		return buf[:n], peerBufIdx
-	}
-	// Sync.Pool fallback: copy result so pool buffer can be returned.
-	result := make([]byte, n) // pool-fallback
-	copy(result, buf[:n])
-	return result, 0
+	wire := wireu.NewWireUpdate(h.Buf[:n], base.SourceCtxID())
+	wire.SetSourceID(base.SourceID())
+	w.base, w.wire = base, wire
+	return wire
 }
 
 // acquireModBuf returns a buffer sized for modification output. Prefers

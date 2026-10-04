@@ -247,6 +247,21 @@ func (n nextHopValue) linkLocalOnly() bool {
 	return n.mp.Is6() && n.mp.IsLinkLocalUnicast()
 }
 
+// globalUnusable reports whether the MP_REACH_NLRI next hop offers no usable
+// Global IPv6 address: it is Link-Local-only, or its Global half is the
+// unspecified address ::. A received 32-octet ":: then fe80::x" pair is the
+// second form. Removing its Link-Local half (egressNextHopGlobalHalf) leaves ::,
+// which names no next hop, so draft-ietf-idr-linklocal-capability Section 4
+// treats the route as having none: "If, after completing these procedures,
+// there are no IPv6 next hop addresses included in the next hop, the BGP route
+// MUST not be advertised to its peer." Both forms answer true.
+func (n nextHopValue) globalUnusable() bool {
+	if n.mp.Is6() && n.mp.IsUnspecified() {
+		return true
+	}
+	return n.linkLocalOnly()
+}
+
 // egressNextHopIsLinkLocalOnly answers, for ONE destination, whether the
 // MP_REACH next hop it is about to be sent is a Link-Local-only Next Hop.
 //
@@ -393,11 +408,18 @@ func destOnLink(dest *Peer) bool {
 // in mods replaces the received one and this answers false. An on-link
 // destination keeps the received Link-Local ("the speaker can use the received
 // Link-Local IPv6 address, provided that peer X is directly attached").
+//
+// A Global half that is the unspecified address :: counts as absent
+// (nextHopValue.globalUnusable): the pair ":: then fe80::x" cut to its Global
+// would otherwise reach the multihop peer as the next hop ::.
 func egressNextHopLinkLocalOnlyOffLink(dest *Peer, mods *filterapi.ModAccumulator, base nextHopValue) bool {
 	if destOnLink(dest) {
 		return false
 	}
-	return egressNextHopIsLinkLocalOnly(mods, base)
+	if nh, set := modsNextHop(mods); set {
+		return nh.globalUnusable()
+	}
+	return base.globalUnusable()
 }
 
 // withholdGate names the egress next-hop gate that refused ONE destination the
@@ -430,10 +452,25 @@ var withholdGateText = [...]struct{ message, rfc string }{
 // for it: "implementations SHOULD log this suppression, or otherwise expose it
 // through operator notification ... so that unexpected reachability gaps can be
 // detected." The other gates log for the same reason.
-func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, base nextHopValue) {
+//
+// The next hop logged is the one the gate judged: the last rewrite recorded in
+// mods, else the received one. Its family is the MP_REACH_NLRI's, or IPv4
+// unicast for the legacy NEXT_HOP of an UPDATE that carries no MP_REACH_NLRI
+// (RFC 4271 Section 5.1.3).
+func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, mods *filterapi.ModAccumulator, base nextHopValue) {
 	text := withholdGateText[g]
+	judged := base
+	if written, set := modsNextHop(mods); set {
+		judged = written
+	}
+	nextHop := judged.mp
+	fam := base.mpFamily
+	if fam == (family.Family{}) {
+		nextHop = judged.legacy
+		fam = family.IPv4Unicast
+	}
 	fwdLogger().Warn(text.message,
-		"peer", f.addrStr, "advertiser", advertiser, "family", base.mpFamily,
+		"peer", f.addrStr, "advertiser", advertiser, "next-hop", nextHop, "family", fam,
 		"rfc", text.rfc,
 		"action", "announcement not sent to this peer; it is sent a withdrawal of the routes instead")
 }
@@ -478,6 +515,12 @@ func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, base next
 //     not been negotiated, the procedures in this document do not apply."
 //     (egressNextHopLinkLocalOnlyRefused).
 func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, reflected bool, advertiser netip.Addr) withholdGate {
+	// A payload with no next hop announces nothing: its routes are withdrawals,
+	// which none of these gates refuses. It is the withdrawal-only section of a
+	// split UPDATE (withdrawalBySection).
+	if !base.valid() {
+		return withholdNone
+	}
 	if f.nhSelfWithheld {
 		return withholdNextHopSelfAbsent
 	}

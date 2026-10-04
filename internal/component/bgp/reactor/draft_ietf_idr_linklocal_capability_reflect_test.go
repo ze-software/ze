@@ -148,8 +148,9 @@ func llnhForwardRead[T any](t *testing.T, payload []byte, source forwardSourceIn
 		field T
 	}
 	delivered := make(chan delivery, 8)
+	acc := newFwdAccumulator()
 	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
-		delivered <- delivery{addr: k.peerAddr.Addr(), field: read(t, items)}
+		delivered <- delivery{addr: k.peerAddr.Addr(), field: read(t, acc.add(k.peerAddr.Addr(), items))}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -179,6 +180,7 @@ func llnhForwardRead[T any](t *testing.T, payload []byte, source forwardSourceIn
 			return got
 		}
 	}
+	fwdDrainGrace(delivered, func(d delivery) { got[d.addr] = d.field })
 	return got
 }
 

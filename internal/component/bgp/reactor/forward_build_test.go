@@ -752,7 +752,7 @@ func TestBuildWithdrawalPayload_IPv4(t *testing.T) {
 	attrs := makeAttr(0x40, 1, []byte{0})
 	payload := buildModTestPayload(attrs, nlri)
 
-	result, _ := buildWithdrawalPayload(payload, nil)
+	result := withdrawalOf(payload)
 	require.NotNil(t, result, "should produce withdrawal")
 
 	// Withdrawn length should be len(nlri).
@@ -785,7 +785,7 @@ func TestBuildWithdrawalPayload_MPReach(t *testing.T) {
 	mpReachAttr := makeAttr(0x80, 14, mpReachVal) // Optional, code 14
 	payload := buildModTestPayload(mpReachAttr, nil)
 
-	result, _ := buildWithdrawalPayload(payload, nil)
+	result := withdrawalOf(payload)
 	require.NotNil(t, result, "should produce MP withdrawal")
 
 	// Parse result: withdrawn_len=0, then attr section with MP_UNREACH.
@@ -819,10 +819,10 @@ func TestBuildWithdrawalPayload_MPReach(t *testing.T) {
 // VALIDATES: Defensive: malformed payload returns nil.
 // PREVENTS: Panic on truncated or empty payloads.
 func TestBuildWithdrawalPayload_Nil(t *testing.T) {
-	r, _ := buildWithdrawalPayload(nil, nil)
+	r := withdrawalOf(nil)
 	assert.Nil(t, r)
-	r, _ = buildWithdrawalPayload([]byte{0}, nil)
+	r = withdrawalOf([]byte{0})
 	assert.Nil(t, r)
-	r, _ = buildWithdrawalPayload([]byte{0, 0, 0}, nil) // too short for attr_len
+	r = withdrawalOf([]byte{0, 0, 0}) // too short for attr_len
 	assert.Nil(t, r)
 }

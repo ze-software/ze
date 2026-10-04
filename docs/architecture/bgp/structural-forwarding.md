@@ -259,8 +259,8 @@ with the peer. A filter that writes a pair is cut the same way. A directly
 attached destination still receives the pair as it arrived. Both forward rails
 (general and route server) apply it.
 
-When the received next hop is Link-Local-only (16 octets, or 24 with the RD)
-there is no Global to keep. Towards a destination more than one hop away the
+When the received next hop is Link-Local-only (16 octets, or 24 with the RD),
+or its Global half is the unspecified address `::`, there is no Global to keep. Towards a destination more than one hop away the
 route is then withheld, under any next-hop mode that leaves the received next
 hop in place, and a warning names the peer: "withholding route: its next hop is
 link-local-only and this peer is more than one IP hop away". Section 4: "If,
@@ -289,14 +289,27 @@ reject, and sends nothing.
 
 The withdrawal is the RFC 9494 LLGR conversion (`buildWithdrawalPayload`). It
 carries the source UPDATE's own Withdrawn Routes and MP_UNREACH_NLRI beside the
-converted announcement, in one Withdrawn Routes field and one MP_UNREACH_NLRI.
-A source whose MP_UNREACH_NLRI and MP_REACH_NLRI name different families would
-need two messages, and is refused (the destination is sent nothing). The two
-rails ask the next-hop gates through one function, so they cannot answer
-differently.
+converted announcement, in one Withdrawn Routes field and one MP_UNREACH_NLRI,
+and it is built once per UPDATE and shared by every refused destination
+(`fwdWithdrawal`), so the body is built once too. The body builder sends each
+NLRI-bearing field of it in its own message (RFC 7606 Section 5.1).
+
+A source that mixes NLRI-bearing fields is forwarded again one field at a time
+to a refused destination in two cases (`withdrawalBySection`). A next-hop gate
+judged one field's next hop, so the other fields' routes are still owed: an
+UPDATE carrying IPv4 routes with a NEXT_HOP and IPv6 routes with a
+Link-Local-only next hop withdraws the IPv6 routes from a multihop peer and
+announces it the IPv4 ones. And a source whose MP_UNREACH_NLRI and MP_REACH_NLRI
+name different families cannot merge into one withdrawal (RFC 7606 Section
+3(g) refuses a repeated MP_UNREACH_NLRI), so each family is withdrawn in its own
+message. Each section meets the gates on its own. The two rails ask the
+next-hop gates through one function, so they cannot answer differently.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopWithheld -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildWithdrawalPayload -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- withdrawalBySection -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- fwdWithdrawal -->
+<!-- source: internal/component/bgp/reactor/forward_aigp.go -- forwardBySection -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- applyLinkLocalNextHop -->

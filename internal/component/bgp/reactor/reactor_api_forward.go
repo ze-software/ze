@@ -641,7 +641,10 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// RFC 7606 Section 2 treat-as-withdraw, "as though all contained routes had
 	// been withdrawn". A withdrawal of a route the destination never held changes
 	// nothing for it. The route-server rail (reactorForwardRS) answers the same.
+	var withdrawals fwdWithdrawal
+	var bySection []*Peer
 	for _, peer := range matchingPeers {
+		nextHopWithheld := false
 		facts := peer.forwardFacts()
 		if facts == nil {
 			continue
@@ -812,7 +815,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
 			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
 			if gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr); gate != withholdNone {
-				gate.warn(facts, srcAddr, baseNextHop)
+				nextHopWithheld = true
+				// A mixed UPDATE is judged again per section
+				// (withdrawalBySection), and the section logs the refusal.
+				if !peerBaseWire.MixesNLRIFields() {
+					gate.warn(facts, srcAddr, &mods, baseNextHop)
+				}
 				mods.SetWithdraw()
 			}
 		}
@@ -913,26 +921,24 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		var modBufIdx int
 		var modPoolRef *peerPool
 
-		// RFC 9494: Convert announce to withdrawal for this peer (LLGR egress filter).
+		// A destination refused the announcement is sent the withdrawal of the
+		// routes instead: RFC 9494 (the LLGR egress filter, toward an EBGP peer
+		// that did not negotiate LLGR) and every withhold gate above (RFC 7606
+		// Section 2 treat-as-withdraw). The conversion reads only the base
+		// payload, so it is built once per base and shared (fwdWithdrawal), and
+		// the shared wire lets the body cache below build its body once too.
 		if mods.IsWithdraw() {
-			peerKey := fwdKey{peerAddr: facts.peerKey}
-			modPool := a.r.fwdPool.outgoingPool(peerKey)
-			withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool)
-			if withdrawal == nil {
-				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-					"peer", facts.addr)
+			if withdrawalBySection(peerWire, nextHopWithheld) {
+				bySection = append(bySection, peer)
 				continue
 			}
-			srcID := peerWire.SourceID()
-			peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
-			// The conversion changes the BYTES, never the peer they came
-			// from, and the same reasoning as the modification branch below
-			// applies: a withdraw that lost its source leaves under an
-			// identifier the destination never received, and RFC 7911
-			// Section 5 has it silently ignore that withdraw.
-			peerWire.SetSourceID(srcID)
-			modBufIdx = bufIdx
-			modPoolRef = modPool
+			withdrawal := withdrawals.of(update, peerWire)
+			if withdrawal == nil {
+				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
+					"id", updateID, "peer", facts.addr)
+				continue
+			}
+			peerWire = withdrawal
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.outgoingPool(peerKey)
@@ -1097,6 +1103,13 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			}
 			// dispatchOverflow false = pool stopped; done() already called (releasing cache ref).
 		}
+	}
+
+	// A refused destination of a mixed UPDATE that withdrawalBySection holds
+	// back is forwarded again one field at a time, each section meeting the
+	// gates on its own.
+	if len(bySection) > 0 && a.forwardBySection(update, updateID, bySection, srcInfo, sourceWire) {
+		dispatchedCount++
 	}
 
 	if dispatchedCount == 0 {

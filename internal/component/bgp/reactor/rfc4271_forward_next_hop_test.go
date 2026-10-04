@@ -80,8 +80,9 @@ func nhForward(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wkPa
 		parts wkParts
 	}
 	delivered := make(chan delivery, 8)
+	acc := newFwdAccumulator()
 	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
-		delivered <- delivery{addr: k.peerAddr.Addr(), parts: wkItemParts(t, items)}
+		delivered <- delivery{addr: k.peerAddr.Addr(), parts: wkItemParts(t, acc.add(k.peerAddr.Addr(), items))}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -113,6 +114,7 @@ func nhForward(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wkPa
 			return got
 		}
 	}
+	fwdDrainGrace(delivered, func(d delivery) { got[d.addr] = d.parts })
 	return got
 }
 
@@ -132,8 +134,9 @@ func nhForwardRS(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wk
 		parts wkParts
 	}
 	delivered := make(chan delivery, 8)
+	acc := newFwdAccumulator()
 	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
-		delivered <- delivery{addr: k.peerAddr.Addr(), parts: wkItemParts(t, items)}
+		delivered <- delivery{addr: k.peerAddr.Addr(), parts: wkItemParts(t, acc.add(k.peerAddr.Addr(), items))}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -165,6 +168,7 @@ func nhForwardRS(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wk
 			return got
 		}
 	}
+	fwdDrainGrace(delivered, func(d delivery) { got[d.addr] = d.parts })
 	return got
 }
 

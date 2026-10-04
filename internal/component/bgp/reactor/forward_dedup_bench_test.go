@@ -61,6 +61,19 @@ func BenchmarkFanoutFloor(b *testing.B) {
 	}
 }
 
+// BenchmarkFanoutWithdraw measures one received UPDATE fanned out to n
+// destinations that an egress step all refuses, so each is sent the withdrawal
+// of the route. Read ns/dest and allocs/op: the withdrawal of one base wire is
+// the same bytes for every destination, so the per-destination conversion and
+// body build are what sharing it removes.
+func BenchmarkFanoutWithdraw(b *testing.B) {
+	for _, tc := range fanoutCases {
+		b.Run(fanoutCaseName(tc.n, tc.g), func(b *testing.B) {
+			runFanoutBench(b, tc.n, tc.g, fanoutOpts{groups: true, withdraw: true})
+		})
+	}
+}
+
 // BenchmarkFanoutRebuildOnly measures the two halves of what a shared
 // materialization would skip, in isolation: the buildModifiedPayload rebuild,
 // and a flat copy of its result.

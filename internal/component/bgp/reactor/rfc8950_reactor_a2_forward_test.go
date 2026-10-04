@@ -109,8 +109,9 @@ func a2ForwardWith(t *testing.T, rs bool, configure func(*Reactor, *forwardSourc
 		parts a2Parts
 	}
 	delivered := make(chan delivery, 8)
+	acc := newFwdAccumulator()
 	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
-		delivered <- delivery{addr: k.peerAddr.Addr(), parts: a2ItemParts(t, items)}
+		delivered <- delivery{addr: k.peerAddr.Addr(), parts: a2ItemParts(t, acc.add(k.peerAddr.Addr(), items))}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -150,6 +151,7 @@ func a2ForwardWith(t *testing.T, rs bool, configure func(*Reactor, *forwardSourc
 			return got
 		}
 	}
+	fwdDrainGrace(delivered, func(d delivery) { got[d.addr] = d.parts })
 	return got
 }
 

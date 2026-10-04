@@ -152,8 +152,9 @@ func wkForwardParts(t testing.TB, payload []byte, peers ...*Peer) map[netip.Addr
 		parts wkParts
 	}
 	delivered := make(chan delivery, 8)
+	acc := newFwdAccumulator()
 	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
-		delivered <- delivery{addr: k.peerAddr.Addr(), parts: wkItemParts(t, items)}
+		delivered <- delivery{addr: k.peerAddr.Addr(), parts: wkItemParts(t, acc.add(k.peerAddr.Addr(), items))}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -191,6 +192,7 @@ func wkForwardParts(t testing.TB, payload []byte, peers ...*Peer) map[netip.Addr
 			return got
 		}
 	}
+	fwdDrainGrace(delivered, func(d delivery) { got[d.addr] = d.parts })
 	return got
 }
 
@@ -337,7 +339,8 @@ func TestForwardRSHonorsWellKnownCommunities(t *testing.T) {
 		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
 
 		written := make(chan wkParts, 4)
-		pool := newFwdPool(func(_ fwdKey, items []fwdItem) { written <- wkItemParts(t, items) },
+		acc := newFwdAccumulator()
+		pool := newFwdPool(func(k fwdKey, items []fwdItem) { written <- wkItemParts(t, acc.add(k.peerAddr.Addr(), items)) },
 			fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 		t.Cleanup(pool.Stop)
 
@@ -442,7 +445,8 @@ func TestForwardRSWithdrawsFromRefusedClient(t *testing.T) {
 		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
 
 		written := make(chan wkParts, 4)
-		pool := newFwdPool(func(_ fwdKey, items []fwdItem) { written <- wkItemParts(t, items) },
+		acc := newFwdAccumulator()
+		pool := newFwdPool(func(k fwdKey, items []fwdItem) { written <- wkItemParts(t, acc.add(k.peerAddr.Addr(), items)) },
 			fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 		t.Cleanup(pool.Stop)
 
@@ -466,6 +470,7 @@ func TestForwardRSWithdrawsFromRefusedClient(t *testing.T) {
 		case parts = <-written:
 		case <-time.After(2 * time.Second):
 		}
+		fwdDrainGrace(written, func(p wkParts) { parts = p })
 		return delivered, parts
 	}
 

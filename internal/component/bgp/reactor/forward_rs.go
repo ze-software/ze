@@ -10,6 +10,7 @@ package reactor
 
 import (
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -140,6 +141,14 @@ func sourceUsesCachedForward(peer *Peer, update *wireu.WireUpdate) bool {
 //
 // Buffer lifetime: callers must ensure the cache entry for updateID exists.
 // This function calls retainN before dispatch; each fwdItem.done() calls Release.
+//
+// A client a withhold gate refuses the announcement of an UPDATE that mixes
+// NLRI-bearing fields is forwarded again one field at a time
+// (withdrawalBySection), the way the general rail does it
+// (forwardUpdateSection): each section meets the gates on its own, so the client
+// is withdrawn only the field a gate refused, and a source whose MP_REACH_NLRI
+// and MP_UNREACH_NLRI name two families is withdrawn both rather than sent
+// nothing.
 func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int) {
 	// notifyMessageReceiver already classified live entries at receipt.
 	var cached bool
@@ -151,6 +160,38 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	if cached {
 		return nil, 0
 	}
+	skipped, dispatched, bySection := reactorForwardRSSection(r, update, update.WireUpdate, nil, updateID, sourcePeerAddr, sourcePeer)
+	if len(bySection) == 0 {
+		return skipped, dispatched
+	}
+	srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
+	sections, err := wireu.SplitWireUpdate(update.WireUpdate, len(update.WireUpdate.Payload()), srcCtx)
+	if err != nil {
+		fwdLogger().Warn("withdrawal conversion failed, suppressing route",
+			"id", updateID, "peers", len(bySection), "err", err)
+		return skipped, dispatched
+	}
+	// The first section's worker can finish before the remaining sections have
+	// borrowed their buffers. This retain MUST survive the whole split fan-out.
+	r.recentUpdates.retainN(updateID, 1)
+	defer r.recentUpdates.Release(updateID)
+	// dispatched counts peers. Every section is offered to the same clients, so
+	// the most clients any one section reached is the count this redo adds.
+	reached := 0
+	for _, section := range sections {
+		_, sectionDispatched, _ := reactorForwardRSSection(r, update, section, bySection, updateID, sourcePeerAddr, sourcePeer)
+		reached = max(reached, sectionDispatched)
+	}
+	return skipped, dispatched + reached
+}
+
+// reactorForwardRSSection forwards wire, the received UPDATE or one section of
+// it, and answers as reactorForwardRS does. A non-nil only limits the
+// destinations to those peers. It also returns the clients a withhold gate
+// refused whose withdrawal must be sent one field at a time
+// (withdrawalBySection); wire is single-field when only is non-nil, so that list
+// is then empty.
+func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int, []*Peer) {
 	// Get source session for deferred flush tracking.
 	// Stable because we're on this session's read goroutine; RLock for formal correctness.
 	var srcSession *Session
@@ -184,18 +225,21 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
+		if only != nil && !slices.Contains(only, peer) {
+			continue
+		}
 		matchingPeers = append(matchingPeers, peer)
 	}
 	r.mu.RUnlock()
 
 	if len(matchingPeers) == 0 {
-		return skipped, 0
+		return skipped, 0, nil
 	}
 
 	// The source's ASN width, resolved once for the whole client fan-out: it is
 	// the SrcASN4 half of every client's AS-path intent.
 	srcASN4 := false
-	if srcCtxID := update.WireUpdate.SourceCtxID(); srcCtxID != 0 {
+	if srcCtxID := wire.SourceCtxID(); srcCtxID != 0 {
 		if srcCtx := bgpctx.Registry.Get(srcCtxID); srcCtx != nil {
 			srcASN4 = srcCtx.ASN4()
 		}
@@ -261,7 +305,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	if sourcePeer != nil {
 		rsLocalAS = sourcePeer.Settings().GlobalLocalAS
 	}
-	srcAIGP := payloadAIGP(update.WireUpdate.Payload())
+	srcAIGP := payloadAIGP(wire.Payload())
 	var srcAIGPLinkMetric uint64
 	sourceMessageID := update.sourceMessageID()
 	if len(srcAIGP) != 0 {
@@ -292,34 +336,34 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// RFC 4271 Section 5.1.5 needs one bit per UPDATE, not one scan per client:
 	// whether the source carries LOCAL_PREF at all. See applyFactsLocalPref
 	// (forward_local_pref.go) for why the answer gates the operation.
-	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
+	srcHasLocalPref := payloadHasLocalPref(wire.Payload())
 
 	// RFC 8669 Section 8 needs the same one bit per UPDATE: whether the source
 	// carries a Prefix-SID attribute at all. It matters most here. An RS client
 	// keeps the source next-hop (RFC 7947 Section 2.2.2), so applyFactsNextHop
 	// records nothing for one and the attribute reached every RS client until
 	// applyFactsPrefixSID existed (forward_prefix_sid.go).
-	srcHasPrefixSID := payloadHasAttr(update.WireUpdate.Payload(), attribute.AttrPrefixSID)
+	srcHasPrefixSID := payloadHasAttr(wire.Payload(), attribute.AttrPrefixSID)
 
 	// RFC 4271 Section 5.1.4 needs one read per UPDATE, not one per client:
 	// which MULTI_EXIT_DISC the source sent. See applyFactsMED (forward_med.go)
 	// for why RFC 7947 Section 2.2.3 leaves an RS client's metric alone, and why
 	// this rail still asks: reactorForwardRS also serves the non-client
 	// destinations a route server peers with.
-	srcMED := payloadMED(update.WireUpdate.Payload())
+	srcMED := payloadMED(wire.Payload())
 
 	// RFC 4271 Section 5.1.3 needs one read per UPDATE, not one per client: the
 	// NEXT_HOP the source sent. A route server relays a client's third-party next
 	// hop untouched, so the client that OWNS that address is the everyday way a
 	// peer gets told to send traffic to itself (egressNextHopIsPeerOwn,
 	// forward_next_hop.go).
-	srcNextHop := payloadNextHop(update.WireUpdate.Payload())
+	srcNextHop := payloadNextHop(wire.Payload())
 
 	// RFC 1997 needs one scan per UPDATE, not one per client; see the identical
 	// hoist on the general rail (reactor_api_forward.go). The two rails MUST stay
 	// behaviorally identical: honoring the well-known communities on one only
 	// would leak on whichever path the deployment happens to select.
-	srcWellKnown := r.scanWellKnownEgress(update.WireUpdate.Payload(), sourcePeerAddr)
+	srcWellKnown := r.scanWellKnownEgress(wire.Payload(), sourcePeerAddr)
 
 	// A client an egress gate refuses the announcement is sent a WITHDRAWAL of
 	// every route this UPDATE names instead (mods.SetWithdraw, then
@@ -327,7 +371,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// gives (forwardUpdateCore, reactor_api_forward.go): RFC 7606 Section 2
 	// treat-as-withdraw, unconditional because no per-peer Adj-RIB-Out says the
 	// client never held the route.
+	var withdrawals fwdWithdrawal
+	var bySection []*Peer
 	for _, peer := range matchingPeers {
+		nextHopWithheld := false
 		facts := peer.forwardFacts()
 		if facts == nil {
 			continue
@@ -346,9 +393,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		if facts.rsClient && facts.peerAS != 0 {
 			if !communityParsed {
 				communityParsed = true
-				cp := wireu.ParseCommunityPolicy(update.WireUpdate.Payload(), rsLocalAS)
+				cp := wireu.ParseCommunityPolicy(wire.Payload(), rsLocalAS)
 				communityPolicy = &cp
-				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
+				communityStripBytes = wireu.StripControlCommunities(wire.Payload(), rsLocalAS)
 			}
 			// THE CONTROL COMMUNITIES DECIDE ABOUT A ROUTE, NOT ABOUT A MESSAGE.
 			// ShouldForwardTo reads RSBlackhole, WhitelistASNs and BlacklistASNs off
@@ -390,7 +437,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 		if len(r.egressFilters) > 0 && !mods.IsWithdraw() {
 			destFilter := facts.filterInfo
-			payload := update.WireUpdate.Payload()
+			payload := wire.Payload()
 			suppressed := false
 			filterFailed := false
 			for _, filter := range r.egressFilters {
@@ -437,14 +484,14 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
-		applyFactsAIGP(facts, srcAIGP, srcNextHop, update.WireUpdate.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
+		applyFactsAIGP(facts, srcAIGP, srcNextHop, wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
 		// draft-ietf-idr-linklocal-capability Section 4: "Link-Local IPv6 next
 		// hops MUST NOT be included" toward a peer multiple IP hops away. A
 		// route server keeps the Global untouched (RFC 7947 Section 2.2.2) and
 		// drops only the Link-Local half a distant client cannot reach. The
 		// general rail (reactor_api_forward.go) answers the same.
-		if global, strip := egressNextHopGlobalHalf(peer, &mods, update.WireUpdate.Payload()); strip {
+		if global, strip := egressNextHopGlobalHalf(peer, &mods, wire.Payload()); strip {
 			mods.Op(14, filterapi.AttrModSet, global)
 		}
 
@@ -458,7 +505,12 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
 			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
 			if gate := egressNextHopWithheld(peer, facts, &mods, srcNextHop, reflected, sourcePeerAddr); gate != withholdNone {
-				gate.warn(facts, sourcePeerAddr, srcNextHop)
+				nextHopWithheld = true
+				// A mixed UPDATE is judged again per section
+				// (withdrawalBySection), and the section logs the refusal.
+				if !wire.MixesNLRIFields() {
+					gate.warn(facts, sourcePeerAddr, &mods, srcNextHop)
+				}
 				mods.SetWithdraw()
 			}
 		}
@@ -478,7 +530,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
 		// reaches another, and RFC 7947 Section 2.2.3 exempts a route server
 		// client. Same base as the sibling above (applyFactsMED, forward_med.go).
-		applyFactsMED(facts, srcMED, srcMED, update.WireUpdate.Payload(), &mods)
+		applyFactsMED(facts, srcMED, srcMED, wire.Payload(), &mods)
 
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer
@@ -503,7 +555,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
 			// Prepend stays empty and Record transcodes only.
-			changed, aspErr := aspathEdit.Record(&mods, update.WireUpdate.Payload(), intent)
+			changed, aspErr := aspathEdit.Record(&mods, wire.Payload(), intent)
 			if aspErr != nil {
 				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
 					"peer", facts.addr, "localAS", facts.localAS,
@@ -514,37 +566,34 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		if facts.asOverride && facts.isEBGP {
-			applyASOverride(facts.peerAS, facts.localAS, update.WireUpdate, facts.sendASN4, &mods)
+			applyASOverride(facts.peerAS, facts.localAS, wire, facts.sendASN4, &mods)
 		}
 
 		// No intermediate rewritten payload, so no read buffer is borrowed here and
 		// nothing is adopted onto the entry.
-		peerWire := update.WireUpdate
+		peerWire := wire
 
 		var modBufIdx int
 		var modPoolRef *peerPool
 
+		// A destination refused the announcement is sent the withdrawal of the
+		// routes instead: RFC 9494 (the LLGR egress filter, toward an EBGP peer
+		// that did not negotiate LLGR) and every withhold gate above (RFC 7606
+		// Section 2 treat-as-withdraw). The conversion reads only the base
+		// payload, so it is built once per base and shared (fwdWithdrawal), and
+		// the shared wire lets the body cache below build its body once too.
 		if mods.IsWithdraw() {
-			peerKey := fwdKey{peerAddr: facts.peerKey}
-			modPool := r.fwdPool.outgoingPool(peerKey)
-			withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool)
-			if withdrawal == nil {
-				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-					"peer", facts.addr)
+			if withdrawalBySection(peerWire, nextHopWithheld) {
+				bySection = append(bySection, peer)
 				continue
 			}
-			srcID := peerWire.SourceID()
-			peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
-			// The conversion changes the BYTES, never the peer they came
-			// from. buildFwdBody keys ze's RFC 7911 Path Identifier on the
-			// ingress path, so a rebuilt wire that lost its source withdraws
-			// under an identifier the destination never received, and RFC
-			// 7911 Section 5 has it silently ignore the withdraw: the route
-			// stays for good. Every other rebuild site preserves it
-			// (reactor_api_forward.go, wireu/split.go, session_validation.go).
-			peerWire.SetSourceID(srcID)
-			modBufIdx = bufIdx
-			modPoolRef = modPool
+			withdrawal := withdrawals.of(update, peerWire)
+			if withdrawal == nil {
+				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
+					"id", updateID, "peer", facts.addr)
+				continue
+			}
+			peerWire = withdrawal
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.outgoingPool(peerKey)
@@ -746,5 +795,5 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 	}
 
-	return skipped, delivered
+	return skipped, delivered, bySection
 }
