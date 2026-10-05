@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -324,16 +325,7 @@ func TestAFactTheTreeCannotAnswerStopsTheBuild(t *testing.T) {
 // configuration tree are written by the build from a compiled ze rather than
 // read from the tree.
 func TestThisCheckoutCanAnswerEveryPublishedFact(t *testing.T) {
-	root := repositoryRoot(t)
-	output := t.TempDir()
-	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
-	writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."}}`)
-	stubGitHubStars(t, 50, nil)
-
-	facts, err := deriveSiteFacts(Paths{Repository: root, Source: filepath.Join(root, "website"), Output: output})
-	if err != nil {
-		t.Fatalf("this checkout cannot answer its own published facts: %v", err)
-	}
+	facts := publishedFactsOfThisCheckout(t)
 	// The numbers this checkout answers are logged rather than asserted: each
 	// one moves with the tree, so pinning it would make every added test a red
 	// here. What is asserted is that each one was ANSWERED.
@@ -654,17 +646,7 @@ func manyRFCRequirements(total, gated int) rfc.Collected {
 // the constant its producer just read, so it cannot drift; these three paths
 // are the ones a hand-written sentence can name by mistake.
 func TestNoPublishedSourceNamesAGeneratedLedgerFile(t *testing.T) {
-	root := repositoryRoot(t)
-	output := t.TempDir()
-	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
-	writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."}}`)
-	stubGitHubStars(t, 50, nil)
-
-	facts, err := deriveSiteFacts(Paths{
-		Repository: root, Source: filepath.Join(root, "website"), Output: output})
-	if err != nil {
-		t.Fatalf("this checkout cannot answer its own published facts: %v", err)
-	}
+	facts := publishedFactsOfThisCheckout(t)
 	if len(facts.Sources) == 0 {
 		t.Fatal("the facts carry no _sources at all, so this proves nothing")
 	}
@@ -680,4 +662,38 @@ func TestNoPublishedSourceNamesAGeneratedLedgerFile(t *testing.T) {
 	}
 	t.Logf("%d published provenance strings, none naming a generated ledger file",
 		len(facts.Sources))
+}
+
+// checkoutFactsSnapshot is bounded to one immutable corpus in this test
+// process. The two corpus assertions read it; mutation tests use factsFixture.
+var checkoutFactsSnapshot struct {
+	once  sync.Once
+	root  string
+	facts siteFacts
+	err   error
+}
+
+// publishedFactsOfThisCheckout drives the real facts producer once, with only
+// its network answer and compiled command/configuration artifacts controlled.
+// Safe for concurrent reads; callers MUST NOT mutate the returned source map.
+func publishedFactsOfThisCheckout(t *testing.T) siteFacts {
+	t.Helper()
+	root := repositoryRoot(t)
+	checkoutFactsSnapshot.once.Do(func() {
+		checkoutFactsSnapshot.root = root
+		output := t.TempDir()
+		writeArtifactFile(t, output, catalogFile, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
+		writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."}}`)
+		stubGitHubStars(t, 50, nil)
+		stubRFCLedger(t, collectedRFCsOfThisCheckout(t))
+		checkoutFactsSnapshot.facts, checkoutFactsSnapshot.err = deriveSiteFacts(Paths{
+			Repository: root, Source: filepath.Join(root, "website"), Output: output})
+	})
+	if checkoutFactsSnapshot.root != root {
+		t.Fatalf("site facts belong to %s, not %s", checkoutFactsSnapshot.root, root)
+	}
+	if checkoutFactsSnapshot.err != nil {
+		t.Fatalf("this checkout cannot answer its own published facts: %v", checkoutFactsSnapshot.err)
+	}
+	return checkoutFactsSnapshot.facts
 }

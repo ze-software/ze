@@ -10,12 +10,27 @@ import (
 	"testing"
 )
 
-// changesPaths lays out one artifact a changelog render can write into, reading
-// the real website/ sources of this checkout.
+// changesPaths gives the producer two published weeks and a newer draft. Their
+// input content is controlled here, not copied from a retired public artifact.
 func changesPaths(t *testing.T) Paths {
 	t.Helper()
 	root := repositoryRoot(t)
-	return Paths{Repository: root, Source: filepath.Join(root, "website"), Output: t.TempDir()}
+	source := t.TempDir()
+	writeArtifactFile(t, source, topicsVocabularyFile,
+		`{"tags":{"BGP":"routing","CLI":"operate","Presentation":"meta"}}`)
+	copyFixture(t, filepath.Join(root, "website", "data", "page-links.json"),
+		filepath.Join(source, "data", "page-links.json"))
+	writeArtifactFile(t, source, changesSourceDirectory+"/2026-08-17.md",
+		"---\ncovers: 2026-08-17 .. 2026-08-23\ntags: BGP, CLI\n---\n\n"+
+			"**Ze Weekly Update**\n\nA controlled week & its changes.\n\n"+
+			"**Routing**\nNew behavior:\n- One route.\n- Another route.\n\n"+
+			"**CLI**\nUse **show** to inspect it.\n")
+	writeArtifactFile(t, source, changesSourceDirectory+"/2026-08-10.md",
+		weekSource("2026-08-10", "Presentation: Fixture"))
+	writeArtifactFile(t, source, changesSourceDirectory+"/2026-08-24.md",
+		"---\ncovers: 2026-08-24 .. 2026-08-30\ntags: CLI\nstatus: DRAFT\n---\n\n"+
+			"**Ze Weekly Update**\n\nA draft intro.\n\n**CLI**\nUnreviewed work.\n")
+	return Paths{Repository: root, Source: source, Output: t.TempDir()}
 }
 
 // testVocabulary is the tag vocabulary the synthetic weeks below are written
@@ -149,13 +164,9 @@ func weekSource(start, tags string) string {
 		"**Ze Weekly Update**\n\nThe intro.\n\n**BGP**\nSomething shipped.\n"
 }
 
-// VALIDATES: one week's page reads as the published one, carries the whole site
-// shell with its page sidebar, and its Markdown mirror matches the published
-// mirror byte for byte.
-//
-// The published week is 2026-08-17 at gh-pages HEAD 2fa8fa2ad, the newest one,
-// which carries five themed sections and the widest chip set of any week.
-func TestAWeekReadsAsThePublishedWeek(t *testing.T) {
+// VALIDATES: the weekly producer preserves authored sections and lists, wraps
+// them in the site shell, and publishes the corresponding Markdown mirror.
+func TestAWeekRendersItsAuthoredInputs(t *testing.T) {
 	paths := changesPaths(t)
 
 	routes, err := renderChanges(paths)
@@ -163,7 +174,7 @@ func TestAWeekReadsAsThePublishedWeek(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !slices.Contains(routes, "/project/changes/2026-08-17/") {
-		t.Fatalf("the producer claimed %d routes, none of them the newest week", len(routes))
+		t.Fatalf("the producer claimed %d routes, none of them the published week", len(routes))
 	}
 
 	page := readArtifact(t, paths.Output, "project/changes/2026-08-17/"+pageIndexFile)
@@ -175,7 +186,7 @@ func TestAWeekReadsAsThePublishedWeek(t *testing.T) {
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
 		`<aside class="page-sidebar" aria-label="Related page links">`,
 		`<section class="blog-post" aria-labelledby="post-title">`,
-		"<div class=\"blog-block\" aria-label=\"🖥️ CLI and APIs\">",
+		`<div class="blog-block" aria-label="CLI">`,
 		`<a class="page-sidebar-link" href="../../../project/milestones/">`,
 		"<footer>",
 	} {
@@ -184,16 +195,20 @@ func TestAWeekReadsAsThePublishedWeek(t *testing.T) {
 		}
 	}
 
-	got := visibleText(mainContent(t, page))
-	want := visibleText(readFixture(t, "published-changes-week.html"))
-	if got != want {
-		t.Errorf("the week reads as\n  %q\nthe published week reads as\n  %q", got, want)
+	for _, want := range []string{
+		"A controlled week &amp; its changes.",
+		"<li>One route.</li>", "<li>Another route.</li>", "<strong>show</strong>",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the week lost rendered input %q", want)
+		}
 	}
-
 	mirror := readArtifact(t, paths.Output, "project/changes/2026-08-17/"+pageMirrorFile)
-	if mirror != readFixture(t, "published-changes-week.md") {
-		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q",
-			mirror, readFixture(t, "published-changes-week.md"))
+	want := "# Week of 2026-08-17\n\nA controlled week & its changes.\n\n" +
+		"## Routing\n\nNew behavior:\n\n- One route.\n- Another route.\n\n" +
+		"## CLI\n\nUse **show** to inspect it.\n"
+	if mirror != want {
+		t.Errorf("the mirror lost authored content:\ngot %q\nwant %q", mirror, want)
 	}
 }
 
@@ -217,16 +232,9 @@ func TestAListWrittenUnderItsParagraphGetsItsBlankLine(t *testing.T) {
 	}
 }
 
-// VALIDATES: the index reads as the published index, and its mirror matches the
-// published mirror byte for byte.
-//
-// Refreshed 2026-09-19 from gh-pages HEAD c98d5b5ef2. The two fixtures were
-// last refreshed at gh-pages 7a71f67208; c98d5b5ef2 then republished the site
-// with the 2026-09-07 weekly update.
-//
-// The refresh is purely additive. 66 words arrived and none left, and the
-// refreshed mirror is byte-identical to what gh-pages publishes.
-func TestTheChangesIndexReadsAsThePublishedIndex(t *testing.T) {
+// VALIDATES: the index publishes every input week newest first, retaining draft
+// state, intro and topic labels in HTML and the Markdown mirror.
+func TestTheChangesIndexRendersItsAuthoredInputs(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
 		t.Fatal(err)
@@ -246,16 +254,36 @@ func TestTheChangesIndexReadsAsThePublishedIndex(t *testing.T) {
 		}
 	}
 
-	got := visibleText(mainContent(t, page))
-	want := visibleText(readFixture(t, "published-changes-index.html"))
-	if got != want {
-		t.Errorf("the index reads as\n  %q\nthe published index reads as\n  %q", got, want)
-	}
-
 	mirror := readArtifact(t, paths.Output, changesDirectory+"/"+pageMirrorFile)
-	if mirror != readFixture(t, "published-changes-index.md") {
-		t.Errorf("the index mirror is\n%q\nthe published one is\n%q",
-			mirror, readFixture(t, "published-changes-index.md"))
+	for _, surface := range []struct {
+		name    string
+		content string
+		wants   []string
+	}{
+		{"page", page, []string{
+			`href="2026-08-24/"`, `<span class="ch-draft">pending review</span>`,
+			`href="2026-08-17/"`, "A controlled week &amp; its changes.",
+			`href="2026-08-10/"`, "Presentation: Fixture",
+		}},
+		{"mirror", mirror, []string{
+			"## [Week of 2026-08-24 (pending review)](2026-08-24/index.md)",
+			"## [Week of 2026-08-17](2026-08-17/index.md)",
+			"A controlled week & its changes.", "Areas: BGP, CLI",
+			"## [Week of 2026-08-10](2026-08-10/index.md)",
+			"Areas: Presentation: Fixture",
+		}},
+	} {
+		previous := -1
+		for _, want := range surface.wants {
+			at := strings.Index(surface.content, want)
+			if at < 0 {
+				t.Fatalf("%s is missing %q", surface.name, want)
+			}
+			if at <= previous {
+				t.Errorf("%s is not in week order at %q", surface.name, want)
+			}
+			previous = at
+		}
 	}
 }
 
@@ -263,12 +291,12 @@ func TestTheChangesIndexReadsAsThePublishedIndex(t *testing.T) {
 // the legend's own order, so the buttons above the list and the classes on a
 // row cannot disagree about where a category sits.
 func TestTheCategoryLegendKeepsItsDeclaredOrder(t *testing.T) {
-	paths := changesPaths(t)
-	if _, err := renderChanges(paths); err != nil {
-		t.Fatal(err)
+	week := changeWeek{Slug: "2026-08-17"}
+	for _, category := range categoryFilterOrder {
+		week.Topics = append(week.Topics, changeTopic{Label: category, Category: category, Key: category})
 	}
-
-	page := readArtifact(t, paths.Output, changesIndexDest)
+	slices.Reverse(week.Topics)
+	page := changesIndexBody([]changeWeek{week})
 	previous := -1
 	for _, category := range categoryFilterOrder {
 		at := strings.Index(page, `<button class="cat-`+category+`" data-cat="`+category+`"`)
@@ -280,24 +308,17 @@ func TestTheCategoryLegendKeepsItsDeclaredOrder(t *testing.T) {
 		}
 		previous = at
 	}
-	// The week named here is the newest one. Refreshed 2026-09-19 against
-	// gh-pages HEAD c98d5b5ef2. It said 2026-08-31, and the site had moved on to
-	// 2026-09-07. So this read a week in the middle of the list, and still
-	// called it the newest.
 	if !strings.Contains(page,
-		`<a class="ch-week" data-cats="operate routing services secure platform meta" href="2026-09-07/"`) {
-		t.Errorf("the newest week's category list is not in the legend's order")
+		`<a class="ch-week" data-cats="`+strings.Join(categoryFilterOrder, " ")+`" href="2026-08-17/"`) {
+		t.Errorf("the week's category list is not in the legend's order")
 	}
 }
 
 // VALIDATES: data/changes.json states every week newest first, with the intro,
 // the draft flag and the chips each week carries and nothing else.
 //
-// The file is a contract another producer reads, so the two newest weeks are
-// compared against the published file field for field.
-//
-// Refreshed 2026-09-19 from data/changes.json at gh-pages HEAD c98d5b5ef2,
-// where the two newest weeks are 2026-09-07 and 2026-08-31.
+// The JSON is decoded independently and compared to explicit fixture facts,
+// including a newer draft and a namespaced topic.
 func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
@@ -306,7 +327,9 @@ func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 
 	content := readArtifact(t, paths.Output, changesIndexFile)
 	var weeks []changeWeek
-	if err := json.Unmarshal([]byte(content), &weeks); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(content))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&weeks); err != nil {
 		t.Fatalf("the published index does not parse: %v", err)
 	}
 	for index := 1; index < len(weeks); index++ {
@@ -316,18 +339,31 @@ func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 		}
 	}
 
-	var published []changeWeek
-	if err := json.Unmarshal([]byte(readFixture(t, "published-changes-head.json")), &published); err != nil {
-		t.Fatal(err)
+	want := []changeWeek{
+		{Slug: "2026-08-24", Intro: "A draft intro.", IsDraft: true,
+			Topics: []changeTopic{{Label: "CLI", Category: categoryOperate, Key: "CLI"}}},
+		{Slug: "2026-08-17", Intro: "A controlled week & its changes.",
+			Topics: []changeTopic{{Label: "BGP", Category: categoryRouting, Key: "BGP"},
+				{Label: "CLI", Category: categoryOperate, Key: "CLI"}}},
+		{Slug: "2026-08-10", Intro: "The intro.",
+			Topics: []changeTopic{{Label: "Presentation: Fixture", Category: categoryMeta, Key: "Presentation"}}},
 	}
-	for index, want := range published {
-		if weeks[index].Slug != want.Slug || weeks[index].Intro != want.Intro ||
-			weeks[index].IsDraft != want.IsDraft || !slices.Equal(weeks[index].Topics, want.Topics) {
-			t.Errorf("week %d is %+v, the published file states %+v", index, weeks[index], want)
+	if len(weeks) != len(want) {
+		t.Fatalf("the file carries %d weeks, want %d", len(weeks), len(want))
+	}
+	for index := range want {
+		if weeks[index].Slug != want[index].Slug {
+			t.Errorf("week %d has slug %q, want %q", index, weeks[index].Slug, want[index].Slug)
 		}
-	}
-	if !strings.HasPrefix(content, "[\n  {\n    \"slug\":") {
-		t.Errorf("the file is not indented as the published one is:\n%s", content[:80])
+		if weeks[index].Intro != want[index].Intro {
+			t.Errorf("week %d lost its intro: %q", index, weeks[index].Intro)
+		}
+		if weeks[index].IsDraft != want[index].IsDraft {
+			t.Errorf("week %d has the wrong draft state", index)
+		}
+		if !slices.Equal(weeks[index].Topics, want[index].Topics) {
+			t.Errorf("week %d has topics %v, want %v", index, weeks[index].Topics, want[index].Topics)
+		}
 	}
 }
 
@@ -338,10 +374,7 @@ func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 // follow, so the address the changelog had before it moved out of blog/ is
 // still served.
 //
-// Refreshed 2026-09-21 against gh-pages HEAD 8c3e3c7f7f. The newest week moved
-// from 2026-09-07 to 2026-09-14, because that week's update was published after
-// the fixtures were last refreshed at gh-pages c98d5b5ef2. Nothing was removed
-// from the feed: the oldest-first guard below still names 2025-12-15.
+// The newer draft must not change either the entries or the feed build date.
 func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
@@ -356,16 +389,24 @@ func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 		`<rss version="2.0">`,
 		"<title>Ze weekly updates</title>",
 		"<link>https://ze-software.net/project/changes/</link>",
-		"<lastBuildDate>Mon, 14 Sep 2026 00:00:00 +0000</lastBuildDate>",
-		"<title>Week of 2026-09-14</title>",
-		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-09-14/</guid>`,
-		"<pubDate>Mon, 14 Sep 2026 00:00:00 +0000</pubDate>",
+		"<lastBuildDate>Mon, 17 Aug 2026 00:00:00 +0000</lastBuildDate>",
+		"<title>Week of 2026-08-17</title>",
+		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-08-17/</guid>`,
+		"<pubDate>Mon, 17 Aug 2026 00:00:00 +0000</pubDate>",
+		"<title>Week of 2026-08-10</title>",
+		"<pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>",
 	} {
 		if !strings.Contains(feed, want) {
 			t.Errorf("the feed is missing %q", want)
 		}
 	}
-	if first, second := strings.Index(feed, "2026-09-14/"), strings.Index(feed, "2025-12-15/"); first > second {
+	if strings.Contains(feed, "2026-08-24") {
+		t.Error("the draft reached the feed")
+	}
+	if count := strings.Count(feed, "<item>"); count != 2 {
+		t.Errorf("the feed has %d entries, want the two published weeks", count)
+	}
+	if first, second := strings.Index(feed, "2026-08-17/"), strings.Index(feed, "2026-08-10/"); first > second {
 		t.Errorf("the feed is oldest first")
 	}
 }
@@ -397,69 +438,29 @@ func TestARetiredWeekLosesItsPage(t *testing.T) {
 	}
 }
 
-// changesRouteSource lays out one website tree carrying only the weeks the
-// published route list names, and answers the paths a render of it writes to.
-//
-// The route list is pinned at gh-pages 2fa8fa2ad and MUST stay there. Two other
-// tests pair it with inputs pinned at the same commit.
-//
-// A render of the LIVE sources cannot be compared against it. 0a4f5df85c and
-// 7b5532f685 added two weekly updates after that commit, so the live render
-// claims two routes the list has never carried.
-//
-// Narrowing the source is what homeFixture already does, for the same reason.
-// It holds for every week added from here on, not for one more of them.
-//
-// The weeks are read out of the route list rather than written here, so the two
-// sides cannot disagree about which site is being described.
-func changesRouteSource(t *testing.T) Paths {
-	t.Helper()
-	repository := repositoryRoot(t)
-	source := t.TempDir()
-	copyFixture(t, filepath.Join(repository, "website", topicsVocabularyFile),
-		filepath.Join(source, topicsVocabularyFile))
-	weeks := 0
-	for _, route := range publishedArtifactRoutes(t) {
-		slug := strings.TrimSuffix(strings.TrimPrefix(route, "/"+changesDirectory+"/"), "/")
-		if slug == "" || strings.Contains(slug, "/") || !strings.HasPrefix(route, "/"+changesDirectory+"/") {
-			continue
-		}
-		copyFixture(t, filepath.Join(repository, "website", changesSourceDirectory, slug+markdownExtension),
-			filepath.Join(source, changesSourceDirectory, slug+markdownExtension))
-		weeks++
-	}
-	if weeks == 0 {
-		t.Fatal("the published route list names no week under " + changesDirectory)
-	}
-	return Paths{Repository: repository, Source: source, Output: t.TempDir()}
-}
-
-// VALIDATES: every route the changelog claims is a route the site publishes,
-// and it claims every one of them.
-//
-// The count is derived from the published route fixture rather than written
-// here, so the two sides move together.
+// VALIDATES: every input week owns a page and mirror, including the draft
+// excluded from RSS, and the producer claims exactly those routes and its index.
 func TestTheChangesClaimOnlyPublishedRoutes(t *testing.T) {
-	paths := changesRouteSource(t)
+	paths := changesPaths(t)
 	routes, err := renderChanges(paths)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	published := publishedArtifactRoutes(t)
+	want := []string{
+		"/project/changes/2026-08-24/", "/project/changes/2026-08-17/",
+		"/project/changes/2026-08-10/", "/project/changes/",
+	}
+	if !slices.Equal(routes, want) {
+		t.Fatalf("the producer claims %v, want %v", routes, want)
+	}
 	for _, route := range routes {
-		if !slices.Contains(published, route) {
-			t.Errorf("the changelog claims %s, which the published site does not carry", route)
+		directory := strings.TrimPrefix(route, "/")
+		if readArtifact(t, paths.Output, directory+pageIndexFile) == "" {
+			t.Errorf("%s has no page", route)
 		}
-	}
-	expected := 0
-	for _, route := range published {
-		if strings.HasPrefix(route, "/"+changesDirectory+"/") {
-			expected++
+		if readArtifact(t, paths.Output, directory+pageMirrorFile) == "" {
+			t.Errorf("%s has no mirror", route)
 		}
-	}
-	if len(routes) != expected {
-		t.Fatalf("the changelog claims %d routes, the published site carries %d under /%s/",
-			len(routes), expected, changesDirectory)
 	}
 }

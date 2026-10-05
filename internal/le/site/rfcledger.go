@@ -385,6 +385,13 @@ func collectRequirementLedger(tree string) (rfcLedger, error) {
 	if err != nil {
 		return rfcLedger{}, err
 	}
+	return requirementLedgerFrom(tree, input)
+}
+
+// requirementLedgerFrom projects an already collected proof input into the site
+// ledger. Production collects a fresh input for every build; read-only corpus
+// tests can compare this projection with shards from that same immutable input.
+func requirementLedgerFrom(tree string, input rfc.RenderInput) (rfcLedger, error) {
 	extractions, err := rfc.LoadExtractions(tree)
 	if err != nil {
 		return rfcLedger{}, err

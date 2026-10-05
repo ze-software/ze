@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,16 +14,8 @@ import (
 	xhtml "golang.org/x/net/html"
 )
 
-// homeFixture lays out one checkout the homepage can be built from, holding the
-// inputs the PUBLISHED homepage was built from: the two data files as gh-pages
-// 2fa8fa2ad published them, the article and the three weeks it names, this
-// repository's own tag vocabulary, and a recorded demonstration for the hero.
-//
-// The sources are the real ones rather than synthetic copies, because the
-// parity target is the published page and the published page was rendered from
-// them. Only the article set is narrowed: the fixture holds the one article the
-// published band names, so a newer article landing in the tree does not change
-// what this test compares.
+// homeFixture provides stable structured data, controlled articles and weeks,
+// and recorded hero media. Authored website copy is not a golden oracle.
 func homeFixture(t *testing.T) Paths {
 	t.Helper()
 	root := t.TempDir()
@@ -37,11 +30,16 @@ func homeFixture(t *testing.T) Paths {
 		filepath.Join(source, "data", featuresDataFile))
 	copyFixture(t, filepath.Join(repository, "website", "data", "topics.json"),
 		filepath.Join(source, "data", "topics.json"))
-	copyFixture(t, filepath.Join(repository, "website", "blog", "posts", "reference-from-the-system.md"),
-		filepath.Join(source, blogSourceDirectory, "reference-from-the-system.md"))
-	for _, week := range homeFixtureWeeks() {
-		copyFixture(t, filepath.Join(repository, "website", changesSourceDirectory, week+markdownExtension),
-			filepath.Join(source, changesSourceDirectory, week+markdownExtension))
+	writeArtifactFile(t, source, blogSourceDirectory+"/reference-from-the-system.md", blogRenderingSource)
+	writeArtifactFile(t, source, blogSourceDirectory+"/older.md",
+		blogPostSource("Older article", "2026-08-04"))
+	for _, week := range append(homeFixtureWeeks(), "2026-07-27") {
+		intro := "Changes for " + week + "."
+		if week == "2026-08-17" {
+			intro = homeLongWeekIntro
+		}
+		writeArtifactFile(t, source, changesSourceDirectory+"/"+week+markdownExtension,
+			strings.Replace(weekSource(week, "BGP, CLI"), "The intro.", intro, 1))
 	}
 
 	output := t.TempDir()
@@ -50,8 +48,13 @@ func homeFixture(t *testing.T) Paths {
 	return Paths{Repository: root, Source: source, Output: output}
 }
 
-// homeFixtureWeeks are the three weeks the published homepage teases, newest
-// first.
+// homeLongWeekIntro crosses the summary boundary before the eighteenth word.
+// The expected clipped text is stated independently at the rendered consumer.
+const homeLongWeekIntro = "One two three four five six seven eight nine ten eleven twelve " +
+	"thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty."
+
+// homeFixtureWeeks are the three weeks the controlled homepage must tease,
+// excluding the fourth, older input.
 func homeFixtureWeeks() []string {
 	return []string{"2026-08-17", "2026-08-10", "2026-08-03"}
 }
@@ -59,10 +62,8 @@ func homeFixtureWeeks() []string {
 // publishedFactsSnapshot is data/site-facts.json as gh-pages 2fa8fa2ad
 // published it, cut to the numbers the proof strip shows.
 //
-// The VALUES are the published ones so the parity comparison is like for like.
-// A live build re-derives them from the tree and they are expected to differ,
-// which is why the facts snapshot is checked against a re-derivation rather
-// than against these.
+// These are rendering inputs, not claims about the checkout's current counts.
+// Facts freshness is checked against re-derivation elsewhere.
 //
 // The five proof-share keys are the exception: that build published two
 // absolute counts and no share at all, so there is nothing to carry forward.
@@ -132,51 +133,35 @@ func renderHomeFixture(t *testing.T) (page, mirror string) {
 	return readArtifact(t, paths.Output, homeDest), readArtifact(t, paths.Output, pageMirrorFile)
 }
 
-// VALIDATES: the homepage reads as the published homepage.
-//
-// The comparison is what "reads the same" means for this spec: the words a
-// reader sees, and the addresses every link resolves to. Escaping, indentation
-// and attribute quoting are the three differences the owner ruled invisible on
-// 2026-08-29, and visibleText answers past all three.
-//
-// The two demo asset URLs carry a digest of the recording, and this fixture's
-// recording is not the published one, so both sides normalise those two.
-//
-// Refreshed 2026-09-13: one paragraph, the summary on the article card. The
-// card is generated from the newest blog post's description, and 7dffbf36ea
-// rewrote that description. The refreshed text is what gh-pages HEAD 7a71f67208
-// (2026-09-12) publishes, cut by clipSummary at the same word.
-//
-// Refreshed 2026-09-21: the RFC stat line. The homepage published the number
-// of documents that had a requirement list, under the word "extracted", and a
-// reader took it for the number analyzed for every MUST they state.
-// The line now names the checked count and says what was checked.
-//
-// The rest of the fixture is deliberately NOT taken from that commit. This page
-// is built from a pinned facts snapshot and three pinned weeks. Its numbers and
-// its weekly card are older than the published ones on purpose.
-func TestTheHomepageReadsAsThePublishedHomepage(t *testing.T) {
-	page, _ := renderHomeFixture(t)
+// VALIDATES: the full homepage wires its generated article/week links into
+// both HTML and Markdown, without allowing editorial copy to become a golden.
+func TestTheHomepageLinksItsGeneratedNews(t *testing.T) {
+	page, mirror := renderHomeFixture(t)
 	body, err := extractMain(page)
 	if err != nil {
 		t.Fatal(err)
 	}
-	published := readTestdata(t, "published-index-body.html")
-
-	// The tokenizer emits a <noscript> body as text, so the recording's own
-	// digest reaches the visible text as well as the link targets.
-	if read, published := normalizeDemoURLs(visibleText(body)), normalizeDemoURLs(visibleText(published)); read != published {
-		gotAt, wantAt := firstMismatch(read, published)
-		t.Errorf("the homepage does not read as the published one:\n got %s\nwant %s", gotAt, wantAt)
-	}
-	got, want := linkTargets(body), linkTargets(published)
-	if len(got) != len(want) {
-		t.Fatalf("the homepage carries %d links, the published page %d", len(got), len(want))
-	}
-	for index := range got {
-		if got[index] != want[index] {
-			t.Errorf("link %d: got %q, want %q", index, got[index], want[index])
+	targets := linkTargets(body)
+	for _, route := range []string{
+		"blog/reference-from-the-system/",
+		"project/changes/2026-08-17/",
+		"project/changes/2026-08-10/",
+		"project/changes/2026-08-03/",
+	} {
+		if !slices.Contains(targets, route) {
+			t.Errorf("the homepage does not link %s", route)
 		}
+		if !strings.Contains(mirror, "]("+siteBase+route+")") {
+			t.Errorf("the homepage mirror does not preserve the absolute link for %s", route)
+		}
+	}
+	for _, route := range []string{"blog/older/", "project/changes/2026-07-27/"} {
+		if slices.Contains(targets, route) {
+			t.Errorf("the homepage selected an older input %s", route)
+		}
+	}
+	if strings.Contains(body, "<renderer>") {
+		t.Error("the authored article title became homepage markup")
 	}
 }
 
@@ -184,12 +169,6 @@ func TestTheHomepageReadsAsThePublishedHomepage(t *testing.T) {
 // value is the first ten characters of the recording's digest, so it moves with
 // the recording rather than with the page.
 var demoAssetURLPattern = regexp.MustCompile(`(assets/demos/[a-z0-9-]+\.(?:cast|txt))\?v=[0-9a-f]+`)
-
-// normalizeDemoURLs strips the recording digests out of one text, so a page
-// rendered from this fixture's recording compares against the published one.
-func normalizeDemoURLs(text string) string {
-	return demoAssetURLPattern.ReplaceAllString(text, "$1")
-}
 
 // linkTargets answers every address one fragment links, in document order, with
 // the demo recordings' digests normalised away.
@@ -350,18 +329,28 @@ func TestTheFeatureCategoryLinksFollowThePagesOwnOrder(t *testing.T) {
 // VALIDATES: the Latest news band takes the newest article and the newest week,
 // and cuts each summary to one line on a word boundary.
 func TestTheLatestNewsBandTakesTheNewestArticleAndWeek(t *testing.T) {
-	page, _ := renderHomeFixture(t)
+	page, mirror := renderHomeFixture(t)
+	band := sliceBetween(t, page, `<section class="whats-new reveal"`, "</section>")
+	const clipped = "One two three four five six seven eight nine ten eleven twelve " +
+		"thirteen fourteen fifteen sixteen seventeen…"
 	for _, want := range []string{
 		`<span class="whats-new-label">Engineering note</span>`,
-		`<h3><a href="blog/reference-from-the-system/">Reference stays attached to code</a></h3>`,
+		`<h3><a href="blog/reference-from-the-system/">A &lt;renderer&gt; &amp; its sources</a></h3>`,
 		`<span class="whats-new-label">Recently shipped</span>`,
 		`<h3><a href="project/changes/2026-08-17/">Week of 2026-08-17</a></h3>`,
-		`<p>The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec…</p>`,
+		"<p>" + clipped + "</p>",
+		`<p>An index description, not the deck.</p>`,
 		`<span class="whats-new-label">RFC compliance progress</span>`,
 	} {
-		if !strings.Contains(page, want) {
+		if !strings.Contains(band, want) {
 			t.Errorf("the Latest news band does not carry %s", want)
 		}
+	}
+	if strings.Contains(band, homeLongWeekIntro) {
+		t.Error("the Latest news band published the unclipped weekly intro")
+	}
+	if !strings.Contains(mirror, clipped) {
+		t.Error("the homepage mirror lost the clipped weekly summary")
 	}
 }
 
@@ -612,8 +601,7 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 		t.Error("the homepage opened <main> with a class; it carries no sidebar and asks for no width")
 	}
 	for _, want := range []string{
-		"Ze, an OpenNOS", "Release claims stay checkable.",
-		"Reference stays attached to code", "Week of 2026-08-17",
+		"A <renderer> & its sources", "Week of 2026-08-17",
 	} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the homepage mirror does not carry %q", want)
@@ -624,15 +612,8 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 	}
 }
 
-// VALIDATES: the homepage claims the site root, which is one of the 712 routes
-// the published artifact carries.
+// VALIDATES: the home producer claims exactly the root it wrote, with both
+// page and mirror artifacts. renderHomeFixture checks this producer answer.
 func TestTheHomeProducerClaimsTheSiteRoot(t *testing.T) {
 	renderHomeFixture(t)
-	published := map[string]bool{}
-	for _, route := range publishedArtifactRoutes(t) {
-		published[route] = true
-	}
-	if !published[homeRoute] {
-		t.Fatalf("%s is not a published route", homeRoute)
-	}
 }

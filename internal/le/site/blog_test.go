@@ -9,21 +9,46 @@ import (
 	"testing"
 )
 
-// blogPaths lays out one artifact a blog render can write into, reading the
-// real website/ sources of this checkout.
-//
-// The artifact is seeded with the facts snapshot the published pages were built
-// against, cut to the five numbers the articles name. Two articles carry
-// {{ze:...}} tokens, so without it their mirrors would publish the braces and
-// the published page could not be compared.
+// blogPaths renders controlled editorial inputs, never a frozen copy of the
+// public website. The undated article distinguishes page coverage from RSS.
 func blogPaths(t *testing.T) Paths {
 	t.Helper()
-	root := repositoryRoot(t)
+	source := blogPostsFixture(t, map[string]string{
+		"reference-from-the-system.md": blogRenderingSource,
+		"older.md":                     blogPostSource("Older article", "2026-08-04"),
+		"undated.md":                   blogPostSource("Undated article", ""),
+	})
 	output := t.TempDir()
 	copyFixture(t, filepath.Join("testdata", "published-site-facts.json"),
 		filepath.Join(output, "data", "site-facts.json"))
-	return Paths{Repository: root, Source: filepath.Join(root, "website"), Output: output}
+	return Paths{Repository: repositoryRoot(t), Source: source, Output: output}
 }
+
+// blogRenderingSource exercises the page blocks with unmistakable test copy.
+const blogRenderingSource = `---
+title: A <renderer> & its sources
+author: Fixture Writer
+date: 2026-08-22
+description: An index description, not the deck.
+deck: A distinct deck & introduction.
+image: assets/blog/probe.svg
+image-dark: assets/blog/probe-dark.svg
+image-alt: A light & dark illustration
+---
+
+## First section
+
+Body with **emphasis** and [an external link](https://example.net/guide).
+
+## Second section
+
+- First item.
+- Second item.
+
+## Third section
+
+A final paragraph.
+`
 
 // blogPostsFixture writes one website source tree carrying only the articles
 // given, keyed by file name. It answers the source root.
@@ -142,23 +167,9 @@ func TestAnArticleAPageCannotBeMadeFromIsRefused(t *testing.T) {
 	}
 }
 
-// VALIDATES: one article page reads as the published one, carries the whole
-// site shell, and its Markdown mirror matches the published mirror byte for
-// byte.
-//
-// The published pair is reference-from-the-system at gh-pages HEAD 7a71f67208
-// (2026-09-12). It is the one article carrying a deck, a themed illustration
-// and a contents list, so it exercises every block the page still holds.
-//
-// Refreshed 2026-09-13 from that commit. The pair was frozen at gh-pages
-// 2fa8fa2ad. 7dffbf36ea then rewrote the article's prose and dropped both its
-// key-points front matter and its five {{ze:}} number tokens, so the frozen
-// pair described a page the author had retired.
-//
-// Both refreshed files are byte-identical to what gh-pages publishes. That is
-// what makes this a fixture repair, rather than a render declared correct by
-// its own output.
-func TestABlogArticleReadsAsThePublishedArticle(t *testing.T) {
+// VALIDATES: a complete article preserves authored Markdown, escapes metadata,
+// secures external links, and writes its shell and independent Markdown mirror.
+func TestABlogArticleRendersItsAuthoredInputs(t *testing.T) {
 	paths := blogPaths(t)
 
 	routes, err := renderBlog(paths)
@@ -171,9 +182,9 @@ func TestABlogArticleReadsAsThePublishedArticle(t *testing.T) {
 
 	page := readArtifact(t, paths.Output, "blog/reference-from-the-system/"+pageIndexFile)
 	for _, chrome := range []string{
-		"<title>Reference stays attached to code - Ze Blog</title>",
+		"<title>A &lt;renderer&gt; &amp; its sources - Ze Blog</title>",
 		`<link rel="canonical" href="https://ze-software.net/blog/reference-from-the-system/" />`,
-		`<meta name="author" content="Thomas Mangin" />`,
+		`<meta name="author" content="Fixture Writer" />`,
 		`<link rel="stylesheet" href="../../assets/site.css" />`,
 		`<div id="site-header-mount" data-header-src="../../assets/header.html"`,
 		`<main id="top" class="site-main-wide" tabindex="-1">`,
@@ -184,31 +195,40 @@ func TestABlogArticleReadsAsThePublishedArticle(t *testing.T) {
 		}
 	}
 
-	got := visibleText(mainContent(t, page))
-	want := visibleText(readFixture(t, "published-blog-reference.html"))
-	if got != want {
-		t.Errorf("the article reads as\n  %q\nthe published article reads as\n  %q", got, want)
+	for _, want := range []string{
+		`<strong>emphasis</strong>`,
+		`href="https://example.net/guide"`,
+		`href="#first-section"`, `href="#second-section"`,
+		`A distinct deck &amp; introduction.`,
+		`<li>First item.</li>`, `<li>Second item.</li>`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the article is missing %q", want)
+		}
 	}
-
+	external := sliceBetween(t, page, `<a href="https://example.net/guide"`, ">")
+	for _, want := range []string{`target="_blank"`, `rel="noopener"`} {
+		if !strings.Contains(external, want) {
+			t.Errorf("the external article link is missing %s", want)
+		}
+	}
+	if strings.Contains(page, "<renderer>") {
+		t.Error("the article title was emitted as markup")
+	}
 	mirror := readArtifact(t, paths.Output, "blog/reference-from-the-system/"+pageMirrorFile)
-	publishedMirror := readFixture(t, "published-blog-reference.md")
-	if mirror != publishedMirror {
-		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q", mirror, publishedMirror)
+	want := "# A <renderer> & its sources\n\n*2026-08-22 by Fixture Writer*\n\n" +
+		"A distinct deck & introduction.\n\n" +
+		"![A light & dark illustration](../../assets/blog/probe.svg)\n\n" +
+		"## First section\n\nBody with **emphasis** and [an external link](https://example.net/guide).\n\n" +
+		"## Second section\n\n- First item.\n- Second item.\n\n" +
+		"## Third section\n\nA final paragraph.\n"
+	if mirror != want {
+		t.Errorf("the mirror lost authored content:\ngot %q\nwant %q", mirror, want)
 	}
 }
 
-// VALIDATES: the published article carries the blocks a reader sees around its
-// body, each with the class its stylesheet answers.
-//
-// visibleText above says the words are the same and says nothing about which
-// element carries them, so the themed illustration and the contents list are
-// asserted as markup here.
-//
-// Refreshed 2026-09-13 against gh-pages HEAD 7a71f67208 (2026-09-12). The key
-// points aside and the cli_commands number span left this list. 7dffbf36ea
-// deleted the article's key-points front matter and its five {{ze:}} tokens, so
-// the published page carries neither block. The test below proves both
-// producers.
+// VALIDATES: a themed illustration and contents list retain their semantic
+// markup and stylesheet hooks when rendered from authored inputs.
 func TestAnArticlePageCarriesItsHeroIllustrationAndContents(t *testing.T) {
 	paths := blogPaths(t)
 	if _, err := renderBlog(paths); err != nil {
@@ -220,10 +240,10 @@ func TestAnArticlePageCarriesItsHeroIllustrationAndContents(t *testing.T) {
 		`<section class="blog-article-shell has-visual" aria-labelledby="post-title">`,
 		`<div class="journey-hero blog-article-hero reveal">`,
 		`<span class="journey-eyebrow">Article</span>`,
-		`<div class="blog-article-meta"><time datetime="2026-08-22">2026-08-22</time><span>by Thomas Mangin</span></div>`,
+		`<div class="blog-article-meta"><time datetime="2026-08-22">2026-08-22</time><span>by Fixture Writer</span></div>`,
 		`<figure class="blog-theme-image has-dark blog-article-visual reveal" role="img"`,
-		`<img class="blog-theme-image-light" src="../../assets/blog/reference-from-the-system.svg"`,
-		`<img class="blog-theme-image-dark" src="../../assets/blog/reference-from-the-system-dark.svg"`,
+		`<img class="blog-theme-image-light" src="../../assets/blog/probe.svg"`,
+		`<img class="blog-theme-image-dark" src="../../assets/blog/probe-dark.svg"`,
 		`<nav class="blog-article-toc reveal" aria-label="Article sections">`,
 		`<section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">`,
 	} {
@@ -236,10 +256,7 @@ func TestAnArticlePageCarriesItsHeroIllustrationAndContents(t *testing.T) {
 // VALIDATES: an article asking for key points gets the aside, and a prose
 // number token is replaced by the span that lets a rebuild refresh the value.
 //
-// No article in website/blog/posts carries either input today, so the published
-// page above cannot prove these two producers. They are driven from a source
-// this test writes, which is the only way left to state that an author who asks
-// for them still gets them.
+// Both inputs are explicit so editorial changes cannot remove this coverage.
 func TestAnArticleRendersItsKeyPointsAndProseNumbers(t *testing.T) {
 	source := blogPostsFixture(t, map[string]string{"probe.md": strings.Join([]string{
 		"---",
@@ -284,9 +301,9 @@ func TestAnArticleRendersItsKeyPointsAndProseNumbers(t *testing.T) {
 	}
 }
 
-// VALIDATES: the blog index reads as the published index, and its mirror
-// matches the published mirror byte for byte.
-func TestTheBlogIndexReadsAsThePublishedIndex(t *testing.T) {
+// VALIDATES: the index carries every authored title, date and description in
+// source date order, with page links in HTML and mirror links in Markdown.
+func TestTheBlogIndexRendersItsAuthoredInputs(t *testing.T) {
 	paths := blogPaths(t)
 	if _, err := renderBlog(paths); err != nil {
 		t.Fatal(err)
@@ -299,54 +316,68 @@ func TestTheBlogIndexReadsAsThePublishedIndex(t *testing.T) {
 		`<link rel="alternate" type="application/rss+xml" title="Ze blog" href="feed.xml" />`,
 		`<main id="top" class="site-main-wide" tabindex="-1">`,
 		`<section class="blog-index" aria-labelledby="blog-title">`,
+		`<article class="card card-post blog-card has-media tone-sky">`,
+		`<div class="blog-theme-image has-dark blog-card-media" role="img"`,
+		`<img class="blog-theme-image-light" src="../assets/blog/probe.svg"`,
+		`<img class="blog-theme-image-dark" src="../assets/blog/probe-dark.svg"`,
 	} {
 		if !strings.Contains(page, chrome) {
 			t.Errorf("the blog index is missing %q", chrome)
 		}
 	}
 
-	got := visibleText(mainContent(t, page))
-	want := visibleText(readFixture(t, "published-blog-index.html"))
-	if got != want {
-		t.Errorf("the index reads as\n  %q\nthe published index reads as\n  %q", got, want)
-	}
-
 	mirror := readArtifact(t, paths.Output, blogDirectory+"/"+pageMirrorFile)
-	if mirror != readFixture(t, "published-blog-index.md") {
-		t.Errorf("the index mirror is\n%q\nthe published one is\n%q",
-			mirror, readFixture(t, "published-blog-index.md"))
+	for _, surface := range []struct {
+		name    string
+		content string
+		wants   []string
+	}{
+		{"page", page, []string{
+			`<h3><a href="reference-from-the-system/">A &lt;renderer&gt; &amp; its sources</a></h3>`,
+			`<p>An index description, not the deck.</p>`,
+			`<h3><a href="older/">Older article</a></h3>`,
+			`<h3><a href="undated/">Undated article</a></h3>`,
+		}},
+		{"mirror", mirror, []string{
+			"- [A <renderer> & its sources](reference-from-the-system/index.md) (2026-08-22): An index description, not the deck.",
+			"- [Older article](older/index.md) (2026-08-04)",
+			"- [Undated article](undated/index.md)",
+		}},
+	} {
+		previous := -1
+		for _, want := range surface.wants {
+			at := strings.Index(surface.content, want)
+			if at < 0 {
+				t.Fatalf("%s is missing %q", surface.name, want)
+			}
+			if at <= previous {
+				t.Errorf("%s is not in article order at %q", surface.name, want)
+			}
+			previous = at
+		}
+	}
+	if strings.Contains(page, "A distinct deck") {
+		t.Error("the index used the article deck instead of its description")
 	}
 }
 
-// VALIDATES: each index card takes the presentation tone at its own position,
-// and a card's color therefore says nothing about what the article is about.
-//
-// The tones are asserted against the published page, where the two articles
-// sharing 2026-08-04 sit at positions five and six: an unstable sort would swap
-// them and swap their colors with them.
-//
-// Refreshed 2026-09-13 against gh-pages HEAD 7a71f67208 (2026-09-12). Only the
-// fifth card's title moved, because 7dffbf36ea retitled how-ze-manages-memory.
-// Its slug, its position and its tone are unchanged.
+// VALIDATES: presentation tones cycle by position rather than by topic or
+// title. Eight controlled articles exercise the palette wraparound.
 func TestAnIndexCardTakesTheToneAtItsPosition(t *testing.T) {
-	paths := blogPaths(t)
-	if _, err := renderBlog(paths); err != nil {
-		t.Fatal(err)
+	articles := make([]blogArticle, len(presentationTones)+1)
+	for index := range articles {
+		articles[index] = blogArticle{Slug: "probe", Title: "Same title"}
 	}
-
-	page := readArtifact(t, paths.Output, blogIndexDest)
-	for _, want := range []string{
-		`<article class="card card-post blog-card has-media tone-sky">`,
-		`<article class="card card-post blog-card has-media tone-pink">`,
-		`<h3><a href="how-ze-manages-memory/">How Ze reuses memory for BGP UPDATEs</a></h3>`,
-		`<div class="blog-theme-image has-dark blog-card-media" role="img"`,
-	} {
-		if !strings.Contains(page, want) {
-			t.Errorf("the blog index is missing %q", want)
+	page := blogIndexBody(articles)
+	cards := strings.Split(page, `<article class="card card-post blog-card `)[1:]
+	if len(cards) != len(articles) {
+		t.Fatalf("rendered %d cards for %d articles", len(cards), len(articles))
+	}
+	for index, card := range cards {
+		want := "tone-" + presentationTones[index%len(presentationTones)] + `">`
+		if !strings.HasPrefix(card, want) {
+			t.Errorf("card %d did not take its positional tone %q", index, want)
 		}
-	}
-	if strings.Index(page, "tone-pink") > strings.Index(page, "tone-gold") {
-		t.Errorf("the fifth card took gold and the sixth pink, so the two articles sharing a date swapped")
 	}
 }
 
@@ -360,29 +391,30 @@ func TestTheBlogFeedCarriesEveryDatedArticle(t *testing.T) {
 	}
 
 	feed := readArtifact(t, paths.Output, blogFeedDest)
-	articles, err := loadBlogArticles(paths.Source)
-	if err != nil {
-		t.Fatal(err)
+	if items := strings.Count(feed, "<item>"); items != 2 {
+		t.Errorf("the feed carries %d items, want the two dated articles", items)
 	}
-	if items := strings.Count(feed, "<item>"); items != len(articles) {
-		t.Errorf("the feed carries %d items over %d articles", items, len(articles))
+	if strings.Contains(feed, "/undated/") {
+		t.Error("the feed assigned a publication date to an undated article")
 	}
 	for _, want := range []string{
 		`<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">`,
 		"<title>Ze blog</title>",
 		"<link>https://ze-software.net/blog/</link>",
 		"<lastBuildDate>Sat, 22 Aug 2026 00:00:00 +0000</lastBuildDate>",
-		"<title>Reference stays attached to code</title>",
+		"<title>A &lt;renderer&gt; &amp; its sources</title>",
 		`<guid isPermaLink="true">https://ze-software.net/blog/reference-from-the-system/</guid>`,
 		"<pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>",
-		"<dc:creator>Thomas Mangin</dc:creator>",
+		"<dc:creator>Fixture Writer</dc:creator>",
+		"<title>Older article</title>",
+		"<pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>",
 	} {
 		if !strings.Contains(feed, want) {
 			t.Errorf("the feed is missing %q", want)
 		}
 	}
 	if first, second := strings.Index(feed, "reference-from-the-system"),
-		strings.Index(feed, "ai-slop-is-the-wrong-test"); first > second {
+		strings.Index(feed, "/older/"); first > second {
 		t.Errorf("the feed is oldest first")
 	}
 }
@@ -416,11 +448,8 @@ func TestARetiredArticleLosesItsPage(t *testing.T) {
 	}
 }
 
-// VALIDATES: every route the blog claims is a route the site publishes, and it
-// claims all eight of them.
-//
-// AC-1 is arithmetic over the whole artifact, so a producer that claims a route
-// the site does not publish would hide an unclaimed one somewhere else.
+// VALIDATES: claimed routes match both the controlled source population and
+// the actual page/mirror artifacts, including an article excluded from RSS.
 func TestTheBlogClaimsOnlyPublishedRoutes(t *testing.T) {
 	paths := blogPaths(t)
 	routes, err := renderBlog(paths)
@@ -428,20 +457,17 @@ func TestTheBlogClaimsOnlyPublishedRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	published := publishedArtifactRoutes(t)
+	want := []string{"/blog/reference-from-the-system/", "/blog/older/", "/blog/undated/", "/blog/"}
+	if !slices.Equal(routes, want) {
+		t.Fatalf("the producer claims %v, want %v", routes, want)
+	}
 	for _, route := range routes {
-		if !slices.Contains(published, route) {
-			t.Errorf("the blog claims %s, which the published site does not carry", route)
+		directory := strings.TrimPrefix(route, "/")
+		if readArtifact(t, paths.Output, directory+pageIndexFile) == "" {
+			t.Errorf("%s has no page", route)
 		}
-	}
-	var expected []string
-	for _, route := range published {
-		if strings.HasPrefix(route, "/blog/") || route == "/blog/" {
-			expected = append(expected, route)
+		if readArtifact(t, paths.Output, directory+pageMirrorFile) == "" {
+			t.Errorf("%s has no mirror", route)
 		}
-	}
-	if len(routes) != len(expected) {
-		t.Fatalf("the blog claims %d routes, the published site carries %d under /blog/",
-			len(routes), len(expected))
 	}
 }

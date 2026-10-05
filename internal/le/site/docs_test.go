@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/derived"
@@ -132,29 +133,33 @@ func TestDocsProducerClaimsOnlyPublishedRoutes(t *testing.T) {
 		claimed, len(published), len(published)-claimed)
 }
 
-// repositoryRoot answers the checkout these tests read their sources from,
-// with every derived artifact in it whole.
-//
-// The second half is a precondition these tests used to assume. A derived
-// artifact is absent for most of a session, because a write to one of its
-// inputs removes it and only a shell command that spells its path rebuilds it
-// (internal/le/derived). `go test ./internal/le/site/...` spells none of them,
-// so three tests read the tree through the window a concurrent write opens:
-// docs/features/rfc-status.md is a page the docs producer publishes, and the
-// RFC ledger prose links the shards under rfc/requirements/. Each was red on a
-// tree that was correct, and each would be red on a fresh clone, where those
-// files have never been rendered at all.
-//
-// This is the same rebuild the site build performs for the same reason
-// (Build), through the same registry, so nothing here names an artifact.
+// checkoutArtifacts prepares the real checkout once for this process's read-only
+// corpus tests. Mutation tests own temporary trees and never use this state.
+var checkoutArtifacts struct {
+	once sync.Once
+	root string
+	err  error
+}
+
+// repositoryRoot answers the checkout with every derived artifact whole.
+// Materialization is shared across immutable corpus readers, not repeated for
+// every command-page fixture. It still requires real committed history: a
+// missing HEAD or any failed generator stops every consumer of this setup.
 func repositoryRoot(t *testing.T) string {
 	t.Helper()
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("resolve repository root: %v", err)
 	}
-	if err := derived.EnsureAll(root); err != nil {
-		t.Fatalf("render the derived artifacts of %s: %v", root, err)
+	checkoutArtifacts.once.Do(func() {
+		checkoutArtifacts.root = root
+		checkoutArtifacts.err = derived.EnsureAll(root)
+	})
+	if checkoutArtifacts.root != root {
+		t.Fatalf("derived artifacts belong to %s, not %s", checkoutArtifacts.root, root)
+	}
+	if checkoutArtifacts.err != nil {
+		t.Fatalf("render the derived artifacts of %s: %v", root, checkoutArtifacts.err)
 	}
 	return root
 }

@@ -549,10 +549,7 @@ func TestTheRFCComplianceProducerClaimsItsPublishedRoute(t *testing.T) {
 // republished excused obligations as unexcused rather than merely losing them.
 // This test is what keeps both counters at zero.
 func TestEveryAnnotationKindHasABucket(t *testing.T) {
-	collected, err := rfc.Collect(repositoryRoot(t))
-	if err != nil {
-		t.Fatal(err)
-	}
+	collected := collectedRFCsOfThisCheckout(t)
 	kinds := map[string]string{}
 	for _, kind := range rfc.AnnotationKinds() {
 		kinds[kind] = "the vocabulary declares it"
@@ -937,10 +934,7 @@ func TestADeclinedStemStatesItsKindAndReason(t *testing.T) {
 // the public ledger.
 func TestTheComplianceIndexLinksEveryStemOfThisCheckout(t *testing.T) {
 	root := repositoryRoot(t)
-	ledger, err := collectRequirementLedger(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ledger := publishedLedgerOfThisCheckout(t)
 	stems, err := rfcSummaryStems(root)
 	if err != nil {
 		t.Fatal(err)
@@ -1982,14 +1976,22 @@ func TestRollupRendersInItsOwnBucket(t *testing.T) {
 // number against anything.
 func TestThePublishedPageSaysWhoImplementsEachDocument(t *testing.T) {
 	ledger := publishedLedgerOfThisCheckout(t)
-	page := rfcImplementationHTML(ledger)
-	mirror := rfcImplementationMirror(ledger)
+	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
+	if _, err := renderRFCCompliance(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := readArtifact(t, paths.Output, rfcComplianceDest)
+	mirror := readArtifact(t, paths.Output,
+		strings.TrimSuffix(rfcComplianceDest, pageIndexFile)+pageMirrorFile)
+	implementation := sliceBetween(t, page, "<h2>Who implements each document</h2>", "</section>")
+	implementationMirror := sliceBetween(t, mirror,
+		"## Who implements each document\n", "\n## Requirement buckets\n")
 	for _, kind := range rfc.ImplementationKinds() {
 		meaning := rfcImplementationMeaning(kind)
-		if !strings.Contains(page, html.EscapeString(meaning)) {
+		if !strings.Contains(implementation, html.EscapeString(meaning)) {
 			t.Errorf("the page shows %q and does not say what it means", kind)
 		}
-		if !strings.Contains(mirror, meaning) {
+		if !strings.Contains(implementationMirror, meaning) {
 			t.Errorf("the mirror shows %q and does not say what it means", kind)
 		}
 	}
@@ -2007,13 +2009,21 @@ func TestThePublishedPageSaysWhoImplementsEachDocument(t *testing.T) {
 			continue
 		}
 		delegated++
-		if !strings.Contains(page, html.EscapeString(rfcStemHref(stem.Stem))) {
-			t.Errorf("%s names another implementer and the page does not name the summary",
-				stem.Stem)
+		group := sliceBetween(t, implementation,
+			"<h3>"+html.EscapeString(stem.Implementation)+"</h3>", "</p>")
+		link := `href="` + html.EscapeString(rfcStemHref(stem.Stem)) + `"`
+		if !strings.Contains(group, link) {
+			t.Errorf("%s is absent from its %s implementation group", stem.Stem, stem.Implementation)
 		}
-		if !strings.Contains(mirror, rfcDisplayName(stem.Stem)) {
-			t.Errorf("%s names another implementer and the mirror does not name the summary",
-				stem.Stem)
+		_, groupMirror, found := strings.Cut(implementationMirror,
+			"\n### "+stem.Implementation+"\n\n")
+		if !found {
+			t.Fatalf("the mirror has no %s implementation group", stem.Implementation)
+		}
+		groupMirror, _, _ = strings.Cut(groupMirror, "\n### ")
+		mirrorLink := "[`" + rfcDisplayName(stem.Stem) + "`](" + rfcStemHref(stem.Stem) + pageMirrorFile + ")"
+		if !strings.Contains(groupMirror, mirrorLink) {
+			t.Errorf("%s is absent from its %s mirror group", stem.Stem, stem.Implementation)
 		}
 	}
 	if delegated == 0 {

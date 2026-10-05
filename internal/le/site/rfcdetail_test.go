@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -350,20 +351,8 @@ func TestABuildPublishesTheRequirementLedger(t *testing.T) {
 // several sessions share this checkout: a shard somebody has not regenerated
 // yet would redden this test over an edit that is not this page's.
 func TestARequirementRowMatchesItsGeneratedShard(t *testing.T) {
-	root := repositoryRoot(t)
-	ledger, err := collectRequirementLedger(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	collected, err := rfc.Collect(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	input, err := rfc.NewRenderInput(root, collected, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	shards := rfc.RenderShards(input)
+	ledger := publishedLedgerOfThisCheckout(t)
+	shards := rfc.RenderShards(checkoutLedgerSnapshot.input)
 
 	checked := 0
 	for index := range ledger.Stems {
@@ -998,11 +987,7 @@ func TestEveryRFCDetailRouteBelongsToOneSection(t *testing.T) {
 // The count is logged rather than pinned, because it moves with every
 // enrolment; what is pinned is that none of them is missing from a page.
 func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
-	root := repositoryRoot(t)
-	ledger, err := collectRequirementLedger(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ledger := publishedLedgerOfThisCheckout(t)
 	untested := 0
 	pages := 0
 	for index := range ledger.Stems {
@@ -1051,11 +1036,7 @@ func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
 // snapshot holds for which a requirement id exists is named on the page, and
 // not only counted in the at-a-glance panel.
 func TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount(t *testing.T) {
-	root := repositoryRoot(t)
-	ledger, err := collectRequirementLedger(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ledger := publishedLedgerOfThisCheckout(t)
 	named := map[string]int{}
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]
@@ -1640,14 +1621,72 @@ func TestEveryLinkedPathExistsInTheTree(t *testing.T) {
 	t.Logf("%d repository paths linked, %d relative citations left as text", linked, skipped)
 }
 
-// publishedLedgerOfThisCheckout derives the real requirement ledger.
+// checkoutRFCCollection holds the unchanged source population, before site
+// projection. Comparing it with the published ledger still checks every row;
+// neither side is reconstructed from the other's rendered fields.
+var checkoutRFCCollection struct {
+	once      sync.Once
+	root      string
+	collected rfc.Collected
+	err       error
+}
+
+// collectedRFCsOfThisCheckout shares only immutable corpus input. Safe for
+// concurrent use; callers MUST NOT mutate its maps, slices or nested values.
+func collectedRFCsOfThisCheckout(t *testing.T) rfc.Collected {
+	t.Helper()
+	root := repositoryRoot(t)
+	checkoutRFCCollection.once.Do(func() {
+		checkoutRFCCollection.root = root
+		checkoutRFCCollection.collected, checkoutRFCCollection.err = rfc.Collect(root)
+	})
+	if checkoutRFCCollection.root != root {
+		t.Fatalf("RFC collection belongs to %s, not %s", checkoutRFCCollection.root, root)
+	}
+	if checkoutRFCCollection.err != nil {
+		t.Fatal(checkoutRFCCollection.err)
+	}
+	return checkoutRFCCollection.collected
+}
+
+// checkoutLedgerSnapshot is test-only, bounded to this process's one checkout.
+// Corpus consumers read its stems, requirements and nested evidence; none
+// modifies them. Mutating fixtures use disclosureLedger, twoStemLedger or their
+// own temporary tree and MUST NOT use this snapshot.
+var checkoutLedgerSnapshot struct {
+	once   sync.Once
+	root   string
+	input  rfc.RenderInput
+	ledger rfcLedger
+	err    error
+}
+
+// publishedLedgerOfThisCheckout derives the full live ledger once for the
+// read-only corpus assertions. Safe for concurrent use; callers MUST NOT mutate
+// the returned data. A different root is refused rather than silently reusing
+// another checkout's evidence. Production collection remains uncached.
 func publishedLedgerOfThisCheckout(t *testing.T) rfcLedger {
 	t.Helper()
-	ledger, err := collectRequirementLedger(repositoryRoot(t))
-	if err != nil {
-		t.Fatal(err)
+	root := repositoryRoot(t)
+	collected := collectedRFCsOfThisCheckout(t)
+	checkoutLedgerSnapshot.once.Do(func() {
+		checkoutLedgerSnapshot.root = root
+		// NewRenderInput fills rollup fields in Requirements. Give that
+		// derivation its own rows; the shared raw collection stays immutable.
+		collected.Requirements = slices.Clone(collected.Requirements)
+		checkoutLedgerSnapshot.input, checkoutLedgerSnapshot.err = rfc.NewRenderInput(root, collected, nil, nil)
+		if checkoutLedgerSnapshot.err != nil {
+			return
+		}
+		checkoutLedgerSnapshot.ledger, checkoutLedgerSnapshot.err = requirementLedgerFrom(root, checkoutLedgerSnapshot.input)
+	})
+	if checkoutLedgerSnapshot.root != root {
+		t.Fatalf("live ledger belongs to %s, not %s", checkoutLedgerSnapshot.root, root)
 	}
-	return ledger
+	if checkoutLedgerSnapshot.err != nil {
+		t.Fatal(checkoutLedgerSnapshot.err)
+	}
+	return checkoutLedgerSnapshot.ledger
 }
 
 // VALIDATES: AC-51 -- a Coverage cell renders as its claims and a Remaining
@@ -2308,11 +2347,7 @@ func rfcAllRIDs(entry *rfcLedgerStem) []string {
 // other test green. The method is the rendered page rather than the helper, so
 // dropping the total row goes red here.
 func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
-	root := repositoryRoot(t)
-	ledger, err := collectRequirementLedger(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ledger := publishedLedgerOfThisCheckout(t)
 	checked := 0
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]
@@ -2557,11 +2592,7 @@ func TestRetiringAPageDeletesOnlyThisFamilysOwnPages(t *testing.T) {
 // HOLDS" on every page (independent review, 2026-09-01). The method is this
 // checkout's own un-enrolled summaries, of which there are eighteen.
 func TestAnUnenrolledPageNeverClaimsTheGateHoldsIt(t *testing.T) {
-	root := repositoryRoot(t)
-	ledger, err := collectRequirementLedger(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ledger := publishedLedgerOfThisCheckout(t)
 	declined, enrolled := 0, 0
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]

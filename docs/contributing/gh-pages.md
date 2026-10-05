@@ -45,6 +45,35 @@ directory and checks there rather than writing over the published tree.
 
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
+## Rendering tests
+
+Editorial sources own the text and publication dates. An older Pages artifact
+does not override an intentional source edit. Blog, weekly-update and homepage
+tests render controlled authored inputs instead of freezing the public site's
+wording, newest date or article count. Their assertions cover escaped metadata,
+external-link isolation, Markdown content and mirrors, shells and media,
+date ordering, draft and undated feed exclusions, and page ownership and cleanup.
+Do not refresh a prose snapshot to make a source edit pass.
+
+The corpus tests materialize all registered derived artifacts once per process.
+This setup requires the checkout's real Git history, including a resolvable
+`HEAD` for the roadmap; a source-only mount is not a substitute. A failed
+materialization is reported to every consumer, not replaced by a fake revision.
+
+The RFC site tests still read the complete checkout ledger. Read-only corpus
+assertions share process-local source collection, proof input and published
+ledger snapshots, rather than rescanning the tree for every rendering assertion.
+The helpers refuse a different checkout root. Tests that change a ledger or its source tree
+use independent fixtures; production builds do not cache the collection. The
+implementer disclosure is checked within each implementation-kind section of
+the complete generated HTML page and its Markdown mirror.
+<!-- source: internal/le/site/rfcdetail_test.go -- publishedLedgerOfThisCheckout -->
+<!-- source: internal/le/site/rfccompliance_test.go -- TestThePublishedPageSaysWhoImplementsEachDocument -->
+
+The two full-checkout facts assertions likewise share one result from the real
+facts producer, including its live test-health input. They assert both answered
+counts and source provenance; controlled mutation fixtures remain independent.
+
 ## Release roadmap
 
 `/project/roadmap/` is generated from committed `HEAD` on every full or partial
