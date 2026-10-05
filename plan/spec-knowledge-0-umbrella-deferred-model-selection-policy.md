@@ -20,7 +20,7 @@ polite name (`ai/rules/planning.md`). This file is their home.
 
 The owner answered the model-choice question on 2026-08-03.
 `ai/rules/planning.md`, "Work Phases, Models and the Review Loop", permits
-implementation on any model. Review remains independent and runs on Opus 5.
+implementation on any model. Review remains independent and runs on Opus when the model is an Anthropic one.
 The former choice between confirming an Opus 4.8 implementation restriction
 and removing it is no longer open.
 

@@ -11,7 +11,7 @@
 | Blocker | AC-5 guest proof and the recorded closure pause need resolution |
 
 <!-- Handoff `verify`: the implementation session commits the work, sets Status to
-     `verification` and stops. A later Opus 5 session reviews that commit and closes. -->
+     `verification` and stops. A later session reviews that commit and closes, on Opus when the model is an Anthropic one. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -483,7 +483,7 @@ any wire; it installs a client-side deadline.
 
 - [ ] Status set to `verification` before the commit
 - [ ] ONE commit: code, tests, docs, the deferral shard row, and this spec. No `plan/learned/` file and no spec removal, or `commit_helper.py` reads it as a closure commit
-- [ ] `internal/le/spec/session/session.go release`, report the SHA, then stop. A later Opus 5 session runs the Review Gate over the committed diff and closes
+- [ ] `internal/le/spec/session/session.go release`, report the SHA, then stop. A later session, on Opus when the model is an Anthropic one, runs the Review Gate over the committed diff and closes
 
 ---
 

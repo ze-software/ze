@@ -6,7 +6,7 @@
 | Scope | tooling, docs |
 | Depends | - |
 | Phase | 5/5 |
-| Handoff | Opus 5 independent review required |
+| Handoff | independent review required, on Opus when the model is an Anthropic one |
 | Updated | 2026-09-20 |
 
 ## Task

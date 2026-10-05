@@ -16,7 +16,7 @@
 | Handoff | - |
 | Updated | 2026-09-19 |
 
-<!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
+<!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".

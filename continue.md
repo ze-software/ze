@@ -93,7 +93,7 @@ suite directory, and add the name to `netnsSelections` in
 refuses a named test with no file but never notices a file nobody named, which is how
 two `netns-link` tests under `test/plugin/` came to run nowhere.
 
-**Then closure**, on Opus 5 in a fresh context, through `/ze-close`.
+**Then closure**, on Opus when the model is an Anthropic one, in a fresh context, through `/ze-close`.
 
 ### What the Goal Validation table must say, honestly
 
@@ -180,7 +180,7 @@ concluded its tags could not get records because `gomu` is absent; that is wrong
 2. Read the diff in `internal/component/l2tp/pppoeclient/dialer.go` and the untracked
    `dialer_test.go`. That is the killed phase, and the blocking-read question in
    section 3 is unanswered.
-3. Finish phases 5 and 6, then `/ze-close` on Opus 5 in a fresh context.
+3. Finish phases 5 and 6, then `/ze-close` on Opus when the model is an Anthropic one, in a fresh context.
 4. Take the section 4 decisions to Thomas before, not after: the RFC index files have
    now waited through three closures and the debt is compounding.
 
@@ -417,7 +417,7 @@ of what was asked for.
    in `internal/le/test/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
    refuses a named test with no file, but never notices a file nobody named, which is
    how two `netns-link` tests under `test/plugin/` came to run nowhere at all.
-2. **Then `/ze-close`**, on Opus 5 in a context that did not write the code.
+2. **Then `/ze-close`**, on Opus when the model is an Anthropic one, in a context that did not write the code.
 3. The Goal Validation table must record that three `ppp` tests are written and
    cross-compile-verified but **never executed**: they are `//go:build linux` and this
    host is darwin. Do not mark them green.

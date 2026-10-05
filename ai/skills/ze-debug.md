@@ -18,8 +18,8 @@ own fan-out. Do not wrap the whole skill in a single agent. That buries the
 parallel lenses one level down and costs exactly the independence they exist to
 provide (`ai/rules/planning.md`).
 
-Launch the agents this skill defines, all in ONE message, on `model: opus`,
-with `subagent_type: ze-work`. Every lens here implements its own fix at step
+Launch the agents this skill defines, all in ONE message, on `model: opus`
+when the model is an Anthropic one, with `subagent_type: ze-work`. Every lens here implements its own fix at step
 4, so none of them can be `ze-read`, which holds no Edit. `ze-work` costs about
 6k fewer startup tokens per agent than the default
 (`ai/rules/context-economy.md`).
@@ -32,7 +32,7 @@ Never trade their model down for cost; cut their NUMBER instead
 1. **Read the failing test output** provided by the user
 2. **Identify the failing tests:** Extract test names, packages, error messages, and expected vs actual values
 3. **Read the page before you spawn anything (BLOCKING, `ai/rules/documentation.md`):** look up each failing file in `ai/CODE-TO-DOCS.md`. Read the pages it lists. Read the file's `// Design:` header. Put those page paths in every agent prompt below. Say what each page claimed. A page that contradicts the failure is the bug or the defect. Step 5 decides which.
-4. **Launch 4 parallel investigation agents** (use `model: opus` -- diagnosis is judgment work, see `ai/rules/planning.md`):
+4. **Launch 4 parallel investigation agents** (use `model: opus` when the model is an Anthropic one -- diagnosis is judgment work, see `ai/rules/planning.md`):
 
    **Task 1 -- Format/parsing mismatch:**
    Check test expectations against actual output formats. Are the tests expecting a different structure, field name, or encoding than what the code produces?

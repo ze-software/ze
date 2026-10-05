@@ -16,7 +16,7 @@
 | Handoff | - |
 | Updated | 2026-09-14 |
 
-<!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
+<!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 
 <!-- Scope: cli. `ze explain <code>` is the surface whose answer the decision
      changes; the doctor registry and the code table are what it reads.
