@@ -1028,6 +1028,15 @@ format. `option=serial` marks process-driven fixtures that must not overlap
 other ExaBGP harness instances; the runner executes those after the parallel
 batch.
 
+The mock replies with the client's OPEN capabilities, changing only its AS
+number and router ID; it does not infer capabilities from expected UPDATEs.
+Migration expands an omitted or empty ExaBGP family block to every family
+registered in the current binary. An explicit family block stays restricted
+to its entries. `conf-vpn` explicitly declares `ipv4 mpls-vpn`, which migrates
+to `session > family ipv4/mpls-vpn`, so both OPENs advertise AFI 1, SAFI 128.
+The negotiated-family guard remains active: RFC 4760 Section 8 requires both
+speakers to advertise the family for bidirectional exchange.
+
 `<prefix>:signal:<NAME>` marks the point in a connection's script where the
 runner reloads Ze. It divides the script: every `raw` frame written before it
 must match before the reload happens, and the frames after it are matched only

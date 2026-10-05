@@ -28,9 +28,9 @@ func compatFixture(t *testing.T, name string) string {
 // TestMigrateCompatFixtures proves each ported config migrates, and pins the
 // part of the ze config that the ExaBGP config asked for.
 //
-// VALIDATES: the five config shapes the migration mishandled until now -- a
-// named api block, two api blocks in one template, the manual-eor leaf, a
-// processes-match pattern, and a flow route with a scope block.
+// VALIDATES: a VPN wire fixture's session family and split routes, a named api
+// block, two api blocks in one template, the manual-eor leaf, a processes-match
+// pattern, and a flow route with a scope block.
 // PREVENTS: `ze exabgp migrate` failing on a config the compatibility suite
 // runs, which leaves the ported test with nothing to drive ze with.
 func TestMigrateCompatFixtures(t *testing.T) {
@@ -38,6 +38,16 @@ func TestMigrateCompatFixtures(t *testing.T) {
 		fixture string
 		want    []string
 	}{
+		{
+			// The VPN wire fixture must negotiate the family of both split routes.
+			fixture: "conf-vpn",
+			want: []string{
+				"ipv4/mpls-vpn { prefix { maximum 10000; } }",
+				"ipv4/mpls-vpn add rd 65000:1 label 1000 10.0.0.0/24",
+				"ipv4/mpls-vpn add rd 65000:1 label 1000 20.0.0.0/24",
+				"split /25",
+			},
+		},
 		{
 			// `api connection { ... }` inside a template, named.
 			fixture: "api-check",

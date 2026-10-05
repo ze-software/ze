@@ -73,3 +73,48 @@ func TestConvertFamilySyntaxUsesRegistryNames(t *testing.T) {
 		}
 	}
 }
+
+// TestMigrateImplicitFamilies preserves ExaBGP's all-known-families default by
+// migrating omitted, empty, and explicit family blocks independently of fixtures.
+func TestMigrateImplicitFamilies(t *testing.T) {
+	family.RegisterTestFamilies()
+	for _, tc := range []struct {
+		name  string
+		block string
+		all   bool
+	}{
+		{name: "omitted", all: true},
+		{name: "empty", block: "family { }", all: true},
+		{name: "explicit", block: "family { ipv4 unicast; }"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := "neighbor 127.0.0.1 {\nlocal-as 65000;\npeer-as 65000;\n" + tc.block + `
+static {
+	route 10.0.0.0/24 rd 65000:1 next-hop 200.10.0.101 label 1000 split /25;
+}
+}`
+			tree, err := ParseExaBGPConfig(input)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			result, err := MigrateFromExaBGP(tree)
+			if err != nil {
+				t.Fatalf("migrate: %v", err)
+			}
+			output := SerializeTree(result.Tree)
+			if !strings.Contains(output, "ipv4/mpls-vpn add rd 65000:1 label 1000 10.0.0.0/24") {
+				t.Errorf("migration dropped the VPN route:\n%s", output)
+			}
+			if !strings.Contains(output, "split /25") {
+				t.Errorf("migration dropped VPN splitting:\n%s", output)
+			}
+			for _, name := range family.RegisteredFamilyNames() {
+				want := tc.all || name == familyIPv4Unicast
+				got := strings.Contains(output, name+" { prefix { maximum 10000; } }")
+				if got != want {
+					t.Errorf("family %s present = %t, want %t:\n%s", name, got, want, output)
+				}
+			}
+		})
+	}
+}

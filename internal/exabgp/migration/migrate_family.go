@@ -20,9 +20,17 @@ const (
 
 // convertFamilyToList converts ExaBGP family syntax to ZeBGP list entries.
 // ExaBGP: "ipv4 unicast;" -> ZeBGP: session > family list: key="ipv4/unicast".
+// An omitted or empty block means every registered family, matching ExaBGP's
+// default of all known NLRI families rather than Ze's IPv4-unicast default.
 func convertFamilyToList(src, dst *config.Tree) {
-	// Get keys and sort for deterministic output.
-	keys := src.Values()
+	var keys []string
+	if src != nil {
+		keys = src.Values()
+	}
+	if len(keys) == 0 {
+		keys = family.RegisteredFamilyNames()
+	}
+	// Registry enumeration and source values both need deterministic output.
 	slices.Sort(keys)
 
 	// Families go into session > family.

@@ -11,3 +11,7 @@
 - Forward-barrier flush injected after route commands for ordering guarantees
 - `ze exabgp migrate` converts ExaBGP configs to ze format
 - `ze exabgp migrate --env` converts ExaBGP INI environment files to ze config
+- An omitted or empty ExaBGP `family` block migrates to all address families
+  registered in the current binary. An explicit block keeps only the named
+  families; migration does not replace ExaBGP's implicit all-family behavior
+  with Ze's IPv4-unicast default.

@@ -1009,6 +1009,9 @@ neighbor 10.0.0.1 {
 //
 // VALIDATES: File-based migration produces exact expected output.
 // PREVENTS: Regression in migration output format.
+// These fixtures name their families explicitly so their exact-output contracts
+// do not freeze the registry population. TestMigrateImplicitFamilies covers the
+// omitted and empty family defaults independently.
 func TestMigrateFileBasedTests(t *testing.T) {
 	// Find test/exabgp directory.
 	testDataDir := findTestDataDir(t)
