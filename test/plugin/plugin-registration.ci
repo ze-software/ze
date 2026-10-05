@@ -1,10 +1,13 @@
 # Test: Successful 5-stage plugin registration protocol
 # Validates full protocol: declare, config, capability, registry, ready
-# Uses full API (not simple ready()) to test all protocol stages explicitly
+# The SDK completes all five stages before the observer checks its registered
+# command and sends an EOR to the established peer.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-# Plugin sends EOR after successful registration
+# The plugin owns shutdown after it observes its EOR on the wire.
+option=linger:value=true
+# Plugin sends EOR after successful registration and initial-sync quiescence.
 cmd=api:conn=1:seq=1:text=send bgp * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
@@ -12,7 +15,7 @@ EOF_PEER
 # native plugin script with full 5-stage protocol
 
 # ze bgp configuration
-# Note: graceful-restart NOT enabled - we send EOR manually from plugin
+# manual-eor, not the absence of graceful restart, suppresses the automatic EOR.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external test-plugin {
@@ -43,9 +46,10 @@ bgp {
     	}
     	behavior {
     		group-updates disable
+    		manual-eor true
     	}
 
-        # No graceful-restart - prevents auto EOR
+        # Only the registered plugin may satisfy the expected EOR.
         attach process test-plugin {
             send [ update ]
         }

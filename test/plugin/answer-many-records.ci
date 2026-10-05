@@ -7,6 +7,8 @@
 #    daemon can dispatch: far more than the 256-record threshold
 # 4. It asserts the head states the top kind and the map item type, that one row line carries each
 #    record, and that the terminator counts them all
+# 5. It waits for the initial-sync EOR to reach the peer wire before shutdown;
+#    plugin readiness alone does not mean the BGP session has established
 #
 # The type is decided at RUN TIME from the output and never by the command
 # (WriteAnswer, internal/component/plugin/dispatch.go). The encoder holds up to
@@ -34,6 +36,8 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=25s
+# The observer must read the sent-EOR counter before it owns shutdown.
+option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 

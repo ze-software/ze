@@ -244,12 +244,15 @@ func refreshRoute(ctx context.Context, _ []string) error {
 	})
 }
 
+// registrationObserver owns shutdown after its marker reaches the wire. The
+// peer MUST set manual-eor and linger, so an automatic marker cannot satisfy
+// its expectation and its close cannot race the observer's remaining checks.
 func registrationObserver(ctx context.Context, _ []string) error {
 	reg := sdk.Registration{
 		Families: []sdk.FamilyDecl{{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1}},
 		Commands: []sdk.CommandDecl{{Name: "show test-plugin registration"}},
 	}
-	return runPlugin11(ctx, "test-plugin", reg, nil, func(ctx context.Context, p *sdk.Plugin) error {
+	return Observe(ctx, "test-plugin", reg, func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "system command list")
 		if err != nil || status != statusDone {
 			return fmt.Errorf("system command list status=%s: %w", status, err)
@@ -263,11 +266,19 @@ func registrationObserver(ctx context.Context, _ []string) error {
 		if !found {
 			return errors.New("declared command missing from the engine command list")
 		}
-		if !peerDetailReady(ctx, p, 60, "state", func(v any) bool { return v == stateEstablished }) {
+		if !peerDetailReady(ctx, p, WaitAttempts(40, 250*time.Millisecond, 60), "state", func(v any) bool { return v == stateEstablished }) {
 			return errors.New("peer never reached established")
+		}
+		// Manual EOR suppresses the automatic marker, but the initial-sync
+		// owner must still release its gate before AnnounceEOR can send ours.
+		if err := quiesce11(ctx, p); err != nil {
+			return fmt.Errorf("finish initial sync before plugin End-of-RIB: %w", err)
 		}
 		if err := update11(ctx, p, "update text nlri ipv4/unicast eor"); err != nil {
 			return err
+		}
+		if !peerDetailReady(ctx, p, WaitAttempts(40, 250*time.Millisecond, 60), "eor-sent", func(v any) bool { n, _ := v.(float64); return n >= 1 }) {
+			return errors.New("plugin End-of-RIB never reached the wire")
 		}
 		return quiesce11(ctx, p)
 	})

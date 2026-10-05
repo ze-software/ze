@@ -22,6 +22,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// plugin01AnswerManyRecords waits for both the record answer and the peer's
+// initial End-of-RIB before Observe requests shutdown. Plugin startup alone
+// does not establish the BGP session; the check peer MUST linger until teardown.
 func plugin01AnswerManyRecords(ctx context.Context, plugin *sdk.Plugin) error {
 	dispatchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -57,6 +60,9 @@ func plugin01AnswerManyRecords(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	if count <= rpc.AnswerBufferThreshold {
 		return fmt.Errorf("fixture problem: %d commands is inside the %d-record threshold", count, rpc.AnswerBufferThreshold)
+	}
+	if !plugin01WaitCounter(ctx, plugin, "*", "eor-sent", 1, WaitAttempts(40, plugin01PollDelay, 40)) {
+		return errors.New("ze never sent its initial-sync End-of-RIB")
 	}
 	fmt.Fprintf(os.Stderr, "OK: %d records streamed, one line each\n", count)
 	return nil
