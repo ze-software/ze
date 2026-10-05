@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -27,11 +29,6 @@ type uiLeInventoryAnswersCommandResult struct {
 var generatedLine = regexp.MustCompile(`(?m)^Generated: .*$`)
 
 func runLEInventoryAnswers(ctx context.Context) error {
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
-		return errors.New("FAIL: ZE_REPO_ROOT is not set")
-	}
-
 	here, _, err := temporaryLEFixtureWorkspace("le-inventory-answers-")
 	if err != nil {
 		return fmt.Errorf("FAIL: create fixture directory: %w", err)
@@ -43,9 +40,14 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: %w", err)
 	}
 
-	// The inventory is rooted in the checkout and must not depend on the
-	// caller's working directory. Its timestamp is the sole variable field.
-	rootPage, fixturePage, err := inventoryOverAStillTree(ctx, root, here, binary)
+	// Own the counted inputs; the plugin and command registries still come
+	// from the actual full-feature native binary.
+	root := filepath.Join(here, "tree")
+	if err := leInventoryTree(root); err != nil {
+		return err
+	}
+	childEnv := childEnvironment(os.Environ(), map[string]string{envRepoRoot: root})
+	rootPage, fixturePage, err := inventoryOverAStillTree(ctx, root, here, binary, childEnv)
 	if err != nil {
 		return err
 	}
@@ -59,11 +61,11 @@ func runLEInventoryAnswers(ctx context.Context) error {
 
 	// The command registry has the same checkout-wide, working-directory
 	// independent contract, including row ordering.
-	commandsAtRoot, err := executeClean(ctx, root, binary, "cli list")
+	commandsAtRoot, err := executeClean(ctx, root, childEnv, binary, "cli list")
 	if err != nil {
 		return err
 	}
-	commandsAtFixture, err := executeClean(ctx, here, binary, "cli list")
+	commandsAtFixture, err := executeClean(ctx, here, childEnv, binary, "cli list")
 	if err != nil {
 		return err
 	}
@@ -78,7 +80,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	}
 
 	// One inventory payload must expose every documented top-level data set.
-	answer, err := executeClean(ctx, here, binary, "repo", "inventory", "|", "json")
+	answer, err := executeClean(ctx, here, childEnv, binary, "repo", "inventory", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -103,6 +105,34 @@ func runLEInventoryAnswers(ctx context.Context) error {
 			return fmt.Errorf("FAIL: inventory answered no %q key: %v", key, uiLeInventoryAnswersSortedKeys(inventory))
 		}
 	}
+	// These values come from the authored tree, not from another rendering or
+	// a snapshot of today's checkout. They prove the requested root was read.
+	var owned map[string]any
+	if err := json.Unmarshal([]byte(`{
+		"total-rpcs": 2,
+		"rpc-list": [
+			{"name":"clear-widget","module":"fixture.yang","covered":false},
+			{"name":"show-widget","module":"fixture.yang","covered":true}
+		],
+		"test-counts":{"widget":1},
+		"package-stats":[
+			{"area":"internal/","packages":1,"files":1,"lines":3},
+			{"area":"pkg/","packages":0,"files":0,"lines":0},
+			{"area":"cmd/","packages":1,"files":1,"lines":3}
+		]
+	}`), &owned); err != nil {
+		return fmt.Errorf("FAIL: decode authored inventory expectations: %w", err)
+	}
+	for key, want := range owned {
+		if !reflect.DeepEqual(inventory[key], want) {
+			return fmt.Errorf("FAIL: owned inventory %s = %#v, want %#v", key, inventory[key], want)
+		}
+	}
+	for _, row := range []string{"| RPCs | 2 |", "| RPCs with .ci coverage | 1/2 |", "| .ci test files | 1 |", "| Go packages | 2 |", "| Go files | 2 |", "| Go lines | 6 |"} {
+		if !strings.Contains(rootPage, row) {
+			return fmt.Errorf("FAIL: inventory page omitted authored count %q", row)
+		}
+	}
 	plugins, ok := inventory["plugins"].([]any)
 	if !ok {
 		return fmt.Errorf("FAIL: inventory plugins have type %T, want an array", inventory["plugins"])
@@ -111,7 +141,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: inventory answered %d plugins, which is too few to be the product", len(plugins))
 	}
 
-	listing, err := executeClean(ctx, here, binary, "cli list", "|", "json")
+	listing, err := executeClean(ctx, here, childEnv, binary, "cli list", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -133,7 +163,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 
 	// A row operator acts on command rows and answers a number rather than the
 	// rendered page.
-	counted, err := executeClean(ctx, here, binary, "cli list", "|", "count")
+	counted, err := executeClean(ctx, here, childEnv, binary, "cli list", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -141,13 +171,13 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: `le cli list | count` exited %d", counted.code)
 	}
 	wantCount := strconv.Itoa(len(commands))
-	if !strings.Contains(counted.stdout, wantCount) {
+	if strings.TrimSpace(counted.stdout) != wantCount {
 		return fmt.Errorf("FAIL: `le cli list | count` answered %q, want %d", counted.stdout, len(commands))
 	}
 
 	// Inventory is one document containing several row sets. There is no
 	// unambiguous row set for count to consume, so the chain must be refused.
-	refused, err := uiLeInventoryAnswersExecute(ctx, here, binary, "repo", "inventory", "|", "count")
+	refused, err := uiLeInventoryAnswersExecute(ctx, here, childEnv, binary, "repo", "inventory", "|", "count")
 	if err != nil {
 		return fmt.Errorf("FAIL: start refused inventory chain: %w", err)
 	}
@@ -162,8 +192,8 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	return nil
 }
 
-func executeClean(ctx context.Context, dir, name string, args ...string) (uiLeInventoryAnswersCommandResult, error) {
-	result, err := uiLeInventoryAnswersExecute(ctx, dir, name, args...)
+func executeClean(ctx context.Context, dir string, childEnv []string, name string, args ...string) (uiLeInventoryAnswersCommandResult, error) {
+	result, err := uiLeInventoryAnswersExecute(ctx, dir, childEnv, name, args...)
 	if err != nil {
 		return uiLeInventoryAnswersCommandResult{}, fmt.Errorf("FAIL: start %q: %w", append([]string{name}, args...), err)
 	}
@@ -173,9 +203,10 @@ func executeClean(ctx context.Context, dir, name string, args ...string) (uiLeIn
 	return result, nil
 }
 
-func uiLeInventoryAnswersExecute(ctx context.Context, dir, name string, args ...string) (uiLeInventoryAnswersCommandResult, error) {
+func uiLeInventoryAnswersExecute(ctx context.Context, dir string, childEnv []string, name string, args ...string) (uiLeInventoryAnswersCommandResult, error) {
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
+	cmd.Env = childEnv
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -216,62 +247,42 @@ func maxInt(a, b int) int {
 	return b
 }
 
-// inventoryTreeSettleAttempts bounds how many times the pair of readings is
-// retaken when the checkout moved between them.
-const inventoryTreeSettleAttempts = 3
-
-// inventoryOverAStillTree answers the page `le repo inventory` writes from the
-// checkout root and from a directory outside it, taken over a tree that did not
-// change between the two.
-//
-// The claim under test is that the answer does not depend on the caller's
-// working directory. It is a claim about ONE tree, and this checkout is shared:
-// several sessions edit it at once, so a Go file written between the two
-// readings moves a count and the comparison then reports a difference the
-// working directory did not cause. Measured on 2026-09-21, that is exactly what
-// it did -- `Go lines` read 2241652 and then 2241655, and the sibling
-// le-spec-status-answers read 340 specs and then 341 because another session
-// wrote a spec file in between.
-//
-// So the root reading is taken TWICE, either side of the fixture one, and the
-// comparison happens only when those two agree. A tree that will not hold still
-// is reported as that rather than as a failure of the contract: the experiment
-// was invalid, and saying so is not the same as saying the property is false.
-func inventoryOverAStillTree(ctx context.Context, root, here, binary string) (string, string, error) {
-	var lastBefore, lastAfter string
-	for attempt := range inventoryTreeSettleAttempts {
-		before, err := executeClean(ctx, root, binary, "repo", "inventory")
-		if err != nil {
-			return "", "", err
-		}
-		fixture, err := executeClean(ctx, here, binary, "repo", "inventory")
-		if err != nil {
-			return "", "", err
-		}
-		after, err := executeClean(ctx, root, binary, "repo", "inventory")
-		if err != nil {
-			return "", "", err
-		}
-		if before.code != fixture.code {
-			return "", "", fmt.Errorf("FAIL: inventory exited %d in the checkout and %d in the fixture directory",
-				before.code, fixture.code)
-		}
-		if before.code != 0 {
-			return "", "", fmt.Errorf("FAIL: inventory exited %d", before.code)
-		}
-
-		lastBefore = generatedLine.ReplaceAllString(before.stdout, "Generated: <when>")
-		lastAfter = generatedLine.ReplaceAllString(after.stdout, "Generated: <when>")
-		if lastBefore == lastAfter {
-			return lastBefore, generatedLine.ReplaceAllString(fixture.stdout, "Generated: <when>"), nil
-		}
-		fmt.Fprintf(os.Stderr, "the checkout moved during reading %d of %d; retaking\n",
-			attempt+1, inventoryTreeSettleAttempts)
+// inventoryOverAStillTree compares exactly two readings of immutable owned
+// inputs. No settling loop can conceal a nondeterministic answer.
+func inventoryOverAStillTree(ctx context.Context, root, here, binary string, childEnv []string) (string, string, error) {
+	atRoot, err := executeClean(ctx, root, childEnv, binary, "repo", "inventory")
+	if err != nil {
+		return "", "", err
 	}
+	outside, err := executeClean(ctx, here, childEnv, binary, "repo", "inventory")
+	if err != nil {
+		return "", "", err
+	}
+	if atRoot.code != 0 || outside.code != 0 {
+		return "", "", fmt.Errorf("FAIL: inventory exited %d at its root and %d outside it", atRoot.code, outside.code)
+	}
+	return generatedLine.ReplaceAllString(atRoot.stdout, "Generated: <when>"),
+		generatedLine.ReplaceAllString(outside.stdout, "Generated: <when>"), nil
+}
 
-	return "", "", fmt.Errorf(
-		"FAIL: the checkout would not hold still across %d readings, so working-directory independence was not testable: %s",
-		inventoryTreeSettleAttempts, firstDifference(lastBefore, lastAfter))
+func leInventoryTree(root string) error {
+	files := map[string]string{
+		"go.mod":                            "module fixture.invalid/inventory\n\ngo 1.26\n",
+		"internal/widget/widget.go":         "package widget\n\nconst Name = \"widget\"\n",
+		"internal/widget/yang/fixture.yang": "module fixture {\n namespace \"urn:fixture\";\n prefix f;\n rpc show-widget {\n }\n rpc clear-widget {\n }\n}\n",
+		"cmd/widget/main.go":                "package main\n\nfunc main() {}\n",
+		"test/widget/show.ci":               "cmd=foreground:exec=ze show widget\nexpect=exit:code=0\n",
+	}
+	for relative, body := range files {
+		path := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return fmt.Errorf("FAIL: create inventory input directory: %w", err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			return fmt.Errorf("FAIL: write inventory input %s: %w", relative, err)
+		}
+	}
+	return nil
 }
 
 // pastTheEnd stands for a line one of two readings does not have, so a page that

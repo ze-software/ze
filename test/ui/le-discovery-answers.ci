@@ -1,5 +1,10 @@
 option=timeout:value=600s
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
+# Native generators read owned sources/docs, write only their declared outputs,
+# and produce deterministic bytes and structured/row renderings.
+# Owned Git history checks committed-unpushed, staged, unstaged and untracked
+# paths against an authored exact set, then compares automatic and explicit
+# routing from outside that checkout. No second live Git snapshot is an oracle.
 
 cmd=foreground:seq=1:exec=le test fixture ui/le-discovery-answers
 expect=exit:code=0

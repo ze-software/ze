@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/runner-architecture.md -- semantic UI answer contracts.
+
 package fixture
 
 import (
@@ -13,6 +15,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	repocompiles "github.com/ze-software/ze/internal/le/repo/compiles"
 )
 
 func init() {
@@ -39,32 +44,25 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if err != nil {
 		return leChecksFailf("resolving ZE_REPO_ROOT: %v", err)
 	}
-	here, err := os.MkdirTemp(filepath.Dir(root), "le-checks-answers-")
+	here, _, err := temporaryLEFixtureWorkspace("le-checks-answers-")
 	if err != nil {
 		return leChecksFailf("creating fixture directory: %v", err)
 	}
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
-	tags, err := uiLEFeatureTags(root)
+	binary, err := nativeLEBinary()
+	if err != nil {
+		return leChecksFailf("locating native le binary: %v", err)
+	}
+	buildTree, buildEnv, err := leChecksBuildTree(ctx, here, root)
 	if err != nil {
 		return err
 	}
-	goTool, err := exec.LookPath("go")
-	if err != nil {
-		return leChecksFailf("finding go: %v", err)
-	}
-	binary := filepath.Join(here, "le")
-	build := exec.CommandContext(ctx, goTool, "build", "-tags", strings.Join(tags, ","), "-o", binary, "./cmd/ze") //nolint:gosec // the fixture chooses the program and its arguments
-	build.Dir = root
-	build.Env = leChecksEnvironment(map[string]string{envCGOEnabled: "0"})
-	var buildOutput bytes.Buffer
-	build.Stdout = &buildOutput
-	build.Stderr = &buildOutput
-	if err := build.Run(); err != nil {
-		return leChecksFailf("building the full le personality: %v\n%s", err, buildOutput.String())
-	}
 
 	runLE := func(env map[string]string, args ...string) (leChecksResult, error) {
+		if len(args) != 0 && args[0] == checkRepoCompiles {
+			return leChecksRunEnvironment(ctx, buildTree, buildEnv, binary, args...)
+		}
 		return leChecksRun(ctx, here, env, binary, args...)
 	}
 
@@ -198,15 +196,19 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if portCases.code != 0 {
 		return leChecksFailf("`le config ports selftest | json` exited %d", portCases.code)
 	}
-	if err := leChecksPassedRows(portCases.stdout, checkPortDefaults, 8); err != nil {
+	portRows, err := leChecksPassedRows(portCases.stdout, checkPortDefaults)
+	if err != nil {
 		return err
 	}
 	portCount, err := runLE(nil, checkPortDefaults, "selftest", "|", "count")
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(portCount.stdout) != "8" {
-		return leChecksFailf("`le config ports selftest | count` answered %q, want 8", portCount.stdout)
+	if portCount.code != 0 {
+		return leChecksFailf("`le config ports selftest | count` exited %d: %s", portCount.code, portCount.stderr)
+	}
+	if strings.TrimSpace(portCount.stdout) != strconv.Itoa(portRows) {
+		return leChecksFailf("`le config ports selftest | count` answered %q, want %d JSON rows", portCount.stdout, portRows)
 	}
 
 	listing, err := runLE(nil, "config coercion")
@@ -526,28 +528,32 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the first two rows are %q and %q", first["name"], second["name"])
 	}
 
-	for _, tc := range []struct {
-		command string
-		cases   int
-	}{
-		{checkFSPersistence, 8},
-		{checkPluginBoundary, 7},
-		{checkYANGLeafMentions, 7},
-		{checkPortDefaults, 8},
-		{checkDashStdio, 14},
-		{checkCIDispatch, 10},
-		{checkRepoCompiles, 7},
-		{checkTestSensitivity, 50},
+	// Case populations grow independently of the row-answer contract.
+	for _, command := range []string{
+		checkFSPersistence, checkPluginBoundary, checkYANGLeafMentions,
+		checkPortDefaults, checkDashStdio, checkCIDispatch, checkRepoCompiles,
+		checkTestSensitivity,
 	} {
-		answered, err := runLE(nil, tc.command, "selftest", "|", "json")
+		answered, err := runLE(nil, command, "selftest", "|", "json")
 		if err != nil {
 			return err
 		}
 		if answered.code != 0 {
-			return leChecksFailf("`le %s selftest | json` exited %d", tc.command, answered.code)
+			return leChecksFailf("`le %s selftest | json` exited %d", command, answered.code)
 		}
-		if err := leChecksPassedRows(answered.stdout, tc.command, tc.cases); err != nil {
+		rows, err := leChecksPassedRows(answered.stdout, command)
+		if err != nil {
 			return err
+		}
+		counted, err := runLE(nil, command, "selftest", "|", "count")
+		if err != nil {
+			return err
+		}
+		if counted.code != 0 {
+			return leChecksFailf("`le %s selftest | count` exited %d: %s", command, counted.code, counted.stderr)
+		}
+		if strings.TrimSpace(counted.stdout) != strconv.Itoa(rows) {
+			return leChecksFailf("`le %s selftest | count` answered %q, want %d JSON rows", command, counted.stdout, rows)
 		}
 	}
 
@@ -612,13 +618,83 @@ func runLEChecksAnswers(ctx context.Context) error {
 	return nil
 }
 
+// leChecksBuildTree exercises the real archive/build matrix on owned inputs.
+// The default package floor is a public non-vacuity guard, not a snapshot of
+// this checkout. Keep it intact and supply that many buildable packages.
+func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []string, error) {
+	root := filepath.Join(parent, "compiles")
+	files := map[string]string{
+		"go.mod":                             "module fixture.invalid/compiles\n\ngo 1.26\n",
+		"feature-gates.txt":                  "ze_probe\tinternal/p0\n",
+		"cmd/ze/main.go":                     "package main\n\nfunc main() {}\n",
+		"cmd/ze/ze_core_dispatch.go":         "//go:build ze_core\n\npackage main\n",
+		"cmd/ze/setup_features_distro.go":    "//go:build ze_distro\n\npackage main\n",
+		"cmd/ze/setup_features_appliance.go": "//go:build ze_appliance\n\npackage main\n",
+		"cmd/ze/setup_dispatch.go":           "//go:build ze_setup && !ze_core\n\npackage main\n",
+		"cmd/ze/setup_features_setup.go":     "//go:build ze_setup\n\npackage main\n",
+		"cmd/ze-installer/main.go":           "package main\n\nfunc main() {}\n",
+	}
+	// The two command packages count too: land exactly on the real floor.
+	for i := range repocompiles.DefaultPackageFloor - 2 {
+		files[fmt.Sprintf("internal/p%d/package.go", i)] = "package fixture\n\nconst Value = 1\n"
+	}
+	for relative, body := range files {
+		path := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return "", nil, leChecksFailf("create build fixture directory: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			return "", nil, leChecksFailf("write build fixture %s: %v", relative, err)
+		}
+	}
+	baseEnv := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "GIT_") {
+			baseEnv = append(baseEnv, entry)
+		}
+	}
+	childEnv := childEnvironment(baseEnv, map[string]string{
+		envRepoRoot:           root,
+		"GOCACHE":             gotoolchain.GoCache(checkout),
+		"GIT_CONFIG_GLOBAL":   os.DevNull,
+		"GIT_CONFIG_NOSYSTEM": "1",
+		"GIT_AUTHOR_NAME":     "Fixture",
+		"GIT_AUTHOR_EMAIL":    "fixture@example.invalid",
+		"GIT_COMMITTER_NAME":  "Fixture",
+		"GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+		"GIT_AUTHOR_DATE":     "2000-01-02T12:00:00Z",
+		"GIT_COMMITTER_DATE":  "2000-01-02T12:00:00Z",
+		repocompiles.RevKey:   "HEAD",
+		repocompiles.FloorKey: strconv.Itoa(repocompiles.DefaultPackageFloor),
+		repocompiles.KeepKey:  "false",
+	})
+	for _, args := range [][]string{
+		{"init", "--quiet", "--template=", "--initial-branch=fixture"},
+		{"add", "--", "."},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Build fixture"},
+	} {
+		result, err := leChecksRunEnvironment(ctx, root, childEnv, "git", args...)
+		if err != nil {
+			return "", nil, err
+		}
+		if result.code != 0 {
+			return "", nil, leChecksFailf("git %v exited %d: %s%s", args, result.code, result.stdout, result.stderr)
+		}
+	}
+	return root, childEnv, nil
+}
+
 func leChecksRun(ctx context.Context, dir string, overrides map[string]string, program string, args ...string) (leChecksResult, error) {
+	return leChecksRunEnvironment(ctx, dir, leChecksEnvironment(overrides), program, args...)
+}
+
+func leChecksRunEnvironment(ctx context.Context, dir string, childEnv []string, program string, args ...string) (leChecksResult, error) {
 	if err := ctx.Err(); err != nil {
 		return leChecksResult{}, leChecksFailf("fixture context ended before %q ran: %v", program, err)
 	}
 	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
-	cmd.Env = leChecksEnvironment(overrides)
+	cmd.Env = childEnv
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -701,29 +777,44 @@ func leChecksNilOrEmptyRows(value any) bool {
 	return ok && len(rows) == 0
 }
 
-func leChecksPassedRows(text, command string, want int) error {
+func leChecksPassedRows(text, command string) (int, error) {
 	value, err := leChecksJSON(text)
 	if err != nil {
-		return leChecksFailf("`le %s selftest | json` answered invalid JSON: %v", command, err)
+		return 0, leChecksFailf("`le %s selftest | json` answered invalid JSON: %v", command, err)
 	}
 	rows, ok := value.([]any)
 	if !ok {
-		return leChecksFailf("`le %s selftest` answered %#v, want %d case rows", command, value, want)
+		return 0, leChecksFailf("`le %s selftest` answered %#v, want case rows", command, value)
 	}
-	if len(rows) != want {
-		return leChecksFailf("`le %s selftest` answered %d rows, want %d", command, len(rows), want)
+	if len(rows) == 0 {
+		return 0, leChecksFailf("`le %s selftest` answered no cases", command)
 	}
+	seen := make(map[string]bool, len(rows))
 	for i, value := range rows {
 		row, ok := value.(map[string]any)
 		if !ok {
-			return leChecksFailf("%s selftest row %d is %#v, want an object", command, i, value)
+			return 0, leChecksFailf("%s selftest row %d is %#v, want an object", command, i, value)
 		}
+		name, ok := row["case"].(string)
+		if !ok {
+			return 0, leChecksFailf("%s selftest row %d has no case name: %#v", command, i, row)
+		}
+		if strings.TrimSpace(name) == "" {
+			return 0, leChecksFailf("%s selftest row %d has an empty case name", command, i)
+		}
+		if seen[name] {
+			return 0, leChecksFailf("%s selftest repeated case %q", command, name)
+		}
+		seen[name] = true
 		passed, ok := row["passed"].(bool)
-		if !ok || !passed {
-			return leChecksFailf("a %s selftest case failed: %#v", command, rows)
+		if !ok {
+			return 0, leChecksFailf("%s selftest case %q has no boolean verdict", command, name)
+		}
+		if !passed {
+			return 0, leChecksFailf("a %s selftest case failed: %#v", command, row)
 		}
 	}
-	return nil
+	return len(rows), nil
 }
 
 func leChecksHasElapsedColumn(page string) bool {

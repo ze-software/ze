@@ -1,7 +1,12 @@
-# Test: the built le product runs every native checks gate over the real
+# Test: the suite's native le binary preserves every checks command's data,
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-# checkout and preserves each command's data, rendering, exit, stream, scope,
-# ordering, negative-case, and filesystem contracts.
+# rendering, exit, stream, scope, ordering, negative-case, and filesystem contracts.
+# Selftests publish nonempty, uniquely named passing cases; count agrees with JSON
+# without fixing the number of cases a gate may add. Source-reading checks still
+# inspect the real checkout. The compiles action builds an owned committed module
+# in every production matrix flavor, at the unchanged default package floor,
+# instead of rebuilding the shared checkout's HEAD inside a UI rendering test.
+# Independent real-corpus and tracked-build verification gates remain unchanged.
 
 option=timeout:value=1800s
 

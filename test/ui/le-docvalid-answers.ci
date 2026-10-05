@@ -1,7 +1,10 @@
-# Test: the built le personality runs all documentation gates over the real
+# Test: the compiled native le personality judges owned documentation claims
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-# checkout, returns structured answers, rejects row-only operators on document
-# answers, and confines generated-file writes to isolated roots.
+# and a frozen local-registration source tree, returns structured answers,
+# rejects row-only operators on document answers before reading the tree,
+# and confines deterministic generated-file writes to isolated roots.
+# The complete embedded YANG/RPC contract remains checked; independent
+# documentation/publication gates still judge the complete live corpus.
 
 option=timeout:value=900s
 

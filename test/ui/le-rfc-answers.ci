@@ -1,21 +1,18 @@
-# Test: the built le binary answers the RFC extraction envelope, the
+# Test: the suite's native le binary answers the RFC extraction envelope, the
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-# conformance check, the audit re-seal and the requirement ledger. Every action
-# the rfc listing names and every supported rendering are exercised through the
-# developer-facing binary; the writers run against isolated exports of HEAD.
+# conformance check, audit re-seal, and requirement ledger over owned RFC inputs.
+# Required actions retain their read/write markers without pinning registry size
+# or descriptions. One authored summary and tagged unit own the expected counts;
+# independent real-corpus verification still judges the whole production corpus.
 #
-# The check is judged on its CONTRACT and never on this checkout's violation
-# count. It has three answers -- clean, violations, and a tree it could not read
-# -- and each is driven from a tree the fixture owns. The discriminating case
-# seeds ONE gated MUST that no test tags into an export of HEAD and requires the
-# gate to name that requirement and exit 2, because a count read off the shared
-# checkout is met by whatever backlog is standing that day.
+# Page/JSON parity, cannot-run refusal, and the seeded untagged MUST discriminate
+# the check's answers. No-op and shifted re-seals retain their byte-preservation
+# and parity checks; index-update compares pages, all named artifacts, and JSON
+# across independent copies. No writer changes the baseline inputs.
+# Go's ordinary build cache is shared, never a cached action result.
 #
-# VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7, AC-8 and AC-11 over the real
-# tree and the artifact a developer runs.
-#
-# The timeout is declared because a cold build cache and the RFC tree walks are
-# substantially slower than steady-state execution.
+# VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7, AC-8 and AC-11 through the
+# actual compiled developer-facing artifact and every supported rendering.
 
 option=timeout:value=900s
 

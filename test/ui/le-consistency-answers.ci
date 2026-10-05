@@ -1,20 +1,13 @@
-# Test: the BUILT le binary runs the consistency gate over the real checkout,
+# Test: the compiled native le binary judges owned consistency sources,
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-#       gives the same answer independently of the working directory, and
-#       exposes the same findings as structured data.
+# gives the same report inside and outside the selected root, and exposes
+# the same findings through JSON and count.
 #
-# VALIDATES: spec-le-is-a-ze-binary AC-11 over the REAL TREE, and AC-7 for the
-#            first ported tool, against the artifact a developer runs.
-# PREVENTS: a consistency implementation that passes focused fixtures but
-#           disagrees with the real checkout, changes with the current working
-#           directory, or exposes a different payload through row operators.
-#
-# The registered fixture compiles cmd/ze as le into its own temporary directory,
-# so no build artifact is written back into the checkout. Report comparisons are
-# over the multiset of lines because ordering is not part of the report contract.
-#
-# The timeout is declared because the fixture performs a cold product build and
-# several full walks of the real checkout.
+# VALIDATES: native CLI/cwd/pipe behavior over one authored source with exactly
+# one JSON-tag error and one missing-design warning, including exit status.
+# PREVENTS: moving checkout inputs or repeated full-corpus scans from obscuring
+# action plumbing failures. Independent production consistency gates still
+# judge the complete live checkout.
 
 option=timeout:value=300s
 

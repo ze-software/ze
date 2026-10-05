@@ -192,7 +192,7 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 			filepath.Join(root, "website", "data", "cli-commands.json"))
 		wikiCandidates = append(wikiCandidates,
 			filepath.Join(root, "wiki", "command-catalog.md"))
-	} else if checkSiblingPublications {
+	} else {
 		websiteCandidates = append(websiteCandidates,
 			filepath.Join(filepath.Dir(root), "gh-pages", "data", "cli-commands.json"))
 		wikiCandidates = append(wikiCandidates,

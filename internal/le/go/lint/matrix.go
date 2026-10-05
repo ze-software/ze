@@ -96,7 +96,7 @@ func flavorMatrix(featureTags []string) []Flavor {
 			Tags: []string{
 				"debug", "race", "live", "stress", "maprib", "fleetperf", "zetest",
 				"gokrazy", "ze_le",
-				"integration", "ze_docvalid_fixture",
+				"integration",
 			},
 			Why: "every additive capability tag that is not a mutually exclusive personality",
 		},

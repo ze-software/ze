@@ -394,6 +394,36 @@ and name, plus periodic progress while tests are still running.
 <!-- source: internal/test/cli/cmd_vpp.go -- VPP stub-backed suite runner -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility runner -->
 
+The checks, RFC, inventory, spec-status, consistency, discovery and doc-validity
+UI fixtures execute the suite's native `le` binary over owned inputs instead of
+rebuilding it or repeatedly scanning the moving checkout.
+Selftest rows must be named, unique and passing; action help must retain the
+required operations and their effects. Spec-status owns its specs and Git
+history, checking records, ordering, dates, stale markers and argument refusal.
+Inventory owns its filesystem inputs while retaining the binary's full plugin
+and command registries. RFC action checks own a summary and tagged unit, stamp
+their audit through the native CLI, and compare independent copies for writer
+parity. Tracked-build rendering checks compile an owned committed module in
+every production matrix flavor at the unchanged default package floor.
+
+Consistency and discovery assert authored finding and package identities, not
+minimum corpus sizes. Documentation validity freezes local registration
+sources once while retaining the complete embedded YANG/RPC contract, and
+checks valid and drifted claims. Discovery owns real Git history covering
+committed-unpushed, staged, unstaged and untracked paths. Independent source,
+documentation, publication, RFC and tracked-build gates still judge the full
+repository; fixture isolation neither narrows those gates nor raises deadlines.
+The placement fixture still runs its gates against the real checkout and
+rejects repository violations.
+<!-- source: internal/test/fixture/ui_fixture_le_checks_answers.go -- runLEChecksAnswers, leChecksPassedRows, leChecksBuildTree -->
+<!-- source: internal/test/fixture/ui_fixture_le_rfc_answers.go -- leRFCAnswers, leRFCAnswersTree, leRFCAnswersCopyTree -->
+<!-- source: internal/test/fixture/ui_fixture_le_inventory_answers.go -- runLEInventoryAnswers, inventoryOverAStillTree, leInventoryTree -->
+<!-- source: internal/test/fixture/ui_fixture_le_spec_status_answers.go -- leSpecStatusAnswers, leSpecStatusTree, leSpecStatusExpectedRecords -->
+<!-- source: internal/test/fixture/ui_fixture_le_consistency_answers.go -- runLEConsistencyAnswers -->
+<!-- source: internal/test/fixture/ui_fixture_le_docvalid_answers.go -- leDocvalidAnswers, leDocvalidTree -->
+<!-- source: internal/test/fixture/ui_fixture_le_discovery_answers.go -- leDiscoveryAnswers, leDiscoveryTree, leDiscoveryWiringTree -->
+<!-- source: internal/test/fixture/ui_fixture_le_placement_answers.go -- lePlacementAnswers -->
+
 ### Per-suite wall-clock budget
 
 Each suite runs under `timeout`, so a stuck subprocess cannot hold the run open.
@@ -1926,6 +1956,16 @@ See `docs/architecture/api/commands.md` "Quiesce Barrier".
 <!-- source: internal/test/fixture/misc_fixture_observers.go -- quiesce -->
 <!-- source: internal/component/plugin/server/quiesce.go -- ze-system:quiesce handler -->
 
+Plugin registration readiness is not BGP establishment. Before requesting
+shutdown, an observer waits for the peer state or sent-payload counter its wire
+assertions require. The check peer must linger while observer work remains.
+A fixture proving a plugin-originated End-of-RIB sets
+`behavior { manual-eor true }`, waits for Established, then quiesces initial
+sync before sending its marker. Disabling graceful restart does not suppress
+Ze's initial-sync marker.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR -->
+
 #### Payload-predicate waits
 
 When the wait is "block until an *observed payload* matches a condition" (not a
@@ -2781,6 +2821,13 @@ migrated Ze client. Use `--server ID --port N` and `--client ID --port N` for
 split-terminal debugging.
 <!-- source: internal/le/interoplab/bgp/exabgp_server.go -- wire server and PORT readiness -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
+
+`conf-vpn` explicitly enables `ipv4 mpls-vpn` before checking its expected
+VPN UPDATE frames. This does not test ExaBGP's implicit family default:
+migration must also turn an omitted or empty family block into the families
+registered in the running binary, while preserving an explicit restricted set.
+<!-- source: internal/exabgp/migration/migrate_family.go -- convertFamilyToList -->
+<!-- source: internal/exabgp/migration/migrate_family_registry_test.go -- TestMigrateImplicitFamilies -->
 
 ### ExaBGP Verify Output
 

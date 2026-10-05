@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/runner-architecture.md -- semantic UI answer contracts.
+
 package fixture
 
 import (
@@ -16,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 func init() {
@@ -46,27 +49,20 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		}
 	}()
 
-	root := os.Getenv("ZE_REPO_ROOT")
-	leRFCAnswersRequire(root != "", "ZE_REPO_ROOT is not set")
-	root, err = filepath.Abs(root)
-	leRFCAnswersRequireNoError(err, "resolve ZE_REPO_ROOT")
-	info, err := os.Stat(root)
-	leRFCAnswersRequireNoError(err, "stat ZE_REPO_ROOT")
-	leRFCAnswersRequire(info.IsDir(), "ZE_REPO_ROOT is not a directory: %s", root)
-
 	here, _, err := temporaryLEFixtureWorkspace("le-rfc-answers-")
 	leRFCAnswersRequireNoError(err, "create fixture directory")
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	binary, err := nativeLEBinary()
 	leRFCAnswersRequireNoError(err, "locate native le binary")
+	root := leRFCAnswersTree(ctx, here, binary)
 
 	runLE := func(tree string, args ...string) leRFCAnswersResult {
 		return leRFCAnswersRun(ctx, here, map[string]string{envRepoRoot: tree}, binary, args...)
 	}
 
 	// The extraction envelope is a read-only JSON document derived from the
-	// checkout, and all three registers are published even when one is empty.
+	// owned tree, and all three registers are published even when one is empty.
 	extraction := runLE(root, "rfc", "extraction-status")
 	leRFCAnswersRequire(extraction.code == 0,
 		"rfc extraction-status exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -77,11 +73,13 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	enrolled := leRFCAnswersJSONInt(envelope["enrolled"], "extraction-status.enrolled")
 	signed := leRFCAnswersJSONInt(envelope["signed"], "extraction-status.signed")
 	backlog := leRFCAnswersJSONInt(envelope["backlog"], "extraction-status.backlog")
-	leRFCAnswersRequire(enrolled > 100,
-		"rfc extraction-status read only %d enrolled RFC(s)", enrolled)
+	leRFCAnswersRequire(enrolled == 1,
+		"rfc extraction-status read %d enrolled RFC(s), want the one authored summary", enrolled)
 	leRFCAnswersRequire(signed+backlog == enrolled,
 		"signed (%d) and backlog (%d) do not cover enrolled (%d): %s",
 		signed, backlog, enrolled, extraction.stdout)
+	leRFCAnswersRequire(signed == 0 && backlog == 1,
+		"the unsigned owned summary answered signed=%d backlog=%d, want 0 and 1", signed, backlog)
 	registers, ok := envelope["signed-by-register"].(map[string]any)
 	leRFCAnswersRequire(ok,
 		"extraction-status.signed-by-register is not an object: %s", extraction.stdout)
@@ -116,13 +114,10 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"rfc extraction-status | json answered a different enrolled count: %s", extractionJSON.stdout,
 	)
 
-	// The public check has three answers. Each one is driven from a tree this
-	// case controls. The SHARED checkout reports whatever backlog is standing
-	// that day. An assertion that the gate found SOMETHING is met by that
-	// backlog, so it stays green when the gate goes blind. The checkout is
-	// therefore held to the contract alone, and the discrimination comes from
-	// a violation the fixture writes itself.
-	check := leRFCAnswersRunCheck(runLE, root, "checkout")
+	// The check compares page and JSON over a fixed baseline, then a copy with
+	// exactly one new untagged requirement. No ambient checkout debt can meet
+	// the seeded requirement's assertion.
+	check := leRFCAnswersRunCheck(runLE, root, "owned tree")
 
 	// A tree the gate cannot READ answers `cannot run` and exits 2. Clean and
 	// unreadable MUST NOT render the same. A gate that never ran, reported as
@@ -146,12 +141,9 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequire(!blindViolations,
 		"an unreadable tree answered a violation list rather than a refusal: %s", blindJSON.stdout)
 
-	// One export carries both halves of the discrimination. The only difference
-	// between the two runs below is the line the fixture wrote. The seeded run
-	// gives this case a red it reaches on its own. A checkout-wide count is
-	// satisfied by ambient debt. A violation this fixture put there is
-	// satisfied by nothing else.
-	seedTree := leRFCAnswersExportHEAD(ctx, root, here, "check-seed")
+	// Both halves use the same owned input. The seeded requirement alone must
+	// add a refusal without losing any unrelated baseline finding.
+	seedTree := leRFCAnswersCopyTree(root, here, "check-seed")
 	clean := leRFCAnswersRunCheck(runLE, seedTree, "clean export")
 	leRFCAnswersRequire(!strings.Contains(clean.page, leRFCAnswersSeedID),
 		"a clean export already names %s, so seeding it proves nothing:\n%s",
@@ -245,9 +237,9 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"rfc selftest | json returned %d real-tree/public-check rows, want one: %s",
 		realTreeRows, selftestJSON.stdout)
 
-	// The listing is itself part of the public contract: every action is
-	// present and exactly the mutating ones are marked as writers. Order is not
-	// asserted, because the comparison below is over a map.
+	// Required public actions retain their effect markers as the registry grows.
+	// New actions must have a description and a valid marker, not force this
+	// consumer test to copy another registry or pin its population.
 	listing := runLE(root, "rfc")
 	leRFCAnswersRequire(listing.code == 0,
 		"rfc listing exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -255,11 +247,20 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequire(listing.stderr == "", "rfc listing wrote to stderr: %q", listing.stderr)
 	listed := map[string]string{}
 	lines := strings.Split(listing.stdout, "\n")
+	leRFCAnswersRequire(strings.TrimSpace(lines[0]) == "rfc:",
+		"rfc listing has no area heading:\n%s", listing.stdout)
 	for _, line := range lines[1:] {
-		fields := strings.Fields(line)
-		if len(fields) >= 2 {
-			listed[fields[0]] = fields[1]
+		if strings.TrimSpace(line) == "" {
+			continue
 		}
+		fields := strings.Fields(line)
+		leRFCAnswersRequire(len(fields) >= 3,
+			"rfc listing has an action without an effect or description: %q", line)
+		_, duplicate := listed[fields[0]]
+		leRFCAnswersRequire(!duplicate, "rfc listing repeats action %q", fields[0])
+		leRFCAnswersRequire(fields[1] == fieldChecks || fields[1] == wordWrites,
+			"rfc listing action %q has invalid effect %q", fields[0], fields[1])
+		listed[fields[0]] = fields[1]
 	}
 	wantListed := map[string]string{
 		"extraction-create":   wordWrites,
@@ -276,20 +277,11 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		actionIndexUpdate:     wordWrites,
 		"quote-backfill":      wordWrites,
 	}
-	// The expectation is written out rather than derived from the action table
-	// the binary renders: a list read from that table would agree with it
-	// whatever it said. The count is computed from this map so the message
-	// cannot go stale the way "ten actions with exactly five writers" did when
-	// `approve` was added.
-	wantWriters := 0
-	for _, kind := range wantListed {
-		if kind == wordWrites {
-			wantWriters++
-		}
+	for action, effect := range wantListed {
+		leRFCAnswersRequire(listed[action] == effect,
+			"rfc listing action %q has effect %q, want %q:\n%s",
+			action, listed[action], effect, listing.stdout)
 	}
-	leRFCAnswersRequire(reflect.DeepEqual(listed, wantListed),
-		"rfc listing does not name %d actions with exactly %d writers:\n%s",
-		len(wantListed), wantWriters, listing.stdout)
 	for _, action := range []string{"extraction-status", actionCheck, actionSelftest, "reseal", actionIndexUpdate} {
 		refused := runLE(root, "rfc", action, "rfc7606")
 		leRFCAnswersRequire(refused.code == 2,
@@ -311,21 +303,18 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	// execute the writer and therefore are covered by snapshots taken before and
 	// after all of those invocations.
 	//
-	// The writer runs on an export of HEAD, never on the shared checkout. Other
-	// sessions leave verdicts SHIFTED there as a matter of course, so a re-seal
-	// over the checkout judged their uncommitted work rather than this contract,
-	// and it wrote into their tree. One priming re-seal re-stamps whatever HEAD
-	// itself left shifted, so every call below meets the no-op state.
+	// Writers operate on independent copies, never on the baseline inputs.
+	// Prime the owned audit once so the no-op contract starts from fresh data.
 	checkoutAuditBefore := leRFCAnswersAuditState(root)
-	noopTree := leRFCAnswersExportHEAD(ctx, root, here, "reseal-noop")
+	noopTree := leRFCAnswersCopyTree(root, here, "reseal-noop")
 	prime := runLE(noopTree, "rfc", "reseal")
 	leRFCAnswersRequire(prime.code == 0 && prime.stderr == "",
-		"priming rfc reseal on the HEAD export failed with exit %d\nstdout:\n%s\nstderr:\n%s",
+		"priming rfc reseal on the owned copy failed with exit %d\nstdout:\n%s\nstderr:\n%s",
 		prime.code, prime.stdout, prime.stderr)
 	noopAuditBefore := leRFCAnswersAuditState(noopTree)
 	reseal := runLE(noopTree, "rfc", "reseal")
 	leRFCAnswersRequire(reseal.code == 0,
-		"rfc reseal refused the primed HEAD export with exit %d\nstdout:\n%s\nstderr:\n%s",
+		"rfc reseal refused the primed owned copy with exit %d\nstdout:\n%s\nstderr:\n%s",
 		reseal.code, reseal.stdout, reseal.stderr)
 	leRFCAnswersRequire(reseal.stderr == "", "rfc reseal wrote to stderr: %q", reseal.stderr)
 	leRFCAnswersRequire(strings.Contains(reseal.stdout, "nothing to re-seal"),
@@ -352,23 +341,23 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"rfc reseal | json returned fields %v, want refused and resealed: %s",
 		leRFCAnswersMapKeys(resealPayload), resealJSON.stdout)
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersAuditState(noopTree), noopAuditBefore),
-		"a no-op re-seal changed rfc/audit in the primed HEAD export")
+		"a no-op re-seal changed rfc/audit in the primed owned copy")
 
 	// Build the set of tagged files from the audit records. Appending below all
 	// functions preserves units while changing every cited file's whole-file
 	// identity, forcing all unit-bearing verdicts into the re-sealable state.
 	cited := leRFCAnswersCitedFiles(noopAuditBefore)
-	leRFCAnswersRequire(len(cited) >= 10,
-		"HEAD audit records cite only %d tagged file(s)", len(cited))
+	leRFCAnswersRequire(reflect.DeepEqual(cited, []string{"internal/widget/widget_test.go"}),
+		"owned audit records cite %v, want the authored widget test", cited)
 
-	resealTreeA := leRFCAnswersExportHEAD(ctx, root, here, "reseal-a")
-	resealTreeB := leRFCAnswersExportHEAD(ctx, root, here, "reseal-b")
+	resealTreeA := leRFCAnswersCopyTree(root, here, "reseal-a")
+	resealTreeB := leRFCAnswersCopyTree(root, here, "reseal-b")
 	leRFCAnswersShift(resealTreeA, cited)
 	leRFCAnswersShift(resealTreeB, cited)
 	shiftedBeforeA := leRFCAnswersAuditState(resealTreeA)
 	shiftedBeforeB := leRFCAnswersAuditState(resealTreeB)
 	leRFCAnswersRequire(reflect.DeepEqual(shiftedBeforeA, shiftedBeforeB),
-		"two clean HEAD exports began with different rfc/audit bytes")
+		"two owned copies began with different rfc/audit bytes")
 
 	shiftedA := runLE(resealTreeA, "rfc", "reseal")
 	shiftedB := runLE(resealTreeB, "rfc", "reseal")
@@ -405,13 +394,12 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersAuditState(resealTreeA), shiftedAfterA),
 		"a second re-seal changed already-fresh audit bytes")
 
-	// index-update owns the ledger and every requirements shard. It runs only
-	// over clean HEAD exports. Equivalent exports must produce the same page,
-	// file set, and bytes; JSON rendering gets a third export so it cannot read
-	// pages written by either plain invocation.
+	// index-update owns the ledger and every requirements shard. Equivalent
+	// copies must produce the same page, file set, and bytes; JSON rendering
+	// gets a third copy so it cannot read pages from either plain invocation.
 	checkoutPages := leRFCAnswersGenerated(root)
-	indexTreeA := leRFCAnswersExportHEAD(ctx, root, here, "index-a")
-	indexTreeB := leRFCAnswersExportHEAD(ctx, root, here, "index-b")
+	indexTreeA := leRFCAnswersCopyTree(root, here, "index-a")
+	indexTreeB := leRFCAnswersCopyTree(root, here, "index-b")
 	indexA := runLE(indexTreeA, "rfc", "index-update")
 	indexB := runLE(indexTreeB, "rfc", "index-update")
 	for name, result := range map[string]leRFCAnswersResult{"index-a": indexA, "index-b": indexB} {
@@ -424,12 +412,12 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"%s rfc index-update emitted terminal escapes: %q", name, result.stdout)
 	}
 	leRFCAnswersRequire(indexA.stdout == indexB.stdout,
-		"equivalent HEAD exports rendered different index-update bytes\nfirst:\n%s\nsecond:\n%s",
+		"equivalent owned copies rendered different index-update bytes\nfirst:\n%s\nsecond:\n%s",
 		indexA.stdout, indexB.stdout)
 	pagesA := leRFCAnswersGenerated(indexTreeA)
 	pagesB := leRFCAnswersGenerated(indexTreeB)
-	leRFCAnswersRequire(len(pagesA) > 100,
-		"rfc index-update wrote only %d generated file(s)", len(pagesA))
+	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersMapKeys(pagesA), []string{"ai/RFC-REQUIREMENTS.md", "rfc/requirements/rfc4456.md"}),
+		"rfc index-update wrote %v, want the ledger and the one authored RFC's shard", leRFCAnswersMapKeys(pagesA))
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersMapKeys(pagesA), leRFCAnswersMapKeys(pagesB)),
 		"equivalent index updates wrote different file sets: %v",
 		leRFCAnswersSymmetricDifference(leRFCAnswersMapKeys(pagesA), leRFCAnswersMapKeys(pagesB)))
@@ -438,7 +426,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"equivalent index updates wrote different bytes into %s", name)
 	}
 
-	indexJSONTree := leRFCAnswersExportHEAD(ctx, root, here, "index-json")
+	indexJSONTree := leRFCAnswersCopyTree(root, here, "index-json")
 	indexJSON := runLE(indexJSONTree, "rfc", "index-update", "|", "json")
 	leRFCAnswersRequire(indexJSON.code == 0,
 		"rfc index-update | json exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -480,26 +468,75 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"JSON-rendered index update wrote different bytes into %s", name)
 	}
 
-	// Every writer above targeted an export. Invocations targeting the shared
-	// checkout were either read-only or rejected at argument validation, so both
-	// owned filesystem regions must remain exact.
+	// Every writer targeted a copy; read-only and invalid-argument invocations
+	// must leave the baseline's two owned filesystem regions unchanged.
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersGenerated(root), checkoutPages),
-		"the fixture changed generated requirement pages in the shared checkout")
+		"the fixture changed generated requirement pages in its baseline tree")
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersAuditState(root), checkoutAuditBefore),
-		"the fixture changed rfc/audit in the shared checkout")
+		"the fixture changed rfc/audit in its baseline tree")
 
 	fmt.Println("OK")
 	return nil
 }
 
-// The seeded requirement, and the summary that carries it.
-//
-// A gated MUST that no test tags is the gate's central refusal. It is the one
-// violation worth seeding. rfc4456 carries it because its summary is enrolled
-// and declares its rows under section 8. The id is anchored to the section its
-// own text cites, so a free-form id is refused for its SHAPE before the
-// coverage check reads it. 97 sits far above the rows section 8 holds, and the
-// clean-export assertion fails loudly if the corpus ever allocates it.
+// leRFCAnswersTree owns only the inputs needed by the action/pipe contract.
+// FixtureFiles is the gate's shared source of valid summary metadata; the
+// independent real-corpus gates still judge every production RFC.
+func leRFCAnswersTree(ctx context.Context, parent, binary string) string {
+	root := filepath.Join(parent, "tree")
+	files := make(map[string]string)
+	for relative, body := range rfc.FixtureFiles() {
+		relative = strings.ReplaceAll(relative, "9999", "4456")
+		files[relative] = strings.ReplaceAll(body, "9999", "4456")
+	}
+	files["go.mod"] = "module fixture.invalid/rfc\n\ngo 1.26\n"
+	files["feature-gates.txt"] = "ze_probe\tinternal/widget\n"
+	files["internal/widget/widget_test.go"] = "package widget\n\nimport \"testing\"\n\n" +
+		"func TestWidget(t *testing.T) {\n" +
+		"\t// RFC requirement: RFC4456-2-1 positive\n" +
+		"\t// RFC requirement: RFC4456-2-1 negative\n" +
+		"\tif !acceptWidget(1) || acceptWidget(0) {\n\t\tt.Fatal(\"widget boundary\")\n\t}\n}\n" +
+		"\nfunc acceptWidget(value int) bool { return value == 1 }\n"
+	files["pending.json"] = `{"rfc":"rfc4456","audited":"2000-01-02","requirements":{"RFC4456-2-1":{"verdict":"enforced","note":"The owned test exercises accepted and rejected widget input."}}}`
+	for relative, body := range files {
+		path := filepath.Join(root, filepath.FromSlash(relative))
+		leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create owned RFC directory")
+		leRFCAnswersRequireNoError(os.WriteFile(path, []byte(body), 0o600), "write owned RFC input "+relative)
+	}
+	// Share only Go's content-addressed build artifacts, never an RFC answer.
+	// The native package checker otherwise creates a cold cache per copy.
+	cache, err := filepath.Abs(filepath.Join(os.Getenv(envRepoRoot), "cache"))
+	leRFCAnswersRequireNoError(err, "resolve native build cache")
+	leRFCAnswersRequireNoError(os.Symlink(cache, filepath.Join(root, "cache")), "link native build cache")
+	stamp := leRFCAnswersRun(ctx, parent, map[string]string{envRepoRoot: root}, binary,
+		"rfc", "audit-stamp", "stem", "rfc4456", "from", filepath.Join(root, "pending.json"))
+	leRFCAnswersRequire(stamp.code == 0 && stamp.stderr == "",
+		"stamping the owned RFC audit exited %d\nstdout:\n%s\nstderr:\n%s", stamp.code, stamp.stdout, stamp.stderr)
+	return root
+}
+
+func leRFCAnswersCopyTree(root, parent, name string) string {
+	destination := filepath.Join(parent, name)
+	leRFCAnswersRequireNoError(os.MkdirAll(destination, 0o750), "create owned RFC copy")
+	entries, err := os.ReadDir(root)
+	leRFCAnswersRequireNoError(err, "read owned RFC inputs")
+	for _, entry := range entries {
+		if entry.Name() == "cache" {
+			continue
+		}
+		target := filepath.Join(destination, entry.Name())
+		if entry.IsDir() {
+			leRFCAnswersRequireNoError(os.CopyFS(target, os.DirFS(filepath.Join(root, entry.Name()))), "copy owned RFC directory "+entry.Name())
+		} else {
+			leRFCAnswersRequireNoError(os.WriteFile(target, leRFCAnswersRead(root, entry.Name()), 0o600), "copy owned RFC file "+entry.Name())
+		}
+	}
+	leRFCAnswersRequireNoError(os.Symlink(filepath.Join(root, "cache"), filepath.Join(destination, "cache")), "link copied tree's build cache")
+	return destination
+}
+
+// The seeded requirement is deliberately distinct from the one authored by
+// leRFCAnswersTree. Its id and section agree, so coverage, not shape, refuses it.
 const (
 	leRFCAnswersSeedSummary = "rfc/short/rfc4456.md"
 	leRFCAnswersSeedID      = "RFC4456-8-97"
@@ -688,7 +725,13 @@ func leRFCAnswersRun(
 }
 
 func leRFCAnswersEnvironment(overrides map[string]string) []string {
-	return childEnvironment(os.Environ(), overrides)
+	baseEnv := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "GIT_") {
+			baseEnv = append(baseEnv, entry)
+		}
+	}
+	return childEnvironment(baseEnv, overrides)
 }
 
 func leRFCAnswersJSON(text, description string) any {

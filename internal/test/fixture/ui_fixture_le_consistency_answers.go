@@ -34,22 +34,6 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	ctx, cancel := context.WithTimeout(parent, leConsistencyTimeout)
 	defer cancel()
 
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
-		return fmt.Errorf("FAIL: ZE_REPO_ROOT is not set")
-	}
-	root, err := filepath.Abs(root)
-	if err != nil {
-		return fmt.Errorf("FAIL: resolve ZE_REPO_ROOT: %w", err)
-	}
-	info, err := os.Stat(root)
-	if err != nil {
-		return fmt.Errorf("FAIL: stat ZE_REPO_ROOT: %w", err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("FAIL: ZE_REPO_ROOT is not a directory: %s", root)
-	}
-
 	work, err := os.MkdirTemp("", "le-consistency-answers-")
 	if err != nil {
 		return fmt.Errorf("FAIL: create fixture directory: %w", err)
@@ -60,11 +44,26 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
 	}
+	root := filepath.Join(work, "tree")
+	if err := os.MkdirAll(filepath.Join(root, "internal", "sample"), 0o750); err != nil {
+		return fmt.Errorf("FAIL: create owned consistency tree: %w", err)
+	}
+	// One source exercises both an error and a warning. The finding identities,
+	// not the size of today's repository, make the comparison non-vacuous.
+	name := filepath.Join(root, "internal", "sample", "sample.go")
+	body := "package sample\n\ntype Sample struct { Value string `json:\"bad_name\"` }\n"
+	if err := os.WriteFile(name, []byte(body), 0o600); err != nil {
+		return fmt.Errorf("FAIL: write owned consistency input: %w", err)
+	}
+	run := func(dir string, args ...string) (processResult, error) {
+		result, err := uiLeDocvalidAnswersRunCommand(ctx, dir, map[string]string{envRepoRoot: root}, binary, args...)
+		return processResult{stdout: string(result.stdout), stderr: string(result.stderr), code: result.code}, err
+	}
 
 	// Invoke the command from outside the checkout, as a developer may. The
-	// command takes no path and must discover the real checkout independently
+	// command takes no path and must discover the selected checkout independently
 	// of its current working directory.
-	bare, err := runProcess(ctx, work, binary, "doc", "consistency")
+	bare, err := run(work, "doc", "consistency")
 	if err != nil {
 		return fmt.Errorf("FAIL: execute `le doc consistency`: %w", err)
 	}
@@ -74,7 +73,7 @@ func runLEConsistencyAnswers(parent context.Context) error {
 
 	// Invoke the same compiled product from the checkout root. Compare reports
 	// as multisets because report order is not part of the consistency contract.
-	fromRoot, err := runProcess(ctx, root, binary, "doc", "consistency")
+	fromRoot, err := run(root, "doc", "consistency")
 	if err != nil {
 		return fmt.Errorf("FAIL: execute `le doc consistency` from the checkout: %w", err)
 	}
@@ -96,14 +95,11 @@ func runLEConsistencyAnswers(parent context.Context) error {
 			formatDifference("only at the checkout root", onlyRoot),
 		)
 	}
-	if n := bagSize(outsideLines); n <= 100 {
-		return fmt.Errorf("FAIL: the comparison ran over %d lines, which is too few to mean anything", n)
-	}
 
 	// Exercise the same answer through its data renderer. The payload must be a
 	// report, and its finding totals and process status must agree with the bare
 	// command.
-	answer, err := runProcess(ctx, work, binary, "doc", "consistency", "|", "json")
+	answer, err := run(work, "doc", "consistency", "|", "json")
 	if err != nil {
 		return fmt.Errorf("FAIL: execute `le doc consistency | json`: %w", err)
 	}
@@ -139,6 +135,9 @@ func runLEConsistencyAnswers(parent context.Context) error {
 			len(findings), errorsCount, warningsCount,
 		)
 	}
+	if errorsCount != 1 || warningsCount != 1 || bare.code != 1 {
+		return fmt.Errorf("FAIL: authored consistency findings: got %d errors, %d warnings, exit %d; want one each and exit 1", errorsCount, warningsCount, bare.code)
+	}
 	if answer.code != bare.code {
 		return fmt.Errorf("FAIL: `| json` exited %d and the bare command exited %d", answer.code, bare.code)
 	}
@@ -161,13 +160,37 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	}
 
 	// Row operators act on findings rather than on the report envelope.
-	counted, err := runProcess(ctx, work, binary, "doc", "consistency", "|", "count")
+	counted, err := run(work, "doc", "consistency", "|", "count")
 	if err != nil {
 		return fmt.Errorf("FAIL: execute `le doc consistency | count`: %w", err)
 	}
 	wantCount := strconv.Itoa(len(findings))
-	if !strings.Contains(counted.stdout, wantCount) {
+	if counted.code != bare.code || counted.stderr != "" || strings.TrimSpace(counted.stdout) != wantCount {
 		return fmt.Errorf("FAIL: `le doc consistency | count` answered %q, want %s", counted.stdout, wantCount)
+	}
+	wantFindings := map[string]string{"json-kebab-case": "ERROR", "design-refs": "WARN"}
+	for _, finding := range findings {
+		var file, check, severity string
+		if err := json.Unmarshal(finding[fieldFile], &file); err != nil {
+			return fmt.Errorf("FAIL: invalid finding file: %w", err)
+		}
+		if err := json.Unmarshal(finding[actionCheck], &check); err != nil {
+			return fmt.Errorf("FAIL: invalid finding check: %w", err)
+		}
+		if err := json.Unmarshal(finding["severity"], &severity); err != nil {
+			return fmt.Errorf("FAIL: invalid finding severity: %w", err)
+		}
+		if file != "internal/sample/sample.go" || wantFindings[check] != severity {
+			return fmt.Errorf("FAIL: unexpected authored finding: %s", compactJSON(finding))
+		}
+		if !strings.Contains(ansiColor.ReplaceAllString(bare.stdout, ""), file) ||
+			!strings.Contains(bare.stdout, check) {
+			return fmt.Errorf("FAIL: human report omits authored finding %s: %s", check, bare.stdout)
+		}
+		delete(wantFindings, check)
+	}
+	if len(wantFindings) != 0 {
+		return fmt.Errorf("FAIL: report omitted authored findings: %v", wantFindings)
 	}
 
 	fmt.Println("OK")
@@ -203,14 +226,6 @@ func lineBag(text string) map[string]int {
 		bag[line]++
 	}
 	return bag
-}
-
-func bagSize(bag map[string]int) int {
-	total := 0
-	for _, count := range bag {
-		total += count
-	}
-	return total
 }
 
 func bagDifference(left, right map[string]int) []string {

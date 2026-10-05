@@ -39,16 +39,6 @@ func temporaryLEFixtureWorkspace(prefix string) (string, string, error) {
 }
 
 func leDiscoveryAnswers(ctx context.Context) error {
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
-		return uiLeDiscoveryAnswersFailf("ZE_REPO_ROOT is not set")
-	}
-	var err error
-	root, err = filepath.Abs(root)
-	if err != nil {
-		return uiLeDiscoveryAnswersFailf("resolving ZE_REPO_ROOT: %v", err)
-	}
-
 	here, _, err := temporaryLEFixtureWorkspace("le-discovery-answers-")
 	if err != nil {
 		return uiLeDiscoveryAnswersFailf("creating fixture directory: %v", err)
@@ -59,39 +49,41 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeDiscoveryAnswersFailf("%v", err)
 	}
-
-	runLE := func(tree string, args ...string) uiLeDiscoveryAnswersCommandResult {
-		overrides := map[string]string{}
-		if tree != "" {
-			overrides["ZE_REPO_ROOT"] = tree
-		}
-		return uiLeDiscoveryAnswersRunCommand(ctx, here, overrides, binary, args...)
+	wiringTree := filepath.Join(here, "wiring")
+	changed, err := leDiscoveryWiringTree(ctx, wiringTree)
+	if err != nil {
+		return err
 	}
 
-	// Exercise each generator in an immutable export of HEAD. The generated
-	// files are gitignored, so the export holds none of them, and the contract
-	// is that the write creates every file the generator owns, touches no other
-	// file, and is byte-stable on the next write. `doc index write` owns two
-	// files: it replaced the separate docs-to-code and code-to-docs writers
-	// (internal/le/doc/index/actions.go), so both are its outputs.
+	runLE := func(tree string, args ...string) uiLeDiscoveryAnswersCommandResult {
+		if tree == "" {
+			tree = wiringTree
+		}
+		return uiLeDiscoveryAnswersRunCommand(ctx, here, map[string]string{envRepoRoot: tree}, binary, args...)
+	}
+
+	// Exercise each generator over authored source and documentation. Its
+	// outputs begin absent, and a write must create every owned output, touch
+	// no other file, and be byte-stable on the next write. The merged doc index
+	// writer owns both directions of the documentation/source relationship.
 	for _, tc := range []struct {
 		command string
 		verb    string
 		outputs []string
 		unit    string
 	}{
-		{command: "repo package-map", verb: actionUpdate, outputs: []string{"ai/PACKAGE-MAP.md"}, unit: fieldPackages},
-		{command: "doc index", verb: "write", outputs: []string{"ai/DOCS-TO-CODE.md", "ai/CODE-TO-DOCS.md"}, unit: "design docs"},
+		{command: "repo package-map", verb: actionUpdate, outputs: []string{"ai/PACKAGE-MAP.md"}, unit: "(3 packages)"},
+		{command: "doc index", verb: "write", outputs: []string{"ai/DOCS-TO-CODE.md", "ai/CODE-TO-DOCS.md"}, unit: "(3 design docs)"},
 	} {
-		exportName := strings.ReplaceAll(tc.command, " ", "-") + "-command"
-		tree := filepath.Join(here, exportName)
-		if err := exportHEAD(ctx, root, tree); err != nil {
-			return uiLeDiscoveryAnswersFailf("exporting HEAD into %s: %v", exportName, err)
+		treeName := strings.ReplaceAll(tc.command, " ", "-") + "-command"
+		tree := filepath.Join(here, treeName)
+		if err := leDiscoveryTree(tree); err != nil {
+			return uiLeDiscoveryAnswersFailf("creating %s: %v", treeName, err)
 		}
 
 		before, err := treeManifest(tree, tc.outputs...)
 		if err != nil {
-			return uiLeDiscoveryAnswersFailf("recording %s export before generation: %v", tc.command, err)
+			return uiLeDiscoveryAnswersFailf("recording %s tree before generation: %v", tc.command, err)
 		}
 		wrote := runLE(tree, tc.command, tc.verb)
 		if wrote.code != 0 || wrote.err != nil {
@@ -106,13 +98,22 @@ func leDiscoveryAnswers(ctx context.Context) error {
 			if err != nil {
 				return uiLeDiscoveryAnswersFailf("reading generated %s: %v", output, err)
 			}
-			if len(generated[i]) <= 10000 {
-				return uiLeDiscoveryAnswersFailf("%s is %d bytes, so the generation is vacuous", output, len(generated[i]))
+			for _, path := range []string{"internal/documented", "pkg/registered", "cmd/undocumented"} {
+				if !bytes.Contains(generated[i], []byte(path)) {
+					return uiLeDiscoveryAnswersFailf("%s omits authored package %s", output, path)
+				}
+			}
+			if tc.command == "doc index" {
+				for _, doc := range []string{"documented.md", "registered.md", "undocumented.md"} {
+					if !bytes.Contains(generated[i], []byte("docs/architecture/"+doc)) {
+						return uiLeDiscoveryAnswersFailf("%s omits authored document %s", output, doc)
+					}
+				}
 			}
 		}
 		after, err := treeManifest(tree, tc.outputs...)
 		if err != nil {
-			return uiLeDiscoveryAnswersFailf("recording %s export after generation: %v", tc.command, err)
+			return uiLeDiscoveryAnswersFailf("recording %s tree after generation: %v", tc.command, err)
 		}
 		if before != after {
 			return uiLeDiscoveryAnswersFailf("le %s %s changed files other than %s", tc.command, tc.verb, strings.Join(tc.outputs, ", "))
@@ -139,13 +140,9 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		}
 	}
 
-	// The router must discover exactly the working-tree paths reported by Git.
-	// Running from the fixture directory also verifies that checkout discovery is
-	// independent of the process working directory.
-	changed, err := gitChangedFiles(ctx, root)
-	if err != nil {
-		return uiLeDiscoveryAnswersFailf("discovering changed files: %v", err)
-	}
+	// The router reads the entire unpushed range, not just git status. Its
+	// owned history includes committed, staged, unstaged and untracked paths.
+	// Running outside the tree also checks cwd-independent root selection.
 	plainWiring := runLE("", "doc wiring", "dry-run")
 	if plainWiring.code != 0 || plainWiring.err != nil {
 		return uiLeDiscoveryAnswersFailf("doc-wiring dry-run exited %d: %s%s", plainWiring.code, plainWiring.stdout, plainWiring.stderr)
@@ -178,11 +175,11 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		changed = []string{}
 	}
 	if !reflect.DeepEqual(routedChanged, changed) {
-		return uiLeDiscoveryAnswersFailf("doc-wiring discovered the wrong changed files\nGit: %q\nrouter: %q", changed, routedChanged)
+		return uiLeDiscoveryAnswersFailf("doc-wiring discovered the wrong changed files\nowned range: %q\nrouter: %q", changed, routedChanged)
 	}
 
-	// Supplying Git's paths explicitly must produce the same ordered, rendered
-	// route as automatic checkout discovery.
+	// Supplying the authored paths explicitly must produce the same ordered,
+	// rendered route as automatic checkout discovery.
 	if len(changed) != 0 {
 		args := []string{checkDocWiring, "dry-run"}
 		for _, name := range changed {
@@ -199,13 +196,10 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersFailf("le doc wiring dry-run | yaml was refused: %s%s", wiringYAML.stdout, wiringYAML.stderr)
 	}
 
-	// The map is DERIVED and no longer compared against a committed copy, so
-	// `update` is the whole command surface and it is exercised over an export
-	// of HEAD rather than over the shared working tree that other sessions are
-	// editing.
+	// The map is derived; render its native write answer over an owned tree.
 	answerTree := filepath.Join(here, "package-map-answers")
-	if err := exportHEAD(ctx, root, answerTree); err != nil {
-		return uiLeDiscoveryAnswersFailf("exporting HEAD into package-map-answers: %v", err)
+	if err := leDiscoveryTree(answerTree); err != nil {
+		return uiLeDiscoveryAnswersFailf("creating package-map-answers: %v", err)
 	}
 	verdict := runLE(answerTree, "repo package-map", actionUpdate)
 	if verdict.code != 0 || verdict.err != nil {
@@ -220,7 +214,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 
 	// One discovery payload supports all three row renderings.
 	report := runLE(answerTree, "repo package-map", actionUpdate, "|", "json")
-	if report.code != 0 {
+	if report.code != 0 || report.err != nil {
 		return uiLeDiscoveryAnswersFailf("repo package-map JSON update exited %d: %s%s", report.code, report.stdout, report.stderr)
 	}
 	if len(report.stderr) != 0 {
@@ -245,13 +239,27 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if err := json.Unmarshal(pageFields["packages"], &packages); err != nil {
 		return uiLeDiscoveryAnswersFailf("the packages field is invalid: %v", err)
 	}
-	if len(packages) <= 100 {
-		return uiLeDiscoveryAnswersFailf("the map describes %d packages", len(packages))
+	wantPackages := map[string]string{
+		"internal/documented": "owns the documented source",
+		"pkg/registered":      "owns the registered source",
+		"cmd/undocumented":    "TODO",
+	}
+	if len(packages) != len(wantPackages) {
+		return uiLeDiscoveryAnswersFailf("the map describes %d packages, want the three authored packages", len(packages))
 	}
 	for _, row := range packages {
-		if row.Path == "" || row.Responsibility == "" {
-			return uiLeDiscoveryAnswersFailf("a package row is missing its path or its responsibility")
+		want, ok := wantPackages[row.Path]
+		if !ok || row.Responsibility != want {
+			return uiLeDiscoveryAnswersFailf("unexpected package record: %#v; remaining expected records: %#v", row, wantPackages)
 		}
+		delete(wantPackages, row.Path)
+	}
+	var todo int
+	if err := json.Unmarshal(pageFields["todo"], &todo); err != nil {
+		return uiLeDiscoveryAnswersFailf("the todo field is not an integer: %v", err)
+	}
+	if todo != 1 {
+		return uiLeDiscoveryAnswersFailf("the map reports %d undocumented packages, want the one authored omission", todo)
 	}
 	var written bool
 	if err := json.Unmarshal(pageFields["written"], &written); err != nil {
@@ -262,16 +270,18 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	}
 
 	counted := runLE(answerTree, "repo package-map", actionUpdate, "|", "count")
-	if strings.TrimSpace(string(counted.stdout)) != fmt.Sprint(len(packages)) {
+	if counted.code != 0 || counted.err != nil || len(counted.stderr) != 0 || strings.TrimSpace(string(counted.stdout)) != fmt.Sprint(len(packages)) {
 		return uiLeDiscoveryAnswersFailf("le repo package-map update | count answered %q for %d packages", counted.stdout, len(packages))
 	}
 	for _, operator := range []string{renderYAML, renderTable} {
 		rendered := runLE(answerTree, "repo package-map", actionUpdate, "|", operator)
-		if len(rendered.stderr) != 0 {
+		if rendered.code != 0 || rendered.err != nil || len(rendered.stderr) != 0 {
 			return uiLeDiscoveryAnswersFailf("le repo package-map update | %s was refused: %s", operator, rendered.stderr)
 		}
-		if len(rendered.stdout) <= 1000 {
-			return uiLeDiscoveryAnswersFailf("le repo package-map update | %s rendered %d bytes", operator, len(rendered.stdout))
+		for _, row := range packages {
+			if !bytes.Contains(rendered.stdout, []byte(row.Path)) || !bytes.Contains(rendered.stdout, []byte(row.Responsibility)) {
+				return uiLeDiscoveryAnswersFailf("le repo package-map update | %s omits authored record %#v:\n%s", operator, row, rendered.stdout)
+			}
 		}
 	}
 
@@ -372,7 +382,21 @@ func uiLeDiscoveryAnswersRunCommand(ctx context.Context, cwd string, overrides m
 }
 
 func uiLeDiscoveryAnswersMergedEnvironment(overrides map[string]string) []string {
-	return childEnvironment(os.Environ(), overrides)
+	base := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "GIT_") {
+			base = append(base, entry)
+		}
+	}
+	base = childEnvironment(base, map[string]string{
+		"GIT_CONFIG_GLOBAL":   os.DevNull,
+		"GIT_CONFIG_NOSYSTEM": "1",
+		"GIT_AUTHOR_NAME":     "Fixture",
+		"GIT_AUTHOR_EMAIL":    "fixture@example.invalid",
+		"GIT_COMMITTER_NAME":  "Fixture",
+		"GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+	})
+	return childEnvironment(base, overrides)
 }
 
 func exportHEAD(ctx context.Context, repo, dest string) error {
@@ -548,39 +572,81 @@ func treeManifest(root string, excluded ...string) ([32]byte, error) {
 	return sum, nil
 }
 
-func gitChangedFiles(ctx context.Context, root string) ([]string, error) {
-	result := uiLeDiscoveryAnswersRunCommand(ctx, root, nil, "git", "status", "--porcelain=v1", "-z", "--untracked-files=all")
-	if result.code != 0 || result.err != nil {
-		return nil, fmt.Errorf("git status exited %d: %s%s", result.code, result.stdout, result.stderr)
-	}
+func leDiscoveryTree(root string) error {
+	// Cover each indexed root and each responsibility source without using
+	// repository-size thresholds as a proxy for meaningful output.
+	return leDiscoveryWriteFiles(root, map[string]string{
+		fileGoMod:                           "module example.com/discovery\n",
+		fileFeatureGates:                    "ze_core\n",
+		"ai/.keep":                          "",
+		"internal/documented/source.go":     "// Design: docs/architecture/documented.md -- source documentation\n// Package documented owns the documented source.\npackage documented\n\nfunc Run() {}\n",
+		"pkg/registered/register.go":        "// Design: docs/architecture/registered.md -- registration description\npackage registered\n\nvar registration = struct { Description string }{Description: \"owns the registered source\"}\n\nfunc Run() {}\n",
+		"cmd/undocumented/main.go":          "// Design: docs/architecture/undocumented.md -- missing responsibility\npackage main\n\nfunc Run() {}\n",
+		"docs/architecture/documented.md":   "# Documented\n\n<!-- source: internal/documented/source.go -- Run -->\n",
+		"docs/architecture/registered.md":   "# Registered\n\n<!-- source: pkg/registered/register.go -- Run -->\n",
+		"docs/architecture/undocumented.md": "# Undocumented\n\n<!-- source: cmd/undocumented/main.go -- Run -->\n",
+	})
+}
 
-	parts := bytes.Split(result.stdout, []byte{0})
-	files := make([]string, 0, len(parts))
-	for i := 0; i < len(parts); i++ {
-		record := parts[i]
-		if len(record) == 0 {
-			continue
+func leDiscoveryWriteFiles(root string, files map[string]string) error {
+	for name, body := range files {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return fmt.Errorf("create %s: %w", name, err)
 		}
-		if len(record) < 4 || record[2] != ' ' {
-			return nil, fmt.Errorf("unrecognized git status record %q", record)
-		}
-		status := record[:2]
-		files = append(files, filepath.ToSlash(string(record[3:])))
-		if bytes.IndexByte(status, 'R') >= 0 || bytes.IndexByte(status, 'C') >= 0 {
-			i++ // The NUL form carries the old path as the following field.
-			if i >= len(parts) || len(parts[i]) == 0 {
-				return nil, fmt.Errorf("rename status has no source path")
-			}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			return fmt.Errorf("write %s: %w", name, err)
 		}
 	}
-	slices.Sort(files)
-	unique := files[:0]
-	for _, name := range files {
-		if len(unique) == 0 || unique[len(unique)-1] != name {
-			unique = append(unique, name)
+	return nil
+}
+
+func leDiscoveryWiringTree(ctx context.Context, root string) ([]string, error) {
+	if err := leDiscoveryWriteFiles(root, map[string]string{
+		fileGoMod:                    "module example.com/wiring\n",
+		"docs/committed.md":          "# Before\n",
+		"docs/staged.md":             "# Before\n",
+		"internal/sample/changed.go": "package sample\n",
+	}); err != nil {
+		return nil, err
+	}
+	git := func(args ...string) error {
+		result := uiLeDiscoveryAnswersRunCommand(ctx, root, nil, "git", args...)
+		if result.err != nil || result.code != 0 {
+			return fmt.Errorf("prepare discovery Git %v: %v (exit %d)\n%s%s", args, result.err, result.code, result.stdout, result.stderr)
+		}
+		return nil
+	}
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "-A"},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", "commit", "-qm", "baseline"},
+		{"update-ref", "refs/remotes/origin/main", "HEAD"},
+	} {
+		if err := git(args...); err != nil {
+			return nil, err
 		}
 	}
-	return unique, nil
+	if err := leDiscoveryWriteFiles(root, map[string]string{"docs/committed.md": "# Unpushed change\n"}); err != nil {
+		return nil, err
+	}
+	if err := git("add", "docs/committed.md"); err != nil {
+		return nil, err
+	}
+	if err := git("-c", "core.hooksPath="+os.DevNull, "-c", "commit.gpgsign=false", "commit", "-qm", "unpushed change"); err != nil {
+		return nil, err
+	}
+	if err := leDiscoveryWriteFiles(root, map[string]string{
+		"docs/staged.md":             "# Staged change\n",
+		"docs/untracked.md":          "# Untracked change\n",
+		"internal/sample/changed.go": "// Design: docs/committed.md -- changed source\npackage sample\n",
+	}); err != nil {
+		return nil, err
+	}
+	if err := git("add", "docs/staged.md"); err != nil {
+		return nil, err
+	}
+	return []string{"docs/committed.md", "docs/staged.md", "docs/untracked.md", "internal/sample/changed.go"}, nil
 }
 
 func uiLeDiscoveryAnswersSortedKeys(values map[string]json.RawMessage) []string {

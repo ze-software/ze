@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/runner-architecture.md -- owned UI answer fixtures.
+
 package fixture
 
 import (
@@ -15,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -29,14 +32,6 @@ type uiLeSpecStatusAnswersCommandAnswer struct {
 }
 
 func leSpecStatusAnswers(ctx context.Context) error {
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
-		return uiLeSpecStatusAnswersFailf("ZE_REPO_ROOT is not set")
-	}
-	root, err := filepath.Abs(root)
-	if err != nil {
-		return uiLeSpecStatusAnswersFailf("make ZE_REPO_ROOT absolute: %v", err)
-	}
 	here, _, err := temporaryLEFixtureWorkspace("le-spec-status-answers-")
 	if err != nil {
 		return uiLeSpecStatusAnswersFailf("create fixture working directory: %v", err)
@@ -48,19 +43,15 @@ func leSpecStatusAnswers(ctx context.Context) error {
 		return uiLeSpecStatusAnswersFailf("%v", err)
 	}
 
-	// Read each rendering twice. Besides requiring deterministic bytes, this
-	// distinguishes an unstable checkout from a disagreement between answer
-	// renderings without consulting any retired implementation.
-	//
-	// It now ACTS on that distinction, which it did not until 2026-09-21. This
-	// checkout is shared and several sessions edit it at once, so a spec file
-	// written between the two readings moves a count: measured that day, the
-	// first read 340 specs and the second 341 because another session created
-	// one in between, and the case reported that as two renderings disagreeing.
-	// A tree that will not hold still makes the experiment invalid, which is not
-	// the same as the property being false, so the readings are retaken and the
-	// difference is named for what it is.
-	page1, json1, json2, err := specStatusOverAStillTree(ctx, root, here, binary)
+	// Own both the specs and their Git history. Repeatedly scanning the shared
+	// checkout multiplied one git-log process per spec by every rendering and
+	// settling attempt, and concurrent edits could still invalidate the result.
+	tree := filepath.Join(here, "tree")
+	expected, childEnv, err := leSpecStatusTree(ctx, tree)
+	if err != nil {
+		return err
+	}
+	page1, json1, json2, err := specStatusOverAStillTree(ctx, tree, here, binary, childEnv)
 	if err != nil {
 		return err
 	}
@@ -70,9 +61,6 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	}
 	if len(page1.stderr) != 0 {
 		return uiLeSpecStatusAnswersFailf("le spec status wrote warnings: %q", page1.stderr)
-	}
-	if bytes.Count(page1.stdout, []byte{'\n'}) <= 100 {
-		return uiLeSpecStatusAnswersFailf("the comparison ran over %d lines, which is too few to mean anything", bytes.Count(page1.stdout, []byte{'\n'}))
 	}
 	trimmedPage := bytes.TrimSpace(page1.stdout)
 	if len(trimmedPage) == 0 {
@@ -103,14 +91,17 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	if !reflect.DeepEqual(records1, records2) {
 		return uiLeSpecStatusAnswersFailf("two decoded inventory answers disagree")
 	}
-	if len(records1) <= 50 {
-		return uiLeSpecStatusAnswersFailf("%d records is too few for this checkout to mean anything", len(records1))
+	if len(records1) != len(expected) {
+		return uiLeSpecStatusAnswersFailf("inventory answered %d records for %d authored specs", len(records1), len(expected))
 	}
 	if err := checkRecordContract(records1, page1.stdout); err != nil {
 		return err
 	}
+	if err := leSpecStatusExpectedRecords(records1, expected); err != nil {
+		return err
+	}
 
-	counted, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status", "|", "count")
+	counted, err := uiLeSpecStatusAnswersRunCommand(ctx, here, childEnv, binary, "spec", "status", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -125,7 +116,7 @@ func leSpecStatusAnswers(ctx context.Context) error {
 		return uiLeSpecStatusAnswersFailf("le spec status | count answered %q, want %s", counted.stdout, wantCount)
 	}
 
-	refused, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status", "--json")
+	refused, err := uiLeSpecStatusAnswersRunCommand(ctx, here, childEnv, binary, "spec", "status", "--json")
 	if err != nil {
 		return err
 	}
@@ -182,8 +173,10 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		if err != nil {
 			return uiLeSpecStatusAnswersFailf("record %q has an invalid git-modified value: %v", name, err)
 		}
-		if _, err := time.Parse("2006-01-02", modified); err != nil {
-			return uiLeSpecStatusAnswersFailf("record %q has git-modified %q, want an ISO git date", name, modified)
+		if modified != "unknown" {
+			if _, err := time.Parse("2006-01-02", modified); err != nil {
+				return uiLeSpecStatusAnswersFailf("record %q has git-modified %q, want an ISO git date or unknown", name, modified)
+			}
 		}
 		var stale bool
 		if err := json.Unmarshal(record["stale"], &stale); err != nil {
@@ -204,6 +197,10 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 			return uiLeSpecStatusAnswersFailf("the page has no row for record %q in record order", name)
 		}
 		lineAt = row + 1
+		pageStale := strings.HasPrefix(strings.TrimSpace(lines[row]), "STALE ")
+		if pageStale != stale {
+			return uiLeSpecStatusAnswersFailf("the page row for %q has stale=%v, record has %v: %q", name, pageStale, stale, lines[row])
+		}
 		// The page's SECTIONS are the status-derived CATEGORY, never the release
 		// BUCKET. The two were one field until 6fb9cd8814 (2026-09-05) split
 		// them: `bucket` is now the directory the spec sits in (after,
@@ -297,14 +294,20 @@ func decodeRecords(answer []byte) ([]map[string]json.RawMessage, error) {
 }
 
 func uiLeSpecStatusAnswersRunCommand(ctx context.Context, dir string, env []string, name string, args ...string) (uiLeSpecStatusAnswersCommandAnswer, error) {
+	fmt.Printf("spec-status fixture: %s %s\n", filepath.Base(name), strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
+	plugin.KillGroupOnCancel(cmd)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	answer := uiLeSpecStatusAnswersCommandAnswer{stdout: stdout.Bytes(), stderr: stderr.Bytes(), code: 0}
+	if ctx.Err() != nil {
+		return answer, uiLeSpecStatusAnswersFailf("execute %s %v: %v\nstdout:\n%s\nstderr:\n%s",
+			name, args, ctx.Err(), answer.stdout, answer.stderr)
+	}
 	if err == nil {
 		return answer, nil
 	}
@@ -315,83 +318,131 @@ func uiLeSpecStatusAnswersRunCommand(ctx context.Context, dir string, env []stri
 	return uiLeSpecStatusAnswersCommandAnswer{}, uiLeSpecStatusAnswersFailf("execute %s: %v", name, err)
 }
 
-func lineDifference(a, b []byte, limit int) string {
-	as := strings.Split(string(a), "\n")
-	bs := strings.Split(string(b), "\n")
-	var out textbuf.Buffer
-	length := len(as)
-	length = max(length, len(bs))
-	for i := 0; i < length && out.Len() < limit; i++ {
-		var av, bv string
-		if i < len(as) {
-			av = as[i]
-		}
-		if i < len(bs) {
-			bv = bs[i]
-		}
-		if av != bv {
-			fmt.Fprintf(&out, "  first[%d]:  %q\n  second[%d]: %q\n", i, av, i, bv)
-		}
-	}
-	text := out.String()
-	if len(text) > limit {
-		text = text[:limit]
-	}
-	return text
-}
-
 func uiLeSpecStatusAnswersFailf(format string, args ...any) error {
 	return fmt.Errorf("FAIL: "+format, args...)
 }
 
-// specStatusSettleAttempts bounds how many times the four readings are retaken
-// when the checkout moved between them.
-const specStatusSettleAttempts = 3
-
-// specStatusOverAStillTree answers the page and the two structured readings
-// `le spec status` writes, taken over a tree that did not change between the
-// two page readings.
-//
-// The second structured reading is returned with them, because the case
-// compares the two against each other and against the page.
-//
-// This checkout is shared: a spec file written between two readings moves a
-// count, and the case then reports two renderings disagreeing when what
-// disagreed was the tree. Retaking is not retry-until-green -- the comparisons
-// the caller makes are unchanged, and a tree that will not settle is named as
-// that, which is a different statement from the property being false.
-func specStatusOverAStillTree(ctx context.Context, root, here, binary string) (
+// specStatusOverAStillTree checks deterministic bytes over a fixture-owned tree.
+// Running from both directories proves root selection does not depend on cwd.
+func specStatusOverAStillTree(ctx context.Context, root, here, binary string, childEnv []string) (
 	page, structured, structuredAgain uiLeSpecStatusAnswersCommandAnswer, err error,
 ) {
-	var lastFirst, lastSecond uiLeSpecStatusAnswersCommandAnswer
-	for attempt := range specStatusSettleAttempts {
-		page1, runErr := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
-		if runErr != nil {
-			return page, structured, structuredAgain, runErr
-		}
-		json1, runErr := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
-		if runErr != nil {
-			return page, structured, structuredAgain, runErr
-		}
-		page2, runErr := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
-		if runErr != nil {
-			return page, structured, structuredAgain, runErr
-		}
-		json2, runErr := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
-		if runErr != nil {
-			return page, structured, structuredAgain, runErr
-		}
-
-		lastFirst, lastSecond = page1, page2
-		if page2.code == page1.code &&
-			bytes.Equal(page2.stderr, page1.stderr) && bytes.Equal(page2.stdout, page1.stdout) {
-			return page1, json1, json2, nil
-		}
-		fmt.Fprintf(os.Stderr, "the checkout moved during reading %d of %d; retaking\n",
-			attempt+1, specStatusSettleAttempts)
+	page, err = uiLeSpecStatusAnswersRunCommand(ctx, here, childEnv, binary, "spec", "status")
+	if err != nil {
+		return page, structured, structuredAgain, err
 	}
+	structured, err = uiLeSpecStatusAnswersRunCommand(ctx, root, childEnv, binary, "spec", "status", "|", "json")
+	if err != nil {
+		return page, structured, structuredAgain, err
+	}
+	pageAgain, runErr := uiLeSpecStatusAnswersRunCommand(ctx, here, childEnv, binary, "spec", "status")
+	if runErr != nil {
+		return page, structured, structuredAgain, runErr
+	}
+	if !reflect.DeepEqual(page, pageAgain) {
+		err = uiLeSpecStatusAnswersFailf("two page answers over the owned tree disagree:\nfirst: %#v\nsecond: %#v", page, pageAgain)
+		return page, structured, structuredAgain, err
+	}
+	structuredAgain, err = uiLeSpecStatusAnswersRunCommand(ctx, root, childEnv, binary, "spec", "status", "|", "json")
+	return page, structured, structuredAgain, err
+}
 
-	return page, structured, structuredAgain, uiLeSpecStatusAnswersFailf(
-		"the checkout would not hold still across %d readings, so the renderings could not be compared:\n%s",
-		specStatusSettleAttempts, lineDifference(lastFirst.stdout, lastSecond.stdout, 2000))
+type leSpecStatusCase struct {
+	name, dir, bucket, status, category, updated, modified string
+	stale                                                  bool
+}
+
+// leSpecStatusTree uses real Git, but never inherits the caller's repository,
+// history, hooks, signing setup, identity, or dates.
+func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []string, error) {
+	const committed = "2000-01-02"
+	expected := []leSpecStatusCase{
+		{"fixture-ready", "plan/immediate", "immediate", "ready", "backlog", committed, committed, false},
+		{"fixture-untracked", "plan/immediate", "immediate", "design", "backlog", "2001-02-03", "unknown", false},
+		{"fixture-fresh", "plan", "after", "skeleton", "idea", time.Now().UTC().Format("2006-01-02"), committed, false},
+		{"fixture-stale", "plan", "after", "skeleton", "idea", "2000-01-01", committed, true},
+		{"fixture-blocked", "plan/pre-release", "pre-release", "blocked", "other", "2000-01-01", committed, false},
+	}
+	if err := os.MkdirAll(root, 0o750); err != nil {
+		return nil, nil, err
+	}
+	baseEnv := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "GIT_") {
+			baseEnv = append(baseEnv, entry)
+		}
+	}
+	childEnv := childEnvironment(baseEnv, map[string]string{
+		envRepoRoot:           root,
+		"GIT_CONFIG_GLOBAL":   os.DevNull,
+		"GIT_CONFIG_NOSYSTEM": "1",
+		"GIT_AUTHOR_NAME":     "Fixture",
+		"GIT_AUTHOR_EMAIL":    "fixture@example.invalid",
+		"GIT_COMMITTER_NAME":  "Fixture",
+		"GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+		"GIT_AUTHOR_DATE":     committed + "T12:00:00Z",
+		"GIT_COMMITTER_DATE":  committed + "T12:00:00Z",
+	})
+	for _, spec := range expected {
+		dir := filepath.Join(root, spec.dir)
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return nil, nil, err
+		}
+		var body textbuf.Buffer
+		body.Str("# Spec: ").Str(spec.name).Str("\n\n| Field | Value |\n|---|---|\n| Status | ").
+			Str(spec.status).Str(" |\n| Phase | fixture-phase |\n| Depends | fixture-dependency |\n")
+		// The ready spec proves Updated falls back to the actual Git date.
+		if spec.name != "fixture-ready" {
+			body.Str("| Updated | ").Str(spec.updated).Str(" |\n")
+		}
+		if err := os.WriteFile(filepath.Join(dir, "spec-"+spec.name+".md"), []byte(body.String()), 0o600); err != nil {
+			return nil, nil, err
+		}
+	}
+	commands := [][]string{
+		{"init", "--quiet", "--template=", "--initial-branch=fixture"},
+		{"add", "--", "plan"},
+		{"rm", "--cached", "--", "plan/immediate/spec-fixture-untracked.md"},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Fixture specs"},
+	}
+	for _, args := range commands {
+		answer, err := uiLeSpecStatusAnswersRunCommand(ctx, root, childEnv, "git", args...)
+		if err != nil {
+			return nil, nil, err
+		}
+		if answer.code != 0 {
+			return nil, nil, uiLeSpecStatusAnswersFailf("git %v exited %d\nstdout:\n%s\nstderr:\n%s",
+				args, answer.code, answer.stdout, answer.stderr)
+		}
+	}
+	return expected, childEnv, nil
+}
+
+// leSpecStatusExpectedRecords is independent of production inventory types and
+// rejects renderings that agree with each other but misclassify the same spec.
+func leSpecStatusExpectedRecords(records []map[string]json.RawMessage, expected []leSpecStatusCase) error {
+	for i, spec := range expected {
+		for key, want := range map[string]string{
+			"name": spec.name, "title": spec.name, "path": spec.dir + "/spec-" + spec.name + ".md",
+			"status": spec.status, "bucket": spec.bucket, "category": spec.category,
+			"updated": spec.updated, "git-modified": spec.modified,
+			"phase": "fixture-phase", "depends": "fixture-dependency",
+		} {
+			got, err := stringField(records[i], key)
+			if err != nil {
+				return uiLeSpecStatusAnswersFailf("record %d field %q: %v", i, key, err)
+			}
+			if got != want {
+				return uiLeSpecStatusAnswersFailf("record %d field %q = %q, want %q", i, key, got, want)
+			}
+		}
+		var stale bool
+		if err := json.Unmarshal(records[i]["stale"], &stale); err != nil {
+			return uiLeSpecStatusAnswersFailf("record %d stale: %v", i, err)
+		}
+		if stale != spec.stale {
+			return uiLeSpecStatusAnswersFailf("record %q stale = %v, want %v", spec.name, stale, spec.stale)
+		}
+	}
+	return nil
 }

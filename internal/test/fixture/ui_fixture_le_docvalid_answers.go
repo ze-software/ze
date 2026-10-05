@@ -48,32 +48,18 @@ func leDocvalidAnswers(ctx context.Context) error {
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
-	// The fixture's own tag rides beside the personality's gates: the checkout
-	// under test builds a le that carries every feature the real one does.
-	declared, err := uiLEFeatureTags(root, "ze_docvalid_fixture")
+	le, err := nativeLEBinary()
 	if err != nil {
 		return err
 	}
-	tags := strings.Join(declared, ",")
-	goTool, err := exec.LookPath("go")
-	if err != nil {
-		return fmt.Errorf("find go: %w", err)
+	tree := filepath.Join(work, "tree")
+	if err := leDocvalidTree(root, tree); err != nil {
+		return err
 	}
-	le := filepath.Join(work, "le")
-	build := exec.CommandContext(ctx, goTool, "build", "-tags", tags, "-o", le, "./cmd/ze") //nolint:gosec // the fixture chooses the program and its arguments
-	build.Dir = root
-	build.Env = uiLeDocvalidAnswersEnvironment(map[string]string{envCGOEnabled: "0"})
-	var buildOutput bytes.Buffer
-	build.Stdout = &buildOutput
-	build.Stderr = &buildOutput
-	if err := build.Run(); err != nil {
-		return fmt.Errorf("build full le personality: %w\n%s", err, buildOutput.String())
-	}
-	// The real checkout must pass the drift gate independently of optional
-	// sibling publication checkouts. Its human rendering must be a stable,
-	// nonempty clean report, while its data rendering must carry an empty
-	// issues row set.
-	drift, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "doc-drift")
+	owned := map[string]string{envRepoRoot: tree}
+	// Native action/renderer assertions use stable owned inputs. The full
+	// publication and documentation corpus is judged by its independent gates.
+	drift, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract", "doc-drift")
 	if err != nil {
 		return err
 	}
@@ -84,7 +70,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if driftReport == "" || strings.Contains(driftReport, "\n") {
 		return fmt.Errorf("doc-drift did not emit one clean report line: %q", joined(drift))
 	}
-	driftAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "doc-drift")
+	driftAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract", "doc-drift")
 	if err != nil {
 		return err
 	}
@@ -92,7 +78,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("doc-drift changed over an unchanged checkout\nfirst: %q\nsecond: %q", joined(drift), joined(driftAgain))
 	}
 
-	driftData, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "doc-drift", "|", "json")
+	driftData, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract", "doc-drift", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -111,23 +97,38 @@ func leDocvalidAnswers(ctx context.Context) error {
 		}
 	}
 	if len(driftIssues) != 0 {
-		return fmt.Errorf("the real checkout has %d documentation-drift findings: %#v", len(driftIssues), driftIssues)
+		return fmt.Errorf("the owned tree has %d documentation-drift findings: %#v", len(driftIssues), driftIssues)
+	}
+	// Prove the empty report came from evaluating the owned claims, not from
+	// an empty input or a fixture-specific action implementation.
+	claimPath := filepath.Join(tree, "docs", "architecture", "api", "text-parser.md")
+	if err := os.WriteFile(claimPath, []byte("The parser uses strings.Fields.\n"), 0o600); err != nil {
+		return err
+	}
+	broken, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract", "doc-drift", "|", "json")
+	if err != nil {
+		return err
+	}
+	var brokenIssues []map[string]any
+	if err := json.Unmarshal(broken.stdout, &brokenIssues); err != nil {
+		return fmt.Errorf("drifted claim did not produce JSON: %w\n%s", err, broken.stdout)
+	}
+	if broken.code != 1 || len(broken.stderr) != 0 || len(brokenIssues) != 1 ||
+		brokenIssues[0][fieldFile] != "docs/architecture/api/text-parser.md" ||
+		brokenIssues[0][fieldMessage] != "stale text parser claim references strings.Fields" {
+		return fmt.Errorf("drifted claim answered exit %d, stderr %q, issues %#v", broken.code, broken.stderr, brokenIssues)
 	}
 
-	// The contract is intentionally large. Check both the stable human table
-	// and every field of the document answer rather than sampling a few rows.
-	contract, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "command-contract")
+	// Check the complete embedded product contract, not a minimum row count
+	// that happens to match the current checkout's size.
+	contract, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract", "command-contract")
 	if err != nil {
 		return err
 	}
 	if contract.code != 0 {
 		return fmt.Errorf("command-contract exited %d\nstdout:\n%s\nstderr:\n%s", contract.code, contract.stdout, contract.stderr)
 	}
-	contractLines := strings.Split(string(contract.stdout), "\n")
-	if len(contractLines) <= 100 {
-		return fmt.Errorf("command-contract rendered %d lines, too few to cover the product", len(contractLines))
-	}
-	contractAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "command-contract")
+	contractAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract", "command-contract")
 	if err != nil {
 		return err
 	}
@@ -135,7 +136,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("command-contract produced different ordered output over one unchanged tree")
 	}
 
-	contractData, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "command-contract", "|", "json")
+	contractData, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract", "command-contract", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -186,8 +187,20 @@ func leDocvalidAnswers(ctx context.Context) error {
 			return fmt.Errorf("command contract says %s=%d but %s has %d rows", total, got, list, len(lists[list]))
 		}
 	}
-	if len(lists["yang-commands"]) <= 100 {
-		return fmt.Errorf("command contract contains %d YANG commands, too few to be the product", len(lists["yang-commands"]))
+	if len(lists["yang-commands"]) == 0 || len(lists["handlers"]) == 0 {
+		return fmt.Errorf("command contract has no product commands or handlers")
+	}
+	for _, value := range lists["yang-commands"] {
+		row, ok := value.(map[string]any)
+		if !ok {
+			return fmt.Errorf("command contract YANG row has type %T, want a record", value)
+		}
+		for _, key := range []string{"wire-method", "yang-path", "module"} {
+			text, ok := row[key].(string)
+			if !ok || text == "" || !bytes.Contains(contract.stdout, []byte(text)) {
+				return fmt.Errorf("human command table omits YANG row field %s: %#v", key, row)
+			}
+		}
 	}
 	for _, key := range []string{"orphan-yang", "orphan-handlers"} {
 		if len(lists[key]) != 0 {
@@ -199,7 +212,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("command contract field %q has type %T, want a boolean", "valid", document["valid"])
 	}
 	if !valid {
-		return fmt.Errorf("the command contract for the real checkout is invalid")
+		return fmt.Errorf("the command contract for the owned registration snapshot is invalid")
 	}
 
 	// count is rejected by action name before any checkout walk. A deliberately
@@ -216,7 +229,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("count was refused for another reason: %q", counted.stderr)
 	}
 
-	listing, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract")
+	listing, err := uiLeDocvalidAnswersRunCommand(ctx, work, owned, le, "doc", "yang-contract")
 	if err != nil {
 		return err
 	}
@@ -308,6 +321,56 @@ func leDocvalidAnswers(ctx context.Context) error {
 	}
 
 	fmt.Println("OK")
+	return nil
+}
+
+// leDocvalidTree freezes the local registration sources once. The command
+// contract still checks every embedded product YANG command and RPC; only its
+// filesystem inputs are isolated from subsequent edits in the shared checkout.
+// This is a document/source fixture, not a module or a publication checkout.
+func leDocvalidTree(source, tree string) error {
+	for _, directory := range []string{"cmd/ze", "internal"} {
+		err := filepath.WalkDir(filepath.Join(source, directory), func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() || (entry.Name() != "register.go" && path != filepath.Join(source, "cmd", "ze", "main.go")) {
+				return nil
+			}
+			relative, err := filepath.Rel(source, path)
+			if err != nil {
+				return err
+			}
+			body, err := os.ReadFile(path) //nolint:gosec // fixture snapshots repository source
+			if err != nil {
+				return err
+			}
+			destination := filepath.Join(tree, relative)
+			if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
+				return err
+			}
+			return os.WriteFile(destination, body, 0o600)
+		})
+		if err != nil {
+			return fmt.Errorf("snapshot local command registrations: %w", err)
+		}
+	}
+	reference, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(generatedTable))) //nolint:gosec // repository reference
+	if err != nil {
+		return fmt.Errorf("read operator reference: %w", err)
+	}
+	for name, body := range map[string][]byte{
+		generatedTable:                         reference,
+		"docs/architecture/api/text-parser.md": []byte("The parser uses textparse.NewScanner.\n"),
+	} {
+		path := filepath.Join(tree, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, body, 0o600); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

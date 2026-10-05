@@ -1,22 +1,15 @@
-# Test: the built le binary runs both inventory gates over the real
+# Test: the suite's native le binary reports the full live plugin and command
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-#       checkout, reports the checkout-wide contract, and exposes the same
-#       answers from every working directory and rendering.
+# registries alongside owned filesystem inputs, independently of working directory.
+# The authored RPC, coverage, test-file, package, file, and line counts prove root
+# selection. Page, JSON, row count, ordering, stream, and refusal checks remain.
 #
-# VALIDATES: spec-le-is-a-ze-binary AC-11 over the real tree and real registry,
-#            and AC-7 for both ported tools against the artifact a developer
-#            runs.
-# PREVENTS: an implementation that passes isolated fixtures while disagreeing
-#           with the checkout. The inventory walks the full tree and reads the
-#           live plugin registry, so the fixture retains the substantial page,
-#           plugin, command-shape, row-operator, ordering, and refusal checks.
-#
-# The product is compiled with the full feature set derived from
-# feature-gates.txt. Its output artifact is written in the fixture directory;
-# the checkout is only read.
-#
-# The timeout is declared because linking the full product precedes repeated
-# full walks of the checkout.
+# VALIDATES: spec-le-is-a-ze-binary AC-11 with the real compiled registry,
+#            and AC-7 for both inventory tools through the native artifact.
+# PREVENTS: shared checkout edits making working-directory comparisons invalid,
+#           and repeated whole-checkout scans replacing an answer-contract test.
+# The two immutable-tree readings need no settling retries or extra product build.
+# Independent real-corpus verification is not narrowed by this fixture.
 
 option=timeout:value=900s
 
