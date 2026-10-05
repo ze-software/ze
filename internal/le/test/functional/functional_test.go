@@ -643,6 +643,36 @@ func TestPreparePropagatesSessionResolutionFailure(t *testing.T) {
 	}
 }
 
+// VALIDATES: a ze.suffix that starts with "pid-" is refused, and any other
+// suffix still names the kept testbin-<suffix> directory.
+// PREVENTS: a kept set named testbin-pid-<pid>-<label>, which the store trim
+// (internal/le/scratch, testbinPID) reads as a throwaway set and removes once
+// that pid is dead, although the suffix asked for the set to be kept.
+func TestBinaryRootRefusesASuffixInTheThrowawayNamespace(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("ZE_SCRATCH_DIR", "tmp/session/named")
+	for suffix, wantErr := range map[string]bool{"pid-9-x": true, "pid-": true, "keep": false, "rapid-1": false} {
+		t.Run(suffix, func(t *testing.T) {
+			t.Setenv("ZE_SUFFIX", suffix)
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+			dir, remove, err := binaryRoot(root, "label")
+			if wantErr {
+				if err == nil {
+					t.Fatalf("binaryRoot accepted ZE_SUFFIX %q as %q", suffix, dir)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("binaryRoot refused ZE_SUFFIX %q: %v", suffix, err)
+			}
+			if want := filepath.Join(root, "tmp", "session", "named", "testbin-"+suffix); dir != want || remove {
+				t.Errorf("binaryRoot = %q, remove %v; want %q, kept", dir, remove, want)
+			}
+		})
+	}
+}
+
 // TestARunListVerbRefusesToRunBesideASuite is the entry point half of
 // leaction's TestSweepRefusesAnActionThatNamesTheWholeArea.
 // VALIDATES: AC-9 -- `le test functional gating encode` is refused with code 2 and

@@ -180,18 +180,23 @@ func zeRepoRootEnv(baseDir string) string {
 // enabling cgo in nested Go compilations.
 //
 // The inherited environment loses every variable droppedFromChild names, so a
-// run started under `./le --name x` does not refuse its own `le` children.
+// run started under `./le --name x` does not refuse its own `le` children, and
+// every spelling replacedInChild names gives way to storeTrimOffEntry, so no le
+// under test starts the background store trim (storeTrimVariable says why).
 func childEnv(extra ...string) []string {
 	inherited := os.Environ()
-	env := make([]string, 0, len(inherited)+len(extra)+2)
+	env := make([]string, 0, len(inherited)+len(extra)+3)
 	for _, entry := range inherited {
 		name, _, _ := strings.Cut(entry, "=")
 		if droppedFromChild(name) {
 			continue
 		}
+		if replacedInChild(name) {
+			continue
+		}
 		env = append(env, entry)
 	}
-	env = append(env, "GOTRACEBACK=all")
+	env = append(env, "GOTRACEBACK=all", storeTrimOffEntry)
 	env = append(env, extra...)
 	return append(env, "CGO_ENABLED=0")
 }

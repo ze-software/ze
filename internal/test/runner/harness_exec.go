@@ -76,9 +76,31 @@ func ownExecutable() (string, error) {
 // no child environment carries it.
 const leBuildNameVariable = "ZE_LE_BUILD_NAME"
 
+// storeTrimVariable is le's switch for its automatic store trim
+// (internal/le/scratch, StoreTrimKey), in the underscore spelling because dash
+// drops a variable whose name is not a shell identifier. Every le call starts
+// that trim at most once an hour in the checkout it is pointed at, as a
+// detached child that writes tmp/store-trim/ and removes store entries. Under a
+// test that is a process nobody waits for, writing into a tree the fixture
+// compares byte for byte, so every test child receives storeTrimOffEntry and
+// an inherited spelling of the key is dropped. A fixture that tests the trim
+// sets the key itself (internal/test/fixture, leStoreTrimAnswers).
+const storeTrimVariable = "ze_le_store_trim"
+
+// storeTrimOffEntry is the entry childEnv gives every test child.
+const storeTrimOffEntry = storeTrimVariable + "=off"
+
 // droppedFromChild answers whether an inherited environment entry name is one
 // no test child receives. env.Get matches case-insensitively and reads a dot as
 // an underscore, so every spelling of the key is dropped.
 func droppedFromChild(name string) bool {
 	return strings.EqualFold(strings.ReplaceAll(name, ".", "_"), leBuildNameVariable)
+}
+
+// replacedInChild answers whether an inherited environment entry name is the
+// store trim switch, which childEnv replaces with storeTrimOffEntry. Every
+// spelling is matched, for the reason droppedFromChild gives, so the child
+// holds the key once.
+func replacedInChild(name string) bool {
+	return strings.EqualFold(strings.ReplaceAll(name, ".", "_"), storeTrimVariable)
 }

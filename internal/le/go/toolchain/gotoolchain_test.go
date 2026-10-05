@@ -441,3 +441,63 @@ func TestBootstrapCacheMatchesTheShellScript(t *testing.T) {
 		t.Errorf("the le script does not assign %q, so the bootstrap cache it fills is not the one cache-clean empties", want)
 	}
 }
+
+// TestNamedLauncherMatchesTheShellScript pins the `le` script's copies of the
+// named-launcher path and of its check_name rule to the Go declaration.
+//
+// VALIDATES: the script builds `--name <name>` into NamedLauncherDir, falls
+// back to a platform directory NamedLauncherName never answers, and refuses
+// exactly the names validLauncherName refuses (AC-20).
+// PREVENTS: the store trim reclaiming a directory the script does not build
+// under a name, or keeping one it does, because the two spelled it apart.
+func TestNamedLauncherMatchesTheShellScript(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	script, err := os.ReadFile(filepath.Join(root, "le"))
+	if err != nil {
+		t.Fatalf("read the le bootstrap script: %v", err)
+	}
+
+	named := "binary=$root/" + strings.TrimPrefix(NamedLauncherDir("", "$name"), string(filepath.Separator)) + "/le"
+	if !strings.Contains(string(script), named) {
+		t.Errorf("the le script does not assign %q, so the trim judges a directory --name does not build", named)
+	}
+	platform := "binary=$root/" + strings.TrimPrefix(NamedLauncherDir("", "$(uname -s)-$(uname -m)"), string(filepath.Separator)) + "/le"
+	if !strings.Contains(string(script), platform) {
+		t.Errorf("the le script does not assign %q, so the shared platform launcher is not the one the trim keeps", platform)
+	}
+	for _, kernel := range []string{"Darwin-arm64", "Linux-x86_64", "Linux-aarch64", "FreeBSD-amd64"} {
+		if name, ok := NamedLauncherName("le-" + kernel); ok {
+			t.Errorf("NamedLauncherName(le-%s) = %q, true: the shared platform launcher must never be answered", kernel, name)
+		}
+	}
+
+	// The script's rule, as one case arm. validLauncherName must refuse what
+	// each alternative refuses and accept the rest.
+	rule := "'' | *[!A-Za-z0-9._-]* | *..*)"
+	if !strings.Contains(string(script), rule) {
+		t.Fatalf("the le script's check_name no longer reads %q; repeat its new rule in validLauncherName", rule)
+	}
+	cases := []struct {
+		name  string
+		valid bool
+	}{
+		{"", false}, {"a/b", false}, {"a b", false}, {"..", false}, {"a..b", false}, {"x$", false},
+		{"storetrim-p1", true}, {"a.b_c-9", true}, {".", true}, {"-", true},
+	}
+	for _, tc := range cases {
+		if got := validLauncherName(tc.name); got != tc.valid {
+			t.Errorf("validLauncherName(%q) = %v, the le script's check_name says %v", tc.name, got, tc.valid)
+		}
+	}
+	for _, entry := range []string{"le", "ze", "ze-linux-arm64", "le-", "le-a..b", "lex-foo"} {
+		if name, ok := NamedLauncherName(entry); ok {
+			t.Errorf("NamedLauncherName(%q) = %q, true: not a named launcher", entry, name)
+		}
+	}
+	if name, ok := NamedLauncherName("le-storetrim-p1"); !ok || name != "storetrim-p1" {
+		t.Errorf("NamedLauncherName(le-storetrim-p1) = %q, %v; want storetrim-p1, true", name, ok)
+	}
+}

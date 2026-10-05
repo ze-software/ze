@@ -57,10 +57,12 @@ func TestCleanCachesUsesTheToolchainCachePath(t *testing.T) {
 // together, on a volume with 1G left (plan/journal/full-disk-false-red.md).
 func TestCacheTargetsCoverTheLintCache(t *testing.T) {
 	root := t.TempDir()
-	targets := cleanTargets(t.Context(), root, "/machine/default")
+	perUser := t.TempDir()
+	targets := cleanTargets(root, "/machine/default", perUser)
 
 	want := []struct{ name, path string }{
 		{checkoutCache, gotoolchain.GoCache(root)},
+		{sharedCache, filepath.Join(perUser, "go-cache")},
 		{ambientCache, "/machine/default"},
 		{bootstrapCache, gotoolchain.BootstrapCache(root)},
 		{lintCache, gotoolchain.LintCache(root)},
@@ -84,13 +86,15 @@ func TestCacheTargetsCoverTheLintCache(t *testing.T) {
 // while the other is still full.
 func TestCacheTargetsSkipAnAmbientThatIsTheCheckout(t *testing.T) {
 	root := t.TempDir()
-	targets := cleanTargets(t.Context(), root, gotoolchain.GoCache(root))
+	targets := cleanTargets(root, gotoolchain.GoCache(root), t.TempDir())
 
-	if targets[1].skipped == "" {
-		t.Error("the ambient row was not skipped when it names the checkout cache")
-	}
-	if targets[0].skipped != "" || targets[2].skipped != "" {
-		t.Error("a row other than the ambient one was skipped")
+	for _, target := range targets {
+		if target.name == ambientCache && target.skipped == "" {
+			t.Error("the ambient row was not skipped when it names the checkout cache")
+		}
+		if target.name != ambientCache && target.skipped != "" {
+			t.Errorf("the %s row was skipped: %s", target.name, target.skipped)
+		}
 	}
 }
 
@@ -171,6 +175,15 @@ func TestCleanReportTextStatesEveryOutcome(t *testing.T) {
 	}
 	if !strings.Contains(lines[0], "free 3.0G") {
 		t.Errorf("line 0 = %q, want the remaining space", lines[0])
+	}
+
+	// Every name a target carries is followed by at least one space, so the
+	// longest one does not run into its path ("bootstrap/path/...").
+	for _, target := range cleanTargets("/checkout", "/ambient", "/per-user") {
+		line := CleanReport{Caches: []CacheClean{{Name: target.name, Path: target.path}}}.Text()
+		if !strings.HasPrefix(line, target.name+" ") {
+			t.Errorf("row %q does not separate the name from the path", line)
+		}
 	}
 }
 
@@ -258,12 +271,68 @@ func TestCacheTargetsCoverTheBootstrapCache(t *testing.T) {
 	want := gotoolchain.BootstrapCache(root)
 
 	var found bool
-	for _, target := range cleanTargets(t.Context(), root, filepath.Join(root, "ambient")) {
+	for _, target := range cleanTargets(root, filepath.Join(root, "ambient"), t.TempDir()) {
 		if target.path == want {
 			found = true
 		}
 	}
 	if !found {
 		t.Errorf("no target empties %s, the cache the le bootstrap and the deployment builds write", want)
+	}
+}
+
+// VALIDATES: AC-19. The per-user Go cache a verify worktree fills is a row of
+// its own while the checkout's cache/ is a real directory, and a skipped row
+// naming the checkout cache once cache/ is linked to it. Every row carries the
+// kind and the budget the trim reads from the same list.
+// PREVENTS: cache-clean and the trim walking past ~/.cache/ze/go-cache, which
+// held 13G on 2026-10-05 beside an unlinked checkout cache, or emptying and
+// counting one cache twice when cache/ IS that target.
+func TestCleanTargetsNamesSharedCache(t *testing.T) {
+	root := t.TempDir()
+	perUser := t.TempDir()
+
+	want := map[string]struct {
+		kind   cacheKind
+		budget budgetGroup
+	}{
+		checkoutCache:  {goBuildCache, goCachesBudget},
+		sharedCache:    {goBuildCache, goCachesBudget},
+		ambientCache:   {goBuildCache, notTrimmed},
+		bootstrapCache: {goBuildCache, goCachesBudget},
+		lintCache:      {lintFormatCache, lintCacheBudget},
+	}
+	unlinked := cleanTargets(root, "/machine/default", perUser)
+	if len(unlinked) != len(want) {
+		t.Fatalf("targets = %d, want %d", len(unlinked), len(want))
+	}
+	for _, target := range unlinked {
+		expected, known := want[target.name]
+		if !known {
+			t.Errorf("unexpected target %q", target.name)
+			continue
+		}
+		if target.kind != expected.kind || target.budget != expected.budget {
+			t.Errorf("%s: kind %d budget %d, want kind %d budget %d",
+				target.name, target.kind, target.budget, expected.kind, expected.budget)
+		}
+		if target.name == sharedCache {
+			if target.path != filepath.Join(perUser, "go-cache") || target.skipped != "" {
+				t.Errorf("unlinked shared row = %q skipped %q, want %q emptied",
+					target.path, target.skipped, filepath.Join(perUser, "go-cache"))
+			}
+		}
+	}
+
+	if err := os.Symlink(perUser, filepath.Join(root, "cache")); err != nil {
+		t.Fatalf("link cache/: %v", err)
+	}
+	for _, target := range cleanTargets(root, "/machine/default", perUser) {
+		if target.name == sharedCache && !strings.Contains(target.skipped, "checkout cache") {
+			t.Errorf("linked shared row skipped = %q, want it named as the checkout cache", target.skipped)
+		}
+		if target.name != sharedCache && target.skipped != "" {
+			t.Errorf("linked: the %s row was skipped: %s", target.name, target.skipped)
+		}
 	}
 }

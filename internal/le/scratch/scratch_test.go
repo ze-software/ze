@@ -454,7 +454,7 @@ func TestMoveEntryAcrossDevicesPreservesMetadata(t *testing.T) {
 // PREVENTS: help calling a writing action a check.
 func TestActionsPublishBothWrites(t *testing.T) {
 	list := Actions()
-	want := []string{"links-ensure", "cache-clean", "migrate"}
+	want := []string{"links-ensure", "cache-clean", "store-trim", "migrate"}
 	if len(list.Actions) != len(want) {
 		t.Fatalf("actions = %#v", list.Actions)
 	}

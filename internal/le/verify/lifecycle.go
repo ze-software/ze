@@ -483,8 +483,12 @@ func defeatedCode(current int, err error) int {
 	return 1
 }
 
-// sharedCacheLink points the worktree's cache at the checkout's shared Go build
-// cache and answers the line that reports what it did.
+// sharedCacheLink points the worktree's cache at the per-user Go build cache
+// (cacheTarget in internal/le/scratch) and answers the line that reports what
+// it did. That cache is the checkout's own only when the checkout's cache/ is
+// linked to it, after `le scratch links-ensure` or `le scratch migrate`; a
+// checkout that ran neither builds into cache/go-cache, and every verify
+// worktree fills this second cache beside it.
 //
 // Without the link the toolchain override resolves GOCACHE to
 // <worktree>/cache/go-cache (internal/le/go/toolchain, GoCache and Overrides),

@@ -1,0 +1,28 @@
+# Test: the BUILT le binary trims its build stores at most once an hour, in a
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#       detached child, and `le scratch store-trim` answers one row per store.
+#
+# VALIDATES: spec-le-bounds-its-build-stores AC-1, AC-2 and AC-16, and the
+#            Wiring Test rows for `run` (internal/le/register.go) and for
+#            `./le scratch store-trim`, against the artifact a developer runs.
+#            The first cheap le command spawns the trim, which leaves the
+#            checkout and shared Go caches under their one total, oldest entry
+#            first across both, and writes the stamp; the second, inside the
+#            hour, rewrites no stamp and touches no log, and its output and
+#            exit code match the first.
+# PREVENTS: a trim that only the package tests reach. Between those tests and
+#           this file sit the build, the root handler, argv handling, Setsid and
+#           the process boundary of the detached child.
+#
+# The checkout, the per-user cache and the Claude config are throwaway trees
+# the fixture names through ZE_REPO_ROOT, XDG_CACHE_HOME and CLAUDE_CONFIG_DIR,
+# with budgets of 1M: the small budget can only reach what the fixture seeded.
+#
+# The timeout is declared because a cold build cache makes the first compile of
+# the cmd/ze le personality far slower than the steady state.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-store-trim-answers
+expect=exit:code=0
+expect=stdout:contains=OK

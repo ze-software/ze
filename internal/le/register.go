@@ -69,7 +69,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/repo/workingtree"
 	_ "github.com/ze-software/ze/internal/le/rfc"
 	_ "github.com/ze-software/ze/internal/le/rfc/skeletons"
-	_ "github.com/ze-software/ze/internal/le/scratch"
+	lescratch "github.com/ze-software/ze/internal/le/scratch"
 	_ "github.com/ze-software/ze/internal/le/session"
 	_ "github.com/ze-software/ze/internal/le/setup"
 	_ "github.com/ze-software/ze/internal/le/site"
@@ -173,8 +173,32 @@ func init() {
 	})
 }
 
+// run is the le root handler: every le command and native hook enters here.
+// Before dispatching it gives the store trim its hourly chance to start. The
+// trigger is a stat of one stamp file on almost every call; it never prints,
+// never waits for the trim, and its outcome is deliberately not read, so the
+// command's exit code and output are the dispatch's alone. A trigger failure
+// is written to tmp/store-trim/last.log.
 func run(_ *registry.RuntimeContext, args []string) int {
+	lescratch.StartStoreTrimWhenDue(storeTrimSpawn())
 	return leroot.Dispatch(invocationName(), args)
+}
+
+// storeTrimSpawn answers how run starts the background trim. It is a variable
+// so TestRunSpawnsStoreTrimWhenDue can record the spawn instead of starting a
+// child of the test binary.
+var storeTrimSpawn = func() lescratch.TrimSpawn {
+	return lescratch.DetachedTrim(storeTrimLeading())
+}
+
+// storeTrimLeading answers the words the trim child's argv needs before
+// `scratch store-trim background`: none for the le binary, and the root
+// handler's own name for a ze binary carrying le, which dispatches `ze le ...`.
+func storeTrimLeading() []string {
+	if invocationName() == "le" {
+		return nil
+	}
+	return []string{"le"}
 }
 
 func invocationName() string {

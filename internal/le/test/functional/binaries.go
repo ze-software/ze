@@ -12,6 +12,8 @@
 //
 //	ZE_SUFFIX=<name>     selects a stable directory.
 //	                     The runner KEEPS the directory on exit.
+//	                     A name starting with pid- is refused: that
+//	                     namespace is the throwaway sets' own.
 //	                     Two runs with this name share the session's etc/ze
 //	                     directory and corrupt each other's test database.
 //	                     Use it for one serial run that you want to keep.
@@ -233,10 +235,15 @@ func tagString(tc gotoolchain.Toolchain, parts ...string) string {
 	return tb.String()
 }
 
+// throwawaySetPrefix starts the suffix of every throwaway set's directory,
+// testbin-pid-<pid>-<label>, and is refused at the start of a ze.suffix.
+const throwawaySetPrefix = "pid-"
+
 // binaryRoot answers the throwaway root this invocation builds into, and
 // whether to remove it.
 //
-// An explicit ZE_SUFFIX gives the run a stable name and keeps its directory.
+// An explicit ZE_SUFFIX gives the run a stable name and keeps its directory;
+// a suffix starting with throwawaySetPrefix is refused.
 // Otherwise, the name contains the PID and run label.
 // This prevents concurrent invocations and suites on one command line from deleting each other's binaries.
 func binaryRoot(root, label string) (dir string, remove bool, err error) {
@@ -245,11 +252,18 @@ func binaryRoot(root, label string) (dir string, remove bool, err error) {
 		return "", false, err
 	}
 	if suffix := env.Get("ze.suffix"); suffix != "" {
+		// A kept set MUST NOT be named in the throwaway namespace: the store
+		// trim reclaims a testbin-pid-<pid>-<label> whose pid is dead
+		// (internal/le/scratch, testbinPID), so testbin-pid-9-x from a suffix
+		// would lose the set the suffix asked to keep.
+		if strings.HasPrefix(suffix, throwawaySetPrefix) {
+			return "", false, fmt.Errorf("ze.suffix=%q starts with %q, which names a throwaway set the store trim removes; choose another name", suffix, throwawaySetPrefix)
+		}
 		var tb textbuf.Buffer
 		return filepath.Join(scratch, tb.Str("testbin-").Str(suffix).String()), false, nil
 	}
 	var tb textbuf.Buffer
-	name := tb.Str("testbin-pid-").Str(strconv.Itoa(os.Getpid())).Byte('-').Str(label).String()
+	name := tb.Str("testbin-").Str(throwawaySetPrefix).Str(strconv.Itoa(os.Getpid())).Byte('-').Str(label).String()
 	return filepath.Join(scratch, name), true, nil
 }
 

@@ -1,12 +1,20 @@
 // Design: docs/architecture/core-design.md -- native scratch-link gates
 // Overview: scratch.go -- filesystem policy and implementation
 //
-// This file empties the four build caches a Ze checkout fills, and reports the
-// disk space each one returned.
+// This file empties the five build caches a Ze checkout fills, and reports the
+// disk space each one returned. The same list is the store list the store trim
+// reads (storetrim.go): each target carries its kind and its budget, so the
+// caches are declared once for both.
 //
-// Three of them are Go caches, on as many filesystems, and a session that
+// Four of them are Go caches, on as many filesystems, and a session that
 // empties one keeps filling the others. Every le action writes the checkout
-// cache, because gotoolchain.Overrides points GOCACHE at cache/go-cache. A bare
+// cache, because gotoolchain.Overrides points GOCACHE at cache/go-cache. The
+// shared cache is the per-user target, cacheTarget()/go-cache, which every
+// verify worktree writes through its cache/ link (sharedCacheLink in
+// internal/le/verify). It is the checkout cache only when the checkout's own
+// cache/ is linked to it, which `le scratch links-ensure` or `le scratch
+// migrate` does and nothing does by itself; a checkout that ran neither fills
+// both, and the shared one was missed until 2026-10-05, at 13G. A bare
 // `go` command typed outside le writes the ambient cache, which is the machine
 // default. The bootstrap cache is what runs with no inherited GOCACHE at all:
 // the `le` script building bin/ze-le, the deployment daemon and VPP evidence
@@ -15,7 +23,7 @@
 // about a path nobody declared; it held 1.3G and an operator found it by hand.
 // gotoolchain.BootstrapCache is the declaration all of them now read.
 //
-// The fourth is golangci-lint's, which no `go clean` reaches and which the
+// The fifth is golangci-lint's, which no `go clean` reaches and which the
 // scratch relocation leaves on the checkout's own device. Emptying only the Go
 // caches left it growing unbounded: it was measured at 9.5G on 2026-09-13,
 // larger than both Go caches together, on a volume that had 1G left.
@@ -23,10 +31,10 @@
 // The cost of not having this action is recorded in
 // plan/journal/full-disk-false-red.md, one row for each time a full cache disk
 // was read as a code defect. That file is the count, because a copy of it here
-// goes stale on the next row. The checkout path hides the disk, because cache/
-// is a symlink onto another filesystem, so `df` on the checkout answers about
-// the wrong device. The free space this
-// action prints is read with statfs on the cache path itself.
+// goes stale on the next row. The checkout path can hide the disk, because a
+// linked cache/ is a symlink onto another filesystem, so `df` on the checkout
+// answers about the wrong device. The free space this action prints is read
+// with statfs on the cache path itself.
 package scratch
 
 import (
@@ -35,6 +43,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -52,13 +61,18 @@ const cleanTimeout = time.Hour
 // goCacheKey is the variable that names the cache a `go` command uses.
 const goCacheKey = "GOCACHE"
 
-// The three caches, named as a person reads them in the report.
+// The caches, named as a person reads them in the report.
 const (
 	checkoutCache  = "checkout"
+	sharedCache    = "shared"
 	ambientCache   = "ambient"
 	lintCache      = "lint"
 	bootstrapCache = "bootstrap"
 )
+
+// cacheNameWidth is the report's name column: the longest name and one space,
+// so no name runs into its path.
+const cacheNameWidth = len(bootstrapCache) + 1
 
 // bytesPerGiB converts a byte count to the unit the report prints.
 const bytesPerGiB = 1 << 30
@@ -101,7 +115,7 @@ func (r CleanReport) Text() string {
 	text.Reset()
 	for _, cache := range r.Caches {
 		var line textbuf.Buffer
-		line.PadRight(cache.Name, 9)
+		line.PadRight(cache.Name, cacheNameWidth)
 		switch {
 		case cache.Error != "":
 			line.Str("REFUSE   ").Str(cache.Path).Str(": ").Str(cache.Error)
@@ -126,67 +140,134 @@ func (r CleanReport) Text() string {
 // The ambient cache is resolved by asking `go env GOCACHE` with the inherited
 // GOCACHE removed, so the answer is the machine default rather than whatever
 // le set for the calling process. A checkout whose GOCACHE already IS the
-// machine default is emptied once and the second row says so.
+// machine default is emptied once and the second row says so. The shared
+// cache is resolved from this manager's environment (cacheTarget), the same
+// answer a verify worktree's cache/ link reaches.
 func (m *Manager) CleanCaches() (CleanReport, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), cleanTimeout)
 	defer cancel()
 
-	// The ambient row is the only one whose path has to be resolved, so it is
-	// the only one that can fail before anything is emptied.
-	ambient, err := ambientGoCache(ctx)
+	// The ambient and shared rows are the only ones whose path has to be
+	// resolved, so they are the only ones that can fail before anything is
+	// emptied. Either failure refuses its own row and leaves the others.
+	ambient, ambientErr := ambientGoCache(ctx)
+	perUser, perUserErr := m.cacheTarget()
 
 	var report CleanReport
-	for _, target := range cleanTargets(ctx, m.Root, ambient) {
+	for _, target := range cleanTargets(m.Root, ambient, perUser) {
 		switch {
-		case target.name == ambientCache && err != nil:
-			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: err.Error()})
+		case target.name == ambientCache && ambientErr != nil:
+			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: ambientErr.Error()})
+		case target.name == sharedCache && perUserErr != nil:
+			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: perUserErr.Error()})
 		case target.skipped != "":
 			report.Caches = append(report.Caches, CacheClean{
 				Name: target.name, Path: target.path, Skipped: target.skipped,
 			})
 		default:
-			report.Caches = append(report.Caches, measureClean(target.name, target.path, target.empty))
+			report.Caches = append(report.Caches, measureClean(target.name, target.path, target.emptier(ctx)))
 		}
 	}
 	return report, report.verdict()
 }
 
-// cleanTarget is one cache this action empties: how a person reads it in the
-// report, where it lives, and what emptying it takes.
+// cacheKind is the layout of a cache, which decides how cache-clean empties
+// it. Both kinds hold Go's entry layout, 256 two-hex-digit subdirectories of
+// `-a` and `-d` entries, which the store trim walks the same way for either.
+type cacheKind uint8
+
+const (
+	// unspecifiedCache is the zero value and never a valid kind.
+	unspecifiedCache cacheKind = iota
+	// goBuildCache is a Go toolchain build cache, emptied with `go clean -cache`.
+	goBuildCache
+	// lintFormatCache is golangci-lint's copy of that layout, which no
+	// `go clean` owns, so it is emptied by deleting it.
+	lintFormatCache
+)
+
+// budgetGroup names the budget the store trim holds a cache to.
+type budgetGroup uint8
+
+const (
+	// unspecifiedBudget is the zero value and never a valid group.
+	unspecifiedBudget budgetGroup = iota
+	// goCachesBudget is the ONE total across the checkout, shared and
+	// bootstrap Go caches, ze.le.store.go-cache-budget (owner decision D-1,
+	// 2026-10-05). A cache in this group is never held to a budget of its own.
+	goCachesBudget
+	// lintCacheBudget is the lint cache's own budget,
+	// ze.le.store.lint-cache-budget, never mixed with the Go total (D-2).
+	lintCacheBudget
+	// notTrimmed is a cache the trim leaves alone. The ambient cache is the
+	// machine's rather than le's, and Go's own five-day trim covers it (D-6).
+	notTrimmed
+)
+
+// cleanTarget is one cache: how a person reads it in the report, where it
+// lives, its kind, the budget the store trim holds it to, and why this run
+// skips it when it does.
 type cleanTarget struct {
 	name    string
 	path    string
-	empty   func() error
+	kind    cacheKind
+	budget  budgetGroup
 	skipped string
 }
 
-// cleanTargets answers every cache a checkout at root fills, in report order.
-//
-// It takes the ambient path rather than resolving it, so the whole plan is
-// readable without running a command, and so a caller that failed to resolve it
-// still gets the other two rows.
-func cleanTargets(ctx context.Context, root, ambient string) []cleanTarget {
-	checkout := gotoolchain.GoCache(root)
-	lint := gotoolchain.LintCache(root)
-	bootstrap := gotoolchain.BootstrapCache(root)
+// emptier answers what emptying this target takes, derived from its kind.
+func (target cleanTarget) emptier(ctx context.Context) func() error {
+	switch target.kind {
+	case goBuildCache:
+		return func() error { return goCleanCache(ctx, target.path) }
+	case lintFormatCache:
+		return func() error { return removeCache(target.path) }
+	case unspecifiedCache:
+	}
+	return func() error { return fmt.Errorf("BUG: cache %s was declared with no kind", target.name) }
+}
 
-	targets := []cleanTarget{{
-		name: checkoutCache, path: checkout,
-		empty: func() error { return goCleanCache(ctx, checkout) },
-	}, {
-		name: ambientCache, path: ambient,
-		empty: func() error { return goCleanCache(ctx, ambient) },
-	}, {
-		name: bootstrapCache, path: bootstrap,
-		empty: func() error { return goCleanCache(ctx, bootstrap) },
-	}, {
-		name: lintCache, path: lint,
-		empty: func() error { return removeCache(lint) },
-	}}
+// cleanTargets answers every cache a checkout at root fills, in report order.
+// It is the one store list: cache-clean empties every row, and the store trim
+// bounds the rows whose budget is not notTrimmed.
+//
+// It takes the ambient path and the per-user target rather than resolving
+// them, so the whole plan is readable without running a command, and so a
+// caller that failed to resolve one still gets the other rows.
+func cleanTargets(root, ambient, perUser string) []cleanTarget {
+	checkout := gotoolchain.GoCache(root)
+
+	targets := []cleanTarget{
+		{name: checkoutCache, path: checkout, kind: goBuildCache, budget: goCachesBudget},
+		{name: sharedCache, path: filepath.Join(perUser, filepath.Base(checkout)), kind: goBuildCache, budget: goCachesBudget},
+		{name: ambientCache, path: ambient, kind: goBuildCache, budget: notTrimmed},
+		{name: bootstrapCache, path: gotoolchain.BootstrapCache(root), kind: goBuildCache, budget: goCachesBudget},
+		{name: lintCache, path: gotoolchain.LintCache(root), kind: lintFormatCache, budget: lintCacheBudget},
+	}
+	// The checkout's cache/ is linked to the per-user target only after
+	// links-ensure or migrate ran, so the two are compared on disk, not assumed.
+	if sameDirectory(filepath.Dir(checkout), perUser) {
+		targets[1].skipped = "cache/ links here, so this is the checkout cache, which this run already emptied"
+	}
 	if ambient == checkout {
-		targets[1].skipped = "the machine default is the checkout cache, which this run already emptied"
+		targets[2].skipped = "the machine default is the checkout cache, which this run already emptied"
 	}
 	return targets
+}
+
+// sameDirectory answers whether two paths resolve to one directory. A path
+// that does not resolve is not the other one: an absent cache/ is linked
+// nowhere, and an absent per-user target holds no cache yet.
+func sameDirectory(first, second string) bool {
+	firstReal, err := filepath.EvalSymlinks(first)
+	if err != nil {
+		return false
+	}
+	secondReal, err := filepath.EvalSymlinks(second)
+	if err != nil {
+		return false
+	}
+	return firstReal == secondReal
 }
 
 // verdict answers 1 when any cache refused, so a caller sees the failure.

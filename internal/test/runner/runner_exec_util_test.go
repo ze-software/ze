@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	lescratch "github.com/ze-software/ze/internal/le/scratch"
 	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
@@ -403,6 +404,31 @@ func TestChildEnvDisablesCGO(t *testing.T) {
 	}
 	if got := os.Getenv("CGO_ENABLED"); got != "1" {
 		t.Fatalf("childEnv mutated the parent environment: CGO_ENABLED=%q", got)
+	}
+}
+
+// VALIDATES: every test child receives le's automatic store trim switched off,
+// in exactly one spelling, whatever spelling the runner inherited, and the
+// runner's key is the one internal/le/scratch reads.
+// PREVENTS: an le under test starting a detached trim that writes
+// tmp/store-trim/ into a tree a fixture compares (le-vendor-web-answers,
+// le-docvalid-answers and le-discovery-answers went red on it, 2026-10-05).
+func TestChildEnvTurnsTheStoreTrimOff(t *testing.T) {
+	if got := strings.ToLower(strings.ReplaceAll(lescratch.StoreTrimKey, ".", "_")); got != storeTrimVariable {
+		t.Fatalf("the runner switches %q, le reads %q", storeTrimVariable, got)
+	}
+	t.Setenv("ze.le.store.trim", "on")
+	t.Setenv("ZE_LE_STORE_TRIM", "on")
+
+	var spellings []string
+	for _, entry := range childEnv("ZE_CHILD_ENV_PROBE=preserved") {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.EqualFold(strings.ReplaceAll(name, ".", "_"), storeTrimVariable) {
+			spellings = append(spellings, entry)
+		}
+	}
+	if len(spellings) != 1 || spellings[0] != storeTrimOffEntry {
+		t.Fatalf("child environment carries %q, want exactly %q", spellings, storeTrimOffEntry)
 	}
 }
 

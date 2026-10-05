@@ -20,6 +20,11 @@ import (
 
 const sessionRootRel = "tmp/session"
 
+// RootDir answers tmp/session under root, the directory Reap and Judge walk.
+func RootDir(root string) string {
+	return filepath.Join(root, filepath.FromSlash(sessionRootRel))
+}
+
 const processQueryTimeout = 5 * time.Second
 
 // procRoot is the Linux process filesystem this reaper reads.
@@ -69,7 +74,16 @@ func (r ReapReport) Text() string {
 	return text.String()
 }
 
-type processFact struct {
+// Process is one running process as the session scanner sees it. It is the
+// one process fact every session-liveness judgement reads: Reap's rules here,
+// and the store trim's launcher and testbin checks in internal/le/scratch.
+//
+// Start is an opaque token that changes when a pid is reused, and is what a
+// pid pin records. StartedAt is the wall-clock start: the ps scan fills it for
+// every process, the /proc scan only for a Claude CLI, because it costs a ps
+// call per process there. A zero StartedAt means "not measured", never "the
+// epoch"; ProcessStartTime measures one pid on demand.
+type Process struct {
 	PID       int
 	Start     string
 	StartedAt time.Time
@@ -78,7 +92,7 @@ type processFact struct {
 }
 
 type reapOps struct {
-	processes func() ([]processFact, error)
+	processes func() ([]Process, error)
 	removeDir func(string) error
 	remove    func(string) error
 }
@@ -86,20 +100,84 @@ type reapOps struct {
 // Reap removes only dated session directories whose identity has no live
 // process, live pid pin, current-session ownership, or recent transcript.
 func Reap(root, configDir string, dry bool) (ReapReport, error) {
+	scope, err := newReapScope(root, configDir)
+	if err != nil {
+		return ReapReport{}, err
+	}
+	if scope.missingRoot {
+		return ReapReport{Dry: dry, MissingRoot: true}, nil
+	}
+	return reap(root, scope.configDir, scope.ownID, dry, reapOps{
+		processes: ScanProcesses,
+		removeDir: os.RemoveAll,
+		remove:    os.Remove,
+	})
+}
+
+// Judgement is Reap's decision over tmp/session without its removals: every
+// dated session directory, and the ones Reap would remove. Notice is set, and
+// Dead is empty, when Reap would remove nothing because it cannot tell an idle
+// session from a dead one.
+type Judgement struct {
+	Dirs        []string
+	Dead        []string
+	Notice      string
+	MissingRoot bool
+}
+
+// Judge answers the session directories Reap's rules would remove, and
+// removes nothing. It takes the process table from the caller, so a caller
+// that also judges other stores by liveness scans the processes once
+// (internal/le/scratch, the store trim). The rules are Reap's own: judge is
+// the one copy both entries call.
+func Judge(root, configDir string, processes []Process) (Judgement, error) {
+	scope, err := newReapScope(root, configDir)
+	if err != nil {
+		return Judgement{}, err
+	}
+	if scope.missingRoot {
+		return Judgement{MissingRoot: true}, nil
+	}
+	decision, err := judge(root, scope.configDir, scope.ownID, processes)
+	if err != nil {
+		return Judgement{}, err
+	}
+	judgement := Judgement{Notice: decision.notice, MissingRoot: decision.missingRoot}
+	for _, path := range decision.candidates {
+		judgement.Dirs = append(judgement.Dirs, path)
+	}
+	for _, path := range decision.dead {
+		judgement.Dead = append(judgement.Dead, path)
+	}
+	slices.Sort(judgement.Dirs)
+	slices.Sort(judgement.Dead)
+	return judgement, nil
+}
+
+// reapScope is what both Reap and Judge resolve before judging: this
+// process's own session id, which is always live, and the Claude config
+// directory whose transcripts keep an idle session alive.
+type reapScope struct {
+	ownID       string
+	configDir   string
+	missingRoot bool
+}
+
+func newReapScope(root, configDir string) (reapScope, error) {
 	sessionRoot := filepath.Join(root, filepath.FromSlash(sessionRootRel))
 	info, err := os.Lstat(sessionRoot)
 	if errors.Is(err, os.ErrNotExist) {
-		return ReapReport{Dry: dry, MissingRoot: true}, nil
+		return reapScope{missingRoot: true}, nil
 	}
 	if err != nil {
-		return ReapReport{}, err
+		return reapScope{}, err
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-		return ReapReport{}, fmt.Errorf("session-reap: refusing unsafe session root %s", sessionRoot)
+		return reapScope{}, fmt.Errorf("session-reap: refusing unsafe session root %s", sessionRoot)
 	}
 	paths, err := lepath.ResolveSession(root, false)
 	if err != nil {
-		return ReapReport{}, err
+		return reapScope{}, err
 	}
 	if configDir == "" {
 		configDir = os.Getenv("CLAUDE_CONFIG_DIR")
@@ -107,34 +185,90 @@ func Reap(root, configDir string, dry bool) (ReapReport, error) {
 	if configDir == "" {
 		home, homeErr := os.UserHomeDir()
 		if homeErr != nil {
-			return ReapReport{}, homeErr
+			return reapScope{}, homeErr
 		}
 		configDir = filepath.Join(home, ".claude")
 	}
-	return reap(root, configDir, paths.ID, dry, reapOps{
-		processes: scanProcesses,
-		removeDir: os.RemoveAll,
-		remove:    os.Remove,
-	})
+	return reapScope{ownID: paths.ID, configDir: configDir}, nil
+}
+
+// reapDecision is judge's answer: every candidate directory and the dead ones,
+// keyed by session id, the pid pins whose process is gone, and the notice that
+// stops every removal.
+type reapDecision struct {
+	candidates  map[string]string
+	dead        map[string]string
+	stalePins   []string
+	notice      string
+	missingRoot bool
 }
 
 func reap(root, configDir, ownID string, dry bool, ops reapOps) (ReapReport, error) {
 	report := ReapReport{Dry: dry}
-	sessionRoot := filepath.Join(root, filepath.FromSlash(sessionRootRel))
-	rootInfo, err := os.Lstat(sessionRoot)
-	if errors.Is(err, os.ErrNotExist) {
+	processes, err := ops.processes()
+	if err != nil {
+		return report, err
+	}
+	decision, err := judge(root, configDir, ownID, processes)
+	if err != nil {
+		return report, err
+	}
+	if decision.missingRoot {
 		report.MissingRoot = true
 		return report, nil
 	}
+	if decision.notice != "" {
+		report.Notice = decision.notice
+		return report, nil
+	}
+	sessionRoot := filepath.Join(root, filepath.FromSlash(sessionRootRel))
+	dead := decision.dead
+	markers := append(flatMarkers(sessionRoot, dead), decision.stalePins...)
+	paths := make([]string, 0, len(dead)+len(markers))
+	for _, path := range dead {
+		paths = append(paths, path)
+	}
+	paths = append(paths, markers...)
+	slices.Sort(paths)
+	report.Paths = paths
+	report.RemovedDirs = len(dead)
+	report.Kept = len(decision.candidates) - report.RemovedDirs
+	if !dry {
+		for _, path := range dead {
+			_ = ops.removeDir(path)
+		}
+	}
+	for _, marker := range markers {
+		if dry {
+			report.RemovedMarkers++
+			continue
+		}
+		if err := ops.remove(marker); err == nil {
+			report.RemovedMarkers++
+		}
+	}
+	return report, nil
+}
+
+// judge applies Reap's liveness rules to tmp/session under root and removes
+// nothing.
+func judge(root, configDir, ownID string, processes []Process) (reapDecision, error) {
+	var decision reapDecision
+	sessionRoot := filepath.Join(root, filepath.FromSlash(sessionRootRel))
+	rootInfo, err := os.Lstat(sessionRoot)
+	if errors.Is(err, os.ErrNotExist) {
+		decision.missingRoot = true
+		return decision, nil
+	}
 	if err != nil {
-		return report, err
+		return decision, err
 	}
 	if rootInfo.Mode()&os.ModeSymlink != 0 || !rootInfo.IsDir() {
-		return report, fmt.Errorf("session-reap: refusing unsafe session root %s", sessionRoot)
+		return decision, fmt.Errorf("session-reap: refusing unsafe session root %s", sessionRoot)
 	}
 	entries, err := os.ReadDir(sessionRoot)
 	if err != nil {
-		return report, err
+		return decision, err
 	}
 	candidates := make(map[string]string)
 	for _, entry := range entries {
@@ -144,15 +278,13 @@ func reap(root, configDir, ownID string, dry bool, ops reapOps) (ReapReport, err
 		}
 		candidates[sid] = filepath.Join(sessionRoot, entry.Name())
 	}
-	processes, err := ops.processes()
-	if err != nil {
-		return report, err
-	}
+	decision.candidates = candidates
 	live := map[string]bool{}
 	if ownID != "" {
 		live[ownID] = true
 	}
 	pins, stalePins := pinnedSessions(sessionRoot, processes)
+	decision.stalePins = stalePins
 	for sid := range pins {
 		live[sid] = true
 	}
@@ -183,12 +315,12 @@ func reap(root, configDir, ownID string, dry bool, ops reapOps) (ReapReport, err
 		info, statErr := os.Stat(projects)
 		projectsUsable := statErr == nil && info.IsDir()
 		if !projectsUsable {
-			report.Notice = fmt.Sprintf("session-reap: a Claude CLI is running but %s does not exist, so an idle session cannot be told from a dead one. Removed nothing.", projects)
-			return report, nil
+			decision.notice = fmt.Sprintf("session-reap: a Claude CLI is running but %s does not exist, so an idle session cannot be told from a dead one. Removed nothing.", projects)
+			return decision, nil
 		}
 		transcripts, globErr := filepath.Glob(filepath.Join(projects, "*", "*.jsonl"))
 		if globErr != nil {
-			return report, globErr
+			return decision, globErr
 		}
 		for _, transcript := range transcripts {
 			info, statErr := os.Stat(transcript)
@@ -197,37 +329,13 @@ func reap(root, configDir, ownID string, dry bool, ops reapOps) (ReapReport, err
 			}
 		}
 	}
-	dead := make(map[string]string)
+	decision.dead = make(map[string]string)
 	for sid, path := range candidates {
 		if !live[sid] {
-			dead[sid] = path
+			decision.dead[sid] = path
 		}
 	}
-	markers := append(flatMarkers(sessionRoot, dead), stalePins...)
-	paths := make([]string, 0, len(dead)+len(markers))
-	for _, path := range dead {
-		paths = append(paths, path)
-	}
-	paths = append(paths, markers...)
-	slices.Sort(paths)
-	report.Paths = paths
-	report.RemovedDirs = len(dead)
-	report.Kept = len(candidates) - report.RemovedDirs
-	if !dry {
-		for _, path := range dead {
-			_ = ops.removeDir(path)
-		}
-	}
-	for _, marker := range markers {
-		if dry {
-			report.RemovedMarkers++
-			continue
-		}
-		if err := ops.remove(marker); err == nil {
-			report.RemovedMarkers++
-		}
-	}
-	return report, nil
+	return decision, nil
 }
 
 func candidateSID(name string) (string, bool) {
@@ -260,7 +368,7 @@ func safeReapSID(sid string) bool {
 	return true
 }
 
-func pinnedSessions(root string, processes []processFact) (map[string]bool, []string) {
+func pinnedSessions(root string, processes []Process) (map[string]bool, []string) {
 	starts := make(map[int]string, len(processes))
 	for _, process := range processes {
 		starts[process.PID] = process.Start
@@ -320,12 +428,14 @@ func flatMarkers(root string, dead map[string]string) []string {
 	return markers
 }
 
-func scanProcesses() ([]processFact, error) {
+// ScanProcesses answers every running process: /proc where it exists, else
+// one `ps` call. It is the only process scanner the session-liveness rules use.
+func ScanProcesses() ([]Process, error) {
 	entries, err := os.ReadDir(procRoot)
 	if err != nil {
 		return scanProcessesWithPS()
 	}
-	processes := make([]processFact, 0, len(entries))
+	processes := make([]Process, 0, len(entries))
 	for _, entry := range entries {
 		pid, err := strconv.Atoi(entry.Name())
 		if err != nil {
@@ -339,19 +449,19 @@ func scanProcesses() ([]processFact, error) {
 	return processes, nil
 }
 
-func procFact(pid int) (processFact, bool) {
+func procFact(pid int) (Process, bool) {
 	base := filepath.Join(procRoot, strconv.Itoa(pid))
 	stat, err := os.ReadFile(filepath.Join(base, "stat")) //nolint:gosec // a numeric pid directory under /proc
 	if err != nil {
-		return processFact{}, false
+		return Process{}, false
 	}
 	closing := bytes.LastIndexByte(stat, ')')
 	if closing < 0 {
-		return processFact{}, false
+		return Process{}, false
 	}
 	fields := bytes.Fields(stat[closing+1:])
 	if len(fields) <= 19 {
-		return processFact{}, false
+		return Process{}, false
 	}
 	start := string(fields[19])
 	cmdline, _ := os.ReadFile(filepath.Join(base, "cmdline")) //nolint:gosec // a numeric pid directory under /proc
@@ -376,12 +486,15 @@ func procFact(pid int) (processFact, bool) {
 	}
 	startedAt := time.Time{}
 	if cli {
-		startedAt = processStartTime(pid)
+		startedAt = ProcessStartTime(pid)
 	}
-	return processFact{PID: pid, Start: start, StartedAt: startedAt, Argv: argv, CLI: cli}, true
+	return Process{PID: pid, Start: start, StartedAt: startedAt, Argv: argv, CLI: cli}, true
 }
 
-func processStartTime(pid int) time.Time {
+// ProcessStartTime measures one process's wall-clock start from its `ps`
+// elapsed time, to the second. It answers the zero time when the process is
+// gone or ps cannot say, and a caller MUST read that zero as "unknown".
+func ProcessStartTime(pid int) time.Time {
 	ctx, cancel := context.WithTimeout(context.Background(), processQueryTimeout)
 	defer cancel()
 	output, err := exec.CommandContext(ctx, "ps", "-o", "etime=", "-p", strconv.Itoa(pid)).Output() //nolint:gosec // fixed process query
@@ -436,14 +549,14 @@ func elapsedSeconds(value string) (int64, bool) {
 	return total, true
 }
 
-func scanProcessesWithPS() ([]processFact, error) {
+func scanProcessesWithPS() ([]Process, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), processQueryTimeout)
 	defer cancel()
 	output, err := exec.CommandContext(ctx, "ps", "-eo", "pid=,lstart=,etime=,comm=,args=").Output()
 	if err != nil {
 		return nil, err
 	}
-	var processes []processFact
+	var processes []Process
 	for line := range strings.SplitSeq(string(output), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 8 {
@@ -466,7 +579,7 @@ func scanProcessesWithPS() ([]processFact, error) {
 				}
 			}
 		}
-		processes = append(processes, processFact{
+		processes = append(processes, Process{
 			PID: pid, Start: start, StartedAt: time.Now().Add(-time.Duration(age) * time.Second),
 			Argv: argv, CLI: cli,
 		})

@@ -56,7 +56,7 @@ func TestReapKeepsEveryLiveSourceAndRemovesDeadState(t *testing.T) {
 	started := time.Date(2026, 8, 27, 10, 0, 0, 0, time.UTC)
 	writeTranscriptFixture(t, projects, "transcript-live", started.Add(time.Minute))
 	writeTranscriptFixture(t, projects, "dead", started.Add(-time.Minute))
-	processes := []processFact{
+	processes := []Process{
 		{PID: 44, Start: "123", Argv: []string{"worker"}},
 		{PID: 45, Start: "456", StartedAt: started, Argv: []string{"/usr/bin/claude"}, CLI: true},
 		{PID: 46, Start: "789", Argv: []string{"tool", "--session-id", "argv-live"}},
@@ -96,7 +96,7 @@ func TestReapDryRunAndReusedPIDPinRemoveNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	report, err := reap(root, filepath.Join(root, "config"), "own", true,
-		fixtureReapOps([]processFact{{PID: 44, Start: "new"}}))
+		fixtureReapOps([]Process{{PID: 44, Start: "new"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestReapFailsClosedWithoutTranscriptsWhileCLIIsRunning(t *testing.T) {
 		t.Fatal(err)
 	}
 	dead := writeSessionFixture(t, sessions, "dead")
-	processes := []processFact{{PID: 45, Start: "456", StartedAt: time.Now(), CLI: true}}
+	processes := []Process{{PID: 45, Start: "456", StartedAt: time.Now(), CLI: true}}
 	report, err := reap(root, filepath.Join(root, "missing-config"), "own", false, fixtureReapOps(processes))
 	if err != nil {
 		t.Fatal(err)
@@ -188,9 +188,9 @@ func TestCleanScratchRemovesOnlyCurrentSessionAndRefusesSymlinkRoot(t *testing.T
 	})
 }
 
-func fixtureReapOps(processes []processFact) reapOps {
+func fixtureReapOps(processes []Process) reapOps {
 	return reapOps{
-		processes: func() ([]processFact, error) { return processes, nil },
+		processes: func() ([]Process, error) { return processes, nil },
 		removeDir: os.RemoveAll,
 		remove:    os.Remove,
 	}

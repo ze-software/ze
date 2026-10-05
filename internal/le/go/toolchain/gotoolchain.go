@@ -397,6 +397,70 @@ func BootstrapCache(root string) string {
 	return filepath.Join(root, "tmp", "go-cache")
 }
 
+// namedLauncherPrefix starts the bin/ directory of every launcher the `le`
+// script builds under a name: `./le --name <name>` builds bin/le-<name>/le,
+// and a foreign-platform bin/le falls back to bin/le-<uname -s>-<uname -m>/le.
+const namedLauncherPrefix = "le-"
+
+// NamedLauncherDir answers bin/le-<name>, the directory `./le --name <name>`
+// builds its own le into, rebuilt on every call.
+//
+// The `le` shell script holds the one copy that cannot ask this function,
+// because it runs before any Go binary exists, and so does its check_name
+// rule, which NamedLauncherName repeats.
+// `TestNamedLauncherMatchesTheShellScript` compares them so they cannot drift.
+func NamedLauncherDir(root, name string) string {
+	return filepath.Join(root, "bin", namedLauncherPrefix+name)
+}
+
+// NamedLauncherName answers the build name of a bin/ entry when the entry is
+// the directory of a launcher built under a name, and false otherwise. It
+// answers false for the platform fallback the script shares between sessions,
+// bin/le-<uname -s>-<uname -m>, and for any name the script's check_name would
+// refuse, so a caller that removes what it answers can reach neither.
+//
+// The platform test reads the name's first character: `uname -s` answers a
+// capitalized kernel name (Darwin, Linux, FreeBSD), so a name that starts with
+// a capital is never answered. A build somebody named with a capital is
+// therefore never reclaimed: that costs disk, and never a peer's binary.
+func NamedLauncherName(entry string) (string, bool) {
+	name, found := strings.CutPrefix(entry, namedLauncherPrefix)
+	if !found {
+		return "", false
+	}
+	if !validLauncherName(name) {
+		return "", false
+	}
+	if name[0] >= 'A' && name[0] <= 'Z' {
+		return "", false
+	}
+	return name, true
+}
+
+// validLauncherName is the `le` script's check_name: letters, digits, dot,
+// underscore and hyphen, never empty, and never `..` anywhere in it.
+func validLauncherName(name string) bool {
+	if name == "" {
+		return false
+	}
+	if strings.Contains(name, "..") {
+		return false
+	}
+	for _, character := range name {
+		if !launcherNameCharacter(character) {
+			return false
+		}
+	}
+	return true
+}
+
+// launcherNameCharacter answers whether check_name accepts one character:
+// a letter, a digit, dot, underscore or hyphen.
+func launcherNameCharacter(character rune) bool {
+	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
+		character >= '0' && character <= '9' || character == '.' || character == '_' || character == '-'
+}
+
 // LDFlags answers the linker flags every released binary carries.
 //
 // One string, because that is how `go build -ldflags` takes it. A binary built

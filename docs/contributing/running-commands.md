@@ -85,6 +85,19 @@ missing or empty feature manifest, stop before the compiler runs.
 
 <!-- source: le -- build_le, update_le -->
 
+A named build does not stay forever. The hourly store trim (see "When the disk
+is full") removes `bin/le-<name>/` once its `le` and the directory itself are
+both a day old and no running process carries the path in its argv; the next
+`--name <name>` call rebuilds it, at the cost of one warm build. A process
+already running from it keeps its inode. `bin/le`, the shared
+`bin/le-<OS>-<architecture>/`, `bin/ze` and every other `bin/ze*` never reach
+the removal, and neither does a name the script's own name check would refuse.
+A name that starts with a capital letter is never removed either, because that
+is the shape of the platform directory.
+
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- NamedLauncherDir, NamedLauncherName -->
+<!-- source: internal/le/scratch/livetrim.go -- trimLaunchers, launcherIdle, launcherNamedInArgv -->
+
 ## A bare `go test` is not `./le test unit`
 
 Ze compiles features out behind build tags (`//go:build ze_isis`, `ze_ospf`,
@@ -238,12 +251,22 @@ dir=$(./le session scratch ensure)          # <session-dir>/scratch/, created fo
 ./le test unit all > "$dir/unit.log" 2>&1
 ```
 
-Nothing under `tmp/session/` is deleted automatically: not at session end, not on
-an age timer, not by a hook. The directory outlives the session, so a log written
-today is there tomorrow. `./le session reap` removes only session directories
-whose owners are provably gone. Artifacts that are already session-keyed, and the
-shared-by-design ones (`tmp/ze-verify.*`, and the durable Go build cache
-`internal/le/go/toolchain` assigns), stay where they are.
+A session directory outlives its session, so a log written today is there
+tomorrow. Nothing removes it at session end or from a hook. `./le session reap`
+removes only session directories whose owners are provably gone, and the hourly
+store trim (see "When the disk is full") removes a directory only when those same
+rules call it dead AND its mtime is more than a day old. Inside a directory it
+keeps, the trim removes a `testbin-pid-<pid>-<label>/` that is more than six hours
+old and whose run is over: the pid is not running, or the process now running
+under that pid started after the directory was made. A `testbin-<suffix>/`
+(an explicit `ze.suffix`) leaves only with its session; a suffix starting with
+`pid-` is refused, because it would name a throwaway set. When the process table
+shows no Claude CLI, as inside a QEMU guest or a container, the trim cannot tell a
+live session from a dead one and removes none of these. Artifacts that are
+already session-keyed, and the shared-by-design ones (`tmp/ze-verify.*`, and
+the durable Go build cache `internal/le/go/toolchain` assigns), stay where they
+are.
+<!-- source: internal/le/test/functional/binaries.go -- binaryRoot, throwawaySetPrefix -->
 
 ## When the storage stalls
 
@@ -272,7 +295,10 @@ its journal row carries the reproduction attempt and says the storage stalled.
 CONCURRENT `./le scratch cache-clean` (owner, 2026-08-31). Sessions share this
 checkout and they share one build cache, so a clean run by one session empties
 the cache the others are mid-build against. It clears by itself on a retry,
-because the next build repopulates what it needs.
+because the next build repopulates what it needs. The store trim is the second
+cause: it removes entries older than three hours from the same caches while
+other sessions build, so a build that had located such an entry and not yet
+opened it meets the same error, and the same single retry clears it.
 
 Do not read it as a full disk: that case says `no space left on device` and
 survives a retry. Do not read it as a code defect either. Retry the command
@@ -294,15 +320,22 @@ next row. It arrives as a wave of unrelated failures:
 Read the device that holds the CACHE, by naming the cache path itself:
 
 ```
-df -h cache/go-cache          # follows the symlink to the device that fills
+df -h cache/go-cache          # follows cache/ to the device that fills, linked or not
+df -h ~/.cache/ze/go-cache    # the shared per-user cache verify worktrees write
 df -h tmp/golangci-lint-cache # the lint cache, which is NOT under cache/
 findmnt -T cache/go-cache     # Linux: which device that path is on
 ```
 
-`df` on the checkout ROOT answers about the wrong device. `cache/` is a symlink
-to `$XDG_CACHE_HOME/ze`, or to `~/.cache/ze` (`internal/le/scratch/scratch.go`,
-`cacheTarget`), and that target is frequently its own filesystem. Naming the
-cache path rather than the checkout is what makes `df` answer correctly.
+`df` on the checkout ROOT can answer about the wrong device. The per-user cache
+target is `$XDG_CACHE_HOME/ze`, or `~/.cache/ze` (`internal/le/scratch/scratch.go`,
+`cacheTarget`), and that target is frequently its own filesystem. The checkout's
+`cache/` is a symlink to it only after `./le scratch links-ensure` or
+`./le scratch migrate` ran (`Ensure`, `EnsureCache`); nothing at le start
+creates the link. A checkout that ran neither has a plain `cache/` directory and
+TWO durable Go caches: `cache/go-cache`, which every le action writes, and
+`~/.cache/ze/go-cache`, which every verify worktree writes through its own link
+(see "A verify worktree shares that cache" below). Naming each cache path rather
+than the checkout is what makes `df` answer correctly.
 
 `stat -f` is NOT the command to reach for, and the 2026-09-12 and 2026-09-13
 rows in the class file are both that mistake. On macOS `stat -f` takes a FORMAT
@@ -311,27 +344,41 @@ nothing. The GNU filesystem mode exists only on Linux, and even there APFS-style
 purgeable accounting is what made one reading report terabytes free on a volume
 at 98 percent.
 
-Three caches fill, and emptying one leaves the others full. Two are Go caches on
-two filesystems. The third is golangci-lint's, which no `go clean` reaches and
-which the scratch relocation leaves on the checkout's own device; it held 9.5G
-on 2026-09-13, more than both Go caches together. `./le scratch cache-clean`
-empties all three and prints what each one returned:
+Five caches fill, and emptying one leaves the others full. Four are Go caches,
+on as many as three filesystems. The fifth is golangci-lint's, which no
+`go clean` reaches and which the scratch relocation leaves on the checkout's own
+device; it held 9.5G on 2026-09-13, more than the two Go caches measured beside
+it. `./le scratch cache-clean` empties all of them and prints what each one
+returned:
 
 One row for each cache, in this shape:
 
 ```
 $ ./le scratch cache-clean
-checkout /Users/thomas/Unix/cache/ze/go-cache    freed 256.0G, free 34.2G
-ambient  /Users/thomas/Library/Caches/go-build   freed 1.2G, free 34.2G
-lint     /path/to/checkout/tmp/golangci-lint-cache  freed 9.5G, free 43.7G
+checkout  /path/to/checkout/cache/go-cache                 freed 89.0G, free 123.2G
+shared    /Users/thomas/.cache/ze/go-cache                 freed 13.0G, free 136.2G
+ambient   /Users/thomas/Library/Caches/go-build            freed 1.2G, free 137.4G
+bootstrap /path/to/checkout/tmp/go-cache                   freed 1.3G, free 138.7G
+lint      /path/to/checkout/tmp/golangci-lint-cache        freed 9.5G, free 148.2G
+```
+
+With `cache/` linked to the per-user target, the shared row reads instead:
+
+```
+shared    SKIP     /Users/thomas/.cache/ze/go-cache: cache/ links here, so this is the checkout cache, which this run already emptied
 ```
 
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
 `Overrides` (`internal/le/go/toolchain/gotoolchain.go`) points GOCACHE there, and
-`gotoolchain.GoCache` names it. The AMBIENT cache is the one a bare `go build`
+`gotoolchain.GoCache` names it. The SHARED cache is the per-user
+`cacheTarget()/go-cache`, which every verify worktree writes; when the checkout's
+`cache/` links to that same directory, the row says SKIP because it IS the
+checkout cache, and it is emptied once. The AMBIENT cache is the one a bare `go build`
 writes outside le. The action asks `go env GOCACHE` for that path with the
 inherited override removed, so a checkout whose default already IS the checkout
-cache gets a SKIP row rather than one cache emptied twice. The LINT cache is
+cache gets a SKIP row rather than one cache emptied twice. The BOOTSTRAP cache
+is `tmp/go-cache` (`gotoolchain.BootstrapCache`), which the `le` script's own
+build, the deployment builds and the QEMU guest write. The LINT cache is
 `tmp/golangci-lint-cache`, which `Overrides` names through
 `gotoolchain.LintCache`, and it is emptied by deleting the directory because no
 `go clean` owns it. The equivalent by hand is:
@@ -339,18 +386,70 @@ cache gets a SKIP row rather than one cache emptied twice. The LINT cache is
 ```
 go clean -cache                                    # the ambient cache
 env GOCACHE="$PWD/cache/go-cache" go clean -cache   # the checkout cache
+env GOCACHE="$HOME/.cache/ze/go-cache" go clean -cache  # the shared cache, unless cache/ links to it
+env GOCACHE="$PWD/tmp/go-cache" go clean -cache     # the bootstrap cache
 rm -rf tmp/golangci-lint-cache                     # the lint cache
 ```
 
-Nothing caps any of the three, so all of them grow until the disk fills. The
-clean costs recompilation, which makes the next run slow once.
+The clean costs recompilation, which makes the next run slow once, so le also
+bounds four of the five caches by itself, a little at a time. Every le
+invocation reads `tmp/store-trim/stamp`. When the stamp is an hour old, one
+invocation takes `tmp/store-trim/stamp.lock`, rewrites the stamp and starts
+`le scratch store-trim background` as a detached child, so no command, hook
+calls included, waits for the walk. The child trims:
+
+| Caches | Budget | Default |
+|--------|--------|---------|
+| checkout, shared and bootstrap, as ONE union | `ze.le.store.go-cache-budget` | `40G`, one total across the three |
+| lint | `ze.le.store.lint-cache-budget` | `10G` |
+
+Each pass removes `-a` and `-d` entries from the 256 two-hex-digit
+subdirectories, oldest mtime first, until the total is at or under the budget.
+In the Go pass that order runs across all three caches at once, so a cache that
+is under 40G on its own can still lose its coldest entries to the others' use.
+Nothing else in a cache directory is touched, and no `go clean` runs. No entry
+younger than three hours is removed, whatever the budget: when that is what
+stands between the cache and its budget, the report says the budget is unmet
+and how many bytes the floor kept. An entry a peer removed first counts as gone
+but not as removed by this run. The ambient cache is not le's, and Go's own
+five-day trim keeps it: its row names the path and is a skip.
+
+A budget is a whole number followed by `M` or `G`, from `1M` to `1048576G`. Any
+other spelling, a bare number included, refuses that budget's caches by name and
+leaves them untouched, while the rest are trimmed. `ze.le.store.trim=off` stops
+le from starting a trim by itself, and the functional test runner gives every
+test child that setting (`docs/architecture/testing/runner-architecture.md`).
+`./le scratch store-trim` runs one in the
+foreground whenever asked, ignoring the stamp, and prints one line for each
+budget and one row for each cache (`| json` renders the same report). The
+background child writes that report to `tmp/store-trim/last.log`, which holds
+the latest run. The action exits 1 when a budget, a cache path or the
+`ze.le.store.trim` value was refused; a contended entry or an unmet budget is
+reported and exits 0.
+<!-- source: internal/le/scratch/storetrim.go -- startTrimWhenDue, trimStores, trimReport -->
+<!-- source: internal/le/scratch/cachetrim.go -- trimCaches, removeOldest, walkGoFormatCache -->
+
+After the caches, the same child trims the stores a live session may be using,
+by age and liveness and never by size: named launchers (`launchers`, see
+"Launcher builds do not overwrite running binaries"), session directories
+(`sessions`) and orphaned testbins (`testbins`, both in "Scratch files"). It
+scans the process table once for all three. When that table shows no Claude
+CLI, the three rows say `no session process visible` and nothing is removed from
+them; the caches are trimmed either way. A row counts what it removed and what
+it kept, and an error in one of these rows also makes the action exit 1. With
+no `tmp/session/`, or when the session directories cannot be judged, the
+`testbins` row is a skip that says which.
+<!-- source: internal/le/scratch/livetrim.go -- trimLiveness, trimSessions, trimTestbins -->
+<!-- source: internal/le/session/reap.go -- Judge, ScanProcesses -->
 
 ### A verify worktree shares that cache
 
 `./le verify worktree` extracts a detached worktree under `tmp/verify-worktree`
-and links its `cache/` to the same per-user target the checkout uses, before any
-stage runs (`internal/le/verify`, `sharedCacheLink`, calling `EnsureCache` in
-`internal/le/scratch`). `tmp/` is NOT linked with it: that one is per-checkout,
+and links its `cache/` to the per-user target, before any stage runs
+(`internal/le/verify`, `sharedCacheLink`, calling `EnsureCache` in
+`internal/le/scratch`). That target is the checkout's own cache only when the
+checkout's `cache/` is linked to it too; otherwise it is the second, shared
+cache that `cache-clean` reports on its `shared` row. `tmp/` is NOT linked with it: that one is per-checkout,
 and the worktree's own `tmp/verify` is where the run writes the stage logs it
 copies out afterwards.
 

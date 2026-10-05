@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-10-05 |
 
@@ -153,12 +153,12 @@ class.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Oldest mtime first is LRU to within one hour | `cache.go` `markUsed` and its comment, quoted above (Go 1.27.1) | trim removes hot entries; slower builds, no false reds | unit test: an entry read through `go build` after an aged mtime is refreshed | unvalidated |
-| A-2 | The golangci-lint cache refreshes mtimes the same way | same layout observed; golangci-lint carries a copy of Go's cache package | lint cache trimmed in the wrong order; slower lint, no false red | read golangci-lint's cache source in the module cache during implementation | unvalidated |
-| A-3 | A missing `-a`/`-d` entry is a cache miss for every consumer (go build, go vet, golangci-lint, staticcheck) | `GetFile` answers `entryNotFoundError`; build treats it as a miss | a consumer fails hard on a trimmed entry | unit test: trim a warm cache to zero, rebuild and vet the same package, both exit 0 | unvalidated |
-| A-4 | A process running from `bin/le-<name>/le` shows that path in its argv | the `le` script `exec`s `$binary`, the full path | a running named le is judged idle; its dir is removed; its next nested call rebuilds (script recreates the dir) | unit test over the scanner with a process started from such a path | unvalidated |
-| A-5 | Every le run inside a QEMU guest or container sees no Claude CLI in its process table | guests run no Claude; `Reap` already relies on the same view | a guest trims host-owned bin/session dirs it cannot judge | AC-11 test; read the `internal/le/test/qemu` guest environment during implementation | unvalidated |
-| A-6 | Allocated size (blocks) is the right measure for the budget | `df` reports blocks, and the class is about a full device | budget reads lower than disk use for small files | unit test compares the walk with `du -sk` on a fixture | unvalidated |
+| A-1 | Oldest mtime first is LRU to within one hour | `cache.go` `markUsed` and its comment, quoted above (Go 1.27.1) | trim removes hot entries; slower builds, no false reds | unit test: an entry read through `go build` after an aged mtime is refreshed | confirmed 2026-10-05: `TestTrimmedEntryIsAMiss` ages every entry of a temporary GOCACHE two hours, repeats the compile, and finds entries refreshed to now (Go 1.27.1) |
+| A-2 | The golangci-lint cache refreshes mtimes the same way | same layout observed; golangci-lint carries a copy of Go's cache package | lint cache trimmed in the wrong order; slower lint, no false red | read golangci-lint's cache source in the module cache during implementation | confirmed 2026-10-05: the installed golangci-lint 2.13.1 carries `internal/go/cache.(*DiskCache).markUsed` (`go tool nm`); its source at tag v2.13.1, `internal/go/cache/cache.go`, sets `mtimeInterval = 1 * time.Hour`, and `markUsed` calls `os.Chtimes(file, now, now)` when `now.Sub(info.ModTime()) >= mtimeInterval`, the same rule as Go 1.27.1 |
+| A-3 | A missing `-a`/`-d` entry is a cache miss for every consumer (go build, go vet, golangci-lint, staticcheck) | `GetFile` answers `entryNotFoundError`; build treats it as a miss | a consumer fails hard on a trimmed entry | unit test: trim a warm cache to zero, rebuild and vet the same package, both exit 0 | confirmed 2026-10-05 for go build and go vet only: `TestTrimmedEntryIsAMiss` trims a warm cache with a zero budget and a zero floor, and both exit 0. golangci-lint and staticcheck were not run against a trimmed lint cache; they read it through the same `GetFile` copy (A-2), which is the basis, not the proof |
+| A-4 | A process running from `bin/le-<name>/le` shows that path in its argv | the `le` script `exec`s `$binary`, the full path | a running named le is judged idle; its dir is removed; its next nested call rebuilds (script recreates the dir) | unit test over the scanner with a process started from such a path | confirmed 2026-10-05: the script assigns `binary=$root/bin/le-$name/le` with `root=$(cd "$(dirname "$0")" && pwd)` (absolute) and ends `exec "$binary"`; `TestTrimNamedLaunchers/a_process_started_from_a_named_launcher_shows_its_path` copies the test binary to `<tmp>/bin/le-probe/le`, starts it, and `session.ScanProcesses` (ps path, macOS) shows the path, which `launcherNamedInArgv` matches. A copied `/bin/sleep` is SIGKILLed by macOS code signing, so the probe is the test binary |
+| A-5 | Every le run inside a QEMU guest or container sees no Claude CLI in its process table | guests run no Claude; `Reap` already relies on the same view | a guest trims host-owned bin/session dirs it cannot judge | AC-11 test; read the `internal/le/test/qemu` guest environment during implementation | confirmed 2026-10-05: a QEMU guest runs its own kernel, so its `/proc` lists guest processes only; `grep -ril claude internal/le/test/qemu/` finds nothing, and no `--pid=host` or `PidMode` appears in any Go, YAML or Dockerfile in the tree. `TestTrimSkipsLivenessWithoutSessions` proves that such a view removes nothing from the three liveness stores |
+| A-6 | Allocated size (blocks) is the right measure for the budget | `df` reports blocks, and the class is about a full device | budget reads lower than disk use for small files | unit test compares the walk with `du -sk` on a fixture | confirmed 2026-10-05: `TestTrimGoCacheOldestFirst/allocated_size_matches_du`, `du -k` of a 64KiB entry times 1024 equals `allocatedBytes` (APFS) |
 | A-7 | A 40G total across the three Go build caches fits the owner's machine | owner decision D-1 (2026-10-05) | disk still fills, or caches thrash | owner set it; the env entry overrides it without a code change | confirmed by owner |
 
 ### Risks
@@ -176,6 +176,7 @@ class.
 | R-9 | The stamp sits in `tmp/`, which `migrate` may relocate or a peer may delete | trims run more often than hourly | harmless: a missing stamp means due, the lock still serialises |
 | R-10 | `bin/le-<name>/` is removed between the script's `mkdir -p` and its `.new.<pid>` write, failing a build | `le: build failed` once, clears on retry | binary age floor (24h) on both the binary and the directory mtime makes this need an idle-for-a-day name reused in the same second |
 | R-11 | A stamp written in the future (clock moved back) suppresses trims indefinitely | no `last.log` for days | a stamp more than one hour in the future counts as due, as Go's `trim.txt` check does |
+| R-13 | Every `le` a functional test runs is a trigger, so a fixture's throwaway checkout gains `tmp/store-trim/` and a detached child: trees diverge and tree-equality fixtures go red (seen on phase 5: `le-vendor-web-answers`, `le-docvalid-answers`) | a fixture failure naming `tmp/store-trim/last.log` or `stamp` | the runner owns every test child's environment and sets `ze_le_store_trim=off` (`childEnv`, `internal/test/runner/runner_exec_util.go`; `TestChildEnvTurnsTheStoreTrimOff`); `le-store-trim-answers` turns it back on in its own child environment. Per-fixture ignores of `tmp/store-trim` were rejected as a workaround. Both fixtures PASS after the fix |
 
 ## Blast Radius
 
@@ -230,10 +231,10 @@ class.
 | `TestTrimGoCacheRespectsAgeFloor` | `internal/le/scratch/storetrim_test.go` | AC-4 | |
 | `TestTrimLintCache` | `internal/le/scratch/storetrim_test.go` | AC-6 | |
 | `TestTrimGoCachesAsOneUnion` | `internal/le/scratch/storetrim_test.go` | AC-1, AC-7, AC-21: global mtime order across three temp caches, combined total, a symlinked duplicate counted once | |
-| `TestTrimNamedLaunchers` | `internal/le/scratch/storetrim_test.go` | AC-8, AC-9 (process facts injected) | |
-| `TestTrimSessionsAgePlusReap` | `internal/le/scratch/storetrim_test.go` | AC-10 | |
-| `TestTrimSkipsLivenessWithoutSessions` | `internal/le/scratch/storetrim_test.go` | AC-11 | |
-| `TestTrimOrphanTestbins` | `internal/le/scratch/storetrim_test.go` | AC-12 including pid reuse | |
+| `TestTrimNamedLaunchers` | `internal/le/scratch/livetrim_test.go` | AC-8, AC-9 (process facts injected) | |
+| `TestTrimSessionsAgePlusReap` | `internal/le/scratch/livetrim_test.go` | AC-10 | |
+| `TestTrimSkipsLivenessWithoutSessions` | `internal/le/scratch/livetrim_test.go` | AC-11 | |
+| `TestTrimOrphanTestbins` | `internal/le/scratch/livetrim_test.go` | AC-12 including pid reuse | |
 | `TestBudgetParse` | `internal/le/scratch/storetrim_test.go` | AC-13, AC-14 | |
 | `TestTrimReportJSON` | `internal/le/scratch/storetrim_test.go` | AC-16 | |
 | `TestTrimWriterRace` | `internal/le/scratch/storetrim_test.go` | AC-17 | |
@@ -252,7 +253,7 @@ class.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `le-store-trim-answers` | `test/ui/le-store-trim-answers.ci` | the fixture builds le, seeds a throwaway checkout (ZE_REPO_ROOT) with an over-budget fake Go cache using small budgets, runs a cheap le command twice: the first leaves the cache under budget (after the child exits) and writes the stamp, the second spawns nothing; `./le scratch store-trim` prints one row per store | |
+| `le-store-trim-answers` | `test/ui/le-store-trim-answers.ci` | the fixture builds le, seeds a throwaway checkout (ZE_REPO_ROOT) with an over-budget fake Go cache using small budgets, runs a cheap le command twice: the first leaves the cache under budget (after the child exits) and writes the stamp, the second spawns nothing; `./le scratch store-trim` prints one row per store | written (phase 5): driver `internal/test/fixture/ui_fixture_le_store_trim_answers.go` `leStoreTrimAnswers`, registered in `register_le_store_trim_answers.go`; it also seeds a throwaway per-user cache (XDG_CACHE_HOME), so the union is two caches with interleaved ages. Discrimination 2026-10-05: with `lescratch.StartStoreTrimWhenDue(storeTrimSpawn())` removed from `run`, red: `FAIL: the first le run started no background trim: open .../checkout/tmp/store-trim/last.log: no such file or directory`; with `stampFresh` never fresh, red: `FAIL: the second run inside the hour rewrote the stamp, so it started a trim`; restored, green (PASS 6.4s) |
 
 ### Interop Tests (Scope: protocol)
 N-A: tooling, no protocol peer.
@@ -266,9 +267,15 @@ N-A: tooling, no protocol peer.
 - `internal/le/verify/lifecycle.go` - correct the `sharedCacheLink` comment ("the checkout's shared Go build cache" holds only for a linked checkout)
 - `docs/contributing/running-commands.md` - see Documentation checklist
 - `ai/INDEX.md` - the `./le scratch` row names the trim
+- `internal/test/runner/harness_exec.go`, `internal/test/runner/runner_exec_util.go` - every test child gets `ze_le_store_trim=off` (R-13, phase 5)
+- `internal/le/test/functional/binaries.go` - `binaryRoot` refuses a `ze.suffix` starting `pid-` (closure review, AC-12)
+- `docs/architecture/testing/runner-architecture.md` - the runner turns the trim off in every test child
 
 ## Files to Create
 - `internal/le/scratch/storetrim.go` - due-check, stamp and locks, child spawn, per-store trim, report
+- `internal/le/scratch/cachetrim.go` - the Go-format cache passes (walk, oldest-first removal, floor, writer race), split from `storetrim.go` in phase 3 as a second concern
+- `internal/le/scratch/livetrim.go` - the liveness stores (named launchers, session directories, orphaned testbins, the no-Claude guard), split from `storetrim.go` in phase 4 as a third concern
+- `internal/le/scratch/livetrim_test.go` - the four liveness-store tests
 - `internal/le/scratch/storetrim_test.go` - unit tests above
 - `test/ui/le-store-trim-answers.ci` and its registered native fixture `ui/le-store-trim-answers` beside the other `ui/le-*` fixtures
 
@@ -438,3 +445,174 @@ N-A: tooling, no protocol peer.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-le-bounds-its-build-stores.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Trigger: `run` (`internal/le/register.go`) calls `lescratch.StartStoreTrimWhenDue(storeTrimSpawn())` before `leroot.Dispatch` and never reads the answer. `startTrimWhenDue` (`internal/le/scratch/storetrim.go`) reads `tmp/store-trim/stamp`, takes `stamp.lock` non-blocking, re-reads, writes the stamp by rename and spawns `DetachedTrim` (Setsid, stdin null, output to `last.log`, released, not waited).
+- Store list: `cleanTargets` (`internal/le/scratch/cacheclean.go`) has five rows: checkout, shared (per-user, skipped when `cache/` links to it), ambient (`notTrimmed`), bootstrap, lint. Each row carries a kind and a budget group. `./le scratch cache-clean` empties every row, and the trim reads the same list.
+- Cache trim: `trimCaches` / `collectGroup` / `removeOldest` (`internal/le/scratch/cachetrim.go`). One oldest-first pass runs over the union of the three Go caches against `ze.le.store.go-cache-budget` (40G), and a separate pass runs over the lint cache against `ze.le.store.lint-cache-budget` (10G). The age floor is 3h. ENOENT counts as freed. ENOTEMPTY counts as contention. The trim never runs `go clean`.
+- Liveness stores: `trimLiveness` (`internal/le/scratch/livetrim.go`) covers named launchers (`gotoolchain.NamedLauncherName`, 24h idle, not named in any argv), session directories (`session.Judge`, Reap's rules unchanged, plus 24h) and orphan testbins (6h, pid dead or reused). All three are skipped when no Claude CLI is visible.
+- `./le scratch store-trim [background]` (`runStoreTrim`): the foreground run ignores the stamp, and the background child takes `run.lock`. It prints a text report and a `| json` report with kebab-case keys. It exits 1 on a refusal or an error.
+- Test runner: `childEnv` gives every test child `ze_le_store_trim=off`, and `le-store-trim-answers` turns the trim back on in its own child.
+
+### Bugs Found/Fixed
+- `cleanTargets` never named `~/.cache/ze/go-cache` for an unlinked checkout (13G missed): `TestCleanTargetsNamesSharedCache`.
+- `CleanReport.Text` printed `bootstrap/path` glued (name width 9): `TestCleanReportTextStatesEveryOutcome`.
+- Closure review: the trim report printed the ambient row with an empty path. `trimStoresScanning` now resolves it with `ambientGoCache`: `TestTrimReportJSON`.
+- Closure review: `removeLivenessEntry` counted a directory a peer had already removed as removed by this run. `TestTrimSessionsAgePlusReap/a_directory_a_peer_already_removed...` now covers it.
+- Closure review: with no `tmp/session`, or when Judge failed, the testbins row reported an empty store it never looked at. `trimSessions` now answers why, and `trimLiveness` skips the row with that reason: `TestTrimSessionsAgePlusReap/with_no_session_directory...`.
+- Closure review: `binaryRoot` accepted a `ze.suffix` such as `pid-9-x`. That named a kept set `testbin-pid-9-x`, which `testbinPID` reads as a throwaway set, so the trim would remove it once pid 9 is dead (AC-12). It is now refused: `TestBinaryRootRefusesASuffixInTheThrowawayNamespace`.
+- Closure review: the `cacheclean.go` header still said "The fourth is golangci-lint's" after a fifth cache was added. Corrected.
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`: "When the disk is full" (the two durable Go caches, five caches, the trim, budgets, floor, refusal rule, switch, `store-trim`, `last.log`, liveness stores, anchors on `storetrim.go`, `cachetrim.go`, `livetrim.go`, `reap.go`); "Scratch files" (age plus liveness, testbins, the `pid-` suffix refusal, anchored on `binaries.go` `binaryRoot`); "When another session cleans the cache under you" (the trim is the second cause); "Launcher builds..." (named builds reclaimed after a day idle).
+- `docs/architecture/testing/runner-architecture.md`: the runner turns the trim off in every test child.
+- `ai/INDEX.md`: the `./le scratch` row names cache-clean and store-trim.
+- `./le doc check verify` (closure, 2026-10-05): source anchors "checked 2924 code paths, 647 packages, all references valid". The run is red on three drift rows only (`../wiki/command-catalog.md`, `../gh-pages/reference/cli/index.md`, `../gh-pages/llms.txt` disagree on `request bgp rib retain-routes`), which this change does not touch.
+
+### Deviations from Plan
+- Files added beyond the plan: `cachetrim.go` and `livetrim.go` split out of `storetrim.go` (phases 3 and 4). The runner gives every test child the trim switch off (R-13). `binaryRoot` refuses a `pid-` suffix (closure review).
+- `TrimReport` was renamed to the unexported `trimReport`, because `./le repo check` refuses an exported symbol with no cross-package caller.
+- An unreadable `ze.le.store.trim` makes the foreground action exit 1 and still trims every store (phase 3 decision, following AC-13's rule).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase 4 wrote the code of `livetrim.go` before its four tests, so those tests never had an observed red against missing code (TDD order broken) | the phase proved each guard discriminates afterwards by eight deliberate breaks (argv guard, platform guard x2, session age, no-Claude guard, pid-reuse comparison, testbin age, launcher dir age, launcher binary age), each red and then restored green | phase 4 handoff, judged at closure | recorded here. The guards are proven, and no rule change is needed: `ai/rules/testing.md` already orders tests first |
+| approach | Phase 1 made every `le` invocation a trigger, including the `le` a functional fixture runs in a throwaway checkout, so tree-equality fixtures saw `tmp/store-trim/` appear | the runner owns every test child's environment and is where the switch belongs | phase 5 full ui run (`le-vendor-web-answers`, `le-docvalid-answers` red) | fixed at the source (`childEnv`), R-13 |
+| approach | The liveness pass trusted the `testbin-pid-` prefix to mean "throwaway set", and `binaryRoot` let a kept set take that name | the namespace was shared between kept and throwaway sets | closure review | `binaryRoot` refuses a `pid-` suffix |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| limit lives inside le, triggered at start, at most hourly, safe under concurrency | Done | `internal/le/register.go` `run`; `internal/le/scratch/storetrim.go` `startTrimWhenDue` | stamp, flock, re-read |
+| Go caches LRU-trimmed to one 40G total across checkout, bootstrap, per-user | Done | `internal/le/scratch/cachetrim.go` `trimCaches`, `removeOldest` | D-1 |
+| lint cache bounded | Done | same, `lintCacheBudget` | D-2, 10G |
+| named launchers, session dirs, orphan testbins bounded by age plus liveness | Done | `internal/le/scratch/livetrim.go` | D-3, D-4 |
+| a trim racing a build produces no false red beyond one retry | Done | 3h floor, ENOENT freed, `isWriterRace` contention | R-1 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRunSpawnsStoreTrimWhenDue`, `TestTrimGoCacheOldestFirst`, `test/ui/le-store-trim-answers.ci` | end to end through the built le |
+| AC-2 | Done | `TestStoreTrimDueOncePerHour`, `le-store-trim-answers.ci` | second run rewrites no stamp |
+| AC-3 | Done | `TestStoreTrimDueOncePerHour` | 20 re-executed contenders, 1 spawn |
+| AC-4 | Done | `TestTrimGoCacheRespectsAgeFloor` | |
+| AC-5 | Done | `TestTrimGoCacheOldestFirst` | README, trim.txt, foreign file kept |
+| AC-6 | Done | `TestTrimLintCache` | |
+| AC-7 | Done | `TestTrimGoCachesAsOneUnion` | symlinked duplicate counted once |
+| AC-8 | Done | `TestTrimNamedLaunchers` | |
+| AC-9 | Done | `TestTrimNamedLaunchers` | bin/le, platform dirs, bin/ze* kept |
+| AC-10 | Done | `TestTrimSessionsAgePlusReap` | |
+| AC-11 | Done | `TestTrimSkipsLivenessWithoutSessions` | |
+| AC-12 | Done | `TestTrimOrphanTestbins`, `TestBinaryRootRefusesASuffixInTheThrowawayNamespace` | pid reuse, `testbin-<suffix>` kept |
+| AC-13 | Done | `TestBudgetParse`, `TestTrimReportJSON` | |
+| AC-14 | Done | `TestBudgetParse` | |
+| AC-15 | Done | `TestRunSpawnsStoreTrimWhenDue`, `TestStoreTrimSwitch` | |
+| AC-16 | Done | `TestTrimReportJSON`, `le-store-trim-answers.ci` | |
+| AC-17 | Done | `TestTrimWriterRace` | |
+| AC-18 | Done | `TestTrimmedEntryIsAMiss` | |
+| AC-19 | Done | `TestCleanTargetsNamesSharedCache` | |
+| AC-20 | Done | `TestNamedLauncherMatchesTheShellScript` | |
+| AC-21 | Done | `TestTrimGoCachesAsOneUnion` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 16 unit tests of the TDD table | Done | `internal/le/register_test.go`, `internal/le/scratch/{storetrim,livetrim,cacheclean}_test.go`, `internal/le/go/toolchain/gotoolchain_test.go` | every one PASS in `tmp/session/2026-10-05-69f8d480-7509-4477-a05f-ebac4081d646/scratch/job-close-acs-97157a67.log` |
+| `le-store-trim-answers` | Done | `test/ui/le-store-trim-answers.ci` | PASS 13.3s after the closure fixes |
+| `TestChildEnvTurnsTheStoreTrimOff`, `TestBinaryRootRefusesASuffixInTheThrowawayNamespace` | Done | `internal/test/runner/runner_exec_util_test.go`, `internal/le/test/functional/functional_test.go` | added beyond the plan |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify (all) | Done | plus the runner, `binaries.go`, runner-architecture.md |
+| Files to Create (all) | Done | `storetrim.go`, `cachetrim.go`, `livetrim.go`, both test files, the `.ci` and its fixture |
+
+### Audit Summary
+- **Total items:** 21 ACs, 16 planned tests + 1 functional, 5 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The Go build caches stop growing without limit | live run plus functional test | the live trim in this checkout (`tmp/store-trim/last.log`, 2026-10-05T07:35:33Z): `budget ze.le.store.go-cache-budget=40.0G: 37.3G -> 37.3G`, with checkout 18.4G and shared 18.9G, against 89G plus 13G measured that morning. `le-store-trim-answers.ci` leaves a seeded union under its 1M budget, oldest first across two caches, through the built le binary |
+| The lint cache has its own bound | unit plus live | `TestTrimLintCache`; live line `budget ze.le.store.lint-cache-budget=10.0G: 0.7G -> 0.7G` |
+| Launchers, sessions and testbins are bounded by age plus liveness, never by size | unit plus live | `TestTrimNamedLaunchers`, `TestTrimSessionsAgePlusReap`, `TestTrimOrphanTestbins`, `TestTrimSkipsLivenessWithoutSessions`; live rows `launchers ... 131 kept`, `sessions ... 11 kept` (nothing yet a day idle and dead) |
+| No caller waits and output is unchanged | functional | `le-store-trim-answers.ci`: two runs with identical exit and stdout, and exactly one `run started` |
+| A trim racing a build produces no false red beyond one retry | unit | `TestTrimmedEntryIsAMiss` (go build and go vet exit 0 after a trim to zero), `TestTrimWriterRace` (ENOTEMPTY is contention), `TestTrimGoCacheRespectsAgeFloor` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is implemented. The other `tmp/` stores are out of scope by owner decision D-5, and the machine cache by D-6: both are scope decisions, not work left undone | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/le-bounds-its-build-stores-69f8d480-7509-4477-a05f-ebac4081d646.md` (27 files, verdict=clean) |
+| `./le spec review check` | clean: "review_gate: OK (24 code files, clean, hashes match ...)" |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and reachability, logic and edge cases (ENOENT, missing roots, symlinked roots, pid namespace), security (path traversal, symlinks, refusal by name), stale comments and docs, style pass over every changed Go file (no `panic`; loops bounded by the 256 subdirectories, the filesystem, and the 1h context) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A `ze.suffix` starting `pid-<digits>-` named a kept set that `testbinPID` reads as throwaway, so the trim could remove it (AC-12). Root cause: `binaryRoot` let kept and throwaway sets share one namespace | `internal/le/test/functional/binaries.go` `binaryRoot` | refuse the `pid-` prefix (`throwawaySetPrefix`); `TestBinaryRootRefusesASuffixInTheThrowawayNamespace`, red with the guard disabled |
+| 2 | ISSUE | The ambient row reported `path: ""`, an empty value standing in for an answer (principles). Root cause: `trimStoresScanning` passed `""` to `cleanTargets` | `internal/le/scratch/storetrim.go` `trimStoresScanning` | resolve with `ambientGoCache`, and append a failure to the skip text; `TestTrimReportJSON` subtest, red when `""` is restored |
+| 3 | ISSUE | `removeLivenessEntry` counted ENOENT as `entries-removed`, a removal this run did not make; `removeOldest` does not | `internal/le/scratch/livetrim.go` `removeLivenessEntry` | ENOENT is gone but not counted; new subtest red with the count restored |
+| 4 | ISSUE | With no `tmp/session`, or with Judge failing, the testbins row reported an empty store it never walked | `internal/le/scratch/livetrim.go` `trimSessions`, `trimLiveness` | `trimSessions` answers why, and the testbins row skips with it; new subtest red with the skip disabled |
+| 5 | ISSUE | The header comment still said "The fourth is golangci-lint's" in a five-cache list (stale-comments) | `internal/le/scratch/cacheclean.go` | now reads "fifth" |
+
+NOTEs (do not block): `reap` now scans processes before `judge` checks the session root. `Reap` returns earlier on a missing root through `newReapScope`, so production never makes that ps call; only a root that vanishes between the two checks pays one. R-3: two checkouts each count the shared per-user cache in their own total and may trim it at once. That is accepted at spec approval as a Known Limitation, and over-trimming costs only misses. The prefix `testbin-pid-` is spelled in both `binaryRoot` and `livetrim.go` `testbinPIDPrefix`, because the scratch package does not import the functional harness. The `binaryRoot` refusal now keeps the two in agreement. `./le repo check` and `./le commit audit` findings (`gr.go` RunGRPlugin, three WEAKENED BGP tests) are in another session's uncommitted files, outside this diff.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/scratch/storetrim.go`, `cachetrim.go`, `livetrim.go`, `storetrim_test.go`, `livetrim_test.go` | yes | `git status` lists each as untracked, and each test file ran in `job-close-acs` |
+| `test/ui/le-store-trim-answers.ci`, `internal/test/fixture/ui_fixture_le_store_trim_answers.go`, `register_le_store_trim_answers.go` | yes | `./le test ui le-store-trim-answers`: `PASS 214 le-store-trim-answers` (13.3s, `tmp/session/2026-10-05-69f8d480-7509-4477-a05f-ebac4081d646/scratch/job-close-ui-7b737b92.log`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-21 | each AC's test passes | `job-close-acs-97157a67.log`: `--- PASS` for all 16 TDD tests plus `TestChildEnvTurnsTheStoreTrimOff` and `TestBinaryRootRefusesASuffixInTheThrowawayNamespace`, `ok` in all five packages |
+| AC-1, AC-2, AC-16 | end to end through the built le | `PASS le-store-trim-answers` after the closure fixes |
+| closure fixes | each new assertion discriminates | with the four fixes broken, `job-close-break*` logs show the matching `--- FAIL` lines; restored, `job-close-green` exit 0 and golangci-lint `0 issues` over scratch and functional |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| any `le` command through `run` | `test/ui/le-store-trim-answers.ci` | yes: the fixture runs the built le twice and asserts one background run (`leStoreTrimAwaitChild`) and an unchanged stamp on the second run. Phase 5 recorded the red with the call removed from `run` |
+| `./le scratch store-trim` | `test/ui/le-store-trim-answers.ci` | yes: `leStoreTrimForeground` checks the text report and the json report, with one row per store |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestTrimmedEntryIsAMiss` refresh check (Go 1.27.1) |
+| A-2 | confirmed | golangci-lint v2.13.1 `markUsed`, `mtimeInterval = 1 * time.Hour` |
+| A-3 | confirmed for go build and go vet | `TestTrimmedEntryIsAMiss`. For golangci-lint and staticcheck the evidence is the same `GetFile` copy (A-2), read rather than executed |
+| A-4 | confirmed | `TestTrimNamedLaunchers/a_process_started_from_a_named_launcher_shows_its_path` |
+| A-5 | confirmed | no Claude in `internal/le/test/qemu`, no `--pid=host`; `TestTrimSkipsLivenessWithoutSessions` |
+| A-6 | confirmed | `TestTrimGoCacheOldestFirst/allocated_size_matches_du` |
+| A-7 | confirmed by owner | D-1 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "Nothing caps" removed | `grep -c "Nothing caps" docs/contributing/running-commands.md` gives 0 | yes |
+| trim, budgets, report, exit codes | `storetrim.go` `trimStoresScanning`, `trimReport.verdict`; `cachetrim.go` `removeOldest` | yes, read at closure |
+| testbins, `pid-` refusal, missing session root | `livetrim.go` `trimLiveness`, `trimSessions`; `binaries.go` `binaryRoot` | yes |
+| source anchors | `./le doc check verify`: "all references valid" | yes |
+| row 12 architecture: No | `docs/architecture/core-design.md` carries no trim text; `verify-freshness-scope.md` unaffected (only the `sharedCacheLink` comment changed); `docs/architecture/testing/ci-format.md`, the `// Design:` page of `binaries.go`, says nothing of `ZE_SUFFIX` or testbin naming (`grep -n -i "suffix\|testbin"` finds only the `.src`/`.conf` and ghost-text lines), so the `pid-` refusal makes no sentence there false | yes |

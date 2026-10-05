@@ -354,6 +354,15 @@ No child environment carries `ZE_LE_BUILD_NAME`: a child reached through the
 `le` link is not the named build file, and `refuseWrongBuildName` would refuse
 every one of them under `./le --name x`.
 
+Every child environment carries `ze_le_store_trim=off`, and an inherited
+spelling of that key is dropped. Every `le` call otherwise starts le's hourly
+store trim in the checkout it is pointed at, as a detached child that writes
+`tmp/store-trim/` and removes store entries, inside trees that fixtures compare
+byte for byte. The one fixture that tests the trim, `ui/le-store-trim-answers`,
+sets the key back to `on` over its own throwaway checkout.
+<!-- source: internal/test/runner/harness_exec.go -- storeTrimVariable, storeTrimOffEntry, replacedInChild -->
+<!-- source: internal/test/runner/runner_exec_util.go -- childEnv -->
+
 `$ZE_REPO_ROOT/bin/ze` is not that binary and MUST NOT be used to find it.
 `.gitignore` excludes `bin/` and no verification job writes `ze` there. A
 fixture that reads it therefore fails on the CI runner. It passes on a

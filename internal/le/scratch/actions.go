@@ -22,15 +22,26 @@ var actions = leaction.New(area,
 		AnswerArgs: runEnsure},
 	leaction.Action{Verb: "cache-clean", Why: "empty EVERY build cache this checkout fills and report the disk space" +
 		" each one returned: the checkout Go cache at cache/go-cache that every le" +
-		" action writes, the ambient Go cache a bare `go` command writes, and the" +
-		" golangci-lint cache at tmp/golangci-lint-cache that no `go clean`" +
-		" reaches. Run it when unrelated packages fail to build, when a linker" +
+		" action writes, the shared per-user Go cache at ~/.cache/ze/go-cache that" +
+		" every verify worktree writes (a SKIP row when cache/ links to it), the" +
+		" ambient Go cache a bare `go` command writes, the bootstrap Go cache at" +
+		" tmp/go-cache, and the golangci-lint cache at tmp/golangci-lint-cache that" +
+		" no `go clean` reaches. Run it when unrelated packages fail to build, when a linker" +
 		" says `no space left on device`, or when a whole suite goes red at once." +
 		" Read free space with `df -h` on the cache path, never with `stat -f`," +
 		" which is a format flag on macOS and prints the path back" +
 		" (plan/journal/full-disk-false-red.md)",
 		Writes: true,
 		Answer: runCacheClean},
+	leaction.Action{Verb: storeTrimVerb, Why: "bound the build stores this checkout fills, now, without waiting for" +
+		" the hourly automatic trim every le invocation starts as a detached child" +
+		" (`" + backgroundKeyword + "` is that child's keyword: it writes to" +
+		" tmp/store-trim/last.log and exits when a previous trim still runs)." +
+		" The automatic trim follows " + StoreTrimKey + ", on or off; a trim asked" +
+		" for by name runs either way and says which",
+		Writes:     true,
+		Parameters: []leaction.Parameter{{Keyword: backgroundKeyword}},
+		AnswerArgs: runStoreTrim},
 	leaction.Action{Verb: "migrate", Why: "the same cutover for a checkout whose tmp/ or cache/ is still a REAL" +
 		" directory: move its entries to the out-of-tree target and leave a symlink" +
 		" behind, refusing rather than clobbering a name the target already holds" +
@@ -86,19 +97,29 @@ func runMigrate() (any, int) {
 }
 
 func managerHere() (*Manager, error) {
-	root, err := lepath.Root()
+	root, err := checkoutRoot()
 	if err != nil {
 		return nil, err
 	}
+	return New(root, os.Environ()), nil
+}
+
+// checkoutRoot answers the checkout le works in, absolute and with its
+// symlinks resolved, so two spellings of one checkout name one set of stores.
+func checkoutRoot() (string, error) {
+	root, err := lepath.Root()
+	if err != nil {
+		return "", err
+	}
 	root, err = filepath.Abs(root)
 	if err != nil {
-		return nil, fmt.Errorf("resolve checkout root: %w", err)
+		return "", fmt.Errorf("resolve checkout root: %w", err)
 	}
 	root, err = filepath.EvalSymlinks(root)
 	if err != nil {
-		return nil, fmt.Errorf("resolve checkout symlinks: %w", err)
+		return "", fmt.Errorf("resolve checkout symlinks: %w", err)
 	}
-	return New(root, os.Environ()), nil
+	return root, nil
 }
 
 func writeErrors(stderr io.Writer, report Report) {
