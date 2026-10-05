@@ -52,11 +52,12 @@ The state-change callback in `peer_run.go`:
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
+| `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | administrative start if delivered after startup; normal startup uses a fresh Idle FSM | ignored; ConnectRetryCounter untouched | none | `Established` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` (BFD down, out of resources) / `Session.CloseWithNotification` (collision) | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventKeepaliveMsg` | `handleKeepalive` | stay (hold timer reset in caller) | none | `Established` |
 | `EventKeepaliveTimerExpires` | `OnKeepaliveTimerExpires` callback | stay | KEEPALIVE sent from callback body | `Established` |
-| `EventUpdateMsg` | `handleUpdate` after RFC 7606 + prefix-limit checks | stay (FSM no-op) | UPDATE forwarded to plugins and peers in caller | `Established` |
+| `EventUpdateMsg` | `processMessage` after validation, prefix-limit checks and callback delivery | stay; reset a nonzero HoldTimer | UPDATE forwarded to plugins and peers in caller | `Established` |
 | `EventHoldTimerExpires` | hold-timer callback | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (HoldTimerExpired) from the callback | `Idle` |
 | `EventNotifMsg` / `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** (Established is the one state whose Event 24 clause carries the counter line) | none | `Idle` |
 | `EventUpdateMsgErr` | `processMessage` / RFC 7606 session-reset path | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (Update error) in caller | `Idle` |
@@ -75,13 +76,13 @@ or rewritten attribute set produced later by `processMessage`.
 
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires, OnKeepaliveTimerExpires callbacks -->
 
-### `handleUpdate` restarts the HoldTimer via the FSM
+### Accepted UPDATEs restart the HoldTimer via the FSM
 
-`handleUpdate` validates address families and fires
-`fsm.Event(EventUpdateMsg)`. All the real UPDATE work (WireUpdate
-construction, RFC 7606 enforcement, the RFC 6793 AS-path reconciliation,
-prefix limits, forwarding to plugins) already happened in
-`processMessage` **before** `handleUpdate` runs.
+`processMessage` validates address families before callback delivery and then
+fires `fsm.Event(EventUpdateMsg)`. The callback may transfer the received
+UPDATE's storage to a consumer that recycles it before returning. No UPDATE
+payload is read after that handoff. A policy teardown requested by the callback
+takes precedence over the accepted-message event.
 
 `processMessage` runs those steps in this order, and the order is a
 contract rather than an accident:
@@ -115,10 +116,30 @@ The per-event cost is a locked switch, a function-call dispatch, and a
 brief `Timers.mu` acquisition for the timer reset. Measured cost is in
 the tens of nanoseconds per UPDATE.
 
-<!-- source: internal/component/bgp/reactor/session_handlers.go — handleUpdate -->
 <!-- source: internal/component/bgp/reactor/session_read.go — processMessage RFC 7606 and prefix-limit paths -->
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished case EventUpdateMsg calls f.timers.ResetHoldTimer -->
 <!-- source: internal/component/bgp/reactor/session.go — fsm.SetTimers wiring -->
+
+### Prefix-limit route identity
+
+`checkPrefixLimits` runs before publication. The default `offered` mode counts
+announcement and withdrawal events using the family's registered framing.
+The `installed` mode counts a set of logical routes using the registered
+semantic key, not the complete NLRI bytes. MPLS labels and withdrawal
+Compatibility octets do not identify a route; VPN RDs and negotiated ADD-PATH
+identifiers do. Path Identifier zero is a path, not absence of ADD-PATH.
+The inventory boundary checks that an ADD-PATH entry contains all four Path
+Identifier octets even after a registered splitter visits it. A shorter entry
+creates neither an installed key nor a rollback record.
+
+Withdrawals use `nlrisplit.GetWithdraw`, so a Compatibility field whose S bit is
+clear is still exactly three octets (RFC 8277 Section 2.4). Installed keys come
+from `nlrisplit.GetPrefixKey`. The per-session scratch is reused between
+entries; the rollback journal retains the original message slices and action
+context, not those temporary keys. If any family refuses the UPDATE, rollback
+restores every installed set before publication is skipped.
+
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- forEachPrefixEntry, prefixSetWalk.identity, rollbackPrefixSets -->
 
 ### `handleKeepalive` in Established
 
@@ -308,6 +329,14 @@ receipt events to plugins.
   exactly one NOTIFICATION 1/1 or 1/2, the peer-down, the released session and
   timers, and a counter of 1; a well-formed KEEPALIVE keeps the session.
   <!-- source: internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go -->
+- `TestRFC8654FatalLengthReleasesInstalledRoutes` starts with two routes in real
+  Adj-RIB-In and Loc-RIB storage and on recipient TCP. A Length-4097 header
+  without local capability 6 must yield exact NOTIFICATION 1/2 Data `1001`,
+  EOF, released session/timers/contexts, final storage purge, and both recipient
+  withdrawals. The adjacent Length-4096 control waits for changed MED in
+  storage and recipient TCP before checking retained resources. These tests do
+  not establish temporal ordering between route deletion and withdrawal emission.
+  <!-- source: internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go -- TestRFC8654FatalLengthReleasesInstalledRoutes, TestRFC8654ValidLengthRetainsInstalledRoutes -->
 - `internal/component/bgp/fsm/fsm_test.go` — direct state transition
   tests for `handleEstablished`, including KEEPALIVE/UPDATE no-ops and
   every error arm.

@@ -418,7 +418,8 @@ func TestNegotiatedToDecoded(t *testing.T) {
 	t.Run("full_capabilities", func(t *testing.T) {
 		neg := &capability.Negotiated{
 			ASN4:                 true,
-			ExtendedMessage:      true,
+			ExtendedMessageRecv:  true,
+			ExtendedMessageSend:  true,
 			RouteRefresh:         true,
 			EnhancedRouteRefresh: true,
 			HoldTime:             90,
@@ -436,10 +437,11 @@ func TestNegotiatedToDecoded(t *testing.T) {
 
 	t.Run("basic_capabilities", func(t *testing.T) {
 		neg := &capability.Negotiated{
-			ASN4:            false,
-			ExtendedMessage: false,
-			RouteRefresh:    true,
-			HoldTime:        180,
+			ASN4:                false,
+			ExtendedMessageRecv: false,
+			ExtendedMessageSend: false,
+			RouteRefresh:        true,
+			HoldTime:            180,
 		}
 
 		decoded := NegotiatedToDecoded(neg)
@@ -571,4 +573,28 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 		_, hasAddPath := raw["add-path"]
 		assert.False(t, hasAddPath, "add-path should be absent when no ADD-PATH negotiated")
 	})
+}
+
+// TestNegotiatedToDecodedDirectionalMessageSize pins the API's outbound limit
+// when only one speaker advertises extended-message reception.
+func TestNegotiatedToDecodedDirectionalMessageSize(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		recv bool
+		send bool
+		want int
+	}{
+		{"local-only", true, false, 4096},
+		{"peer-only", false, true, 65535},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			neg := &capability.Negotiated{
+				ExtendedMessageRecv: tc.recv,
+				ExtendedMessageSend: tc.send,
+			}
+			// RFC 8654 Section 4: sending permission follows the peer's advertisement.
+			decoded := NegotiatedToDecoded(neg)
+			require.Equal(t, tc.want, decoded.MessageSize)
+		})
+	}
 }

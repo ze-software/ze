@@ -138,12 +138,14 @@ func TestRFC8050NoOPENSubtypeDecodesExactNLRI(t *testing.T) {
 // RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
 // message, the NLRI encoding MUST be extended by prepending the Path Identifier
 // field, which is of four octets."
+// The caller supplies the NLRI bytes, including any Path Identifier.
 func noOPENUpdateBody(afi uint16, attribute uint8, withdraw bool, nlri []byte) []byte {
 	var withdrawn, attrs, announced []byte
 	if !withdraw {
 		attrs = []byte{0x40, 1, 1, 0, 0x40, 2, 0}
 	}
-	if attribute != 0 {
+	switch {
+	case attribute != 0:
 		value := []byte{0, byte(afi), 1}
 		if !withdraw {
 			if afi == 1 {
@@ -155,9 +157,9 @@ func noOPENUpdateBody(afi uint16, attribute uint8, withdraw bool, nlri []byte) [
 		value = append(value, nlri...)
 		attrs = append(attrs, 0x80, attribute, byte(len(value)))
 		attrs = append(attrs, value...)
-	} else if withdraw {
+	case withdraw:
 		withdrawn = nlri
-	} else {
+	default:
 		attrs = append(attrs, 0x40, 3, 4, 192, 0, 2, 1)
 		announced = nlri
 	}

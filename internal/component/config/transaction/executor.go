@@ -444,8 +444,10 @@ func settlementResource(op *ConfigOperation, source SettlementResourceSource) st
 		return opIfaceName(op)
 	case SettlementResourcePeer:
 		return firstNonEmpty(op.Target.Peer, op.Params.Peer, op.Target.Name, op.Params.Name)
-	default:
+	case SettlementResourceNone:
 		return ""
+	default:
+		panic("BUG: unknown settlement resource source")
 	}
 }
 

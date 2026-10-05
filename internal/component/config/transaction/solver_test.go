@@ -137,6 +137,7 @@ func assertRemovalsBeforeAdditions(t *testing.T, sorted []ConfigOperation) {
 	firstAdd := len(sorted)
 	lastRemove := -1
 	for i := range sorted {
+		//exhaustive:ignore // Observe only the removal and addition ordering boundaries.
 		switch sorted[i].Verb {
 		case VerbCreate:
 			if i < firstAdd {

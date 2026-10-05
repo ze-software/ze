@@ -235,17 +235,6 @@
     {
       "rid": "RFC5798-5.2.9-1",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal",
-      "unit-sha": "7d64c7dd6ea853a8",
-      "claim-sha": "7b8cea25764e385e",
-      "route": "revert",
-      "producer": "internal/plugins/vrrp/transport/transport.go::encodeLocked",
-      "producer-sha": "846ee1f4761bd28a",
-      "break": "body of encodeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5798-5.2.9-1",
-      "polarity": "positive",
       "unit": "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal",
       "unit-sha": "76067edb2e5cf162",
       "claim-sha": "042d12fe6061f9df",
@@ -253,6 +242,17 @@
       "producer": "internal/plugins/vrrp/instance.go::doSendAdvert",
       "producer-sha": "02db770601b7a4a0",
       "break": "body of doSendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-5.2.9-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal",
+      "unit-sha": "7d64c7dd6ea853a8",
+      "claim-sha": "7b8cea25764e385e",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/transport/transport.go::encodeLocked",
+      "producer-sha": "846ee1f4761bd28a",
+      "break": "body of encodeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5798-5.2.9-2",
@@ -322,24 +322,24 @@
     },
     {
       "rid": "RFC5798-6.4.2-10",
-      "polarity": "positive",
-      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
-      "unit-sha": "897cb80e504bb312",
-      "claim-sha": "cfd38112ffd6ca07",
-      "route": "revert",
-      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
-      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5798-6.4.2-10",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
       "unit-sha": "897cb80e504bb312",
       "claim-sha": "fd51c7cf90e38f51",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
+      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.2-10",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+      "unit-sha": "897cb80e504bb312",
+      "claim-sha": "cfd38112ffd6ca07",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -454,24 +454,24 @@
     },
     {
       "rid": "RFC5798-6.4.2-6",
-      "polarity": "positive",
-      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
-      "unit-sha": "897cb80e504bb312",
-      "claim-sha": "0fe37c63338bbe11",
-      "route": "revert",
-      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
-      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5798-6.4.2-6",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
       "unit-sha": "897cb80e504bb312",
       "claim-sha": "ac3078f0efc87f6d",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
+      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.2-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+      "unit-sha": "897cb80e504bb312",
+      "claim-sha": "0fe37c63338bbe11",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -493,7 +493,7 @@
       "claim-sha": "28a0708aa2399601",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -531,24 +531,24 @@
     },
     {
       "rid": "RFC5798-6.4.2-8",
-      "polarity": "positive",
-      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
-      "unit-sha": "897cb80e504bb312",
-      "claim-sha": "65c2e159ee2fe454",
-      "route": "revert",
-      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
-      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5798-6.4.2-8",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
       "unit-sha": "897cb80e504bb312",
       "claim-sha": "7b79b6baea0d9ca4",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
+      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.2-8",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+      "unit-sha": "897cb80e504bb312",
+      "claim-sha": "65c2e159ee2fe454",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -570,7 +570,7 @@
       "claim-sha": "620cae911fc7e297",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -652,24 +652,24 @@
     },
     {
       "rid": "RFC5798-6.4.3-10",
-      "polarity": "positive",
-      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
-      "unit-sha": "897cb80e504bb312",
-      "claim-sha": "6c57e4961e79755f",
-      "route": "revert",
-      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
-      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5798-6.4.3-10",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
       "unit-sha": "897cb80e504bb312",
       "claim-sha": "b6f763806b98084e",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
+      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.3-10",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+      "unit-sha": "897cb80e504bb312",
+      "claim-sha": "6c57e4961e79755f",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -691,7 +691,7 @@
       "claim-sha": "10d74883e480da44",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -740,24 +740,24 @@
     },
     {
       "rid": "RFC5798-6.4.3-12",
-      "polarity": "positive",
-      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
-      "unit-sha": "897cb80e504bb312",
-      "claim-sha": "608cea6040ee5461",
-      "route": "revert",
-      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
-      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5798-6.4.3-12",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
       "unit-sha": "897cb80e504bb312",
       "claim-sha": "71f6a6f5cd2d6531",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
+      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.3-12",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+      "unit-sha": "897cb80e504bb312",
+      "claim-sha": "608cea6040ee5461",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -916,24 +916,24 @@
     },
     {
       "rid": "RFC5798-6.4.3-8",
-      "polarity": "positive",
-      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
-      "unit-sha": "897cb80e504bb312",
-      "claim-sha": "261500750b3b53f3",
-      "route": "revert",
-      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
-      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5798-6.4.3-8",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
       "unit-sha": "897cb80e504bb312",
       "claim-sha": "f479f7b0acb43f8a",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
+      "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.3-8",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+      "unit-sha": "897cb80e504bb312",
+      "claim-sha": "261500750b3b53f3",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -944,7 +944,7 @@
       "claim-sha": "ed64f4bc7bd4c3ca",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -955,7 +955,7 @@
       "claim-sha": "3169cbc012d66bca",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "e8e9485b85f1e04a",
+      "producer-sha": "2ffd8b034483c3b8",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

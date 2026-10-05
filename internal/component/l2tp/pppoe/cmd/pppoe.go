@@ -129,6 +129,8 @@ func sessionJSON(s *pppoe.SessionSnapshot) map[string]any {
 		state = "session"
 	case pppoe.StateTeardown:
 		state = "teardown"
+	default:
+		panic("BUG: unknown PPPoE session state")
 	}
 	return map[string]any{
 		"sid":          s.SID,

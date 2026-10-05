@@ -623,6 +623,8 @@ func runEditor(ed *cli.Editor, configPath, user string) int {
 			}
 		case cli.PendingEditQuit:
 			return exitOK
+		default:
+			panic("BUG: unknown pending edit action")
 		}
 	}
 	if ed.Tree() != nil {

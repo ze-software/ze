@@ -173,12 +173,12 @@ boundaries, only exported members are required. Use named constants, not
 literals, to satisfy named-member coverage.
 <!-- source: vendor/github.com/nishanths/exhaustive/common.go -- checklist.add, checklist.found, exprConstVal -->
 
-The `exhaustive` linter currently accepts a `default` as complete because
-`.golangci.yml` still sets `default-signifies-exhaustive: true`. That setting
-stays until the migration's final cutover. Strict global checking is not live:
-reviewers MUST apply C/O/P to old and new enum switches, including switches
-whose named cases are already complete. The linter does not prove input
-closure, judge subset reasons or check default and post-switch behavior.
+The `exhaustive` linter checks all unignored enum value switches, including
+aliases, with `.golangci.yml` setting `default-signifies-exhaustive: false`.
+A `default` never substitutes for a missing named member. Reviewers MUST still
+apply C/O/P to old and new switches, including those whose named cases are
+already complete: the linter does not prove input closure, judge subset reasons
+or check default and post-switch behavior.
 <!-- source: .golangci.yml -- exhaustive default-signifies-exhaustive -->
 <!-- source: vendor/github.com/nishanths/exhaustive/switch.go -- switchChecker -->
 
@@ -499,7 +499,7 @@ A finding from these tools names the rule, so the rule is not restated above.
 | Only a named panic | `writeGoPatterns` | A `panic(` in content that holds no panic with a `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix. One allowed panic admits every other panic in the same content, so a peer-reachable panic stays a reader check (see "Assertions, in a language that has none") |
 | No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |
 | No `nil, nil` answer | `nilnil` | A `(pointer, error)` function that returns neither |
-| Every enum value handled | `exhaustive` (currently a `default` counts; C/O/P coverage for old and new code remains a reader check: see "Every enum switch has a coverage policy") | Missing enum members in an unignored value switch without a `default`; not sealed-interface type-switch omissions |
+| Every enum value handled | `exhaustive`, globally, including aliases; `default` does not satisfy named-member coverage | Missing enum members in any unignored value switch, with or without a `default`; not sealed-interface type-switch omissions. C/O/P provenance and fallback policy remain reader checks |
 | A `//nolint` names its linter and its reason | `nolintlint`, `writeGoPatterns` | `//nolint`, or `//nolint:x` with no `// reason` |
 | No legacy logger | `forbidigo`, `writeGoPatterns` | `log.Print*`, `log.Fatal*`, `log.Panic*`: use `slog` |
 | No allocating formatter | `writeGoPatterns` | `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, `strconv.FormatInt`, `strconv.FormatUint`: use `textbuf.Buffer` |

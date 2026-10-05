@@ -283,6 +283,8 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 	case webtesting.WBServerWeb:
 		scheme = schemeHTTPS
 		srv, err = zeTestStartWebServer(ctx, bins.ze, listenAddr, !tc.RequiresAuth(), tc.Auth, tc.Env)
+	default:
+		panic("BUG: unknown normalized web test server")
 	}
 
 	if err != nil {

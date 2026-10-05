@@ -616,6 +616,58 @@ not call the CIDR decoder.
 <!-- source: internal/core/bgp/nlri/wire.go -- WireNLRI.String -->
 <!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendOpaqueRecords -->
 
+### Native VPN inventory identity
+
+VPNv4 and VPNv6 stay opaque, but their route identity is not their full wire
+encoding or `WireNLRI.String`'s size summary. The route server and reflector
+use the registered `GetPrefixKey` operation after `SplitPathID`: `keyVPN`
+keeps the RD and prefix and omits the announced label or withdrawn
+Compatibility field. The source peer, family, ADD-PATH presence and Path
+Identifier distinguish inventory entries. Identifier zero remains a valid path.
+<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetPrefixKey, keyVPN -->
+<!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendOpaqueRecords, recordKey -->
+<!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkVPNNLRIs -->
+
+Both inventories retain the announcement's native bytes separately. A
+peer-down command uses `update hex` and the stored ADD-PATH framing, and names
+only routes not already withdrawn by that source. This does not select a
+replacement route from another source.
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- sendBatchedWithdrawals -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
+
+### Native VPN withdrawal decoding
+
+The enclosing MP_UNREACH operation also travels to the registered decoder.
+`appendNLRIJSONValue`, the codec RPC handlers, and the full-UPDATE CLI decoder
+pass `withdraw` alongside `addPath`; neither fact can be recovered from the
+NLRI octets alone. `rpc.DecodeNLRIInput` carries the same boolean as
+`"withdraw"`, with an absent or false value selecting announcement decoding.
+<!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue -->
+<!-- source: internal/component/bgp/server/codec.go -- handleDecodeMPUnreach, handleDecodeNLRI -->
+<!-- source: internal/component/bgp/cli/decode_mp.go -- parseNLRIByFamily -->
+<!-- source: pkg/plugin/rpc/types.go -- DecodeNLRIInput -->
+
+For a VPN withdrawal, the decoder consumes exactly three Compatibility
+octets after the length, without reading their label or bottom-of-stack bits.
+It then reads the RD and prefix, and publishes those identities and any
+negotiated Path Identifier, including zero. There is no `labels` field in
+that withdrawal JSON. Announcements still decode their complete label stack;
+`ParseVPN` remains the announcement parser. Decoding does not rewrite the
+native bytes retained for forwarding.
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- ParseVPN, parseVPN -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/vpn.go -- DecodeNLRIHex, vpnToJSON -->
+
+The SAFI 4 labeled-unicast decoder also uses the caller's `withdraw` flag.
+It frames the entire section with `SplitWithdrawn` and reads each prefix through
+`RouteCIDR`, which ignores exactly three Compatibility octets.
+Withdrawal JSON contains each prefix and negotiated Path Identifier, including
+zero, with no `labels` field. Announcement JSON retains every label entry,
+including traffic-class and bottom-of-stack bits. A singleton section returns
+one object, and adjacent NLRIs return an array in wire order.
+<!-- source: internal/component/bgp/plugins/nlri/labeled/encode.go -- DecodeNLRIHex, decodeLabeledNLRI -->
+
+### Plugin ADD-PATH metadata
+
 `WireNLRI.Bytes()` returns those octets as they arrived, Path Identifier
 included, and nothing in the octets says whether the first four are one. So the
 negotiation result travels beside them, on three surfaces:
@@ -623,7 +675,7 @@ negotiation result travels beside them, on three surfaces:
 | Surface | Carrier |
 |---------|---------|
 | Formatter to registry | `nlri.AddPathAware`, probed by `appendNLRIJSONValue` |
-| Registry to plugin | `DecodeNLRIByFamily(family, hex, addPath)` and `Registration.InProcessNLRIDecoder` |
+| Registry to plugin | `DecodeNLRIByFamily(family, hex, addPath, withdraw)` and `Registration.InProcessNLRIDecoder` |
 | Engine to external plugin | The `add-path` field of `rpc.DecodeNLRIInput` |
 
 Each decoder consumes the 4-octet Path Identifier for each NLRI in the section

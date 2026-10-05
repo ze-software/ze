@@ -581,11 +581,11 @@ func rowMatches(rowName string, finding Finding) bool {
 	if scoped, matches := scopedRowMatches(rowName, finding); scoped {
 		return matches
 	}
-	at := strings.LastIndexByte(rowName, '.')
-	if at < 0 {
+	pkg, name, found := strings.CutLast(rowName, ".")
+	if !found {
 		return finding.Name == rowName
 	}
-	return finding.Name == rowName[at+1:] && finding.Package == rowName[:at]
+	return finding.Name == name && finding.Package == pkg
 }
 
 // scopedRowMatches reports whether rowName is a path-scoped row and, if it

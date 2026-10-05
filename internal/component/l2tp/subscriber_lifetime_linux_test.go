@@ -115,7 +115,10 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 					case redistevents.ActionRemove:
 						delete(liveRoutes, entry.Prefix)
 						removed = append(removed, entry.Prefix)
+					case redistevents.ActionUnspecified:
+						t.Errorf("unexpected route action %v for %s", entry.Action, entry.Prefix)
 					default:
+						// Route actions are an open event-bus input; report unknown actions.
 						t.Errorf("unexpected route action %v for %s", entry.Action, entry.Prefix)
 					}
 				}

@@ -355,7 +355,7 @@ func BuildShutdownData(msg string) []byte {
 // RFC 4271 Section 4.5 - subcodeString returns a human-readable subcode name.
 // If no appropriate Error Subcode is defined, a zero (Unspecific) value is used.
 func (n *Notification) subcodeString() string {
-	switch n.ErrorCode { //nolint:exhaustive // Only some codes have specific subcode strings
+	switch n.ErrorCode {
 	case NotifyMessageHeader:
 		return headerSubcodeString(n.ErrorSubcode)
 	case NotifyOpenMessage:
@@ -368,13 +368,16 @@ func (n *Notification) subcodeString() string {
 		return CeaseSubcodeString(n.ErrorSubcode)
 	case NotifyRouteRefresh:
 		return routeRefreshSubcodeString(n.ErrorSubcode)
+	case NotifyHoldTimerExpired, NotifySendHoldTimerExpired:
+		// These codes have no named subcodes; preserve numeric rendering.
 	default:
-		if n.ErrorSubcode == 0 {
-			return subcodeUnspecific
-		}
-		var bs textbuf.Buffer
-		return bs.Reset().Str("Subcode(").Int(int64(n.ErrorSubcode)).Byte(')').String()
+		// The wire error-code set is open; unknown codes use numeric subcodes.
 	}
+	if n.ErrorSubcode == 0 {
+		return subcodeUnspecific
+	}
+	var bs textbuf.Buffer
+	return bs.Reset().Str("Subcode(").Int(int64(n.ErrorSubcode)).Byte(')').String()
 }
 
 // headerSubcodeString returns the string for Message Header Error subcodes.

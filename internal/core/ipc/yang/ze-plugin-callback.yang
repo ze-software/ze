@@ -163,6 +163,23 @@ both or the family works in one direction only.";
                      MP_REACH_NLRI header is already removed.";
                 ze:help "Hex-encoded NLRI wire bytes";
             }
+            leaf add-path {
+                type boolean;
+                default false;
+                description
+                    "The session negotiated a four-octet Path Identifier before each NLRI,
+                     including identifiers of zero. The bytes alone do not specify framing.";
+                ze:help "NLRI carries negotiated ADD-PATH identifiers";
+            }
+            leaf withdraw {
+                type boolean;
+                default false;
+                description
+                    "True selects MP_UNREACH withdrawal semantics. False or absent selects
+                     announcement semantics. The caller supplies the enclosing message's
+                     action; a decoder must not infer it from the NLRI bytes.";
+                ze:help "Decode NLRI with withdrawal semantics";
+            }
         }
         output {
             leaf json {

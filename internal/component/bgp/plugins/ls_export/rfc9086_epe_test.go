@@ -55,6 +55,8 @@ func (b *epeProofBus) Emit(namespace, _ string, payload any) (int, error) {
 					clear(b.labels)
 				case mplsfib.ActionRemove:
 					delete(b.labels, entry.InLabel)
+				case mplsfib.ActionUnspecified:
+					panic("BUG: the exporter emitted an unspecified MPLS FIB action")
 				default:
 					panic("BUG: the exporter emitted an unspecified MPLS FIB action")
 				}

@@ -68,8 +68,10 @@ func (k SocketKind) String() string {
 		return "raw"
 	case SocketDatagram:
 		return "datagram"
-	default:
+	case SocketUnspecified:
 		return nameUnspecified
+	default:
+		panic("BUG: probe: invalid socket kind")
 	}
 }
 
@@ -255,7 +257,9 @@ func (f Family) icmpNetwork() (string, error) {
 		return NetworkICMPv4, nil
 	case FamilyIPv6:
 		return NetworkICMPv6, nil
-	default:
+	case FamilyAny:
 		return "", ErrFamilyRequired
+	default:
+		panic("BUG: probe: invalid address family")
 	}
 }

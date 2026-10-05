@@ -94,7 +94,7 @@ func leBinaryDispatches(ctx context.Context) error {
 		return uiLeBinaryDispatchesFailf("le --help exited %d", usage.exitCode)
 	}
 	usageText := usage.stderr + usage.stdout
-	for _, command := range []string{"perf", "doc index", "ai tokens"} {
+	for _, command := range []string{"perf", cmdDocIndex, "ai tokens"} {
 		if !strings.Contains(usageText, command) {
 			return uiLeBinaryDispatchesFailf("le --help does not list the %s command", command)
 		}

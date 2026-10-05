@@ -76,6 +76,8 @@ func (f *fsm) step(success bool) {
 		}
 	case StateDisabled, StateExit, StateEnd:
 		// No transitions from these states via check results.
+	default:
+		panic("BUG: invalid healthcheck state")
 	}
 }
 

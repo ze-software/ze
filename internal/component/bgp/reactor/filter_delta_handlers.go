@@ -12,6 +12,7 @@ package reactor
 import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // lastSetOrSuppress is the package-local spelling of filterapi.LastSetOrSuppress.
@@ -220,13 +221,21 @@ func clusterListHandler() filterapi.AttrModHandler {
 // Only AttrModSet ops are honored (last-wins). AttrModSuppress on a
 // MP_REACH_NLRI would strip the entire route, which is a withdraw -- that is
 // expressed via ModAccumulator.SetWithdraw(), not via this handler.
+// A Set with an empty buffer is a real rewrite for a family without next hops,
+// not an absent operation. Such a family cannot acquire a next hop from any Set.
 func mpReachNextHopHandler() filterapi.AttrModHandler {
 	return func(p *filterapi.AttrPlan) {
+		val := p.Value()
+		noNextHop := false
+		if len(val) >= 3 {
+			fam := family.Family{AFI: family.AFI(uint16(val[0])<<8 | uint16(val[1])), SAFI: family.SAFI(val[2])}
+			noNextHop = !fam.NeedsNextHop()
+		}
 		// Pick the last Set op.
 		setIdx := -1
 		ops := p.Ops()
 		for i := range ops {
-			if ops[i].Action == filterapi.AttrModSet && len(ops[i].Buf) > 0 {
+			if ops[i].Action == filterapi.AttrModSet && (len(ops[i].Buf) > 0 || noNextHop) {
 				setIdx = i
 			}
 		}
@@ -246,7 +255,6 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		}
 
 		// Value layout: AFI(2) + SAFI(1) + NHLen(1) + NH(NHLen) + Reserved(1) + NLRI.
-		val := p.Value()
 		if len(val) < 5 {
 			p.Drop()
 			return
@@ -267,14 +275,22 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		// A mismatched op length is a caller bug; the route is left unchanged
 		// (the caller should have produced a valid op).
 		newNHLen := len(ops[setIdx].Buf)
-		if newNHLen != 4 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 {
+		if noNextHop {
+			if nhLen == 0 {
+				p.KeepAll()
+				return
+			}
+			newNHLen = 0
+		} else if newNHLen != 4 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 {
 			p.KeepAll()
 			return
 		}
 
 		p.Keep(0, 3)              // AFI + SAFI, already on the wire
 		p.NewByte(byte(newNHLen)) // the one byte that exists nowhere else
-		p.Op(setIdx)              // the new next-hop
+		if newNHLen != 0 {
+			p.Op(setIdx) // the new next-hop
+		}
 		p.Keep(nhEnd, len(val)-nhEnd)
 
 		// The source flags carry the attribute's optional/transitive bits; Emit

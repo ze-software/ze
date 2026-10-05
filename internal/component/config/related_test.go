@@ -148,6 +148,7 @@ func TestRelatedExtension_RejectsInvalidDescriptor(t *testing.T) {
 		{name: "duplicate key", in: `id=a; id=b; label=L; command=cmd`},
 		{name: "invalid placement enum", in: `id=t; label=L; command=cmd; placement=elsewhere`},
 		{name: "invalid presentation enum", in: `id=t; label=L; command=cmd; presentation=fullscreen`},
+		{name: "invalid class enum", in: `id=t; label=L; command=cmd; class=unclassified`},
 		{name: "invalid empty enum", in: `id=t; label=L; command=cmd; empty=force`},
 		{name: "id too long", in: `id=` + strings.Repeat("x", 65) + `; label=L; command=cmd`},
 		{name: "label too long", in: `id=t; label="` + strings.Repeat("y", 49) + `"; command=cmd`},

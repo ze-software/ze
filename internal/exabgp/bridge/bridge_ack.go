@@ -74,8 +74,9 @@ func (m *AckMode) apply(action LocalAction) bool {
 		return false
 	case LocalNone:
 		return m.enabled
+	default:
+		panic("BUG: invalid bridge local action")
 	}
-	return m.enabled
 }
 
 // NewAckMode reads the env once at bridge construction. Later changes to

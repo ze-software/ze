@@ -4,6 +4,39 @@
     {
       "rid": "RFC5250-3-1",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250AlignedOpaqueStoredAndFlooded",
+      "unit-sha": "e29b4dcf25ee1163",
+      "claim-sha": "3c3b544c7409e9fb",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+      "producer-sha": "6df8e607849558ea",
+      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250DuplicateOpaqueNotReflooded",
+      "unit-sha": "155336f4229e6d6f",
+      "claim-sha": "06dce74f3c41acad",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+      "producer-sha": "6df8e607849558ea",
+      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250UnalignedOpaqueBodyDiscarded",
+      "unit-sha": "c26f239e5e5bcece",
+      "claim-sha": "e590bc350ecb7b43",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+      "producer-sha": "6df8e607849558ea",
+      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-3-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting",
       "unit-sha": "d05449b19ebfab72",
       "claim-sha": "de97004139e378bf",
@@ -22,39 +55,6 @@
       "producer": "internal/plugins/ospf/lsdb/lsdb.go::Install",
       "producer-sha": "3e3d7be78dcf80c2",
       "break": "body of Install replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5250-3-1",
-      "polarity": "positive",
-      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250AlignedOpaqueStoredAndFlooded",
-      "unit-sha": "e29b4dcf25ee1163",
-      "claim-sha": "3c3b544c7409e9fb",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
-      "producer-sha": "5c5335abf1e54c07",
-      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5250-3-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250DuplicateOpaqueNotReflooded",
-      "unit-sha": "155336f4229e6d6f",
-      "claim-sha": "06dce74f3c41acad",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
-      "producer-sha": "5c5335abf1e54c07",
-      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5250-3-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250UnalignedOpaqueBodyDiscarded",
-      "unit-sha": "c26f239e5e5bcece",
-      "claim-sha": "e590bc350ecb7b43",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
-      "producer-sha": "5c5335abf1e54c07",
-      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5250-3-1",

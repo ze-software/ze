@@ -40,6 +40,7 @@ const (
 // so adding Iface here would silence DHCP, RA and PPPoE route churn for every
 // subscriber.
 func IsZe(protocol int) bool {
+	//exhaustive:ignore // Only Ze-owned protocols suppress route notifications; interface and foreign routes remain visible.
 	switch Proto(protocol) {
 	case GTSM, FIBKernel, Static, PolicyRoute:
 		return true

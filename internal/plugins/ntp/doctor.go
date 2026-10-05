@@ -172,6 +172,7 @@ func clockNoSyncSeverity(platform *host.PlatformInfo) (diagnostic.Severity, bool
 	if platform == nil {
 		return "", false
 	}
+	//exhaustive:ignore // Only platforms where Ze manages clock policy produce a finding.
 	switch platform.Type {
 	case host.PlatformGokrazy:
 		return diagnostic.SeverityError, true

@@ -288,8 +288,10 @@ func stampWanted(choice Stamp, daysSinceWeekEnd int) bool {
 		return true
 	case StampOff:
 		return false
-	default:
+	case StampAuto:
 		return daysSinceWeekEnd > StaleAfterDays
+	default:
+		panic("BUG: invalid weekly stamp choice")
 	}
 }
 

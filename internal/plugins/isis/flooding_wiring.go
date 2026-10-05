@@ -197,7 +197,9 @@ func (e *engine) handleLSP(rf transport.RawFrame) {
 		// Duplicate refreshed only the held lifetime (no topology change): notify
 		// consumers with "refresh" but do NOT re-run SPF (publishLSPChange skips it).
 		e.publishLSPChange(levelToken(pdu.LSP.PDUType), pdu.LSP.LSPID.String(), uint32(pdu.LSP.SequenceNumber), "refresh")
-	default: // lsdb.Older: no change, no event, no SPF.
+	case lsdb.Older: // No change, no event, no SPF.
+	default:
+		panic("BUG: invalid LSP freshness")
 	}
 }
 

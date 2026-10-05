@@ -4,6 +4,17 @@
     {
       "rid": "RFC5216-2.1.1-1",
       "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate",
+      "unit-sha": "bf0c5f4f1a339df0",
+      "claim-sha": "55d902b01b84e40a",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+      "producer-sha": "6a89e2148a8dd067",
+      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-2.1.1-1",
+      "polarity": "negative",
       "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert",
       "unit-sha": "f8b40eb1b84ccc9b",
       "claim-sha": "3385b494e23704ce",
@@ -18,17 +29,6 @@
       "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
       "unit-sha": "10fb5e08a4e1addf",
       "claim-sha": "9fa8f962bb8a4e98",
-      "route": "revert",
-      "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-      "producer-sha": "6a89e2148a8dd067",
-      "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5216-2.1.1-1",
-      "polarity": "negative",
-      "unit": "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate",
-      "unit-sha": "bf0c5f4f1a339df0",
-      "claim-sha": "55d902b01b84e40a",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
       "producer-sha": "6a89e2148a8dd067",
@@ -416,7 +416,7 @@
       "claim-sha": "21995feda7fe18db",
       "route": "revert",
       "producer": "internal/core/eap/eap.go::Process",
-      "producer-sha": "7cd41be8e1126301",
+      "producer-sha": "0e27d8e08a3b2800",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -438,7 +438,7 @@
       "claim-sha": "70b5b40a382811f6",
       "route": "revert",
       "producer": "internal/core/eap/eap.go::Process",
-      "producer-sha": "7cd41be8e1126301",
+      "producer-sha": "0e27d8e08a3b2800",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -504,15 +504,15 @@
       "claim-sha": "92f8aef3fe61455f",
       "route": "revert",
       "producer": "internal/core/eap/eap.go::Process",
-      "producer-sha": "7cd41be8e1126301",
+      "producer-sha": "0e27d8e08a3b2800",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5216-2.3-1",
       "polarity": "positive",
-      "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
-      "unit-sha": "10fb5e08a4e1addf",
-      "claim-sha": "64480ef35e206f7a",
+      "unit": "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK",
+      "unit-sha": "09b5356543060f21",
+      "claim-sha": "730d73af1e06e586",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
       "producer-sha": "98b4d1240b3a48b9",
@@ -521,9 +521,9 @@
     {
       "rid": "RFC5216-2.3-1",
       "polarity": "positive",
-      "unit": "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK",
-      "unit-sha": "09b5356543060f21",
-      "claim-sha": "730d73af1e06e586",
+      "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
+      "unit-sha": "10fb5e08a4e1addf",
+      "claim-sha": "64480ef35e206f7a",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
       "producer-sha": "98b4d1240b3a48b9",
@@ -543,17 +543,6 @@
     {
       "rid": "RFC5216-2.4-1",
       "polarity": "positive",
-      "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
-      "unit-sha": "10fb5e08a4e1addf",
-      "claim-sha": "b18c0d3bf6c6a4a0",
-      "route": "revert",
-      "producer": "internal/core/eap/peer.go::tlsClientConfig",
-      "producer-sha": "1b211a4c01804785",
-      "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5216-2.4-1",
-      "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor",
       "unit-sha": "4f0612860eda0bd1",
       "claim-sha": "4db02e14b91f856e",
@@ -563,11 +552,22 @@
       "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC5216-2.4-2",
+      "rid": "RFC5216-2.4-1",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
       "unit-sha": "10fb5e08a4e1addf",
-      "claim-sha": "a3f7930d8cc6b75d",
+      "claim-sha": "b18c0d3bf6c6a4a0",
+      "route": "revert",
+      "producer": "internal/core/eap/peer.go::tlsClientConfig",
+      "producer-sha": "1b211a4c01804785",
+      "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-2.4-2",
+      "polarity": "positive",
+      "unit": "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor",
+      "unit-sha": "4f0612860eda0bd1",
+      "claim-sha": "03390cdfc7d33fb3",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
       "producer-sha": "6a89e2148a8dd067",
@@ -576,9 +576,9 @@
     {
       "rid": "RFC5216-2.4-2",
       "polarity": "positive",
-      "unit": "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor",
-      "unit-sha": "4f0612860eda0bd1",
-      "claim-sha": "03390cdfc7d33fb3",
+      "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
+      "unit-sha": "10fb5e08a4e1addf",
+      "claim-sha": "a3f7930d8cc6b75d",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
       "producer-sha": "6a89e2148a8dd067",

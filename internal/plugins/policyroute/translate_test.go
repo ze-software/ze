@@ -124,6 +124,59 @@ func TestPolicyToFirewallTable(t *testing.T) {
 	}
 }
 
+// TestTCPMSSOnlyPolicyTranslation preserves a nonterminal MSS rule by parsing
+// real config and inspecting its complete translated firewall actions.
+func TestTCPMSSOnlyPolicyTranslation(t *testing.T) {
+	policies, err := parsePolicyConfig(`{
+		"policy": {
+			"route": {
+				"mss": {
+					"rule": {
+						"clamp": {
+							"from": { "protocol": "tcp" },
+							"then": { "tcp-mss": "1436" }
+						}
+					}
+				}
+			}
+		}
+	}`)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	alloc := newAllocator()
+	result, err := alloc.translate(policies)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if len(result.Tables) != 1 {
+		t.Fatalf("tables = %d, want 1", len(result.Tables))
+	}
+	if len(result.Tables[0].Chains) != 1 {
+		t.Fatalf("chains = %d, want 1", len(result.Tables[0].Chains))
+	}
+	terms := result.Tables[0].Chains[0].Terms
+	if len(terms) != 1 {
+		t.Fatalf("terms = %d, want 1", len(terms))
+	}
+	if len(terms[0].Actions) != 1 {
+		t.Fatalf("actions = %+v, want only SetTCPMSS", terms[0].Actions)
+	}
+	mss, ok := terms[0].Actions[0].(firewall.SetTCPMSS)
+	if !ok {
+		t.Fatalf("action = %T, want SetTCPMSS", terms[0].Actions[0])
+	}
+	if mss.Size != 1436 {
+		t.Errorf("MSS = %d, want 1436", mss.Size)
+	}
+	if len(result.IPRules) != 0 {
+		t.Errorf("MSS-only rule added IP rules: %+v", result.IPRules)
+	}
+	if len(result.AutoRoutes) != 0 {
+		t.Errorf("MSS-only rule added routes: %+v", result.AutoRoutes)
+	}
+}
+
 func TestMultiplePoliciesMergedIntoOneTable(t *testing.T) {
 	policyA := PolicyRoute{
 		Name:       "alpha",

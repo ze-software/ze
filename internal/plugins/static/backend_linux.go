@@ -145,7 +145,7 @@ func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error)
 	case actionForward:
 		// handled below
 	default:
-		return nil, fmt.Errorf("unknown action %d", r.Action)
+		panic("BUG: static: invalid route action")
 	}
 
 	if len(r.NextHops) == 1 {

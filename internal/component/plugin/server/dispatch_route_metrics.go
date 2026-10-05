@@ -34,7 +34,7 @@ func (s *Server) opRouteMetrics(ctx context.Context, _ *process.Process, params 
 			return nil, fmt.Errorf("route-metrics: invalid next hop %q: %w", text, err)
 		}
 		d := igpcost.Resolve(loc, addr)
-		out.Distances[i] = rpc.RouteMetric{Cost: d.Cost, Resolved: d.Resolved, MissingAIGP: d.MissingAIGP}
+		out.Distances[i] = rpc.RouteMetric{Cost: d.Cost, Resolved: d.Resolved, Recursive: d.Recursive, MissingAIGP: d.MissingAIGP}
 	}
 	return out, nil
 }

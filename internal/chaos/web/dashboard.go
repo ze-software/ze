@@ -327,6 +327,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		case PeerSyncing:
 			d.state.PeersSyncing--
 		case PeerIdle, PeerDown, PeerReconnecting:
+		default:
+			panic("BUG: invalid dashboard peer status")
 		}
 	case peer.EventReconnecting:
 		ps.ChaosActive = true
@@ -337,6 +339,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		case PeerSyncing:
 			d.state.PeersSyncing--
 		case PeerIdle, PeerDown, PeerReconnecting:
+		default:
+			panic("BUG: invalid dashboard peer status")
 		}
 		ps.Reconnects++
 		d.state.TotalReconnects++
@@ -422,7 +426,11 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		case PeerSyncing:
 			d.state.PeersSyncing--
 		case PeerIdle, PeerDown, PeerReconnecting:
+		default:
+			panic("BUG: invalid dashboard peer status")
 		}
+	default:
+		panic("BUG: invalid dashboard event type")
 	}
 
 	// Record peer state transitions for timeline visualization.

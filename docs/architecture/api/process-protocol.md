@@ -1351,9 +1351,27 @@ NLRI encode/decode requests are routed via the engine's plugin registry:
 | Direction | RPC Method | Input | Output |
 |-----------|-----------|-------|--------|
 | Plugin to Engine | `ze-plugin-engine:encode-nlri` | `{"family":"...","args":[...]}` | `{"hex":"..."}` |
-| Plugin to Engine | `ze-plugin-engine:decode-nlri` | `{"family":"...","hex":"...","add-path":<bool>}` | `{"json":<raw JSON>}` |
+| Plugin to Engine | `ze-plugin-engine:decode-nlri` | `{"family":"...","hex":"...","add-path":<bool>,"withdraw":<bool>}` | `{"json":<raw JSON>}` |
 | Engine to Plugin | `ze-plugin-callback:encode-nlri` | `{"family":"...","args":[...]}` | `{"hex":"..."}` |
-| Engine to Plugin | `ze-plugin-callback:decode-nlri` | `{"family":"...","hex":"...","add-path":<bool>}` | `{"json":<raw JSON>}` |
+| Engine to Plugin | `ze-plugin-callback:decode-nlri` | `{"family":"...","hex":"...","add-path":<bool>,"withdraw":<bool>}` | `{"json":<raw JSON>}` |
+
+Both directions use `DecodeNLRIInput`. `add-path` preserves the negotiated
+four-octet Path Identifier framing, including identifiers of zero. `withdraw`
+selects MP_UNREACH withdrawal semantics; false or absent means announcement.
+These facts come from negotiation and the enclosing message, not from the NLRI
+octets. In particular, RFC 8277 Section 2.4 requires receivers to ignore the
+withdrawal Compatibility field's value rather than decode it as a label stack.
+The SDK callback and registry share
+`func(family, hex string, addPath, withdraw bool) (any, error)`; the flags retain
+the same meaning on both transports, with no separate RPC or registry mode.
+
+The response's `json` field is a JSON document, not a quoted string containing
+one. The SDK marshals the decoder's object or array once; `SendDecodeNLRI`
+reads it as `DecodeNLRIOutput.JSON` (`json.RawMessage`) and returns those
+document bytes as its string result. Singleton and packed-section responses
+use the same contract, with no string-encoded alternative.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDecodeNLRI -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- SendDecodeNLRI -->
 
 **How it works:**
 1. Plugin calls `EncodeNLRI`/`DecodeNLRI` via engine RPC
@@ -1436,15 +1454,19 @@ to the dispatch or event loop code. See `rules/plugin-design.md` "SDK Is Generic
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults, On* methods -->
 
-**Shutdown and callback failure:** `Process.Stop()` cancels the context and calls
-`bridge.CloseCallbacks()` (guarded by `sync.Once`), closing callback channels. The
-`bridgeEventLoop` exits on channel close. `SendCallback` recovers from send-on-closed-channel
-panics and returns `ErrBridgeClosed`. If a DirectBridge callback panics, the SDK sends
-an `ErrBridgeFailed`-wrapped error to the waiting caller, marks callbacks failed, closes
-callback channels, and later `SendCallback` / `ExecuteCommand` calls fail fast.
-<!-- source: internal/component/plugin/process/process.go -- Stop -->
-<!-- source: pkg/plugin/rpc/bridge.go -- SendCallback, CloseCallbacks, FailCallbacks, ErrBridgeClosed, ErrBridgeFailed -->
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- bridgeEventLoop panic recovery -->
+**Shutdown and callback failure:** `DirectBridge.CloseCallbacks` fences event
+delivery and plugin-to-engine dispatch. It closes `callbacksStopped` before
+waiting for callback-send admission, waking full-queue senders and unanswered
+result waiters, then closes both callback channels. Buffered replies remain
+authoritative; a callback panic remains an `ErrBridgeFailed` cause.
+`CloseCallbacks` and SDK `Plugin.Close` do not join handlers, so a handler can
+request its own shutdown. SDK `Plugin.Run` drains admitted event deliveries on
+every return path; its owner must await that return before releasing handler
+state. `WaitDelivery` belongs outside handlers. This drains admitted work, not
+every queued event, and does not forcibly cancel arbitrary handler work.
+<!-- source: pkg/plugin/rpc/bridge.go -- CloseCallbacks, StopDelivery, WaitDelivery, SendCallback, ExecuteCommand -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Close, Run -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- bridgeEventLoop -->
 
 **Files:**
 

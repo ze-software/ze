@@ -2,6 +2,7 @@
   "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -262,13 +263,13 @@
       "note": "Re-judged 2026-10-02 (independent judge, ospf c28). All three listed cases now go through a real LSDB, eng.spf.Run and srInstallFromRoutes. Intra-area (new rfc8665_mapped_sid_intra_spf_test.go): 10.0.0.1 p2p 10.0.0.2 (stub 10.3.0.0/24) p2p 10.0.0.3 (stub 10.4.0.0/24), Mapping Server M-Flag SIDs 11/12; + TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes: next hop is the prefix originator -> no push, 18011 pops; - TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter: originator 10.0.0.3 behind next hop 10.0.0.2 -> push 16012, 18012 swaps. Judge overlays: the c27 gap overlay (Origin dropped from the srRoute srRoutes builds) now turns the intra + red ('pushed label 16011 toward its originator'); srMappedSIDAction intra case PHP for any originated route -> intra - red and the hand-built - red, + green. Inter-area/external as judged in c27 (A-Flag TLVs from the next hop, both polarities, srRoutes overlays red). Revert records observed on srRoutes and srMappedSIDAction. OSPFv3 LA-bit cases are RFC 8666's, disclosed in docs/guide/ospf.md and journaled.",
       "requirement_sha": "95681a18d2e9ad02",
       "tests": {
-        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter": "2a4f1a5cd295ac54",
-        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes": "2a4f1a5cd295ac54",
-        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag": "6e5153eba70e9852",
-        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDKeepsLabelOutsideListedCases": "6e5153eba70e9852",
-        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDPHPInListedCases": "6e5153eba70e9852",
-        "internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go::TestRFC8665MappedSIDKeepsLabelThroughSPFRoutesOutsideListedCases": "a7c81cb69c02b13c",
-        "internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go::TestRFC8665MappedSIDPHPThroughSPFRoutes": "a7c81cb69c02b13c"
+        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter": "5cfeea408b07bcd9",
+        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes": "5cfeea408b07bcd9",
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag": "272eff00e41d5cf0",
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDKeepsLabelOutsideListedCases": "272eff00e41d5cf0",
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDPHPInListedCases": "272eff00e41d5cf0",
+        "internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go::TestRFC8665MappedSIDKeepsLabelThroughSPFRoutesOutsideListedCases": "29fe542876fea4be",
+        "internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go::TestRFC8665MappedSIDPHPThroughSPFRoutes": "29fe542876fea4be"
       },
       "units": {
         "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter": "a2d65bc6f415bea7",

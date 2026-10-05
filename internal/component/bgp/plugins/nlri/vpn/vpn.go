@@ -79,7 +79,8 @@ func runVPNPlugin(conn net.Conn) int {
 //
 // addPath states whether each NLRI in the section carries a 4-octet Path
 // Identifier ahead of it (RFC 7911 Section 3). The hex alone cannot say.
-func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
+// withdraw selects the Compatibility-field layout of RFC 8277 Section 2.4.
+func DecodeNLRIHex(family, hexStr string, addPath, withdraw bool) (any, error) {
 	if !isValidVPNFamily(family) {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
@@ -89,7 +90,7 @@ func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	results := decodeVPNNLRI(family, data, addPath)
+	results := decodeVPNNLRI(family, data, addPath, withdraw)
 	if len(results) == 0 {
 		return nil, errNoValidVpnRoutesDecoded
 	}
@@ -239,7 +240,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	// The CLI and the plugin text command both hand over NLRI octets with no
 	// negotiation behind them, so no Path Identifier precedes them
 	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
-	results := decodeVPNNLRI(family, data, false)
+	results := decodeVPNNLRI(family, data, false, false)
 	if len(results) == 0 {
 		writeErr("error: no valid VPN routes decoded\n")
 		return 1
@@ -345,7 +346,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 	// The CLI and the plugin text command both hand over NLRI octets with no
 	// negotiation behind them, so no Path Identifier precedes them
 	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
-	results := decodeVPNNLRI(fam, data, false)
+	results := decodeVPNNLRI(fam, data, false, false)
 	if len(results) == 0 {
 		writeUnknown()
 		return
@@ -403,7 +404,7 @@ func isValidVPNFamily(name string) bool {
 
 // decodeVPNNLRI decodes VPN NLRI wire bytes to array of JSON maps.
 // MP_REACH/MP_UNREACH can contain multiple packed NLRIs.
-func decodeVPNNLRI(family string, data []byte, addPath bool) []map[string]any {
+func decodeVPNNLRI(family string, data []byte, addPath, withdraw bool) []map[string]any {
 	var results []map[string]any
 	remaining := data
 
@@ -415,9 +416,9 @@ func decodeVPNNLRI(family string, data []byte, addPath bool) []map[string]any {
 
 	for len(remaining) > 0 {
 		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
-		// the Path Identifier field, which is of four octets." ParseVPN consumes
+		// the Path Identifier field, which is of four octets." parseVPN consumes
 		// that field, and vpnToJSON publishes it, so the walk stays one call.
-		v, rest, err := ParseVPN(afi, SAFIVPN, remaining, addPath)
+		v, rest, err := parseVPN(afi, SAFIVPN, remaining, addPath, withdraw)
 		if err != nil {
 			vpnLogger.Debug("parse vpn failed", "err", err)
 			// Add as unparsed

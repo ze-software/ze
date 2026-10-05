@@ -427,8 +427,10 @@ func (p *Plugin) UnsubscribeEvents(ctx context.Context) error {
 // Returns the JSON representation of the decoded NLRI.
 // addPath states whether each NLRI in hex carries a 4-octet Path Identifier
 // ahead of it (RFC 7911 Section 3).
-func (p *Plugin) DecodeNLRI(ctx context.Context, family, hex string, addPath bool) (json.RawMessage, error) {
-	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex, AddPath: addPath}
+// withdraw selects MP_UNREACH withdrawal semantics; callers MUST pass the
+// enclosing message's action rather than infer it from hex.
+func (p *Plugin) DecodeNLRI(ctx context.Context, family, hex string, addPath, withdraw bool) (json.RawMessage, error) {
+	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex, AddPath: addPath, Withdraw: withdraw}
 	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:decode-nlri", input)
 	if err != nil {
 		return nil, err

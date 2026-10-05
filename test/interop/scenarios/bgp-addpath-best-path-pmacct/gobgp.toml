@@ -1,0 +1,15 @@
+# The checker originates B only after pmacct has decoded A and C.
+[global.config]
+  as = 65005
+  router-id = "198.51.100.2"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [neighbors.graceful-restart.config]
+    enabled = false
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"

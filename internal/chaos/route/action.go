@@ -5,8 +5,6 @@
 // behavior (churn, withdrawals) as opposed to chaos (session disruption).
 package route
 
-import "github.com/ze-software/ze/internal/core/textbuf"
-
 // ActionType identifies the kind of route dynamics event.
 type ActionType int
 
@@ -30,8 +28,7 @@ func (a ActionType) String() string {
 	case ActionFullWithdraw:
 		return "full-withdraw"
 	default:
-		var b textbuf.Buffer
-		return b.Reset().Str("unknown(").Int(int64(a)).Byte(')').String()
+		panic("BUG: invalid route action type")
 	}
 }
 

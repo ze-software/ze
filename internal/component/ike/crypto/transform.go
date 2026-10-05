@@ -34,6 +34,10 @@ const (
 	ENCR_AES_GCM_16 EncryptionID = 20
 )
 
+// encrNull names the unsupported ENCR_NULL transform (RFC 7296 Section 3.3.2).
+// Naming it does not admit it to negotiation or provide an implementation.
+const encrNull EncryptionID = 11
+
 // RFC 7296 Section 3.3.4: PRF Transform IDs.
 type PRFID uint16
 
@@ -84,7 +88,10 @@ func (id EncryptionID) String() string {
 		return "aes-ccm-12"
 	case ENCR_AES_CCM_16:
 		return "aes-ccm-16"
+	case encrAESCTR, encrNull:
+		return unknownAlgo
 	default:
+		// Algorithm IDs from peer proposals are an open set.
 		return unknownAlgo
 	}
 }
@@ -100,6 +107,7 @@ func (id IntegrityID) String() string {
 	case AUTH_HMAC_SHA2_512_256:
 		return hashNameSHA512
 	default:
+		// Algorithm IDs from peer proposals are an open set.
 		return unknownAlgo
 	}
 }
@@ -112,7 +120,10 @@ func (id DHGroupID) String() string {
 		return "ecp256"
 	case DH_ECP_384:
 		return "ecp384"
+	case dhGroupNone:
+		return unknownAlgo
 	default:
+		// Group IDs from peer proposals are an open set.
 		return unknownAlgo
 	}
 }

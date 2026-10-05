@@ -96,6 +96,8 @@ func NewEncodingContext(identity *capability.PeerIdentity, encoding *capability.
 			case DirectionSend:
 				// RFC 7911: Can send if mode is Send or Both
 				enabled = mode == capability.AddPathSend || mode == capability.AddPathBoth
+			default:
+				panic("BUG: invalid encoding context direction")
 			}
 			if enabled {
 				ctx.addPath[f] = true
@@ -111,6 +113,8 @@ func NewEncodingContext(identity *capability.PeerIdentity, encoding *capability.
 			src = encoding.PathsLimitSend
 		case DirectionRecv:
 			src = encoding.PathsLimitRecv
+		default:
+			panic("BUG: invalid encoding context direction")
 		}
 		maps.Copy(ctx.pathsLimit, src)
 	}
@@ -135,14 +139,29 @@ func (c *EncodingContext) ASN4() bool {
 	return c.encoding.ASN4
 }
 
-// ExtendedMessage returns true if extended message is negotiated.
-// RFC 8654: Extended Message Support for BGP.
+// ExtendedMessage reports the size capability for this context's direction.
+// The local advertisement permits reception; the peer's permits transmission.
 // Returns false for nil context (safe default).
 func (c *EncodingContext) ExtendedMessage() bool {
-	if c == nil || c.encoding == nil {
+	if c == nil {
 		return false
 	}
-	return c.encoding.ExtendedMessage
+	if c.encoding == nil {
+		return false
+	}
+	switch c.direction {
+	case DirectionRecv:
+		// RFC 8654 Section 4: "An implementation that advertises the BGP Extended
+		// Message Capability MUST be capable of receiving a message with a length
+		// up to and including 65,535 octets."
+		return c.encoding.ExtendedMessageRecv
+	case DirectionSend:
+		// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a
+		// peer only if the BGP Extended Message Capability was received from that peer."
+		return c.encoding.ExtendedMessageSend
+	default:
+		panic("BUG: invalid encoding context direction")
+	}
 }
 
 // MaxMessageSize returns the maximum BGP message size for this context.

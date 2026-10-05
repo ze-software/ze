@@ -52,8 +52,11 @@ func (d SPDDirection) String() string {
 		return "in"
 	case SPDDirBoth:
 		return "both"
+	case 0:
+		return "unspecified"
+	default:
+		panic("BUG: unknown operator SPD direction")
 	}
-	return "unspecified"
 }
 
 // spdDirections is every direction an operator can name, in the order a refusal

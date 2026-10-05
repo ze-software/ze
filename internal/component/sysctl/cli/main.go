@@ -226,8 +226,9 @@ func typeName(t sysctlreg.ValueType) string {
 		return "int"
 	case sysctlreg.TypeIntRange:
 		return "int-range"
+	default:
+		panic("BUG: invalid sysctl value type")
 	}
-	return "unknown"
 }
 
 func platformName(p sysctlreg.Platform) string {
@@ -238,8 +239,9 @@ func platformName(p sysctlreg.Platform) string {
 		return "linux"
 	case sysctlreg.PlatformDarwin:
 		return "darwin"
+	default:
+		panic("BUG: invalid sysctl platform")
 	}
-	return "unknown"
 }
 
 func usage() {

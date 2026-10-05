@@ -51,7 +51,7 @@ func TestLevelVocabularyMatchesModel(t *testing.T) {
 			continue
 		}
 		t.Errorf("the routing levels disagree: the model at %v holds %v and the Level type spells %v. "+
-			"A word only the model carries reaches the engine as the level String renders for an unknown value",
+			"A word only the model carries reaches the engine as the parser's default level",
 			path, model, spelled)
 	}
 }

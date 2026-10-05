@@ -92,8 +92,10 @@ func (n networkNamespace) String() string {
 		return "guest-root"
 	case perTest:
 		return "per-test"
-	default:
+	case namespaceUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: invalid test network namespace")
 	}
 }
 

@@ -31,7 +31,7 @@
       "claim-sha": "ef12bf33119bee12",
       "route": "revert",
       "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
-      "producer-sha": "f61bea1db7111f63",
+      "producer-sha": "615d0fe8cbee3900",
       "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

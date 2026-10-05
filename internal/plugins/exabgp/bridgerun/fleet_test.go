@@ -479,6 +479,39 @@ func TestFleetRefusesAScriptWithNoEncoder(t *testing.T) {
 	fleet.Stop()
 }
 
+// TestFleetRenderUnspecifiedPreservesJSON keeps the helper's zero-value path
+// distinct from Start's existing refusal of a script with no configured encoder.
+func TestFleetRenderUnspecifiedPreservesJSON(t *testing.T) {
+	fleet := New(slogutil.DiscardLogger(), testFamilies, nil)
+	event := bridge.Event{Kind: "state", Peer: "127.0.0.1", Payload: map[string]any{"state": "up"}}
+	var cache [2][]byte
+	got, ok := fleet.render(&cache, bridge.EncoderUnspecified, event)
+	if !ok || !json.Valid(got) {
+		t.Fatalf("unspecified render = %q, %v; want a JSON event", got, ok)
+	}
+	want, ok := fleet.render(&cache, bridge.EncoderJSON, event)
+	if !ok || !bytes.Equal(got, want) {
+		t.Fatalf("unspecified render = %q; JSON render = %q, %v", got, want, ok)
+	}
+}
+
+// TestFleetRenderUnknownTextEvent preserves the safe text-encoder answer for
+// an event kind supplied by a newer event producer, including its cached no-line result.
+func TestFleetRenderUnknownTextEvent(t *testing.T) {
+	fleet := New(slogutil.DiscardLogger(), testFamilies, nil)
+	event := bridge.Event{Kind: "future-event"}
+	var cache [2][]byte
+	for range 2 {
+		line, ok := fleet.render(&cache, bridge.EncoderText, event)
+		if ok || len(line) != 0 {
+			t.Fatalf("unknown text event = %q, %v; want no line", line, ok)
+		}
+	}
+	if cache[encoderSlot(bridge.EncoderText)] == nil {
+		t.Fatal("unknown text event was not cached")
+	}
+}
+
 // peerStateEvent is one ze state event for a named peer, in the shape
 // docs/architecture/api/json-format.md declares.
 func peerStateEvent(peer string) string {

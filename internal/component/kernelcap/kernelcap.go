@@ -61,8 +61,10 @@ func (s State) String() string {
 		return "absent"
 	case StateUnknown:
 		return "unknown"
-	default:
+	case StateUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: invalid kernel capability state")
 	}
 }
 

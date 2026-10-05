@@ -420,12 +420,14 @@ func (et *EncodingTests) validateOnePeerBlock(r *Record, ciFile, name, block str
 			if timeoutLine && r.Extra["timeout"] == "" {
 				r.Extra["timeout"] = target.Extra["timeout"]
 			}
-		default:
+		case peer.ClaimNone:
 			if err := et.parseLine(r, ciFile, trimmed); err != nil {
 				return fmt.Errorf("stdin=%s block line %d: %q is consumed by neither ze-peer nor the "+
 					"test runner, so placing it in a stdin=%s block silently drops it: %w",
 					name, blockLine, trimmed, name, err)
 			}
+		default:
+			panic("BUG: unknown peer directive claim")
 		}
 	}
 	return validatePeerBlockRejects(name, block, mode, read)

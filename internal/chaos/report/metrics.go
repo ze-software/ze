@@ -71,6 +71,7 @@ func NewMetrics() *Metrics {
 
 // ProcessEvent updates Prometheus metrics based on the event type.
 func (m *Metrics) ProcessEvent(ev peer.Event) {
+	//exhaustive:ignore // This independent consumer projects only events with defined metrics.
 	switch ev.Type {
 	case peer.EventEstablished:
 		m.peersEstablished.Inc()

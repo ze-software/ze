@@ -172,7 +172,7 @@ func parseBatch(t *testing.T, payload string) *incomingBatch {
 // newFibVPPWithMPLS creates a fibVPP with both IP and MPLS backends for testing.
 func newFibVPPWithMPLS(ip vppBackend, mpls mplsBackend) *fibVPP {
 	return &fibVPP{
-		installed:     make(map[string]installedRoute),
+		installed:     make(map[srv6RouteKey]installedRoute),
 		mplsInstalled: make(map[string]bool),
 		backend:       ip,
 		mplsBackend:   mpls,
@@ -365,7 +365,7 @@ func TestProcessEventAdd(t *testing.T) {
 	if mock.adds[0].nextHop != netip.MustParseAddr("192.168.1.1") {
 		t.Errorf("wrong next-hop: %v", mock.adds[0].nextHop)
 	}
-	if f.installed["10.0.0.0/24"].nextHop != "192.168.1.1" {
+	if f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24")}].nextHop != "192.168.1.1" {
 		t.Errorf("installed map not updated")
 	}
 }
@@ -375,7 +375,7 @@ func TestProcessEventDel(t *testing.T) {
 	// PREVENTS: route lingering after withdraw
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
-	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
+	f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24")}] = installedRoute{nextHop: "192.168.1.1"}
 
 	f.processEvent(parseBatch(t, `{"family":"ipv4/unicast","changes":[{"action":"withdraw","prefix":"10.0.0.0/24","protocol":"bgp"}]}`))
 
@@ -385,7 +385,7 @@ func TestProcessEventDel(t *testing.T) {
 	if mock.dels[0] != netip.MustParsePrefix("10.0.0.0/24") {
 		t.Errorf("wrong prefix: %v", mock.dels[0])
 	}
-	if _, ok := f.installed["10.0.0.0/24"]; ok {
+	if _, ok := f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24")}]; ok {
 		t.Error("installed map should not contain deleted prefix")
 	}
 }
@@ -395,7 +395,7 @@ func TestProcessEventReplace(t *testing.T) {
 	// PREVENTS: stale next-hop after update
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
-	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
+	f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24")}] = installedRoute{nextHop: "192.168.1.1"}
 
 	f.processEvent(parseBatch(t, `{"family":"ipv4/unicast","changes":[{"action":"update","prefix":"10.0.0.0/24","next-hop":"192.168.2.2","protocol":"bgp"}]}`))
 
@@ -405,7 +405,7 @@ func TestProcessEventReplace(t *testing.T) {
 	if mock.replaces[0].nextHop != netip.MustParseAddr("192.168.2.2") {
 		t.Errorf("wrong next-hop: %v", mock.replaces[0].nextHop)
 	}
-	if f.installed["10.0.0.0/24"].nextHop != "192.168.2.2" {
+	if f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24")}].nextHop != "192.168.2.2" {
 		t.Errorf("installed map not updated to new next-hop")
 	}
 }
@@ -485,7 +485,7 @@ func TestInstalledMapTracking(t *testing.T) {
 	if len(f.installed) != 1 {
 		t.Fatalf("expected 1 installed after withdraw, got %d", len(f.installed))
 	}
-	if _, ok := f.installed["10.0.1.0/24"]; !ok {
+	if _, ok := f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.1.0/24")}]; !ok {
 		t.Error("remaining route should still be installed")
 	}
 }
@@ -726,7 +726,7 @@ func TestVPPTableSinglePath(t *testing.T) {
 func TestVPPTableDelete(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
-	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
+	f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24"), table: 99}] = installedRoute{nextHop: "192.168.1.1"}
 
 	batch := &incomingBatch{
 		Family: family.IPv4Unicast,
@@ -756,7 +756,7 @@ func TestVPPTableDelete(t *testing.T) {
 func TestVPPTableDeleteStoredTableID(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
-	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1", tableID: 42}
+	f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24"), table: 42}] = installedRoute{nextHop: "192.168.1.1"}
 
 	batch := &incomingBatch{
 		Family: family.IPv4Unicast,
@@ -785,7 +785,7 @@ func TestVPPTableDeleteStoredTableID(t *testing.T) {
 func TestVPPRouteTypeUpdate(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
-	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
+	f.installed[srv6RouteKey{prefix: netip.MustParsePrefix("10.0.0.0/24")}] = installedRoute{nextHop: "192.168.1.1"}
 
 	batch := &incomingBatch{
 		Family: family.IPv4Unicast,
@@ -862,7 +862,7 @@ func TestSRv6SteerAdd(t *testing.T) {
 	if mock.steers[0].prefix != prefix {
 		t.Errorf("prefix = %v, want %v", mock.steers[0].prefix, prefix)
 	}
-	if !f.srv6Installed[prefix.String()] {
+	if !f.srv6Installed[srv6RouteKey{prefix: prefix}] {
 		t.Error("prefix not tracked in srv6Installed")
 	}
 }
@@ -873,7 +873,7 @@ func TestSRv6SteerWithdraw(t *testing.T) {
 	f.srv6Backend = mock
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	f.srv6Installed[prefix.String()] = true
+	f.srv6Installed[srv6RouteKey{prefix: prefix}] = true
 
 	f.processEvent(&sysribevents.BestChangeBatch{
 		Changes: []sysribevents.BestChangeEntry{{
@@ -888,7 +888,7 @@ func TestSRv6SteerWithdraw(t *testing.T) {
 	if mock.delSteers[0] != prefix {
 		t.Errorf("del prefix = %v, want %v", mock.delSteers[0], prefix)
 	}
-	if f.srv6Installed[prefix.String()] {
+	if f.srv6Installed[srv6RouteKey{prefix: prefix}] {
 		t.Error("prefix still tracked after withdraw")
 	}
 }

@@ -87,7 +87,7 @@ func TestDumpV2PeerWidthAndPrefixFamily(t *testing.T) {
 								t.Fatalf("PIT peer count = %d, want 1", len(pit.Peers))
 							}
 							got := pit.Peers[0]
-							wantType := uint8(mrtfmt.PeerAS4)
+							wantType := mrtfmt.PeerAS4
 							if peer.addr.Is6() {
 								wantType |= mrtfmt.PeerIPv6
 							}

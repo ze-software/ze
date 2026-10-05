@@ -59,8 +59,10 @@ func (o ErrQueueOutcome) String() string {
 		return "mtu-reported"
 	case ErrQueueMTUUnreported:
 		return "mtu-unreported"
-	default:
+	case ErrQueueUnspecified:
 		return nameUnspecified
+	default:
+		panic("BUG: probe: invalid error queue outcome")
 	}
 }
 

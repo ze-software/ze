@@ -98,7 +98,7 @@ the `wasNotification` branch and assumes it works; D1 makes it work first.
 | AC-1 | GR peer torn down by a NOTIFICATION sent or received | routes flushed, no stale retention |
 | AC-2 | reconnect during LLGR with each Section 4.2 purge condition | that family's stale routes removed |
 | AC-3 | route received with LLGR_STALE from an LLGR neighbour | least preferred; not advertised to a non-LLGR neighbour; community kept on further advertisement |
-| AC-4 | the `weak` verdicts of RFC4724-4-2, RFC9494-4.2-6, RFC9494-4.2-8 and RFC9494-4.3-1, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
+| AC-4 | the `weak` verdicts of RFC4724-4-2, RFC9494-4.2-6, RFC9494-4.2-8, RFC9494-4.3-1 and RFC9494-4.3-3, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28; RFC9494-4.3-3 transfer completed 2026-10-05) |
 
 ## 🧪 TDD Test Plan
 

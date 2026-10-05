@@ -72,19 +72,22 @@ func TestBypassPolicyIsNotBlocked(t *testing.T) {
 	}
 }
 
-// VALIDATES: xfrmPolicyAction refuses an action it cannot express rather than
-// choosing one. The two kernel actions are opposites, so a default is a coin toss
-// between passing and dropping the operator's traffic.
-// PREVENTS: a future disposition (RESOLVE, for instance) silently taking the
-// behavior of whichever branch a default happened to fall into.
+// VALIDATES: the template-free mapper rejects an impossible internal action.
+// xfrmPolicyFromParams admits only BYPASS and DISCARD through isTemplateFree.
+// PREVENTS: an internal dispatch defect silently choosing a kernel disposition.
 func TestXfrmPolicyActionRefusesAnUnknownDisposition(t *testing.T) {
-	if _, err := xfrmPolicyAction(SPAction(200)); err == nil {
-		t.Fatal("xfrmPolicyAction accepted an unknown disposition; it must refuse rather than pick one of two opposite kernel actions")
-	}
 	// PROTECT is refused here too, because it carries a template and is built on the
 	// other side of the isTemplateFree branch.
 	if _, err := xfrmPolicyAction(SPActionProtect); err == nil {
 		t.Fatal("xfrmPolicyAction accepted PROTECT; a protect policy is not template-free")
+	}
+	defer func() {
+		if got := recover(); got != "BUG: template-free policy has an unknown action" {
+			t.Fatalf("panic = %v, want unknown-action BUG assertion", got)
+		}
+	}()
+	if _, err := xfrmPolicyAction(SPAction(200)); err != nil {
+		t.Fatalf("unknown action returned an error instead of a BUG assertion: %v", err)
 	}
 }
 

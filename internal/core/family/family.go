@@ -189,6 +189,7 @@ func FamilyLess(a, b Family) bool {
 // rail does not, which is the drift this function exists to remove
 // (test/plugin/forward-mpreach-nexthop-self-two-peer.ci).
 func (f Family) LegacyNextHop() bool {
+	//exhaustive:ignore // Only these families opt into a legacy IPv4 NEXT_HOP attribute.
 	switch f.SAFI {
 	case SAFIUnicast, SAFIMPLSLabel, SAFIMVPN, SAFIMUP, SAFIVPN:
 		return true
@@ -211,6 +212,7 @@ func (f Family) LegacyNextHop() bool {
 // command reported "no peer accepted this family", which was untrue, and the
 // operator saw a rule acknowledged and never advertised (ai/rules/principles.md).
 func (f Family) NeedsNextHop() bool {
+	//exhaustive:ignore // Only FlowSpec families bypass forwarding next-hop resolution.
 	switch f.SAFI {
 	case SAFIFlowSpec, SAFIFlowSpecVPN:
 		return false

@@ -177,6 +177,8 @@ func goTestRace(args []string, race bool) (bool, bool) {
 				if !afterUnknown {
 					return race, explicit
 				}
+			default:
+				panic("BUG: unknown Go test package phase")
 			}
 			continue
 		}

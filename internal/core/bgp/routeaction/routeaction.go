@@ -59,8 +59,10 @@ func (a Action) String() string {
 		return wireWithdraw
 	case Unspecified:
 		return wireUnspecified
+	default:
+		// Route actions are open at consumer boundaries; unknown actions stay unspecified.
+		return wireUnspecified
 	}
-	return wireUnspecified
 }
 
 func (a Action) AppendTo(buf []byte) []byte { return append(buf, a.String()...) }
@@ -114,7 +116,9 @@ func (a Action) Verb() Verb {
 		return VerbReplace
 	case Withdraw, Del:
 		return VerbRemove
-	default: // Unspecified and any unknown value
+	case Unspecified:
+		return VerbSkip
+	default: // Route actions are open at consumer boundaries; unknown actions do nothing.
 		return VerbSkip
 	}
 }
@@ -139,8 +143,10 @@ func (p ProtocolType) String() string {
 		return "ibgp"
 	case ProtocolUnspecified, ProtocolCount:
 		return wireUnspecified
+	default:
+		// Protocol types are open at consumer boundaries; unknown types stay unspecified.
+		return wireUnspecified
 	}
-	return wireUnspecified
 }
 
 func (p ProtocolType) AppendTo(buf []byte) []byte { return append(buf, p.String()...) }

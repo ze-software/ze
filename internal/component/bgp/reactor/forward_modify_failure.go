@@ -116,9 +116,8 @@ type modifyFailureLog struct {
 func (l *modifyFailureLog) allow(f modifyFailure, now int64) (emit bool, suppressed uint64) {
 	i := int(f)
 	if i < 0 || i >= len(l.nextAllowed) {
-		// A value no constant produced. Fold it into the reserved slot rather
-		// than dropping the line: String() already folds it to "unclassified",
-		// and a failure nobody can see is the thing this file exists to stop.
+		// Keep an out-of-range reason in the reserved limiter slot rather than
+		// dropping its accounting. String separately asserts the closed reason set.
 		i = int(modifyFailureNone)
 	}
 	next := l.nextAllowed[i].Load()
@@ -131,14 +130,9 @@ func (l *modifyFailureLog) allow(f modifyFailure, now int64) (emit bool, suppres
 
 // Prometheus label values for modifyFailure.
 //
-// These are spelled "no-failure" and "unclassified" rather than the obvious
-// "none" and "unknown" because this package already uses both of those words
-// for unrelated things: "none" is a send-community setting
-// (peer_forward_facts.go, reactor_api_forward.go) and "unknown" is a peer FSM
-// state (peer.go, peer_stats.go). One spelling for three domains reads as a
-// shared concept and is not one. The longer names are also better labels: a
-// scrape showing reason="no-failure" is visibly a bug, where reason="none"
-// reads as normal.
+// "no-failure" distinguishes this sentinel from the unrelated send-community
+// setting "none". A scrape showing reason="no-failure" is visibly a bug rather
+// than an ordinary failure category.
 const (
 	modifyLabelNoFailure     = "no-failure"
 	modifyLabelMalformed     = "malformed"
@@ -148,13 +142,11 @@ const (
 	modifyLabelNoHandler     = "no-handler"
 	modifyLabelHandlerFault  = "handler-fault"
 	modifyLabelTruncated     = "truncated"
-	modifyLabelUnclassified  = "unclassified"
 )
 
 // String returns the stable Prometheus label for the failure. Every branch
 // returns a compile-time constant, so this never allocates
-// (ai/rules/performance.md). The default keeps the label set closed
-// against a value no constant above produced.
+// (ai/rules/performance.md). Unnamed internal outcomes are programming errors.
 func (f modifyFailure) String() string {
 	switch f {
 	case modifyFailureNone, modifyFailureCount:
@@ -175,8 +167,9 @@ func (f modifyFailure) String() string {
 		return modifyLabelHandlerFault
 	case modifyFailureTruncated:
 		return modifyLabelTruncated
+	default:
+		panic("BUG: invalid modify failure")
 	}
-	return modifyLabelUnclassified
 }
 
 // failed reports whether the modifications could not be applied. A caller that

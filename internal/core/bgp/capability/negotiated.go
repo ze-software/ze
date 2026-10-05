@@ -46,13 +46,13 @@ func (m Mismatch) String() string {
 }
 
 // Negotiated holds the result of capability negotiation between two BGP peers.
-// Per RFC 5492 Section 4, a capability is considered negotiated when both peers
-// advertise it in their OPEN messages.
+// Each capability's RFC defines whether its advertisements are intersected or
+// interpreted separately for the receive and send directions.
 //
 // This struct uses a composite pattern with sub-components:
 //   - Identity: Peer identification (ASNs, Router IDs) - shared with EncodingContexts
 //   - Encoding: Wire encoding caps (ASN4, families, ADD-PATH) - shared with EncodingContexts
-//   - Session: Session-level caps (ExtendedMessage, GR) - owned by Negotiated only
+//   - Session: Session-level caps (Route Refresh, GR) - owned by Negotiated only
 type Negotiated struct {
 	// Composite sub-components (new structure)
 	Identity *PeerIdentity // Shared with EncodingContexts
@@ -73,8 +73,9 @@ type Negotiated struct {
 	// Negotiated features (delegates to Encoding/Session)
 	// RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space
 	ASN4 bool
-	// RFC 8654: Extended Message Support for BGP
-	ExtendedMessage bool
+	// RFC 8654 Sections 4 and 6: the receiver's advertisement sets the limit.
+	ExtendedMessageRecv bool // Local advertisement permits extended receives.
+	ExtendedMessageSend bool // Peer advertisement permits extended sends.
 	// RFC 2918: Route Refresh Capability for BGP-4
 	RouteRefresh bool
 	// RFC 7313: Enhanced Route Refresh Capability for BGP
@@ -119,9 +120,7 @@ type Negotiated struct {
 
 // Negotiate performs capability negotiation between local and remote capabilities.
 //
-// RFC 5492 Section 4: Capabilities Negotiation
-// A BGP speaker determines the features supported by both peers by examining
-// the intersection of capabilities advertised in the OPEN messages.
+// Capability-specific rules determine which advertisements enable a feature.
 //
 // For each capability type:
 //   - RFC 4760: Multiprotocol - use intersection of address families. A side that
@@ -129,7 +128,7 @@ type Negotiated struct {
 //     carries with no capability at all (see the comment at the intersection)
 //   - RFC 6793: ASN4 - enabled if both peers advertise
 //   - RFC 7911: ADD-PATH - complex mode negotiation per family
-//   - RFC 8654: Extended Message - enabled if both peers advertise
+//   - RFC 8654: Extended Message - receive from local, send from peer advertisement
 //   - RFC 2918: Route Refresh - enabled if both peers advertise
 //
 // identity is the caller's answer about the two speakers: their AS numbers and whether the
@@ -227,11 +226,15 @@ func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 		}
 	}
 
-	// RFC 5492 Section 4: Negotiated features require both peers to advertise.
 	// RFC 6793 Section 3: ASN4 capability negotiation
 	neg.ASN4 = localASN4 && remoteASN4
-	// RFC 8654 Section 3: Extended Message capability negotiation
-	neg.ExtendedMessage = localExtMsg && remoteExtMsg
+	// RFC 8654 Section 6: "For all messages except for OPEN and KEEPALIVE
+	// messages, if the receiver has advertised the BGP Extended Message
+	// Capability, this document raises that limit to 65,535."
+	neg.ExtendedMessageRecv = localExtMsg
+	// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a
+	// peer only if the BGP Extended Message Capability was received from that peer."
+	neg.ExtendedMessageSend = remoteExtMsg
 	// RFC 2918 Section 3: Route Refresh capability negotiation
 	neg.RouteRefresh = localRR && remoteRR
 	// RFC 7313 Section 3.1: Enhanced Route Refresh capability negotiation
@@ -485,13 +488,14 @@ func (n *Negotiated) buildSubComponents() {
 	plRecvCopy := make(map[Family]uint16, len(n.pathsLimitRecv))
 	maps.Copy(plRecvCopy, n.pathsLimitRecv)
 	n.Encoding = &EncodingCaps{
-		ASN4:            n.ASN4,
-		ExtendedMessage: n.ExtendedMessage, // RFC 8654: affects wire encoding (max message size)
-		Families:        families,
-		AddPathMode:     addPathCopy,
-		ExtendedNextHop: extNHCopy,
-		PathsLimitSend:  plSendCopy,
-		PathsLimitRecv:  plRecvCopy,
+		ASN4:                n.ASN4,
+		ExtendedMessageRecv: n.ExtendedMessageRecv,
+		ExtendedMessageSend: n.ExtendedMessageSend,
+		Families:            families,
+		AddPathMode:         addPathCopy,
+		ExtendedNextHop:     extNHCopy,
+		PathsLimitSend:      plSendCopy,
+		PathsLimitRecv:      plRecvCopy,
 	}
 
 	// Create Session
@@ -543,9 +547,11 @@ func (n *Negotiated) Families() []Family {
 	return n.familySlice
 }
 
-// CheckRequiredCodes returns non-family capability codes that were required but not negotiated.
-// Returns nil if all required codes are present in the negotiated result.
-// RFC 5492 Section 3: Required capabilities must be supported by both peers.
+// CheckRequiredCodes returns required non-family capabilities that are not usable.
+// Returns nil if every required code satisfies its capability-specific rules.
+// Extended Message requires the peer's receive permission, not our advertisement:
+// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a peer only
+// if the BGP Extended Message Capability was received from that peer."
 func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 	if len(required) == 0 {
 		return nil
@@ -556,7 +562,7 @@ func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 	// Codes absent from this map default to false (fail-closed: reported as missing).
 	negotiated := map[Code]bool{
 		CodeASN4:             n.ASN4,
-		CodeExtendedMessage:  n.ExtendedMessage,
+		CodeExtendedMessage:  n.ExtendedMessageSend,
 		CodeRouteRefresh:     n.RouteRefresh,
 		CodeBFDStrictMode:    n.BFDStrictMode,
 		CodeLinkLocalNextHop: n.LinkLocalNextHop,

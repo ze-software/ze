@@ -215,6 +215,8 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 					}
 					d.sendDirectLinkLSUpdate(in.Interface, in.Src, in.AreaID, res.Entry, iface.TransmitDelay)
 				}
+			default:
+				panic("BUG: invalid OSPF LSA freshness")
 			}
 			continue
 		}
@@ -264,6 +266,8 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 				}
 				d.sendDirectLSUpdate(in.Interface, in.Src, in.AreaID, res.Entry, iface.TransmitDelay)
 			}
+		default:
+			panic("BUG: invalid OSPF LSA freshness")
 		}
 	}
 	return ""

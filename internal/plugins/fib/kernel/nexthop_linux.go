@@ -214,7 +214,10 @@ func routeTypeToLinux(rt events.RouteType) int {
 		return unix.RTN_UNREACHABLE
 	case events.RouteTypeProhibit:
 		return unix.RTN_PROHIBIT
+	case 0, events.RouteTypeUnicast:
+		return unix.RTN_UNICAST
 	default:
+		// Route types are open event inputs; preserve the unicast fallback.
 		return unix.RTN_UNICAST
 	}
 }

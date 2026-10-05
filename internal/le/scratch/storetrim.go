@@ -92,8 +92,10 @@ func budgetEntry(group budgetGroup) (env.EnvEntry, bool) {
 	case lintCacheBudget:
 		return lintCacheBudgetEntry, true
 	case notTrimmed, unspecifiedBudget:
+		return env.EnvEntry{}, false
+	default:
+		panic("BUG: cache target has an unknown budget group")
 	}
-	return env.EnvEntry{}, false
 }
 
 // readBudget reads a group's budget from the environment. env.Get answers ""
@@ -214,8 +216,9 @@ func (t Trigger) String() string {
 		return "spawned"
 	case TriggerFailed:
 		return "failed"
+	default:
+		panic("BUG: store trim returned an unknown trigger")
 	}
-	return "Trigger(" + strconv.Itoa(int(t)) + ")"
 }
 
 // TrimSpawn starts the background trim for the checkout at root. It MUST

@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,7 +12,7 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "946ae0f68bfc34f0",
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "d62cf22d57a8031a"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "007ef05c4e407c4e"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "22f7eba5844edcf0",

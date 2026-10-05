@@ -303,6 +303,8 @@ func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) [
 				Str(", but ").Str(path).Str(" declares no ").Str(symbol).
 				Str(". The producer was renamed or deleted under the annotation: name the function that installs into ").
 				Str(req.Annotation.Layer).Str(" today").String())
+		default:
+			panic("BUG: unexpected producer resolution state")
 		}
 	}
 	return errs
@@ -662,8 +664,10 @@ func rollupRowVerdict(rid string, state RollupState) rollupVerdict {
 		return rollupVerdict{State: state, Cause: rid + " is annotated {gap}"}
 	case RollupUnproven:
 		return rollupVerdict{State: state, Cause: rid + " is not proven"}
-	default:
+	case RollupNone, RollupMet:
 		return rollupVerdict{State: state}
+	default:
+		panic("BUG: unexpected rollup row state")
 	}
 }
 
@@ -715,6 +719,8 @@ func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requ
 				Str(req.Annotation.Producer).Str(", but ").Str(path).
 				Str(" declares no ").Str(symbol).
 				Str(". The producer was renamed or deleted under the annotation: name the function that does the narrower thing ze chose today").String())
+		default:
+			panic("BUG: unexpected producer resolution state")
 		}
 	}
 	return errs

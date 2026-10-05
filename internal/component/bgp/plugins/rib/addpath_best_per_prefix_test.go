@@ -65,7 +65,7 @@ func TestAddPathUnicastOneElectionPerPrefix(t *testing.T) {
 	assert.False(t, ok, "path 9 (MED 20) does not displace path 7 (MED 10)")
 
 	for _, key := range [][]byte{addPathKey(7), addPathKey(9)} {
-		assert.Len(t, gatherCandidatesHeld(r, famV4, key, true), 2, "both paths are candidates (key %x)", key)
+		assert.Len(t, gatherCandidatesHeld(t, r, famV4, key, true), 2, "both paths are candidates (key %x)", key)
 	}
 	total := 0
 	for _, d := range r.bestPrev.shardDepth(famV4) {
@@ -90,7 +90,7 @@ func TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix(t *testing.T) {
 	r.bgpPeers[plainPeer] = storage.NewPeerRIB(plainPeer.String())
 	r.bgpPeers[plainPeer].Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 9}, 0, 500), []byte{0})
 
-	candidates := gatherCandidatesHeld(r, famV4, addPathKey(7), true)
+	candidates := gatherCandidatesHeld(t, r, famV4, addPathKey(7), true)
 	require.Len(t, candidates, 1, "only the ADD-PATH peer holds 10.0.0.0/8")
 	assert.Equal(t, addPathPeer, candidates[0].PeerIP)
 
@@ -109,7 +109,7 @@ func TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix(t *testing.T) {
 // rank on distance and MED alone and so install path 9.
 func TestAddPathLocRIBHoldsOneBGPPath(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
-	r.locRIB = locrib.NewRIB()
+	r.locRIB.Store(locrib.NewRIB())
 	rib := newAddPathPeer(r, netip.MustParseAddr("192.0.2.31"))
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 
@@ -120,7 +120,7 @@ func TestAddPathLocRIBHoldsOneBGPPath(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, uint32(7), change.PathID)
 
-	group, ok := r.locRIB.Lookup(famV4, pfx)
+	group, ok := r.locRIB.Load().Lookup(famV4, pfx)
 	require.True(t, ok)
 	bgpPaths := 0
 	for _, p := range group.Paths {

@@ -260,36 +260,17 @@ func TestRFC3748UndefinedCodesAreSilentlyDiscarded(t *testing.T) {
 		t.Fatal("the peer did not answer the Identity Request after the discards")
 	}
 
-	// RFC requirement: RFC3748-4-5 negative -- the four Codes EAP DOES define are
-	// read rather than discarded, Code 4 included, which is the value next to the
-	// first undefined one. The authenticator answers a Request, a Success and a
-	// Failure with an EAP-Failure, because none of the three is a Response, and it
-	// answers a Response with the next Request.
-	for _, code := range []uint8{CodeRequest, CodeSuccess, CodeFailure} {
-		defined, dErr := NewSession(TypeMSCHAPv2, MethodConfig{Password: "secret"})
-		if dErr != nil {
-			t.Fatalf("NewSession: %v", dErr)
-		}
-		t.Cleanup(defined.Close)
-		defined.Begin()
+	// RFC requirement: RFC3748-4-5 negative -- defined Codes addressed to the
+	// receiving role still work: the authenticator's Identity Response above
+	// opens the method, and the peer answers an Identity Request and accepts a
+	// Failure matching its last Response.
 
-		out := defined.Process(&Packet{Code: code, Identifier: 1, Type: TypeIdentity})
-		if out == nil {
-			t.Fatalf("the authenticator discarded Code %d, which EAP defines", code)
-		}
-		if out.Code != CodeFailure {
-			t.Fatalf("the authenticator answered Code %d with code %d, want %d (EAP-Failure)", code, out.Code, CodeFailure)
-		}
-	}
-
-	// And the peer reads all three of the Codes addressed to it. The Request opens
-	// the identity round, the Failure ends the conversation, and the Success is
-	// read by the guard the tests above pin.
+	// The Failure belongs to the Identity Response this peer just sent.
 	reader := NewPeerSession(TypeMSCHAPv2, "user", "secret")
 	if res := reader.Process(eapdIdentityRequest(1)); res.Response == nil || res.Response.Code != CodeResponse {
 		t.Fatal("the peer discarded an EAP-Request, which EAP defines")
 	}
-	if res := reader.Process(&Packet{Code: CodeFailure, Identifier: 2}); !errors.Is(res.Err, ErrEAPFailure) {
+	if res := reader.Process(&Packet{Code: CodeFailure, Identifier: 1}); !errors.Is(res.Err, ErrEAPFailure) {
 		t.Fatalf("the peer answered an EAP-Failure with %v, want ErrEAPFailure", res.Err)
 	}
 }

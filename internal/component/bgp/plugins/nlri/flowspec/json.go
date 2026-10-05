@@ -58,7 +58,7 @@ func appendFlowSpecJSON(buf []byte, fs *FlowSpec, family string, rd *RouteDistin
 			FlowICMPType, FlowICMPCode, FlowPacketLength, FlowDSCP, FlowFlowLabel:
 			hasType[ct] = true
 			matchesByType[ct] = append(matchesByType[ct], formatNumericMatches(comp, ct)...)
-		default: // unknown component type — preserve legacy "type-N":[] fallback
+		default: // Component implementations form an open set; retain "type-N":[].
 			if !slices.Contains(unknownTypes, ct) {
 				unknownTypes = append(unknownTypes, ct)
 			}
@@ -104,6 +104,7 @@ func appendFlowSpecJSON(buf []byte, fs *FlowSpec, family string, rd *RouteDistin
 }
 
 // flowSpecKey returns the JSON key for a FlowSpec component type.
+// Its caller supplies the bounded named-type index, not a component's open code.
 //
 // A prefix component names its family: RFC 8955 Type 1 and RFC 8956 Type 1 share
 // a type code and carry different encodings, so `destination-ipv4` and
@@ -146,8 +147,9 @@ func flowSpecKey(ct FlowComponentType, isIPv6 bool) string {
 		return kwFragment
 	case FlowFlowLabel:
 		return kwFlowLabel
+	default:
+		panic("BUG: invalid bounded FlowSpec component type")
 	}
-	return "" // unreachable: caller bounds ct to 1..FlowFlowLabel
 }
 
 // appendNestedStringArray writes [["a","b"],["c"]] into buf.

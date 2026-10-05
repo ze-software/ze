@@ -34,7 +34,10 @@ func (l Level) String() string {
 		return "l1"
 	case Level2:
 		return "l2"
+	case LevelNone:
+		return "none"
 	default:
+		// Transport callers supply the level; unknown values retain the none display.
 		return "none"
 	}
 }
@@ -70,7 +73,10 @@ func MulticastMACForLevel(l Level) ([MACLen]byte, bool) {
 		return AllL1ISs, true
 	case Level2:
 		return AllL2ISs, true
+	case LevelNone:
+		return [MACLen]byte{}, false
 	default:
+		// Transport callers supply the level; unknown values have no multicast group.
 		return [MACLen]byte{}, false
 	}
 }

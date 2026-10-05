@@ -53,6 +53,7 @@ func TestCodeString(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "Multiprotocol(1)", CodeMultiprotocol.String())
 	assert.Equal(t, "ASN4(65)", CodeASN4.String())
+	assert.Equal(t, "Unknown(75)", codeSoftwareVersion.String())
 	assert.Equal(t, "Unknown(99)", Code(99).String())
 }
 
@@ -200,6 +201,26 @@ func TestParseUnknownCapability(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, Code(254), unknown.Code())
 	assert.Equal(t, []byte{0xAB, 0xCD}, unknown.Data)
+}
+
+// TestParseOpaqueNamedCapabilities checks that naming a code does not enable a
+// core decoder, and that parsed opaque values do not alias the input buffer.
+func TestParseOpaqueNamedCapabilities(t *testing.T) {
+	t.Parallel()
+	for _, code := range []Code{CodeRole, codeSoftwareVersion} {
+		t.Run(code.String(), func(t *testing.T) {
+			t.Parallel()
+			data := []byte{byte(code), 2, 0xAB, 0xCD}
+			caps, err := Parse(data)
+			require.NoError(t, err)
+			require.Len(t, caps, 1)
+			unknown, ok := caps[0].(*Unknown)
+			require.True(t, ok)
+			assert.Equal(t, code, unknown.Code())
+			data[2] = 0
+			assert.Equal(t, []byte{0xAB, 0xCD}, unknown.Data)
+		})
+	}
 }
 
 // TestParseRejectsMalformedKnownCapabilityLength verifies zero-length known

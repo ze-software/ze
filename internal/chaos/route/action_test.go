@@ -14,13 +14,23 @@ func TestActionTypeString(t *testing.T) {
 		{ActionChurn, "churn"},
 		{ActionPartialWithdraw, "partial-withdraw"},
 		{ActionFullWithdraw, "full-withdraw"},
-		{ActionType(99), "unknown(99)"},
 	}
 	for _, tt := range tests {
 		if got := tt.action.String(); got != tt.want {
 			t.Errorf("ActionType(%d).String() = %q, want %q", tt.action, got, tt.want)
 		}
 	}
+}
+
+// TestActionTypeStringUnknown verifies that a fabricated internal route action
+// triggers the BUG assertion instead of producing a log label.
+func TestActionTypeStringUnknown(t *testing.T) {
+	defer func() {
+		if got := recover(); got != "BUG: invalid route action type" {
+			t.Errorf("panic = %v, want BUG: invalid route action type", got)
+		}
+	}()
+	_ = ActionType(99).String()
 }
 
 // TestActionTypeFromString verifies kebab-case parsing for all action types.

@@ -353,6 +353,8 @@ func buildAuthAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP) (
 		// The peer authenticated with nothing, so there is no credential to put
 		// in an Access-Request and no request to send.
 		return nil, false
+	default:
+		panic("BUG: unknown PPP authentication request method")
 	}
 
 	return attrs, true

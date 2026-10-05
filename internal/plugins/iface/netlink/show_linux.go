@@ -161,7 +161,11 @@ func macvlanModeName(mode netlink.MacvlanMode) string {
 		return "private"
 	case netlink.MACVLAN_MODE_BRIDGE:
 		return "bridge"
+	case netlink.MACVLAN_MODE_DEFAULT, netlink.MACVLAN_MODE_VEPA,
+		netlink.MACVLAN_MODE_PASSTHRU, netlink.MACVLAN_MODE_SOURCE:
+		return "other"
 	default:
+		// Kernel modes are open; unmodeled modes must still trigger drift repair.
 		return "other"
 	}
 }

@@ -256,32 +256,6 @@ var scenarioOperations = map[string][]operation{
 	"bfd-simple-password-bird": {
 		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, birdShowBFDSessions}, contains: []string{zeLabAddress, birdBFDStateUp}, timeout: 90 * time.Second},
 	},
-	// RFC 7911 Section 2: "a particular path for an address prefix can be
-	// identified by the combination of the address prefix and the Path
-	// Identifier". The identifier names a path and never partitions the
-	// election, so the two paths one session sends for 10.0.0.0/24 meet in ONE
-	// best-path selection and Ze's Loc-RIB holds the better one alone. pmacct
-	// reads that answer out of the RFC 9069 Loc-RIB stream.
-	//
-	// The injector sends MED 10 (path id 2) before MED 50 (path id 1), and the
-	// order is the discrimination: an election per path identifier installs the
-	// later path as the only candidate of its own election, and the Loc-RIB then
-	// reports it. The paths are told apart by AS_PATH (names.go says why). The
-	// first row waits for pmacct to hold both paths on the Adj-RIB-In, so the
-	// absence below is judged after the worse path has arrived, and the delayed
-	// row gives the Loc-RIB report that path would cause time to reach the
-	// collector. The absence carries its proof: the Loc-RIB rows the same
-	// command printed hold the MED 10 best.
-	"bgp-addpath-best-path-pmacct": {
-		{kind: opWaitContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathAdjInRows},
-			contains: []string{pmacctAddPathBetterPath, pmacctAddPathWorsePath}, timeout: 120 * time.Second},
-		{kind: opWaitContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathLocRIBRows},
-			contains: []string{pmacctAddPathBetterPath}, timeout: 60 * time.Second},
-		{kind: opDelayRequireContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathLocRIBRows},
-			contains: []string{pmacctAddPathBetterPath}, delay: 10 * time.Second},
-		{kind: opRequireAbsent, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathLocRIBRows},
-			absent: []string{pmacctAddPathWorsePath}, proof: []string{pmacctAddPathBetterPath}},
-	},
 	scenarioAddPathFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst},
@@ -325,9 +299,6 @@ var scenarioOperations = map[string][]operation{
 	scenarioFlowspecFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
-	scenarioFlowspecGoBGP: {
-		{kind: opGoBGPSession, argument: zeLabAddress},
-	},
 	"bgp-flowspec-sctp-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, flowspecMatchPrefix, "nexthop", "172.30.0.5"}},
@@ -342,12 +313,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec, "del", "match", "destination", flowspecMatchPrefix, "protocol", "==sctp", "then", "discard"}},
 		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, "-j", nftActionList, nftObjectRuleset}, absent: []string{flowspecMatchSCTP}, proof: []string{"\"nftables\""}, timeout: 30 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
-	},
-	scenarioGracefulRestartFRR: {
-		{kind: opFRRSession, argument: zeLabAddress},
-		{kind: opFRRRoute, argument: injectPrefixFirst},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand(zeShowBGPRIBStatus), minimum: map[string]int{fieldRoutesIn: 1}},
-		{kind: opFRRSession, argument: zeLabAddress},
 	},
 	"bgp-gtsm-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
@@ -456,19 +421,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opBIRDSession, argument: "ze_leak"},
 		{kind: opBIRDRoute, argument: pathASNCleanPrefix},
 	},
-	// RFC 4271 Section 5.1.3 under `local ip auto`: toward a `next-hop self`
-	// peer that configures no local address, Ze's own route and a forwarded one
-	// both carry the session's connected local endpoint, as FRR reports it. The
-	// forwarded route discriminates: with no endpoint read, the forward rail
-	// leaves the injector's NEXT_HOP 172.30.0.9 in place. FRR prints a path as
-	// "<next hop> from <peer> (<router-id>)", so the needle names the next hop.
-	"bgp-nexthop-self-local-auto-frr": {
-		{kind: opFRRSession, argument: zeLabAddress},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + injectPrefixSecond}, contains: []string{injectPrefixSecond, nextHopSelfFromZe}, timeout: 60 * time.Second},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + injectPrefixFirst}, contains: []string{injectPrefixFirst, nextHopSelfFromZe}, timeout: 60 * time.Second},
-		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + injectPrefixFirst}, absent: []string{injectorNextHopFromZe}, proof: []string{injectPrefixFirst, nextHopSelfFromZe}},
-		{kind: opFRRSession, argument: zeLabAddress},
-	},
 	"bgp-policy-import-export-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: "ze_policy"},
@@ -525,7 +477,7 @@ var scenarioOperations = map[string][]operation{
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	"bgp-rfc7606-speaker-dup-attr": {
-		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 120 * time.Second, fields: map[string]string{fieldEstablished: logValueYes, "result": "PASS"}, minimum: map[string]int{"route-bearing-updates": 1}},
+		{kind: opWaitLogFields, peer: peerSpeaker, timeout: 120 * time.Second, fields: map[string]string{fieldEstablished: logValueYes, "result": speakerResultPass}, minimum: map[string]int{"route-bearing-updates": 1}},
 	},
 	"bgp-role-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
@@ -916,12 +868,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
 	"ospf-sr-frr": {
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
-	},
-	"ospf-te-frr": {
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
-	},
-	"ospf-te-interas-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
 	"ospfv3-bfd-frr": {

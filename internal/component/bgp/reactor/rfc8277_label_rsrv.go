@@ -104,6 +104,7 @@ func mpReachLabeledNLRI(value []byte) (family.Family, int, bool) {
 	}
 	fam := family.Family{AFI: family.AFI(uint16(value[0])<<8 | uint16(value[1])), SAFI: family.SAFI(value[2])}
 	// Only the two SAFIs RFC 8277 Section 2 encodes carry a label field.
+	//exhaustive:ignore // Only labeled-unicast and VPN SAFIs carry the label fields inspected here.
 	switch fam.SAFI {
 	case family.SAFIMPLSLabel, family.SAFIVPN:
 	default:

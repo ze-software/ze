@@ -243,6 +243,8 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, *Sche
 				return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
 			}
 		}
+	default:
+		panic("BUG: invalid detected config format")
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse config: %w", err)

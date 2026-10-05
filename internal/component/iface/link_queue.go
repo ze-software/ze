@@ -326,6 +326,8 @@ func applyLinkEvent(key linkEventKey, value linkEventValue, active map[dhcpUnitK
 		}
 	case linkEventResync:
 		resyncCarrierState(value.carrier, active, routers, log)
+	default:
+		panic("BUG: unknown link event class")
 	}
 }
 

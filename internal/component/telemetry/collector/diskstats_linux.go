@@ -211,11 +211,10 @@ func isPhysicalDisk(e diskEntry) bool {
 		return true
 	}
 	if strings.HasPrefix(n, "nvme") {
-		idx := strings.LastIndex(n, "p")
-		if idx < 0 {
+		_, suffix, found := strings.CutLast(n, "p")
+		if !found {
 			return true
 		}
-		suffix := n[idx+1:]
 		if suffix == "" {
 			return true
 		}

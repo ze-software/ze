@@ -143,6 +143,8 @@ func (p *AS4Path) PathLength() int {
 			}
 		case ASConfedSequence, ASConfedSet:
 			// Confederation segments don't count
+		default:
+			// Segment types are open to callers; unknown types add no path length.
 		}
 	}
 	return length
@@ -223,6 +225,7 @@ func isValidSegmentType(t ASPathSegmentType) bool {
 	case ASSet, ASSequence, ASConfedSequence, ASConfedSet:
 		return true
 	default:
+		// Segment types come from an open wire field; unknown types are invalid.
 		return false
 	}
 }
@@ -604,6 +607,8 @@ func countASNs(segments []ASPathSegment) int {
 			}
 		case ASConfedSequence, ASConfedSet:
 			// RFC 5065: Confederation segments don't count
+		default:
+			// Segment types are open to callers; unknown types add no path length.
 		}
 	}
 	return count

@@ -16,6 +16,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -23,8 +24,10 @@ import (
 // withdrawalInfo stores the minimum information needed to send a withdrawal
 // command when a source peer goes down.
 type withdrawalInfo struct {
-	Family string
-	Prefix string // Full NLRI string including type keyword (e.g., "prefix 10.0.0.0/24").
+	Family   string
+	Prefix   string // Text NLRI, or native hex when WireForm is true.
+	WireForm bool
+	AddPath  bool // Native hex carries a Path Identifier, including zero.
 }
 
 // updateWithdrawalMapWire updates the withdrawal map from raw wire UPDATE data.
@@ -151,6 +154,11 @@ func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Fami
 	if err != nil || len(nlris) == 0 {
 		return
 	}
+	if fam.SAFI == family.SAFIVPN {
+		// RFC 8277 Section 2.4: VPN identity excludes Compatibility.
+		rr.walkVPNNLRIs(sourcePeer, fam, nlris, action)
+		return
+	}
 	familyStr := fam.String()
 	switch action {
 	case actionAdd:
@@ -168,6 +176,47 @@ func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Fami
 			for _, n := range nlris {
 				delete(rr.withdrawals[sourcePeer], familyStr+"|"+nlriKey(n.String()))
 			}
+		}
+	}
+}
+
+// walkVPNNLRIs retains native bytes separately from the registered RD/prefix
+// identity. Callers MUST hold withdrawalMu, as for walkNLRIsAllocating.
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." RFC 7911 identifiers, including zero, remain part of the key.
+func (rr *routeReflector) walkVPNNLRIs(sourcePeer string, fam family.Family, nlris []nlri.NLRI, action string) {
+	familyName := fam.String()
+	keyFunc := nlrisplit.GetPrefixKey(fam)
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	var tb textbuf.Buffer
+	for _, n := range nlris {
+		wire, ok := n.(*nlri.WireNLRI)
+		if !ok {
+			logger().Warn("VPN inventory requires native NLRI", "family", familyName)
+			continue
+		}
+		pathID, payload, err := nlri.SplitPathID(wire.Bytes(), wire.HasAddPath())
+		if err != nil {
+			logger().Warn("VPN inventory path identifier rejected", "family", familyName, "error", err)
+			continue
+		}
+		key, err := keyFunc(payload, scratch[:], action == actionDel)
+		if err != nil {
+			logger().Warn("VPN inventory identity rejected", "family", familyName, "error", err)
+			continue
+		}
+		routeKey := tb.Reset().Str(familyName).Byte('|').Bool(wire.HasAddPath()).Byte('|').Uint32(pathID).Byte('|').Hex(key).String()
+		switch action {
+		case actionAdd:
+			if rr.withdrawals[sourcePeer] == nil {
+				rr.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
+			}
+			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{
+				Family: familyName, Prefix: tb.Reset().Hex(wire.Bytes()).String(),
+				WireForm: true, AddPath: wire.HasAddPath(),
+			}
+		case actionDel:
+			delete(rr.withdrawals[sourcePeer], routeKey)
 		}
 	}
 }

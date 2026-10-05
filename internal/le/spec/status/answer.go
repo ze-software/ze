@@ -58,8 +58,10 @@ func Answer(args []string) (any, int) {
 			return report, 3
 		}
 		return report, 0
-	default:
+	case closureUnspecified:
 		return nil, refuseStatus(args[0])
+	default:
+		panic("BUG: invalid spec closure action")
 	}
 }
 

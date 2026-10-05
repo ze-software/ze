@@ -90,9 +90,8 @@ func DecodePDU(buf []byte) (PDU, error) {
 		psnp.MaxAreaAddresses = h.MaxAreaAddresses
 		out.PSNP = &psnp
 	default:
-		// DecodeHeader already rejected unknown types; this is unreachable but
-		// kept for exhaustiveness.
-		return PDU{}, ErrUnknownPDUType
+		// DecodeHeader admits only the named PDU types before this dispatch.
+		panic("BUG: invalid decoded IS-IS PDU type")
 	}
 	return out, nil
 }

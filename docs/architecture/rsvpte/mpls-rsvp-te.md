@@ -21,6 +21,14 @@ bandwidth reservation.
 Fast Reroute (RFC 4090) is a separate layer: see
 [`mpls-rsvp-te-fast-reroute.md`](mpls-rsvp-te-fast-reroute.md).
 
+LSP state and role are selected locally, not decoded from signaling messages.
+Their stringers and role dispatch treat unnamed values as internal BUGs.
+The zero values remain Down and Ingress; named output and teardown behavior
+are unchanged.
+
+<!-- source: internal/plugins/rsvpte/fsm.go -- lspState.String, lspRole.String, GetOrCreate -->
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePathTear, handleLinkDown, tearLSPLocal -->
+
 ## Decision: every node refreshes, not only the ingress
 
 Egress and transit re-send RESV upstream on the refresh tick, alongside the

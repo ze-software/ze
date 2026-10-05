@@ -195,6 +195,7 @@ func (s *srInstaller) forwarding(r *srRoute, rs srRemotePrefixSID, nh srNextHop,
 // generating the Extended Prefix TLV with the A-Flag set for this prefix as described in
 // Section 2.1 of [RFC7684]." The A-Flag advertisers come from srAttachedAdvertisers.
 func srMappedSIDAction(r *srRoute, nh srNextHop) sr.OutgoingAction {
+	//exhaustive:ignore // Only these Mapping Server PHP relationships pop; all others keep the label.
 	switch r.Type {
 	case ospfspf.RouteIntraArea:
 		if nh.Router == r.Origin {

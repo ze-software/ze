@@ -103,7 +103,10 @@ func xfrmDirString(dir netlink.Dir) string {
 		return "out"
 	case netlink.XFRM_DIR_FWD:
 		return "fwd"
+	case netlink.XFRM_SOCKET_IN, netlink.XFRM_SOCKET_OUT, netlink.XFRM_SOCKET_FWD:
+		return textbuf.StringInt(int64(dir))
 	default:
+		// Kernel directions are open; retain the numeric identity.
 		return textbuf.StringInt(int64(dir))
 	}
 }
@@ -114,7 +117,11 @@ func xfrmModeString(mode netlink.Mode) string {
 		return "transport"
 	case netlink.XFRM_MODE_TUNNEL:
 		return "tunnel"
+	case netlink.XFRM_MODE_ROUTEOPTIMIZATION, netlink.XFRM_MODE_IN_TRIGGER,
+		netlink.XFRM_MODE_BEET, netlink.XFRM_MODE_MAX:
+		return textbuf.StringInt(int64(mode))
 	default:
+		// Kernel modes are open; retain the numeric identity.
 		return textbuf.StringInt(int64(mode))
 	}
 }

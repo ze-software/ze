@@ -224,7 +224,7 @@ func ribBestSelection13(ctx context.Context, args []string) error {
 		}
 		best = command13(ctx, plugin, "show bgp rib best")
 		a.status("best-aspath", best)
-		if row := bestPathFor13(best, "10.20.1.0/24"); row == nil || row["best-peer"] != "10.0.0.3" {
+		if row := bestPathFor13(best, "10.20.1.0/24"); row == nil || row["best-peer"] != addrPeerThree {
 			a.failures = append(a.failures, fmt.Errorf("aspath winner=%v want 10.0.0.3", row))
 		}
 		for _, injection := range []struct{ label, command string }{
@@ -243,8 +243,94 @@ func ribBestSelection13(ctx context.Context, args []string) error {
 		if value, ok := countFrom13(count); !ok || value != 3 {
 			a.failures = append(a.failures, fmt.Errorf("best count=%d valid=%v want 3", value, ok))
 		}
+		if err := ribWholeSetMED13(ctx, plugin); err != nil {
+			a.failures = append(a.failures, err)
+		}
 		return a.finish("best-path")
 	})
+}
+
+// ribWholeSetMED13 exercises conditional MED through the real daemon's inject,
+// best-path and reason commands. All six insertion orders must give the same
+// winner, and an earlier-criteria loser must not suppress another path at MED.
+func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
+	orders := [6][3]int{{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}}
+	paths := [3]string{
+		"10.0.0.3 ipv4/unicast %s aspath 65001 med 0 localpref 100",
+		"10.0.0.2 ipv4/unicast %s aspath 65002 med 50 localpref 100",
+		"10.0.0.1 ipv4/unicast %s aspath 65001 med 100 localpref 100",
+	}
+	for i, order := range orders {
+		prefix := fmt.Sprintf("10.40.%d.0/24", i)
+		for _, path := range order {
+			command := "request bgp rib inject " + fmt.Sprintf(paths[path], prefix)
+			if err := requireStatus13("whole-set MED inject", command13(ctx, plugin, command), "done"); err != nil {
+				return err
+			}
+		}
+		// RFC 4271 Section 9.1.2.2(c,g): A removes C at MED, then B beats A.
+		best := command13(ctx, plugin, "show bgp rib best")
+		if err := requireStatus13("whole-set MED best", best, "done"); err != nil {
+			return err
+		}
+		if row := bestPathFor13(best, prefix); row == nil || row["best-peer"] != addrPeerTwo {
+			return fmt.Errorf("MED order %v: best=%v, want 10.0.0.2", order, row)
+		}
+		reason := command13(ctx, plugin, "show bgp rib best prefix "+prefix+" reason")
+		if err := requireStatus13("whole-set MED reason", reason, "done"); err != nil {
+			return err
+		}
+		var explanation struct {
+			Entries []struct {
+				Prefix     string   `json:"prefix"`
+				Winner     string   `json:"winner-peer"`
+				Candidates []string `json:"candidates"`
+				Steps      []struct {
+					Step       string `json:"step"`
+					Incumbent  string `json:"incumbent"`
+					Challenger string `json:"challenger"`
+					Winner     string `json:"winner"`
+					Reason     string `json:"reason"`
+				} `json:"steps"`
+			} `json:"best-path-reason"`
+		}
+		if err := decodeJSON13(reason.raw, &explanation); err != nil {
+			return fmt.Errorf("whole-set MED explanation: %w", err)
+		}
+		if len(explanation.Entries) != 1 {
+			return fmt.Errorf("whole-set MED explanation entries=%+v, want one", explanation.Entries)
+		}
+		entry := explanation.Entries[0]
+		if entry.Prefix != prefix || entry.Winner != addrPeerTwo || len(entry.Candidates) != 3 || len(entry.Steps) != 2 {
+			return fmt.Errorf("whole-set MED explanation=%+v, want B from three paths", entry)
+		}
+		for step, want := range [2]struct{ name, winner, loser string }{
+			{"med", addrPeerThree, "10.0.0.1"},
+			{"peer-address", addrPeerTwo, addrPeerThree},
+		} {
+			got := entry.Steps[step]
+			loser := got.Challenger
+			if loser == got.Winner {
+				loser = got.Incumbent
+			}
+			if got.Step != want.name || got.Winner != want.winner || loser != want.loser || got.Reason == "" {
+				return fmt.Errorf("whole-set MED explanation step=%+v, want %+v", got, want)
+			}
+		}
+		// RFC 4271 Section 9.1.2.2: A's lower preference removes it before MED.
+		command := "request bgp rib inject 10.0.0.3 ipv4/unicast " + prefix + " aspath 65001 med 0 localpref 90"
+		if err := requireStatus13("whole-set MED earlier-criterion update", command13(ctx, plugin, command), "done"); err != nil {
+			return err
+		}
+		best = command13(ctx, plugin, "show bgp rib best")
+		if err := requireStatus13("whole-set MED earlier-criterion best", best, "done"); err != nil {
+			return err
+		}
+		if row := bestPathFor13(best, prefix); row == nil || row["best-peer"] != "10.0.0.1" {
+			return fmt.Errorf("MED earlier-criterion order %v: best=%v, want 10.0.0.1", order, row)
+		}
+	}
+	return nil
 }
 
 func ribClearOutFamily13(ctx context.Context, args []string) error {

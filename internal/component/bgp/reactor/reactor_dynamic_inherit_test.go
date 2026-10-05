@@ -213,7 +213,8 @@ func fillDistinctValue(field reflect.Value, seed int) error {
 		return nil
 	}
 
-	switch field.Kind() { //nolint:exhaustive // every kind PeerSettings uses is listed; the default fails loudly
+	//exhaustive:ignore // Only PeerSettings fixture kinds are populated; unsupported kinds require an explicit fixture decision.
+	switch field.Kind() {
 	case reflect.String:
 		var tb textbuf.Buffer
 		field.SetString(tb.Str("sentinel-").Int(int64(seed)).String())

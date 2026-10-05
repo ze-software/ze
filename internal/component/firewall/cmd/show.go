@@ -149,6 +149,8 @@ func formatARPOperation(op firewall.ARPOperation) string {
 	case firewall.ARPOperationReply:
 		return "arp operation reply"
 	case firewall.ARPOperationUnspecified:
+	default:
+		// Backend readback is not revalidated; retain numeric rendering.
 	}
 	return textbuf.StrInt("arp operation ", int64(op))
 }
@@ -299,8 +301,10 @@ func formatInSet(m firewall.MatchInSet) string {
 		return tb.Str("source port @").Str(m.SetName).String()
 	case firewall.SetFieldDestPort:
 		return tb.Str("destination port @").Str(m.SetName).String()
+	default:
+		// Backend readback is not revalidated; retain the set reference.
+		return tb.Byte('@').Str(m.SetName).String()
 	}
-	return tb.Byte('@').Str(m.SetName).String()
 }
 
 func formatTCPFlags(flags firewall.TCPFlags) string {

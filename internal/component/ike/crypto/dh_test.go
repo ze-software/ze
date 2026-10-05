@@ -111,6 +111,31 @@ func TestDHUnsupportedGroup(t *testing.T) {
 	}
 }
 
+// TestDHUnavailableExchangeRefusesSharedSecret checks that nil, zero and cleared
+// exchanges fail before group dispatch, so none can produce replacement key material.
+func TestDHUnavailableExchangeRefusesSharedSecret(t *testing.T) {
+	cleared, err := NewDHExchange(DH_ECP_256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleared.Clear()
+	for name, exchange := range map[string]*DHExchange{
+		"nil":     nil,
+		"zero":    {},
+		"cleared": cleared,
+	} {
+		t.Run(name, func(t *testing.T) {
+			secret, err := exchange.SharedSecret(nil)
+			if !errors.Is(err, ErrClearedExchange) {
+				t.Fatalf("SharedSecret = %v, want ErrClearedExchange", err)
+			}
+			if secret != nil {
+				t.Fatal("unavailable exchange returned key material")
+			}
+		})
+	}
+}
+
 // TestDHInvalidPublicKey drives the MODP range guard of SharedSecret (dh.go), which
 // refuses a peer value outside the open interval (1, p-1).
 //

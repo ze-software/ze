@@ -106,6 +106,7 @@ func (es *establishedState) Snapshot() []bool {
 // isLifecycleEvent returns true for event types that produce immediate
 // dashboard output.
 func isLifecycleEvent(t peer.EventType) bool {
+	//exhaustive:ignore // Only events needing immediate terminal output satisfy this predicate.
 	switch t {
 	case peer.EventEstablished, peer.EventDisconnected, peer.EventEORSent,
 		peer.EventDroppedEvents, peer.EventError, peer.EventChaosExecuted,
@@ -179,5 +180,7 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 
 	case peer.EventDroppedEvents:
 		ep.DroppedEvents += ev.Count
+	default:
+		panic("BUG: invalid validation event type")
 	}
 }

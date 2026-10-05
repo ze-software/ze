@@ -295,7 +295,7 @@ func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 	feedReceivedIBGP(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(0, false, pfx, []uint32{200})))
 
-	candidates := gatherCandidatesHeld(r, labeledFamily, cidr, false)
+	candidates := gatherCandidatesHeld(t, r, labeledFamily, cidr, false)
 	require.Len(t, candidates, 2,
 		"routes with different labels for the same prefix are compared against each other")
 
@@ -312,7 +312,7 @@ func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 	feedReceivedIBGP(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(0, false, pfx, []uint32{100})))
 
-	swapped := gatherCandidatesHeld(r, labeledFamily, cidr, false)
+	swapped := gatherCandidatesHeld(t, r, labeledFamily, cidr, false)
 	require.Len(t, swapped, 2, "swapping labels must not make the routes incomparable")
 	bestSwapped := SelectBest(swapped)
 	require.NotNil(t, bestSwapped)

@@ -221,6 +221,7 @@ func (f *Flooder) SetMetrics(reg metrics.Registry) {
 // type already encodes the level (ISO/IEC 10589 clause 9.5); a non-level type
 // returns false so the caller drops it.
 func levelOf(pt packet.PDUType) (Level, bool) {
+	//exhaustive:ignore // Only LSP and SNP types belong to the flooding level projection.
 	switch pt {
 	case packet.PDUTypeL1LSP, packet.PDUTypeL1CSNP, packet.PDUTypeL1PSNP:
 		return Level1, true
@@ -325,8 +326,10 @@ func (f *Flooder) ReceiveLSP(cid CircuitID, p2p bool, lsp *packet.LSP, raw []byt
 		if !p2p {
 			f.db.setSSN(level, id, cid)
 		}
-	default: // Older
+	case Older:
 		f.handleOlderLSP(cid, level, id, lsp)
+	default:
+		panic("BUG: invalid LSP freshness")
 	}
 	return res
 }

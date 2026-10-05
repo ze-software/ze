@@ -68,6 +68,7 @@ func (t PacketType) known() bool {
 	case PacketTypeHello, PacketTypeDBDesc, PacketTypeLSReq, PacketTypeLSUpdate, PacketTypeLSAck:
 		return true
 	default:
+		// Packet types are an open wire set; reject unknown codes before dispatch.
 		return false
 	}
 }
@@ -86,6 +87,7 @@ func (t PacketType) String() string {
 	case PacketTypeLSAck:
 		return "ls-ack"
 	default:
+		// Packet types are an open wire set; keep diagnostics safe for unknown codes.
 		return "unknown"
 	}
 }
@@ -224,6 +226,8 @@ func DecodePacket(buf []byte) (Packet, error) {
 			return Packet{}, err
 		}
 		p.LSAck = &v
+	default:
+		panic("BUG: DecodePacket: invalid validated OSPFv3 packet type")
 	}
 	return p, nil
 }

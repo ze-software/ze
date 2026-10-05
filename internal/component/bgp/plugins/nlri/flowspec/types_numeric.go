@@ -88,7 +88,8 @@ func (c *numericComponent) numericString() string {
 	for _, m := range c.matches {
 		b.Byte(' ')
 		if c.compType != FlowIPProtocol {
-			switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) { //nolint:exhaustive // Mask out non-comparison bits
+			//exhaustive:ignore // Render only comparison bits after masking the operator framing flags.
+			switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) {
 			case FlowOpGreater:
 				b.Byte('>')
 			case FlowOpLess:

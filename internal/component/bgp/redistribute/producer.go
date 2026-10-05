@@ -71,15 +71,11 @@ func convertBestChange(in *ribevents.BestChangeEntry) (redistevents.RouteChangeE
 	}
 	var action redistevents.RouteAction
 	switch in.Action {
-	case routeaction.Add, routeaction.Update:
-		action = redistevents.ActionAdd
-	case routeaction.Withdraw:
-		action = redistevents.ActionRemove
 	default:
-		// Not add/update/withdraw: the bridge cannot map it to a redistribution
-		// action. Skip loudly (count + warn) instead of the old silent drop, so
-		// a RouteAction that reaches the bridge unmapped fails visibly rather
-		// than vanishing from redistribution with no diagnostic (spec R-2).
+		// The producer boundary accepts an open action set. Unknown actions
+		// use the same rejection as the named unsupported actions.
+		fallthrough
+	case routeaction.Unspecified, routeaction.Del:
 		unknownActionSkips.Add(1)
 		// Log the raw code alongside the stringer: an unmapped enumerant's
 		// String() falls back to "unspecified", so the numeric code is what
@@ -87,6 +83,10 @@ func convertBestChange(in *ribevents.BestChangeEntry) (redistevents.RouteChangeE
 		slog.Warn("bgp redistribute bridge: unmapped best-change action, skipping entry",
 			"action", in.Action, "action_code", uint8(in.Action), "prefix", in.Prefix)
 		return redistevents.RouteChangeEntry{}, false
+	case routeaction.Add, routeaction.Update:
+		action = redistevents.ActionAdd
+	case routeaction.Withdraw:
+		action = redistevents.ActionRemove
 	}
 	// Carry every field the source populates. Metric and OriginAS are set on
 	// add/update by the RIB best-path selection (rib_bestchange.go) and are 0 on

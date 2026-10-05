@@ -89,18 +89,14 @@ func recordDedupCapacity() {
 	}
 }
 
-// What the identity is, and why it is one pointer.
+// What the identity covers, and why the base is a pointer.
 //
-// The shared object is the REBUILT PAYLOAD, and buildModifiedPayload's own
-// signature is the whole argument for what that payload depends on:
-//
-//	buildModifiedPayload(payload, mods, handlers, pp, nlriOverride)
-//
-// The forward rails pass a nil nlriOverride and the reactor's own handler map,
-// which is fixed for the process. pp decides WHERE the bytes are written, never
-// WHAT they are. So the output is a function of exactly two things: the source
-// payload, and the edit set. The edit set is covered by the digest. The payload
-// is covered by this.
+// The shared object is the completed payload. Both forwarding rails rebuild
+// the edit set and apply effective opaque treatment before committing it here.
+// The handler map is fixed for the reactor and the rails pass no NLRI override
+// outside the edit set. The outgoing pool decides WHERE bytes live, not WHAT
+// they contain. Identity therefore includes the base and opaque treatment;
+// the digest covers the edit set.
 //
 // It is the *wireu.WireUpdate pointer rather than the bytes because a WireUpdate
 // is immutable once built, so one pointer is one byte string. Two distinct
@@ -115,7 +111,8 @@ func recordDedupCapacity() {
 // in the identity would split equality classes that produce identical bytes and
 // buy nothing.
 type fwdDedupIdentity struct {
-	base *wireu.WireUpdate
+	base           *wireu.WireUpdate
+	preserveOpaque bool
 }
 
 // fwdDedupEntry is one equality class: the first destination's rebuilt bytes,
@@ -263,6 +260,8 @@ func (t *fwdDedupTable) begin(id fwdDedupIdentity, mods *filterapi.ModAccumulato
 }
 
 // commit records a materialized destination as the first of its equality class.
+// The caller MUST finish body construction first and keep payload owned until
+// every lookup in this fan-out finishes; a failed body MUST use abandon instead.
 func (t *fwdDedupTable) commit(c fwdDedupCand, payload []byte) {
 	if t == nil {
 		return
@@ -285,8 +284,8 @@ func (t *fwdDedupTable) commit(c fwdDedupCand, payload []byte) {
 	}
 }
 
-// abandon drops a candidate's digest when its destination produced no bytes to
-// share, so a suppressed destination leaves the arena exactly as it found it.
+// abandon drops a candidate's digest when its destination cannot publish bytes.
+// The caller MUST abandon before releasing a failed body's outgoing buffer.
 func (t *fwdDedupTable) abandon(c fwdDedupCand) {
 	if t == nil {
 		return

@@ -59,8 +59,9 @@ fills that cache, so its trim walks a bounded population.
 
 Staticcheck stops after package and test-variant type checking.
 `./le repo compiles check` supplies committed-tree final-link proof for
-its six tracked configurations, not for every shipped build flavor. Keep both
-stages live because they judge different populations and compiler boundaries.
+the configurations in `buildMatrix`, not for every shipped build flavor. Keep
+both stages live because they judge different populations and compiler boundaries.
+<!-- source: internal/le/repo/compiles/matrix.go -- buildMatrix -->
 
 ## Extraction
 
@@ -83,11 +84,12 @@ on a full pipe.
 
 ## Flavors and why each names a file
 
-Six build-tag flavors are compiled, at about 45s warm against a 25-minute
-`./le verify current mode full`. `ze_core ze_ssh` is dropped as a
+The build-tag flavors in `buildMatrix` are compiled, at about 45s warm against a
+25-minute `./le verify current mode full`. `ze_core ze_ssh` is dropped as a
 near-duplicate of `distro`. Each flavor builds `./...`
 rather than its own main package: it costs 1.8s more and type-checks every
 package the tag set selects, not only the ones a binary imports.
+<!-- source: internal/le/repo/compiles/matrix.go -- buildMatrix, buildPackages -->
 
 Each flavor names a tag-gated FILE its own tags select. Two weaker forms were
 tried first and both were inert:
@@ -128,6 +130,40 @@ commit. The escape is a dedicated `--broken-head-fix "<reason>"`, not the
 owner-only `--structural-red-ok`, because otherwise HEAD stays broken for
 everybody until the owner is available. Round five of the review found this;
 four earlier rounds did not.
+
+## Failure diagnostics and selftest deadlines
+
+`Build` keeps both the execution error and the compiler output. A failed
+process that writes nothing still names `go build` and its error; an expired
+context also names the deadline. The build and its package/anchor queries
+disable persisted Go settings, ambient `GOFLAGS`, and enclosing workspaces.
+They retain the shared build cache and the launcher's toolchain selection.
+<!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- Build, goEnv -->
+
+All three Go commands set `-buildvcs=false`. An archived tree has no `.git`
+directory, but it is extracted beneath a checkout that does. Without this flag,
+Go can scan that enclosing checkout to stamp its VCS metadata, including during
+the package-count and anchor-file queries. That state is not part of the commit
+being judged. `Run` reports the resolved commit separately; the flag removes
+metadata discovery, not compilation, final linking or either vacuity guard.
+<!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- Run, goEnv, Build, flavorPackages, anchorGoFiles -->
+
+The selftest gives fixture setup and each case a separate one-minute bound.
+A preceding build cannot exhaust the context of a later `HEAD` query, and
+a timed-out negative probe cannot count as proof that a guard rejected its
+intended input. The fixture creates a real commit in an isolated repository,
+without inherited Git repository paths, indexes, injected configuration or
+commit hooks. The build cases still invoke `Build`, including final linking
+and the selected anchor-file checks.
+<!-- source: internal/le/repo/compiles/selftest.go -- Selftest, WriteFixture, runSelftestCase, selftestGitEnv -->
+
+The enclosing-VCS regression runs the same selftest cases beneath a real Git
+repository with a corrupt index. Its control proves Git status worked before
+corruption and fails afterward. The coherent build must still pass, and the
+negative cases must still name their intended guard failures. A separate
+committed-tree regression requires an unresolved symbol to fail at final linking
+even when the working tree holds its fix.
+<!-- source: internal/le/repo/compiles/build_errors_test.go -- TestBuildIgnoresBrokenEnclosingVCS, TestBuildLinksTheCommittedTree -->
 
 ## Limits
 

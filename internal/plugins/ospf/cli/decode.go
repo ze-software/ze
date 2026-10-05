@@ -192,7 +192,8 @@ func renderV3LSA(l ospfv3packet.LSA) v3DecodeOutput {
 
 // v3OfflineTypedBody decodes the common OSPFv3 base LSA bodies; nil for unknown types.
 func v3OfflineTypedBody(l *ospfv3packet.LSA) any {
-	switch l.Header.Type { //nolint:exhaustive // only the common base types render typed; the rest fall back to body-hex
+	//exhaustive:ignore // Only common base bodies render typed; others use the caller's hex fallback.
+	switch l.Header.Type {
 	case ospfv3types.LSTypeRouter:
 		if b, err := l.DecodeRouter(); err == nil {
 			return b

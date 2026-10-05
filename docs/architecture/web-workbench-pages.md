@@ -177,6 +177,8 @@ the richer view.
 - Warnings, errors and events are parsed as JSON with a plain-text fallback per
   line. A change to the RPC response format degrades to line rendering instead
   of breaking the page.
-- Dashboard health is derived from config presence, showing "Configured" or
-  "Not configured". It is not runtime health. `knownComponents` is a hardcoded
-  slice: a new component in that table means editing it.
+- Dashboard health uses a registered live probe when it returns a known status.
+  With no known probe status, `AlwaysUp` shows "Running"; otherwise config
+  presence selects "Configured" or "Not configured". Unknown probe statuses
+  use the same fallback. `knownComponents` declares the dashboard rows.
+  <!-- source: internal/component/web/page_dashboard.go -- componentHealthRow, knownComponents -->

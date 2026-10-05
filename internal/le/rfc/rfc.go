@@ -544,8 +544,10 @@ func (s RollupState) String() string {
 		return "gap"
 	case RollupUnproven:
 		return "unproven"
-	default:
+	case RollupNone:
 		return ""
+	default:
+		panic("BUG: unexpected rollup state")
 	}
 }
 

@@ -133,27 +133,47 @@ func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 	sourceNLRI := forwardBodyNLRIs(80, true)
 	rawBody := buildRawUpdateBody(nil, attrs, [][]byte{sourceNLRI})
 
-	result, ok := buildFwdBody(wireu.NewWireUpdate(rawBody, ctxID), 180, ctxID, peer, netip.MustParseAddr("192.0.2.4"), &fwdParseCache{})
-	require.True(t, ok)
-	require.Empty(t, result.updates, "same-context oversized forwarding must keep rawBodies")
-	require.Greater(t, len(result.rawBodies), 1)
-
-	var gotNLRI []byte
-	for i, body := range result.rawBodies {
-		require.LessOrEqual(t, message.HeaderLen+len(body), 180, "raw chunk %d exceeds max", i)
-		update, err := message.UnpackUpdate(body)
-		require.NoError(t, err)
-		gotNLRI = append(gotNLRI, update.NLRI...)
+	// Two sources may choose the same identifiers for the same prefixes. Ze
+	// must distinguish their advertised paths, even when its locally assigned
+	// numbers happen to equal one source's numbers (RFC 7911 Section 2).
+	wires := []*wireu.WireUpdate{
+		fwdPathIDWire(rawBody, ctxID, fwdTestSourceA),
+		fwdPathIDWire(rawBody, ctxID, fwdTestSourceB),
 	}
+	_, sourcePrefixes := forwardBodySplitNLRI(t, sourceNLRI)
+	var firstIDs []uint32
+	for _, wire := range wires {
+		func() {
+			// RFC 7911 Section 5: forwarding keeps the negotiated extended NLRI encoding.
+			result, ok := buildFwdBody(wire, 180, ctxID, peer, netip.MustParseAddr("192.0.2.4"), &fwdParseCache{})
+			defer returnReadBuffer(result.transcodeBuf)
+			require.True(t, ok)
+			require.Empty(t, result.updates, "same-context oversized forwarding must keep rawBodies")
+			require.Greater(t, len(result.rawBodies), 1)
 
-	gotIDs, gotPrefixes := forwardBodySplitNLRI(t, gotNLRI)
-	sourceIDs, sourcePrefixes := forwardBodySplitNLRI(t, sourceNLRI)
-	assert.Equal(t, sourcePrefixes, gotPrefixes,
-		"the extended encoding must carry the source's prefixes, in order, one per Path Identifier")
-	assert.NotEqual(t, sourceIDs, gotIDs,
-		"the emitted Path Identifiers are the source's, so ze is advertising values it does not own (RFC 7911 Section 2)")
-	assert.Len(t, forwardBodyUniqueIDs(gotIDs), len(gotIDs),
-		"two paths left under one Path Identifier, so the destination sees fewer paths than were sent")
+			var gotNLRI []byte
+			for i, body := range result.rawBodies {
+				require.LessOrEqual(t, message.HeaderLen+len(body), 180, "raw chunk %d exceeds max", i)
+				update, err := message.UnpackUpdate(body)
+				require.NoError(t, err)
+				gotNLRI = append(gotNLRI, update.NLRI...)
+			}
+
+			gotIDs, gotPrefixes := forwardBodySplitNLRI(t, gotNLRI)
+			require.Equal(t, sourcePrefixes, gotPrefixes,
+				"the extended encoding must carry the source's prefixes, in order, one per Path Identifier")
+			assert.Len(t, forwardBodyUniqueIDs(gotIDs), len(gotIDs),
+				"two paths left under one Path Identifier, so the destination sees fewer paths than were sent")
+			if firstIDs == nil {
+				firstIDs = gotIDs
+				return
+			}
+			for i, id := range gotIDs {
+				assert.NotEqual(t, firstIDs[i], id,
+					"prefix %x from two sources left under one identifier, so the destination loses a path", gotPrefixes[i])
+			}
+		}()
+	}
 }
 
 // forwardBodySplitNLRI splits ADD-PATH framed NLRI bytes into the Path

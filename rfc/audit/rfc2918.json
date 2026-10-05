@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-04",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2918-2-1": {
@@ -7,8 +10,8 @@
       "requirement_sha": "bb2659c612dc6645",
       "tests": {
         "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "8cb84a3ecc21b2cc",
-        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "36ad5ca29acc4eb4",
-        "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "b3428c78168b854d"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "44d90c337eb5fecd",
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "3b6ab22b8c99761b"
       },
       "units": {
         "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "54f0c133096aefc1",
@@ -36,7 +39,7 @@
       "tests": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "30b8b3abfb09b975",
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshUnpackShort": "30b8b3abfb09b975",
-        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "36ad5ca29acc4eb4"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "44d90c337eb5fecd"
       },
       "units": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "6b1979ee9a3bf3c5",
@@ -83,7 +86,7 @@
       "tests": {
         "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored": "2c6d8ec1cf6b2ea2",
         "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored#2": "2c6d8ec1cf6b2ea2",
-        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "36ad5ca29acc4eb4",
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "44d90c337eb5fecd",
         "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "933b3c0fcb7d9bad"
       },
       "units": {

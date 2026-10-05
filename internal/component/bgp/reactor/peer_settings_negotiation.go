@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — config reload delivers changed peer settings
-// RFC: rfc/short/rfc5492.md — capability negotiation is the intersection of two OPENs
+// RFC: rfc/short/rfc5492.md — compare capability-specific outcomes of both OPENs
 // Related: session_negotiate.go — buildOpen, the ONE producer of ze's OPEN
 // Related: peer_settings_apply.go — the swap-or-restart decision this feeds
 package reactor
@@ -37,9 +37,9 @@ func (s *Session) setConfigCapabilityGetter(getter func() []capability.Capabilit
 //     a fact on the wire; a rebuild is a claim about it.
 //  2. The CANDIDATE is buildOpen under next, the same producer sendOpen uses, so
 //     the decision can never be taken against an OPEN ze would not send.
-//  3. Both are negotiated against the capabilities the peer really advertised,
-//     parsed from s.peerOpen, which is RFC 5492 Section 4's intersection run
-//     twice over one unchanged remote side.
+//  3. Both candidates use the capabilities the peer really advertised,
+//     parsed from s.peerOpen. Each capability keeps its own negotiation rules,
+//     including RFC 8654's independent receive and send permissions.
 //
 // FAIL-CLOSED (ai/rules/evidence.md). Every path that cannot PROVE the outcome
 // identical returns false, which restarts: no session, no OPEN exchanged, an

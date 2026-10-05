@@ -243,6 +243,8 @@ func TestIntegration_RouteDelete(t *testing.T) {
 					addCount++
 				case ActionRemove:
 					removeCount++
+				default:
+					panic("BUG: routewatch: invalid action")
 				}
 			}
 		}

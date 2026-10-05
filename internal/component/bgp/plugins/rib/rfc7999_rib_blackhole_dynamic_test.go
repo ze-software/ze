@@ -61,8 +61,10 @@ func TestBlackholeGroupIdentityArrivesOnAStructuredEvent(t *testing.T) {
 		0x20, 0x0a, 0x00, 0x00, 0x01, // NLRI 10.0.0.1/32
 	})
 
+	r.peerMu.RLock()
 	assert.Equal(t, "ix", r.peerGroupName(member),
 		"the group on the received event was not recorded for the session")
+	r.peerMu.RUnlock()
 	assert.Equal(t, routetype.Blackhole,
 		blackholeLocRIBType(t, loc, netip.MustParsePrefix("10.0.0.1/32")),
 		"the group on the received event did not reach the honoring decision")
@@ -85,8 +87,10 @@ func TestBlackholeGroupIdentityArrivesOnAJSONEvent(t *testing.T) {
 	r.updatePeerMetadata(&Event{Peer: peerJSON}, member)
 	r.peerMu.Unlock()
 
+	r.peerMu.RLock()
 	assert.Equal(t, "ix", r.peerGroupName(member),
 		"the group on a JSON event was not recorded for the session")
+	r.peerMu.RUnlock()
 }
 
 // A session that belongs to no group records none, so the honoring decision
@@ -106,5 +110,7 @@ func TestBlackholeGroupIdentityIsEmptyForAStandalonePeer(t *testing.T) {
 		0x20, 0x0a, 0x00, 0x00, 0x01, // NLRI 10.0.0.1/32
 	})
 
+	r.peerMu.RLock()
 	assert.Empty(t, r.peerGroupName(peer))
+	r.peerMu.RUnlock()
 }

@@ -33,6 +33,25 @@ func TestASPathEmpty(t *testing.T) {
 	assert.Equal(t, 0, path.PathLength())
 }
 
+// TestASPathLengthWithCallerSuppliedSegments checks that caller-owned segment
+// slices retain empty-set and unknown-type accounting without bypassing the
+// separate wire parsers' rejection tests.
+func TestASPathLengthWithCallerSuppliedSegments(t *testing.T) {
+	t.Parallel()
+	segments := []ASPathSegment{
+		{Type: ASSequence, ASNs: []uint32{65001}},
+		{Type: ASSet},
+		{Type: ASPathSegmentType(99), ASNs: []uint32{65002, 65003}},
+		{Type: ASConfedSequence, ASNs: []uint32{65004}},
+		{Type: ASSet, ASNs: []uint32{65005, 65006}},
+	}
+	path := &ASPath{Segments: segments}
+	path4 := &AS4Path{Segments: segments}
+	assert.Equal(t, 2, path.PathLength())
+	assert.Equal(t, 2, path4.PathLength())
+	assert.Equal(t, 2, countASNs(segments))
+}
+
 func TestASPathSimpleSequence(t *testing.T) {
 	t.Parallel()
 	path := &ASPath{

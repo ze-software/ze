@@ -148,6 +148,8 @@ func matchUpdateField(stream, needle string, field updateField) (matched, valid 
 		matched = indexByteAligned(body[attrEnd:], needle, 0) >= 0
 	case updateFieldWithdrawn:
 		matched = indexByteAligned(body[4:attrOffset], needle, 0) >= 0
+	default:
+		panic("BUG: unknown scoped UPDATE field")
 	}
 	// Each iteration consumes one bounded attribute header and its value.
 	for offset := attrStart; offset < attrEnd; {

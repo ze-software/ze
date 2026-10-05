@@ -54,8 +54,9 @@ func (d Direction) String() string {
 		return DirectionBoth
 	case DirUnspecified:
 		return ""
+	default:
+		panic("BUG: events: invalid direction")
 	}
-	return ""
 }
 
 // ParseDirection converts a direction string to a typed Direction.

@@ -1,0 +1,1 @@
+--connect 172.30.0.2:179 --asn 65004 --router-id 172.30.0.10 --hold-time 90 --duration 240 --test llgr-omitted-family-source --source-next-hop-v6 fd00:1e:0::a

@@ -44,7 +44,7 @@ func runBGPLSPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-nlri-ls", conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnDecodeNLRI(func(family string, hexStr string, addPath bool) (any, error) {
+	p.OnDecodeNLRI(func(family string, hexStr string, addPath bool, _ bool) (any, error) {
 		if !isValidBGPLSFamily(family) {
 			return nil, fmt.Errorf("unsupported family: %s", family)
 		}
@@ -408,8 +408,9 @@ func bgplsToJSON(n bGPLSNLRI, data []byte) map[string]any {
 		if v, ok := n.(*BGPLSSRv6SID); ok && len(v.SRv6SID.SRv6SID) > 0 {
 			result["srv6-sid"] = formatIPv6Compressed(v.SRv6SID.SRv6SID)
 		}
+	default:
+		// The interface admits an open type set; retain only the common keys.
 	}
-	// Note: Unknown NLRI types are rejected by parseBGPLS, so no default case needed.
 
 	return result
 }

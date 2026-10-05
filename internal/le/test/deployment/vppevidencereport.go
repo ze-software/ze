@@ -31,8 +31,9 @@ func (v VPPProofVerdict) String() string {
 		return "fail"
 	case VPPProofUnspecified:
 		return reportValueUnspecified
+	default:
+		panic("BUG: invalid VPP proof verdict")
 	}
-	return reportValueUnspecified
 }
 
 // MarshalJSON writes the report word instead of its numeric identity.

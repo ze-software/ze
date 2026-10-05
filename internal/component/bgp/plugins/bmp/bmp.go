@@ -826,7 +826,7 @@ func (bp *BMPPlugin) processInitiation(remote string, m *Initiation) {
 	var sysName, sysDescr string
 	var messages []string
 	for _, tlv := range m.TLVs {
-		switch tlv.Type { //nolint:exhaustive // RFC 7854: unknown TLV types are silently ignored
+		switch tlv.Type {
 		case InitTLVSysName:
 			sysName = string(tlv.Value)
 			logger().Info("bmp: initiation", "remote", remote, "sysName", sysName)

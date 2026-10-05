@@ -46,7 +46,7 @@ func parsePeerAddr(peerAddr string) (netip.Addr, error) {
 
 // dispatchStructured routes a StructuredEvent to the appropriate handler.
 func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
-	switch se.EventType { //nolint:exhaustive // RIB handles update+state+refresh on structured path; borr/eorr are text-only
+	switch se.EventType {
 	case rpc.EventKindUpdate:
 		if se.Direction == rpc.DirectionSent {
 			r.handleSentStructured(se)
@@ -57,6 +57,12 @@ func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 		r.handleStructuredState(se)
 	case rpc.EventKindRefresh:
 		r.handleRefreshStructured(se)
+	case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
+		rpc.EventKindKeepalive, rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
+		rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+		// These structured events do not change the RIB; BoRR/EoRR are text-only.
+	default:
+		// The plugin event set is open; unknown events do not change the RIB.
 	}
 }
 

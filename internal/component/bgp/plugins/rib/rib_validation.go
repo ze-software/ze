@@ -4,9 +4,11 @@ package rib
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -69,24 +71,93 @@ func (r *RIBManager) validationChanged(changes []ribevents.ValidationRoute) {
 	}
 }
 
+// receivedFamilyAttrs restores the next hop split out of raw.attributes by JSON.
+// RFC 4760 Section 3, Network Address of Next Hop: "A variable-length field that
+// contains the Network Address of the next router on the path to the destination system."
+// The existing writer supplies AFI(2), SAFI(1), NH-length(1), next hop, reserved(1).
+// No NLRI is duplicated here: the route storage receives it separately.
+func receivedFamilyAttrs(event *Event, fam family.Family, raw []byte) ([]byte, error) {
+	nextHop := sentFamilyNextHop(event, fam)
+	if nextHop == "" {
+		return raw, nil
+	}
+	addr, err := netip.ParseAddr(nextHop)
+	if err != nil {
+		return nil, fmt.Errorf("received next hop: %w", err)
+	}
+	if fam == family.IPv4Unicast && addr.Is4() {
+		return raw, nil
+	}
+	iter := attribute.NewAttrIterator(raw)
+	for code, _, _, ok := iter.Next(); ok; code, _, _, ok = iter.Next() {
+		if code == attribute.AttrMPReachNLRI {
+			return raw, nil
+		}
+	}
+	// RFC 4760 Section 3: preserve the family's advertised next-hop address.
+	mp := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{addr}, nil)
+	if err := mp.ValidateNextHops(); err != nil {
+		return nil, fmt.Errorf("received MP next hop: %w", err)
+	}
+	// JSON separated these fields; one family-local buffer reunites them before
+	// the existing attribute pools take ownership of their values.
+	attrs := make([]byte, len(raw)+3+mp.Len())
+	copy(attrs, raw)
+	attribute.WriteAttrTo(mp, attrs, len(raw))
+	return attrs, nil
+}
+
 // reconcileReceived runs after the JSON receive path releases peerMu, matching
 // the structured path's best-path publication for both adds and withdrawals.
 func (r *RIBManager) reconcileReceived(event *Event) {
 	for _, fam := range event.RawWithdrawnFamilies() {
-		r.reconcileReceivedNLRIs(fam, event.GetRawWithdrawnBytes(fam), event.AddPath[fam])
+		r.reconcileReceivedNLRIs(fam, event.GetRawWithdrawnBytes(fam), event.AddPath[fam], true)
 	}
 	for _, fam := range event.RawNLRIFamilies() {
-		r.reconcileReceivedNLRIs(fam, event.GetRawNLRIBytes(fam), event.AddPath[fam])
+		r.reconcileReceivedNLRIs(fam, event.GetRawNLRIBytes(fam), event.AddPath[fam], false)
 	}
 }
 
-func (r *RIBManager) reconcileReceivedNLRIs(fam family.Family, data []byte, addPath bool) {
+// reconcileReceivedNLRIs preserves the native action through framing and identity.
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field MUST be ignored."
+// Native layout after an optional four-byte ADD-PATH identifier:
+//
+//	Offset  0          1..3                 4..
+//	        Length     Compatibility       Prefix (VPN includes its RD)
+//
+// Announcements instead carry a label stack. Registered keys strip those fields
+// for CIDR elections; opaque elections retain their native NLRI and action.
+func (r *RIBManager) reconcileReceivedNLRIs(fam family.Family, data []byte, addPath, withdraw bool) {
 	if !nlrisplit.Supported(fam) {
 		return
 	}
-	prefixes, _ := nlrisplit.Split(fam, data, addPath)
+	split := nlrisplit.Split
+	if withdraw {
+		split = nlrisplit.SplitWithdrawn
+	}
+	prefixes, err := split(fam, data, addPath)
+	if err != nil {
+		logger().Warn("receive reconciliation: split error", "family", fam.String(), "error", err, "parsed", len(prefixes))
+	}
+	cidr := nlrisplit.KeysByCIDR(fam)
 	for _, wire := range prefixes {
-		change, changed := r.checkBestPathChange(fam, wire, addPath, nil)
+		electionAddPath := addPath
+		if cidr {
+			raw, ok := routeKeyOf(wire, addPath)
+			if !ok {
+				continue
+			}
+			var scratch [nlrisplit.PrefixKeyScratchSize]byte
+			// RFC 8277 Section 2.4: the Compatibility value does not identify a route.
+			wire, err = nlrisplit.RouteCIDR(fam, raw, scratch[:], withdraw)
+			if err != nil {
+				continue
+			}
+			// The election spans all path identifiers of the normalized prefix.
+			electionAddPath = false
+		}
+		// RFC 8277 Section 2.4: opaque route keys still need withdrawal context.
+		change, changed := r.checkRouteBestChange(fam, wire, electionAddPath, withdraw, nil)
 		if changed {
 			publishBestChanges([]bestChangeEntry{change}, fam)
 		}

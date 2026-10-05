@@ -49,8 +49,9 @@ func (o Outcome) String() string {
 		return "fail"
 	case OutcomeUnspecified:
 		return reportValueUnspecified
+	default:
+		panic("BUG: invalid VPP interface outcome")
 	}
-	return reportValueUnspecified
 }
 
 // MarshalJSON writes the word rather than the number, so `| json` and `| yaml`
@@ -110,6 +111,8 @@ func (r VPPIfaceReport) Text() string {
 			tb.Str("SKIP: ").Str(one.Detail).Byte('\n')
 		case OutcomeFail, OutcomeUnspecified:
 			tb.Str("FAIL: ").Str(one.Detail).Byte('\n')
+		default:
+			panic("BUG: invalid VPP interface outcome")
 		}
 		if one.Outcome != OutcomeFail {
 			continue

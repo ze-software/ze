@@ -1871,6 +1871,30 @@ After session establishment (ICCN/OCCN received and accepted):
 8. Configure the pppN interface: set IP address, routes, MTU.
 9. Session is now active. IP traffic flows through pppN.
 
+Ze generates the PPP FSM states, events and actions internally. Received
+packet codes first pass through `codeToEvent`, which maps unknown codes to
+the named `LCPEventRUC` event. `LCPDoTransition` explicitly retains no-op
+handling for named event/state pairs without a transition. An unnamed
+internal state or event raises a `BUG` panic, as do unnamed values passed
+to the state and action formatters or action dispatchers; zero remains the
+valid Initial state, Up event and This-Layer-Up action.
+<!-- source: internal/component/l2tp/ppp/ppp_fsm.go -- LCPDoTransition, LCPState.String, LCPAction.String -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- codeToEvent, performAction -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- performNCPAction -->
+
+The shared RFC 1661 section 4.1 table returns to Req-Sent when Ack-Rcvd
+receives a Terminate-Ack or permitted rejection (`RXJ+`), without sending a
+packet. A permitted rejection in Opened leaves the state unchanged and
+performs no action; Echo traffic (`RXR`) retains its separate Echo-Reply
+action. Catastrophic rejection (`RXJ-`) finishes the lower layer in Closed,
+Closing and Stopping, ending in Closed, Closed and Stopped respectively.
+These last three cells describe the abstract automaton: `codeToEvent`
+currently maps both Code-Reject and Protocol-Reject to `RXJ+`, so they do
+not establish wire reachability of `RXJ-`.
+<!-- source: internal/component/l2tp/ppp/ppp_fsm.go -- LCPDoTransition -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- codeToEvent, applyTransition -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- handleNCPPacket -->
+
 ### 22.2 LAC PPP Proxying
 
 The LAC forwards PPP frames between the physical link and the L2TP tunnel:

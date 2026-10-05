@@ -163,8 +163,10 @@ func (a FilterAction) String() string {
 		return wireModify
 	case FilterUnspecified:
 		return wireUnspecified
+	default:
+		// Plugin API values are open; unknown actions retain the unspecified spelling.
+		return wireUnspecified
 	}
-	return wireUnspecified
 }
 
 func (a FilterAction) AppendTo(buf []byte) []byte { return append(buf, a.String()...) }
@@ -211,8 +213,10 @@ func (d FilterDirection) String() string {
 		return wireBoth
 	case FilterDirectionUnspecified:
 		return wireUnspecified
+	default:
+		// Plugin API values are open; unknown directions retain the unspecified spelling.
+		return wireUnspecified
 	}
-	return wireUnspecified
 }
 
 func (d FilterDirection) AppendTo(buf []byte) []byte { return append(buf, d.String()...) }
@@ -256,8 +260,10 @@ func (p OnErrorPolicy) String() string {
 		return wireAccept
 	case OnErrorUnspecified:
 		return wireUnspecified
+	default:
+		// Plugin API values are open; unknown policies retain the unspecified spelling.
+		return wireUnspecified
 	}
-	return wireUnspecified
 }
 
 func (p OnErrorPolicy) AppendTo(buf []byte) []byte { return append(buf, p.String()...) }
@@ -305,8 +311,10 @@ func (e CapEncoding) String() string {
 		return wireText
 	case CapEncodingUnspecified:
 		return wireUnspecified
+	default:
+		// Plugin API values are open; unknown encodings retain the unspecified spelling.
+		return wireUnspecified
 	}
-	return wireUnspecified
 }
 
 func (e CapEncoding) AppendTo(buf []byte) []byte { return append(buf, e.String()...) }
@@ -455,8 +463,10 @@ func (s SessionState) String() string {
 		return wireDown
 	case SessionStateUnspecified, SessionStateCount:
 		return wireUnspecified
+	default:
+		// Plugin API values are open; unknown states retain the unspecified spelling.
+		return wireUnspecified
 	}
-	return wireUnspecified
 }
 
 func (s SessionState) AppendTo(buf []byte) []byte { return append(buf, s.String()...) }

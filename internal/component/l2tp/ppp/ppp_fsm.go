@@ -31,6 +31,7 @@ const (
 )
 
 // String returns the canonical state name from RFC 1661 §4.2.
+// An unnamed state is an internal programming error.
 func (s LCPState) String() string {
 	switch s {
 	case LCPStateInitial:
@@ -53,8 +54,9 @@ func (s LCPState) String() string {
 		return "ack-sent"
 	case LCPStateOpened:
 		return "opened"
+	default:
+		panic("BUG: unknown LCP state")
 	}
-	return "unknown"
 }
 
 // LCP FSM event. RFC 1661 §4.1 defines the 16 events. Names match the
@@ -103,6 +105,7 @@ const (
 )
 
 // String returns a short tag for an action, used in test names and logs.
+// An unnamed action is an internal programming error.
 func (a LCPAction) String() string {
 	switch a {
 	case LCPActTLU:
@@ -131,8 +134,9 @@ func (a LCPAction) String() string {
 		return "scj"
 	case LCPActSER:
 		return "ser"
+	default:
+		panic("BUG: unknown LCP action")
 	}
-	return "?"
 }
 
 // lCPTransition encodes the destination state and ordered actions
@@ -148,10 +152,14 @@ type lCPTransition struct {
 // state and incoming event. Returns the new state and the ordered
 // list of actions the caller should perform.
 //
-// The mapping is the verbatim RFC 1661 §4.1 transition table. Where
-// the table prescribes an event/state combination as illegal or
-// undefined, ze treats the event as a no-op (no actions, state
-// unchanged).
+// RFC 1661 Section 4.1: "State transitions and actions are represented in
+// the form action/new-state." The cell citations below use that notation;
+// a bare state number means no action.
+//
+// The table below drives LCP and NCP negotiation. Named event/state
+// combinations without a transition remain no-ops (no actions, state unchanged).
+// Unnamed state or event values indicate an internal programming error;
+// received packet codes are classified into named events before entry.
 //
 // Phase 10 caller responsibility: when this function returns a no-op
 // transition (NewState == input state AND len(Actions) == 0) for an
@@ -174,8 +182,13 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateStarting, Actions: []LCPAction{LCPActTLS}}
 		case LCPEventClose:
 			return lCPTransition{NewState: LCPStateInitial}
-		default:
+		case LCPEventDown, LCPEventTOPlus, LCPEventTOMinus,
+			LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN,
+			LCPEventRTR, LCPEventRTA, LCPEventRUC, LCPEventRXJPlus,
+			LCPEventRXJMinus, LCPEventRXR:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateStarting:
@@ -186,8 +199,13 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateInitial, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventOpen:
 			return lCPTransition{NewState: LCPStateStarting}
-		default:
+		case LCPEventDown, LCPEventTOPlus, LCPEventTOMinus,
+			LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN,
+			LCPEventRTR, LCPEventRTA, LCPEventRUC, LCPEventRXJPlus,
+			LCPEventRXJMinus, LCPEventRXR:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateClosed:
@@ -202,10 +220,15 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActSTA}}
 		case LCPEventRUC:
 			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActSCJ}}
-		case LCPEventRXJPlus, LCPEventRXJMinus, LCPEventRXR, LCPEventRTA:
+		case LCPEventRXJMinus:
+			// RFC 1661 Section 4.1, RXJ- / Closed: tlf/2.
+			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActTLF}}
+		case LCPEventRXJPlus, LCPEventRXR, LCPEventRTA:
 			return lCPTransition{NewState: LCPStateClosed}
-		default:
+		case LCPEventUp, LCPEventTOPlus, LCPEventTOMinus:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateStopped:
@@ -228,8 +251,10 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateStopped}
 		case LCPEventRXJMinus:
 			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
-		default:
+		case LCPEventUp, LCPEventTOPlus, LCPEventTOMinus:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateClosing:
@@ -246,14 +271,17 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRTR:
 			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSTA}}
-		case LCPEventRTA:
+		case LCPEventRTA, LCPEventRXJMinus:
+			// RFC 1661 Section 4.1, RTA and RXJ- / Closing: tlf/2.
 			return lCPTransition{NewState: LCPStateClosed, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRUC:
 			return lCPTransition{NewState: LCPStateClosing, Actions: []LCPAction{LCPActSCJ}}
-		case LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN, LCPEventRXJPlus, LCPEventRXJMinus, LCPEventRXR:
+		case LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN, LCPEventRXJPlus, LCPEventRXR:
 			return lCPTransition{NewState: LCPStateClosing}
-		default:
+		case LCPEventUp:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateStopping:
@@ -270,14 +298,17 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRTR:
 			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSTA}}
-		case LCPEventRTA:
+		case LCPEventRTA, LCPEventRXJMinus:
+			// RFC 1661 Section 4.1, RTA and RXJ- / Stopping: tlf/3.
 			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
 		case LCPEventRUC:
 			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActSCJ}}
-		case LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN, LCPEventRXJPlus, LCPEventRXJMinus, LCPEventRXR:
+		case LCPEventRCRPlus, LCPEventRCRMinus, LCPEventRCA, LCPEventRCN, LCPEventRXJPlus, LCPEventRXR:
 			return lCPTransition{NewState: LCPStateStopping}
-		default:
+		case LCPEventUp:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateReqSent:
@@ -308,8 +339,10 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJMinus:
 			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
-		default:
+		case LCPEventUp:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateAckRcvd:
@@ -334,14 +367,19 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSCR}}
 		case LCPEventRTR:
 			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActSTA}}
-		case LCPEventRTA, LCPEventRXJPlus, LCPEventRXR:
+		case LCPEventRTA, LCPEventRXJPlus:
+			// RFC 1661 Section 4.1, RTA and RXJ+ / Ack-Rcvd: 6 (no action).
+			return lCPTransition{NewState: LCPStateReqSent}
+		case LCPEventRXR:
 			return lCPTransition{NewState: LCPStateAckRcvd}
 		case LCPEventRUC:
 			return lCPTransition{NewState: LCPStateAckRcvd, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJMinus:
 			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
-		default:
+		case LCPEventUp:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateAckSent:
@@ -372,8 +410,10 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateAckSent, Actions: []LCPAction{LCPActSCJ}}
 		case LCPEventRXJMinus:
 			return lCPTransition{NewState: LCPStateStopped, Actions: []LCPAction{LCPActTLF}}
-		default:
+		case LCPEventUp:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
 
 	case LCPStateOpened:
@@ -396,14 +436,19 @@ func LCPDoTransition(state LCPState, ev lCPEvent) lCPTransition {
 			return lCPTransition{NewState: LCPStateReqSent, Actions: []LCPAction{LCPActTLD, LCPActSCR}}
 		case LCPEventRUC:
 			return lCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSCJ}}
-		case LCPEventRXJPlus, LCPEventRXR:
+		case LCPEventRXJPlus:
+			// RFC 1661 Section 4.1, RXJ+ / Opened: 9 (no action).
+			return lCPTransition{NewState: LCPStateOpened}
+		case LCPEventRXR:
 			return lCPTransition{NewState: LCPStateOpened, Actions: []LCPAction{LCPActSER}}
 		case LCPEventRXJMinus:
 			return lCPTransition{NewState: LCPStateStopping, Actions: []LCPAction{LCPActTLD, LCPActIRC, LCPActSTR}}
-		default:
+		case LCPEventUp, LCPEventTOPlus, LCPEventTOMinus:
 			return lCPTransition{NewState: state}
+		default:
+			panic("BUG: unknown LCP event")
 		}
+	default:
+		panic("BUG: unknown LCP state")
 	}
-	// No-op for events not listed at the current state.
-	return lCPTransition{NewState: state}
 }

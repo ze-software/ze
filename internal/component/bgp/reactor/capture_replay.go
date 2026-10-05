@@ -403,8 +403,7 @@ func (sc *sessionCapture) writeItem(it *captureItem, rotated bool) {
 	case captureKindSession:
 		err = sc.enc.WriteSession(it.ts, it.event, 0)
 	default:
-		slogutil.LazyLogger(captureLogSubsystem)().Warn("unhandled capture item kind", "kind", uint8(it.kind))
-		return
+		panic("BUG: invalid capture item kind")
 	}
 	switch {
 	case errors.Is(err, capture.ErrLimitReached):

@@ -16,14 +16,14 @@ func TestFRRWithdrawalDecodes(t *testing.T) {
 	other := "BGP: 172.30.0.22 rcvd UPDATE about " + labeledWithdrawPrefix + " IPv4 labeled-unicast -- withdrawn\n"
 
 	once := announced + withdrawn(labeledWithdrawPrefix) + sent + other + withdrawn(labeledKeptPrefix)
-	if got := frrWithdrawalDecodes(once, labeledWithdrawPrefix); got != 1 {
+	if got := frrWithdrawalDecodes(once, peer, labeledWithdrawPrefix); got != 1 {
 		t.Fatalf("one withdrawal of %s counted %d", labeledWithdrawPrefix, got)
 	}
 	twice := once + withdrawn(labeledWithdrawPrefix)
-	if got := frrWithdrawalDecodes(twice, labeledWithdrawPrefix); got != 2 {
+	if got := frrWithdrawalDecodes(twice, peer, labeledWithdrawPrefix); got != 2 {
 		t.Fatalf("a repeated withdrawal of %s counted %d, want 2", labeledWithdrawPrefix, got)
 	}
-	if got := frrWithdrawalDecodes(announced, labeledWithdrawPrefix); got != 0 {
+	if got := frrWithdrawalDecodes(announced, peer, labeledWithdrawPrefix); got != 0 {
 		t.Fatalf("an announcement counted as %d withdrawals", got)
 	}
 }

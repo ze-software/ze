@@ -91,7 +91,7 @@ func TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail(t *testing.T) {
 	feedReceivedJSONWithIdentifier(t, r, lowAddress, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
 	feedReceivedJSONWithIdentifier(t, r, highAddress, identifierFor(t, "10.0.0.1"), ctxID, identifierTestUpdate())
 
-	candidates := gatherCandidatesHeld(r, family.IPv4Unicast, cidr, false)
+	candidates := gatherCandidatesHeld(t, r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2, "both peers announced the prefix, so both are candidates")
 
 	explanation := SelectBestExplain(candidates)
@@ -120,7 +120,7 @@ func TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress(t *tes
 	feedReceivedJSONWithIdentifier(t, r, lowAddress, shared, ctxID, identifierTestUpdate())
 	feedReceivedJSONWithIdentifier(t, r, highAddress, shared, ctxID, identifierTestUpdate())
 
-	candidates := gatherCandidatesHeld(r, family.IPv4Unicast, cidr, false)
+	candidates := gatherCandidatesHeld(t, r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2)
 
 	explanation := SelectBestExplain(candidates)

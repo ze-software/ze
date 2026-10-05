@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-05",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -10,8 +11,8 @@
       "requirement_sha": "fe025b9ee98e7850",
       "tests": {
         "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths": "c09f3bba72d552b2",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "cda78b2a51f4ccf8"
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "e95f85b8a1869210"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths": "cad95612c9b73ef4",
@@ -41,10 +42,10 @@
       "note": "row now quotes the \u00a78.1.1 sentence that the ESI MUST be the 10-octet value of \u00a75 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width",
       "requirement_sha": "eca82697be9a41ea",
       "tests": {
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "cda78b2a51f4ccf8"
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "e95f85b8a1869210"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "44f4933ba7b1e873",
@@ -155,8 +156,8 @@
       "note": "RFC 7432 \u00a79.2.1: \"The MAC Address Length field is in bits, and it is set to 48. MAC address length values other than 48 bits are outside the scope of this document. The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV].\" Read its sole tagged carrier internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength and repaired shared helper evpnT2Body. The positive now supplies a complete Type-2 MAC-only route including mandatory Label1 00 01 01, requires decoded MAC 00:11:22:33:44:55, then independently pins the output length octet to 48 and the exact six MAC octets. The negative cases change only MAC length to 0/32/47/49/64/255 and require ErrEVPNInvalidAddress, preserving a valid zero-length optional IP field and label. types.go::parseEVPNType2 checks 48 before copying six bytes, and EVPNType2.WriteTo always emits 48 and the six-byte MAC. Thus the assertions implement the RFC's six-octet format, fail on altered width/content, isolate the MAC rule after the label repair, and cover the whole selected encoding obligation. One positive and one negative tag refer to distinct subcases, not the same assertion twice. Rejecting out-of-scope widths is a local validation boundary, not an invented RFC requirement for future MAC formats. Prior enforced judgment remains enforced after independent semantic rereading; no runtime execution or new discrimination record is claimed.",
       "requirement_sha": "f59e184b2629bfca",
       "tests": {
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength#2": "cda78b2a51f4ccf8"
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength#2": "e95f85b8a1869210"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "aa53c90d5461cd25",

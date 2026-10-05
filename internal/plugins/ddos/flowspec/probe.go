@@ -22,7 +22,7 @@ func (a probeAction) String() string {
 	case probeActionWithdraw:
 		return "withdraw"
 	default:
-		return "unknown"
+		panic("BUG: invalid probe action")
 	}
 }
 
@@ -122,7 +122,7 @@ func (p *probe) Tick(observedBps float64) probeAction {
 			return probeActionWithdraw
 		}
 		return probeActionNone
+	default:
+		panic("BUG: invalid probe state")
 	}
-
-	return probeActionNone
 }

@@ -247,6 +247,7 @@ func componentToMatch(comp flowspec.FlowComponent, fam family.Family) ([]firewal
 		return nil, fmt.Errorf("%w: %s", errUnsupportedComponent, comp.Type())
 
 	default:
+		// Component codes from wire or plugin input form an open set.
 		return nil, fmt.Errorf("%w: unknown type %d", errUnsupportedComponent, comp.Type())
 	}
 }

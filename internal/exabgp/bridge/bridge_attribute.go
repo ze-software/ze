@@ -305,8 +305,9 @@ func takeAttrValue(arity bridgeAttrArity, parts []string, start int) (string, in
 		return takeDelimited(parts, start, '[', ']')
 	case arityGroup:
 		return takeDelimited(parts, start, '(', ')')
+	default:
+		panic("BUG: invalid bridge attribute arity")
 	}
-	return "", start, errMissingAttrValue
 }
 
 var (

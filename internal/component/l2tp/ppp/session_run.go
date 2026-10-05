@@ -679,6 +679,7 @@ func (s *pppSession) afterLCPOpen() bool {
 //
 // Returns false on failure, stop, or an LCP interruption. The caller MUST
 // resume the session loop for a nonterminal LCP transition.
+// An unnamed method is an internal programming error.
 func (s *pppSession) runAuthPhase() bool {
 	s.mu.Lock()
 	method := s.negotiatedAuthMethod
@@ -704,14 +705,9 @@ func (s *pppSession) runAuthPhase() bool {
 		return s.runCHAPAuthPhase()
 	case AuthMethodMSCHAPv2:
 		return s.runMSCHAPv2AuthPhase()
+	default:
+		panic("BUG: unknown authentication method")
 	}
-	// Unreachable for all defined AuthMethod constants; any value
-	// arriving here is a programmer error (out-of-range cast).
-	// AuthMethod.String() would itself panic on such a value, so
-	// stringify the numeric code directly to preserve the intent of
-	// "fail cleanly, do not crash the session goroutine."
-	s.fail(textbuf.StrInt("auth: unknown method ", int64(method)))
-	return false
 }
 
 // runNoAuthPhase is the AuthMethodNone dispatch target. It emits one
@@ -1185,6 +1181,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	// STA or ignored and never trigger a resend, so mutating the
 	// method there would be wasted work on a stale packet.
 	if pkt.Code == LCPConfigureNak || pkt.Code == LCPConfigureReject {
+		//exhaustive:ignore // Only negotiating states apply Nak/Reject option mutations before the FSM.
 		switch cur {
 		case LCPStateReqSent, LCPStateAckSent, LCPStateAckRcvd, LCPStateOpened:
 			s.adjustAuthOnNakOrReject(pkt)
@@ -1414,6 +1411,7 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		s.stopRestartTimer()
 	}
 
+	//exhaustive:ignore // Only stopping and stopped preserve peer-termination bookkeeping.
 	switch tr.NewState {
 	case LCPStateStopping:
 		if pkt.Code == LCPTerminateRequest {
@@ -1587,8 +1585,9 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 		// "Notify upper layers" is handled inline in applyTransition via the
 		// state-transition check.
 		return true
+	default:
+		panic("BUG: unknown LCP action")
 	}
-	return true
 }
 
 // armRestartTimer starts the Restart timer, so that the next expiry raises a
@@ -1640,6 +1639,7 @@ func (s *pppSession) stopRestartTimer() {
 // identifiable by the presence of TO events", which the table gives to
 // Closing, Stopping, Req-Sent, Ack-Rcvd and Ack-Sent.
 func restartTimerRuns(state LCPState) bool {
+	//exhaustive:ignore // Predicate selecting states whose restart timer runs.
 	switch state {
 	case LCPStateClosing, LCPStateStopping, LCPStateReqSent, LCPStateAckRcvd, LCPStateAckSent:
 		return true

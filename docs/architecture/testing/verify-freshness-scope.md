@@ -61,6 +61,15 @@ The retained rows are then cut across six stages, `check part 1 of 6` through `c
 
 `Scope.resolveSelector` (`internal/le/repo/changed/selector.go`) produces the package and feature-tag scope. `Selector.Select` (`internal/le/repo/changed/changed.go`) produces the Go-only race groups; both use `greenBaseline` to decide what is proven. The grouped race selection keeps its narrower Go-only classification after a green baseline, rather than racing tooling groups for every documentation edit. A published whole-tree scope widens it too. The scoped import graph is built with `ze_core` and every tag in `feature-gates.txt`, so a `//go:build ze_<feature>` importer is selected: one file under `internal/component/ssh` selects `./cmd/ze`, `./cmd/ze/hub` and `./internal/component/ssh`, and the feature answer is `ze_ssh` alone. The reverse walk stops at two levels of importers, and `./le repo changed scope drop-log FILE` names what the bound dropped.
 
+The graph query selects package identity, direct and test imports, and error
+fields from `go list -e` JSON. Package errors, incomplete records, malformed
+JSON, absent directories, and deadlines retain their cause and widen to
+`./...` plus every feature. A partial graph is never published. The query uses
+the module's toolchain pin and disables persisted Go settings, ambient
+`GOFLAGS`, and enclosing workspaces. Selected JSON fields avoid unrelated
+VCS/build-info and embed-file scans without dropping import edges.
+<!-- source: internal/le/repo/changed/selector.go -- loadPackageGraphContext, parsePackageGraph, resolveSelector -->
+
 ### What each changed path selects
 
 <!-- source: internal/le/repo/changed/selector.go -- nonGoPathRules, packageDirsFor, uncompiledTreeReaders -->

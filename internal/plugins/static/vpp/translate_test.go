@@ -146,8 +146,12 @@ func TestBuildFibPathsForwardMulti(t *testing.T) {
 	}
 }
 
-func TestBuildFibPathsUnknownActionEmpty(t *testing.T) {
-	if paths := buildFibPaths(Route{Action: ActionType(99)}); paths != nil {
-		t.Errorf("unknown action: got %+v, want nil", paths)
-	}
+func TestBuildFibPathsUnknownActionPanics(t *testing.T) {
+	// The parent translator supplies only named actions; deletion bypasses this path.
+	defer func() {
+		if got := recover(); got != "BUG: static vpp: invalid route action" {
+			t.Fatalf("panic = %v, want invalid route action BUG", got)
+		}
+	}()
+	buildFibPaths(Route{Action: ActionType(99)})
 }

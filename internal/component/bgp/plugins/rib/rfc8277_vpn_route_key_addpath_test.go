@@ -30,7 +30,7 @@ func TestRFC8277VPNAddPathLabelsAreOneElection(t *testing.T) {
 	peer.Insert(vpnv4Family, unicastAttrs([4]byte{10, 0, 0, 1}, 20, 100), path9)
 
 	for _, start := range [][]byte{path7, path9} {
-		candidates := gatherCandidatesHeld(r, vpnv4Family, start, true)
+		candidates := gatherCandidatesHeld(t, r, vpnv4Family, start, true)
 		if len(candidates) != 2 {
 			t.Fatalf("candidates from %x = %d, want 2: one route under two labels", start, len(candidates))
 		}

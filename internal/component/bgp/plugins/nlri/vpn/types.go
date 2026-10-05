@@ -126,6 +126,11 @@ func NewVPNFromEntries(fam Family, rd RouteDistinguisher, entries []uint32, pref
 // For VPNv4 (RFC 4364): AFI=1, SAFI=128.
 // For VPNv6 (RFC 4659): AFI=2, SAFI=128.
 func ParseVPN(afi AFI, safi SAFI, data []byte, addpath bool) (*VPN, []byte, error) {
+	return parseVPN(afi, safi, data, addpath, false)
+}
+
+// parseVPN reads the action-specific NLRI layout without changing its native bytes.
+func parseVPN(afi AFI, safi SAFI, data []byte, addpath, withdraw bool) (*VPN, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrShortRead
 	}
@@ -157,15 +162,25 @@ func ParseVPN(afi AFI, safi SAFI, data []byte, addpath bool) (*VPN, []byte, erro
 
 	nlriData := data[offset : offset+totalBytes]
 
-	// RFC 3107: Parse MPLS label stack (minimum 3 bytes per label)
+	// Both layouts start with at least three octets before the RD.
 	if len(nlriData) < 3 {
 		return nil, nil, ErrShortRead
 	}
-	entries, nlriData, err := ParseLabelStack(nlriData)
-	if err != nil {
-		return nil, nil, err
+	var entries []uint32
+	labelBits := 24
+	if withdraw {
+		// RFC 8277 Section 2.4: "Upon reception, the value of the
+		// Compatibility field MUST be ignored."
+		// It is exactly three octets, irrespective of the bottom-of-stack bit.
+		nlriData = nlriData[3:]
+	} else {
+		var err error
+		entries, nlriData, err = ParseLabelStack(nlriData)
+		if err != nil {
+			return nil, nil, err
+		}
+		labelBits = len(entries) * 24
 	}
-	labelBits := len(entries) * 24
 
 	// RFC 4364 Section 4.1/4.2: Parse RD (8 bytes = 64 bits)
 	if len(nlriData) < 8 {

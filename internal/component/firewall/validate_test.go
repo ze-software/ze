@@ -287,6 +287,7 @@ func TestValidateSetFieldMatch(t *testing.T) {
 		{"src port + inet-service set ok", SetFieldSourcePort, SetTypeInetService, ""},
 		{"src port + ipv4 set rejects", SetFieldSourcePort, SetTypeIPv4, "expects an inet-service set"},
 		{"dst port + mark set rejects", SetFieldDestPort, SetTypeMark, "expects an inet-service set"},
+		{"src addr + unknown set type stays diagnostic", SetFieldSourceAddr, SetType(99), "set type is unknown(99)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -329,6 +330,8 @@ func TestValidateSetFamilyCompat(t *testing.T) {
 		{"ip + ipv6 set rejects", FamilyIP, SetTypeIPv6, "invalid in family ip"},
 		{"ip6 + ipv6 set ok", FamilyIP6, SetTypeIPv6, ""},
 		{"ip6 + ipv4 set rejects", FamilyIP6, SetTypeIPv4, "invalid in family ip6"},
+		{"unset family rejects before compatibility", familyUnknown, SetTypeIPv4, "invalid family 0"},
+		{"unknown family rejects before compatibility", TableFamily(99), SetTypeIPv4, "invalid family 99"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -27,6 +27,7 @@ func discardNonVPNAcceptOwn(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	}
 	nonRD := len(sections.NLRI(wu.Payload())) != 0
 	if _, _, mp, present := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI); present && len(mp) >= 3 {
+		//exhaustive:ignore // Only RD-bearing SAFIs retain ACCEPT_OWN; other families mark the update non-RD.
 		switch family.SAFI(mp[2]) {
 		case family.SAFIVPN, family.SAFIMVPN, family.SAFIVPLS, family.SAFIEVPN,
 			family.SAFIBGPLinkStateVPN, family.SAFIFlowSpecVPN, family.SAFIMUP:

@@ -6,6 +6,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRFC7606ActionStringRejectsInvalidAction distinguishes an internal verdict
+// bug from the valid zero action without supplying malformed protocol bytes.
+func TestRFC7606ActionStringRejectsInvalidAction(t *testing.T) {
+	require.Equal(t, "none", RFC7606ActionNone.String())
+	require.PanicsWithValue(t, "BUG: invalid RFC 7606 action", func() {
+		_ = RFC7606Action(-1).String()
+	})
+}
+
 // TestRFC7606MalformedOriginLength verifies RFC 7606 Section 7.1.
 //
 // RFC requirement: RFC7606-7.1-1 negative — ORIGIN length 2 selects treat-as-withdraw.

@@ -79,6 +79,7 @@ func encryptAESCBC(key, plaintext []byte) ([]byte, error) {
 	if _, err := rand.Read(iv); err != nil {
 		return nil, err
 	}
+	// #nosec G407 -- crypto/rand.Read above fills this entire IV slice; out's initial zeros never reach CBC.
 	mode := cipher.NewCBCEncrypter(block, iv)
 	mode.CryptBlocks(out[aes.BlockSize:], padded)
 	return out, nil
@@ -160,8 +161,10 @@ func integrityHashFunc(id IntegrityID) func() hash.Hash {
 		return sha512.New384
 	case AUTH_HMAC_SHA2_512_256:
 		return sha512.New
-	default:
+	case AUTH_NONE:
 		return nil
+	default:
+		panic("BUG: validated integrity algorithm has no hash")
 	}
 }
 

@@ -14,6 +14,54 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// TestFlowSpecUnknownComponentJSON keeps caller-supplied component codes out
+// of the bounded key dispatcher and preserves the numeric empty-array output.
+func TestFlowSpecUnknownComponentJSON(t *testing.T) {
+	t.Parallel()
+	fs := NewFlowSpec(IPv4FlowSpec)
+	if err := fs.AddComponent(newFlowNumericComponent(FlowComponentType(99), nil)); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.AddComponent(NewFlowDestPortComponent(80)); err != nil {
+		t.Fatal(err)
+	}
+	const want = `{"destination-port":[["=80"]],"type-99":[]}`
+	if got := string(fs.AppendJSON(nil)); got != want {
+		t.Fatalf("AppendJSON = %s, want %s", got, want)
+	}
+	key, values := componentToJSON(fs.Components()[0], false)
+	if key != "type-99" {
+		t.Fatalf("unknown component key = %q, want type-99", key)
+	}
+	if values == nil {
+		t.Fatal("unknown component values must render as an empty array, not null")
+	}
+	if len(values) != 0 {
+		t.Fatalf("unknown component values = %v, want empty", values)
+	}
+}
+
+// TestFlowSpecOperatorRenderingMasksFraming checks that both text renderers
+// project comparison bits, retaining their equality fallback for an unnamed combination.
+func TestFlowSpecOperatorRenderingMasksFraming(t *testing.T) {
+	t.Parallel()
+	comp := newFlowNumericComponent(FlowDestPort, []FlowMatch{
+		{Op: FlowOpEnd | FlowOpAnd | FlowOpLenMask | FlowOpGreater | FlowOpEqual, Value: 80},
+		{Op: FlowOpEnd | FlowOpLenMask | FlowOpLess | FlowOpGreater | FlowOpEqual, Value: 443},
+	})
+	if got := comp.String(); got != "destination-port >=80 =443" {
+		t.Fatalf("component text = %q, want destination-port >=80 =443", got)
+	}
+	fs := NewFlowSpec(IPv4FlowSpec)
+	if err := fs.AddComponent(comp); err != nil {
+		t.Fatal(err)
+	}
+	const want = `{"destination-port":[[">=80"],["=443"]]}`
+	if got := string(fs.AppendJSON(nil)); got != want {
+		t.Fatalf("AppendJSON = %s, want %s", got, want)
+	}
+}
+
 // TestRunFlowSpecDecode verifies decode mode protocol handling.
 //
 // VALIDATES: Plugin correctly parses decode requests and returns JSON.

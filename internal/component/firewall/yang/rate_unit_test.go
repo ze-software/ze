@@ -45,11 +45,11 @@ func TestRateSpecPatternNamesTheRateUnits(t *testing.T) {
 // unitAlternation answers the sorted alternatives of the LAST parenthesized
 // group of the typedef's pattern, which is the time unit after the slash.
 func unitAlternation(body string) ([]string, bool) {
-	open := strings.LastIndex(body, "/(")
-	if open < 0 {
+	_, afterOpen, found := strings.CutLast(body, "/(")
+	if !found {
 		return nil, false
 	}
-	group, _, closed := strings.Cut(body[open+len("/("):], ")")
+	group, _, closed := strings.Cut(afterOpen, ")")
 	if !closed {
 		return nil, false
 	}

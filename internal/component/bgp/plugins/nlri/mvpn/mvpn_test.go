@@ -31,7 +31,7 @@ const (
 func TestPackedSectionDecodesEveryRoute(t *testing.T) {
 	t.Parallel()
 
-	decoded, err := DecodeNLRIHex("ipv4/mvpn", sharedJoinHex+sourceJoinHex, false)
+	decoded, err := DecodeNLRIHex("ipv4/mvpn", sharedJoinHex+sourceJoinHex, false, false)
 	require.NoError(t, err)
 
 	raw, err := json.Marshal(decoded)
@@ -76,7 +76,7 @@ func TestSourceActiveCarriesNoSourceAS(t *testing.T) {
 	t.Parallel()
 
 	const sourceADHex = "05120000FDE80001869F200A630C0420EFFBFFE4"
-	decoded, err := DecodeNLRIHex("ipv4/mvpn", sourceADHex, false)
+	decoded, err := DecodeNLRIHex("ipv4/mvpn", sourceADHex, false, false)
 	require.NoError(t, err)
 
 	raw, err := json.Marshal(decoded)
@@ -106,7 +106,7 @@ func TestUnknownRouteTypePublishesItsOctets(t *testing.T) {
 	t.Parallel()
 
 	const intraASHex = "010C0000FDE9000000640A000001"
-	decoded, err := DecodeNLRIHex("ipv4/mvpn", intraASHex, false)
+	decoded, err := DecodeNLRIHex("ipv4/mvpn", intraASHex, false, false)
 	require.NoError(t, err)
 
 	raw, err := json.Marshal(decoded)
@@ -149,7 +149,7 @@ func TestMalformedSectionIsRefused(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := DecodeNLRIHex("ipv4/mvpn", tt.hex, false)
+			_, err := DecodeNLRIHex("ipv4/mvpn", tt.hex, false, false)
 			assert.Error(t, err, "a section ze cannot read must not decode")
 		})
 	}
@@ -223,7 +223,7 @@ func TestIPv6SectionReadsSixteenOctetAddresses(t *testing.T) {
 	t.Parallel()
 
 	const sharedJoinV6 = "062E0000FDE80001869F0000FDE880FD00000000000000000000000000000180FF0E0000000000000000000000000001"
-	decoded, err := DecodeNLRIHex("ipv6/mvpn", sharedJoinV6, false)
+	decoded, err := DecodeNLRIHex("ipv6/mvpn", sharedJoinV6, false, false)
 	require.NoError(t, err)
 
 	raw, err := json.Marshal(decoded)

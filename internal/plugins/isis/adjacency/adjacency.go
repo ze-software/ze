@@ -57,11 +57,14 @@ const (
 // String renders the state as a stable lowercase token for CLI/JSON/events.
 func (s State) String() string {
 	switch s {
+	case StateDown:
+		return "down"
 	case StateInitializing:
 		return "initializing"
 	case StateUp:
 		return "up"
 	default:
+		// The state is caller-supplied; unknown values retain the down display.
 		return "down"
 	}
 }

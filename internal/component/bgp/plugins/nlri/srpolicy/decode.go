@@ -18,7 +18,7 @@ import (
 //
 // addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
 // (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
-func DecodeNLRIHex(familyStr, hexStr string, addPath bool) (any, error) {
+func DecodeNLRIHex(familyStr, hexStr string, addPath, _ bool) (any, error) {
 	afi, err := familyToAFI(familyStr)
 	if err != nil {
 		return nil, err

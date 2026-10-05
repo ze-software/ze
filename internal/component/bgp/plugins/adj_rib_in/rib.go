@@ -356,11 +356,18 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			switch se.EventType { //nolint:exhaustive // only state+update handled on structured path
+			switch se.EventType {
 			case rpc.EventKindState:
 				r.handleStructuredState(se)
 			case rpc.EventKindUpdate:
 				r.handleReceivedStructured(se)
+			case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
+				rpc.EventKindKeepalive, rpc.EventKindRefresh, rpc.EventKindEOR,
+				rpc.EventKindBoRR, rpc.EventKindEoRR, rpc.EventKindSent,
+				rpc.EventKindNegotiated, rpc.EventKindCount:
+				// These events do not change Adj-RIB-In.
+			default:
+				// The plugin event set is open; unknown events do not change Adj-RIB-In.
 			}
 		}
 		return nil
@@ -783,11 +790,18 @@ func (r *AdjRIBInManager) signalSessionReady(peerAddress string) {
 func (r *AdjRIBInManager) dispatch(event *bgp.Event) {
 	eventType := event.GetEventType()
 
-	switch eventType { //nolint:exhaustive // adj-rib-in only handles update+state
+	switch eventType {
 	case rpc.EventKindUpdate:
 		r.handleReceived(event)
 	case rpc.EventKindState:
 		r.handleState(event)
+	case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
+		rpc.EventKindKeepalive, rpc.EventKindRefresh, rpc.EventKindEOR,
+		rpc.EventKindBoRR, rpc.EventKindEoRR, rpc.EventKindSent,
+		rpc.EventKindNegotiated, rpc.EventKindCount:
+		// These events do not change Adj-RIB-In.
+	default:
+		// The plugin event set is open; unknown events do not change Adj-RIB-In.
 	}
 }
 
@@ -843,7 +857,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 				if op.Action != pass {
 					continue
 				}
-				switch op.Action { //nolint:exhaustive // only Add/Del relevant for adj-rib-in
+				switch op.Action {
 				case routeaction.Add:
 					// Skip adds without essential fields -- routes missing attributes
 					// or next-hop cannot be reconstructed for relay.
@@ -937,6 +951,10 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							r.ribIn[peerAddr].Delete(rk)
 						}
 					}
+				case routeaction.Unspecified, routeaction.Update, routeaction.Withdraw:
+					// The pass guard excludes actions that do not add or delete routes.
+				default:
+					panic("BUG: invalid guarded Adj-RIB-In action")
 				}
 			}
 		}

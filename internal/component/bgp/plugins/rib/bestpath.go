@@ -6,7 +6,8 @@
 // Related: rib_bestchange.go — best-path change tracking and Bus publishing
 //
 // Best-path selection per RFC 4271 §9.1.2 Decision Process Phase 2.
-// Pure functions operating on extracted Candidate values — no pool dependency.
+// Comparisons use extracted values; gathered candidates retain the pool snapshot
+// that supplies AS_PATH identity and the eventual winner's metadata.
 package rib
 
 import (
@@ -14,6 +15,7 @@ import (
 	"fmt"
 	"math"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 
@@ -78,8 +80,9 @@ func (s BestStep) String() string {
 		return "path-id"
 	case BestStepEqual:
 		return "equal"
+	default:
+		panic("BUG: invalid best-path decision step")
 	}
-	return "unknown-step"
 }
 
 // ORIGIN value aliases for use within the rib package.
@@ -91,7 +94,8 @@ const (
 )
 
 // Candidate holds extracted attribute values for best-path comparison.
-// Built from pool handles by the caller -- this struct has no pool dependency.
+// Gathered candidates also own their immutable entry and label snapshot until
+// releaseCandidates; directly extracted candidates only borrow ASPathHandle.
 type Candidate struct {
 	PeerAddr           string           // peer IP address string (map keys, JSON, internPeer)
 	PeerIP             netip.Addr       // parsed peer address (zero-alloc comparison)
@@ -111,38 +115,36 @@ type Candidate struct {
 	ASPathHandle       attrpool.Handle  // AS_PATH pool handle (for content-equal multipath comparison)
 	// PathID is the RFC 7911 Path Identifier the path was received under, and
 	// AddPath says whether the peer's family is stored with ADD-PATH. Together
-	// with the prefix they name the one stored path every winner-dependent read
-	// (next hop, labels, SRv6 SID, blackhole) goes back to. PathID is zero, and
-	// AddPath false, for a family received without ADD-PATH.
+	// with the prefix they name the winning path. Its attributes and label
+	// side-data come from the retained snapshot below, not another storage read.
+	// PathID is zero and AddPath false without ADD-PATH.
 	PathID  uint32
 	AddPath bool
 	// Route is the wire NLRI a non-CIDR path was received with, without its
 	// path identifier (storage.PrefixPath.Route). Its route key drops the
 	// labels, so the winner's labels are read from here. Empty for CIDR.
 	Route string
+
+	// Ownership transfers here from a retained storage.PrefixPath during gather.
+	// Other Candidate constructors carry extracted comparison values only.
+	entry       storage.RouteEntry
+	labelHandle attrpool.Handle
 }
 
-// SelectBest selects the best route from a list of candidates.
-// Returns nil if the list is empty.
-// RFC 4271 §9.1.2: pairwise comparison through all decision steps.
+// SelectBest selects the best route, or nil when the list is empty.
+// The caller MUST own the slice as scratch: selection can reorder its pointers,
+// but retains every pointer and does not modify Candidate values.
+// RFC 4271 Section 9.1.2.2: "The criteria MUST be applied in the order specified."
+// Selection preserves the RFC criteria order.
 func SelectBest(candidates []*Candidate) *Candidate {
-	if len(candidates) == 0 {
-		return nil
-	}
-	best := candidates[0]
-	for _, c := range candidates[1:] {
-		if ComparePair(c, best) < 0 {
-			best = c
-		}
-	}
+	best, _ := selectBestCandidates(candidates, nil)
 	return best
 }
 
 // SelectMultipath extends SelectBest with post-selection equal-cost multipath
 // (RFC 4271 §9.1.2 Decision Process Phase 2 extension): after the primary
-// best path is chosen, any other candidate that ties with the primary through
-// the "non-tiebreaker" steps (LOCAL_PREF, AS_PATH length, Origin, MED when
-// same neighbor AS, eBGP vs iBGP) is added to the multipath set up to the
+// best path is chosen, another candidate that survived whole-set MED elimination
+// and ties through the non-tiebreaker steps can join the multipath set up to the
 // configured maximum.
 //
 // The returned primary is the exact same Candidate that SelectBest would
@@ -159,20 +161,22 @@ func SelectBest(candidates []*Candidate) *Candidate {
 //     AS_PATH length is sufficient -- the Cisco "as-path multipath-relax"
 //     behavior.
 //
-// Returns nil primary if candidates is empty.
+// Returns nil primary if candidates is empty. The caller MUST own the slice as
+// scratch, with the same pointer-retention contract as SelectBest.
 func SelectMultipath(candidates []*Candidate, maxPaths uint32, relaxASPath bool) (primary *Candidate, siblings []*Candidate) {
-	primary = SelectBest(candidates)
+	// RFC 4271 Section 9.1.2.2: only whole-set MED survivors can be siblings.
+	primary, eligible := selectBestCandidates(candidates, nil)
 	if primary == nil || maxPaths <= 1 {
 		return primary, nil
 	}
 	// Siblings slice capped at maxPaths-1 since the primary counts as slot 0.
 	// Cast down from uint32: multipath maximum-paths is YANG-bounded to 256.
-	capacity := min(int(maxPaths)-1, len(candidates)-1)
+	capacity := min(int(maxPaths)-1, eligible-1)
 	if capacity <= 0 {
 		return primary, nil
 	}
 	siblings = make([]*Candidate, 0, capacity)
-	for _, c := range candidates {
+	for _, c := range candidates[:eligible] {
 		if c == primary {
 			continue
 		}
@@ -235,23 +239,18 @@ func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
 	return true
 }
 
-// bestPathExplanation captures the step-by-step decision trail of a
-// SelectBestExplain call. Steps[i] describes the pairwise comparison between
-// Candidates[i+1] and the "running best" that prevailed through step i. The
-// final Winner is the last running best.
-//
-// Because SelectBest is a linear reduction (N-1 comparisons for N candidates),
-// the explanation is likewise linear: there is no combinatorial blowup even
-// for prefixes with dozens of candidates.
+// bestPathExplanation records each eliminated route against the candidate that
+// removed it. A MED witness can later lose to a route from a different AS.
+// Candidates and all step indices retain the caller's original order.
 type bestPathExplanation struct {
-	Candidates []*Candidate   // candidates in original (gatherCandidatesLocked) order
-	Steps      []PairwiseStep // N-1 entries for N candidates
-	Winner     *Candidate     // final running best after all steps
+	Candidates []*Candidate       // candidates in original input order
+	Steps      []PairwiseStep     // one removal per non-winning candidate
+	Winner     *Candidate         // final whole-set winner
+	indices    map[*Candidate]int // original positions, explanation only
 }
 
-// PairwiseStep describes a single reduction step: the incumbent (running
-// best), the challenger, which one won, and WHY (the decision step that
-// resolved the comparison).
+// PairwiseStep describes an elimination witness. Incumbent and challenger are
+// ordered by their original input indices, not by a running-best tournament.
 type PairwiseStep struct {
 	IncumbentIdx  int      // index into Candidates
 	ChallengerIdx int      // index into Candidates
@@ -272,27 +271,15 @@ func SelectBestExplain(candidates []*Candidate) *bestPathExplanation {
 	}
 	exp := &bestPathExplanation{
 		Candidates: candidates,
-		Steps:      make([]PairwiseStep, 0, max(0, len(candidates)-1)),
+		Steps:      make([]PairwiseStep, 0, len(candidates)-1),
+		indices:    make(map[*Candidate]int, len(candidates)),
 	}
-	incumbentIdx := 0
-	for i := 1; i < len(candidates); i++ {
-		challenger := candidates[i]
-		incumbent := candidates[incumbentIdx]
-		cmp, step, reason := comparePairWithReason(challenger, incumbent)
-		winnerIdx := incumbentIdx
-		if cmp < 0 {
-			winnerIdx = i
-		}
-		exp.Steps = append(exp.Steps, PairwiseStep{
-			IncumbentIdx:  incumbentIdx,
-			ChallengerIdx: i,
-			WinnerIdx:     winnerIdx,
-			Step:          step,
-			Reason:        reason,
-		})
-		incumbentIdx = winnerIdx
+	for i, candidate := range candidates {
+		exp.indices[candidate] = i
 	}
-	exp.Winner = candidates[incumbentIdx]
+	// RFC 4271 Section 9.1.2.2: use the same elimination as the hot path,
+	// with private scratch so the recorded indices remain the original ones.
+	exp.Winner, _ = selectBestCandidates(slices.Clone(candidates), exp)
 	return exp
 }
 
@@ -305,11 +292,10 @@ func ComparePair(a, b *Candidate) int {
 	return result
 }
 
-// comparePair is the zero-allocation hot-path variant of the RFC 4271 §9.1.2
-// decision process. Returns the comparison result and the deciding step, but
-// no textual reason. Used by ComparePair (called per-route in SelectBest).
-// KEEP IN SYNC with comparePairWithReason below (same steps, adds reason strings).
-func comparePair(a, b *Candidate) (int, BestStep) {
+// compareBeforeMED compares the globally ordered criteria before conditional MED.
+// RFC 4271 Section 9.1.2.2: "The criteria MUST be applied in the order specified."
+// Earlier criteria eliminate candidates before conditional MED.
+func compareBeforeMED(a, b *Candidate) (int, BestStep) {
 	// Step 0: Stale-level depreference.
 	aDepref := a.StaleLevel >= storage.DepreferenceThreshold
 	bDepref := b.StaleLevel >= storage.DepreferenceThreshold
@@ -355,6 +341,18 @@ func comparePair(a, b *Candidate) (int, BestStep) {
 		return 1, BestStepOrigin
 	}
 
+	return 0, BestStepEqual
+}
+
+// comparePair compares one pair, not a candidate set: conditional MED is not
+// transitive across neighboring ASes. Set selection first removes MED losers.
+// KEEP IN SYNC with comparePairWithReason below (same steps, adds reason strings).
+func comparePair(a, b *Candidate) (int, BestStep) {
+	// RFC 4271 Section 9.1.2.2: earlier criteria precede MED.
+	if result, step := compareBeforeMED(a, b); result != 0 {
+		return result, step
+	}
+
 	// Step 4: Lowest MED wins — only when same neighbor AS.
 	// RFC 4271 Section 9.1.2.2 (c): "For IBGP-learned routes, the MULTI_EXIT_DISC
 	// MUST be used in route comparisons that reach this step in the Decision Process."
@@ -366,6 +364,15 @@ func comparePair(a, b *Candidate) (int, BestStep) {
 			return 1, BestStepMED
 		}
 	}
+	return compareAfterMED(a, b)
+}
+
+// compareAfterMED compares candidates that survived conditional MED.
+// RFC 4271 Section 9.1.2.2(d): "If at least one of the candidate routes was
+// received via EBGP, remove from consideration all routes that were received
+// via IBGP."
+// Later criteria compare only the surviving candidates.
+func compareAfterMED(a, b *Candidate) (int, BestStep) {
 
 	// Step 5: Prefer eBGP over iBGP.
 	if a.LocalASN != 0 && b.LocalASN != 0 {

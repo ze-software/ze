@@ -46,8 +46,10 @@ func (l Level) String() string {
 		return "l1"
 	case LevelL2:
 		return "l2"
-	default:
+	case LevelL1L2:
 		return "l1-l2"
+	default:
+		panic("BUG: invalid configured IS-IS level")
 	}
 }
 
@@ -66,10 +68,12 @@ func (l Level) TransportLevel() transport.Level {
 		return transport.Level1
 	case LevelL2:
 		return transport.Level2
-	default:
+	case LevelL1L2:
 		// l1-l2: open at Level1; the engine reaches the L2 group with
 		// SendPDUBothLevels (transport.SendPDUBothLevels).
 		return transport.Level1
+	default:
+		panic("BUG: invalid configured IS-IS level")
 	}
 }
 

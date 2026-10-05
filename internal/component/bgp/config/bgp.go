@@ -46,8 +46,9 @@ func (m FamilyMode) String() string {
 		return configRequire
 	case FamilyModeIgnore:
 		return "ignore"
+	default:
+		panic("BUG: invalid family mode")
 	}
-	return "unknown"
 }
 
 // ParseFamilyMode parses a string into a FamilyMode.

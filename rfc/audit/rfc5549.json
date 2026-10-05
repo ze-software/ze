@@ -6,6 +6,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -14,14 +15,14 @@
       "note": "Superseded row restating RFC8950-4-1; same judgement. The explicit-next-hop gap is closed by TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair (AnnounceNLRIBatch over a live session: IPv4 unicast sent only with <1/1, IPv6>, refused with ErrNextHopIncompatible and no UPDATE otherwise; VPN-IPv4 resolved only with <1/128, IPv6>), next-hop self by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair, and the negotiated intersection by the capability units. The forward-rail half is proven under RFC8950-4-1 by TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, which carries only RFC8950 tags. Observed-red records on canUseNextHopFor both polarities.",
       "requirement_sha": "eef7f1476d7f202a",
       "tests": {
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "be64276510ff3da7",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "be64276510ff3da7",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "4fac1106f94928ca",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "4fac1106f94928ca",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "6b0d2ec0a00d81cf",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "6b0d2ec0a00d81cf",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315",
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "79de3d0b159f3a42",
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "79de3d0b159f3a42"
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "ffd23015bd4db995",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "ffd23015bd4db995"
       },
       "units": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
@@ -39,8 +40,8 @@
       "note": "Row single-polarity positive, superseded by RFC8950-4-2. TestRFC8950PeerSupportDecidedPerPair proves peer support is decided per NLRI pair through the Extended Next Hop capability negotiation (Negotiated and EncodingCaps). The negative tag moved off the RFC8950 negative (approval D-15), consistent with the row's single-polarity marker.",
       "requirement_sha": "89fb58b534ab0411",
       "tests": {
-        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "3b6ab22b8c99761b",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "3b6ab22b8c99761b",
         "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerSupportDecidedPerPair": "d1862fc4bd3afdc5"
       },
       "units": {
@@ -54,9 +55,9 @@
       "note": "Forbidden: a Capability Code other than 5 for Extended Next Hop Encoding. Red on it: TestCapabilityCodeConstants asserts uint8(CodeExtendedNextHop)==5, and TestExtendedNextHopCapability requires a raw code-0x05 TLV to parse as *ExtendedNextHop (require.True on the type assertion). Single-polarity marker on the row.",
       "requirement_sha": "e936e886b3bcee34",
       "tests": {
-        "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "b3428c78168b854d"
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "3b6ab22b8c99761b",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "3b6ab22b8c99761b",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "3b6ab22b8c99761b"
       },
       "units": {
         "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "d5913b7c1261a415",
@@ -69,9 +70,9 @@
       "note": "Superseded row, the negative spelling of RFC8950-4-1; same judgement as RFC5549-4-1. The explicit next hop to a peer lacking the pair is now refused at the announce entry point with no UPDATE on the wire (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair), and next-hop self per pair by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor both polarities. The tag prose on TestCanUseNextHopFor_ExtendedNH still says 'the MUST NOT'.",
       "requirement_sha": "eef7f1476d7f202a",
       "tests": {
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "be64276510ff3da7",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "be64276510ff3da7",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "be64276510ff3da7",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "4fac1106f94928ca",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "4fac1106f94928ca",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "4fac1106f94928ca",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "6b0d2ec0a00d81cf",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "6b0d2ec0a00d81cf",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",

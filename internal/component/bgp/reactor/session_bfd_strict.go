@@ -408,7 +408,8 @@ func (s *Session) handleBFDEvent(event fsm.Event) error {
 func (s *Session) bfdTeardown(event fsm.Event, state fsm.State) (uint8, string, bool) {
 	strict := s.fsm.BFDStrict()
 
-	switch event { //nolint:exhaustive // Only the six BFD events of the draft reach here.
+	//exhaustive:ignore // Only BFD events requiring wire teardown are selected here; FSM.Event handles transitions.
+	switch event {
 	case fsm.EventBfdDown:
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 8.7.2 closes an
 		// Established session unconditionally: that is the RFC 5882 Section

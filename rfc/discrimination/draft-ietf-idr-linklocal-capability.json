@@ -20,7 +20,7 @@
       "claim-sha": "4c914426e65328d4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
-      "producer-sha": "15ffeeb31253ff74",
+      "producer-sha": "1ba5ccc72018f0d0",
       "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "c1a6e869347ea484",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
-      "producer-sha": "92f3425b2340a986",
+      "producer-sha": "adb5be621f78f20a",
       "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -269,23 +269,23 @@
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
-      "unit-sha": "921a11e43bd02686",
+      "unit-sha": "960905523894f45a",
       "claim-sha": "7f664ab70d69e5be",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/link_scope.go::sameLinkLayerSegment",
-      "producer-sha": "5fa0c3942e40dcde",
-      "break": "body of sameLinkLayerSegment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
+      "producer-sha": "667b072371b20d0f",
+      "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
-      "unit-sha": "921a11e43bd02686",
+      "unit-sha": "960905523894f45a",
       "claim-sha": "704c09945c1666ac",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsLinkLocalOnly",
-      "producer-sha": "bb4e1f52b833ce29",
-      "break": "body of egressNextHopIsLinkLocalOnly replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
+      "producer-sha": "667b072371b20d0f",
+      "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6",
@@ -471,7 +471,7 @@
       "claim-sha": "579320df808ac79d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
-      "producer-sha": "15ffeeb31253ff74",
+      "producer-sha": "1ba5ccc72018f0d0",
       "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -482,7 +482,7 @@
       "claim-sha": "d49204e02927d2b0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
-      "producer-sha": "15ffeeb31253ff74",
+      "producer-sha": "1ba5ccc72018f0d0",
       "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

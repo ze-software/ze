@@ -195,6 +195,7 @@ func (a *ActiveSet) Entry(peerIndex int) *ActiveSetEntry {
 // promotionPriorityForEvent returns the priority for auto-promoting a peer
 // based on the event type.
 func promotionPriorityForEvent(evType peer.EventType) (PromotionPriority, bool) {
+	//exhaustive:ignore // Only noteworthy events qualify for optional active-set promotion.
 	switch evType {
 	case peer.EventDisconnected, peer.EventError:
 		return PriorityHigh, true

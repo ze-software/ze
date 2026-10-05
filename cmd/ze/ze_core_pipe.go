@@ -139,8 +139,10 @@ func pipeUsage() {
 			global = append(global, entry)
 		case command.ClassStream:
 			stream = append(stream, entry)
-		default:
+		case command.ClassData:
 			data = append(data, entry)
+		default:
+			panic("BUG: unknown pipe operator class")
 		}
 	}
 

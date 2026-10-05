@@ -63,3 +63,39 @@ func TestRFC8654ExtendedMessageNonZeroLengthRefused(t *testing.T) {
 		require.Empty(t, caps, "% x", data)
 	}
 }
+
+// TestRFC8654ExtendedMessageDirections preserves each advertisement separately,
+// including the two asymmetric OPEN exchanges.
+// RFC requirement: RFC8654-6-1 positive -- local-only capability 6 enables the receive limit in Negotiated and EncodingCaps without granting extended sends.
+// RFC requirement: RFC8654-6-1 negative -- peer-only capability 6 leaves the receive limit disabled while permitting extended sends.
+func TestRFC8654ExtendedMessageDirections(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		local  bool
+		remote bool
+	}{
+		{name: "neither"},
+		{name: "local-only", local: true},
+		{name: "peer-only", remote: true},
+		{name: "both", local: true, remote: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var local, remote []Capability
+			if tc.local {
+				local = append(local, &ExtendedMessage{})
+			}
+			if tc.remote {
+				remote = append(remote, &ExtendedMessage{})
+			}
+			// RFC 8654 Sections 4 and 6: each receiver's advertisement sets its limit.
+			neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
+			require.Equal(t, tc.local, neg.ExtendedMessageRecv)
+			require.Equal(t, tc.remote, neg.ExtendedMessageSend)
+			require.Equal(t, tc.local, neg.Encoding.ExtendedMessageRecv)
+			require.Equal(t, tc.remote, neg.Encoding.ExtendedMessageSend)
+			require.Equal(t, tc.remote, neg.CheckRequiredCodes([]Code{CodeExtendedMessage}) == nil,
+				"requiring capability 6 asks whether the peer advertised it")
+		})
+	}
+}

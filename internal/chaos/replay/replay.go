@@ -156,6 +156,8 @@ func Run(r io.Reader, w io.Writer) int {
 			// Route dynamics — no validation action.
 		case peer.EventEORSent, peer.EventError, peer.EventDroppedEvents:
 			// Informational — no validation action.
+		default:
+			panic("BUG: invalid replay event type")
 		}
 	}
 

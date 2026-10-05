@@ -39,10 +39,14 @@ func (b *vppBackendImpl) CreateTunnel(spec iface.TunnelSpec) error {
 		return b.createIPIPTunnel(spec)
 	case iface.TunnelKindVxlan:
 		return b.createVxlanTunnel(spec)
+	case iface.TunnelKindUnknown, iface.TunnelKindIP6GRE, iface.TunnelKindIP6GRETap,
+		iface.TunnelKindSIT, iface.TunnelKindIP6Tnl, iface.TunnelKindIPIP6:
+		// These named kinds retain the unsupported-kind error below.
 	default:
-		var tb textbuf.Buffer
-		return errNotSupported(tb.Str("CreateTunnel kind ").Str(spec.Kind.String()).Str(" (netlink-only on this backend)").String())
+		// Backend callers can bypass config validation; reject unknown kinds.
 	}
+	var tb textbuf.Buffer
+	return errNotSupported(tb.Str("CreateTunnel kind ").Str(spec.Kind.String()).Str(" (netlink-only on this backend)").String())
 }
 
 // tunnelEndpoints resolves the local/remote endpoint addresses shared by the

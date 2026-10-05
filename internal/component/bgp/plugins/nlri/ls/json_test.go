@@ -217,3 +217,21 @@ func TestBGPLSAppendJSONMatchesRPCDecode(t *testing.T) {
 		})
 	}
 }
+
+// TestBGPLSZeroNodeJSON keeps the exported zero value on the common-key path
+// in both renderers, rather than mistaking it for a validated Node NLRI.
+func TestBGPLSZeroNodeJSON(t *testing.T) {
+	t.Parallel()
+	var node BGPLSNode
+	const want = `{"l3-routing-topology":0,"ls-nlri-type":"bgpls-type-0","protocol-id":0}`
+	if got := string(node.AppendJSON(nil)); got != want {
+		t.Fatalf("AppendJSON = %s, want %s", got, want)
+	}
+	got, err := json.Marshal(bgplsToJSON(&node, node.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Fatalf("map JSON = %s, want %s", got, want)
+	}
+}

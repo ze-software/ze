@@ -157,6 +157,7 @@ func isV3ExtendedType(t types.LSType) bool {
 
 // v3ScopeName renders the RFC 5340 Section A.4.2.1 flooding scope from the S2/S1 bits.
 func v3ScopeName(t types.LSType) string {
+	//exhaustive:ignore // This projection names scope bits, not individual LSA types.
 	switch t & v3ScopeBits {
 	case 0x0000:
 		return scopeLinkLocal

@@ -653,8 +653,10 @@ func TestUpdateDelayReasonWords(t *testing.T) {
 		{updateDelayConverged, "converged"},
 		{updateDelayEstablishWait, "establish-wait"},
 		{updateDelayMaxDelay, "max-delay"},
-		{updateDelayReleaseReason(200), "unknown"},
 	} {
 		require.Equal(t, tc.want, tc.reason.String())
 	}
+	require.PanicsWithValue(t, "BUG: unknown update-delay release reason", func() {
+		_ = updateDelayReleaseReason(200).String()
+	})
 }

@@ -209,13 +209,20 @@ func TestLSPStateString(t *testing.T) {
 		{LSPStateResvSent, "resv-sent"},
 		{LSPStateResvReceived, "resv-received"},
 		{LSPStateUp, "up"},
-		{lspState(99), "unknown"},
 	}
 	for _, tt := range tests {
 		if got := tt.state.String(); got != tt.want {
 			t.Errorf("LSPState(%d).String() = %q, want %q", tt.state, got, tt.want)
 		}
 	}
+	t.Run("invalid internal state", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: rsvpte: invalid LSP state" {
+				t.Fatalf("panic = %v, want invalid LSP state BUG", got)
+			}
+		}()
+		_ = lspState(99).String()
+	})
 }
 
 func TestLSPRoleString(t *testing.T) {
@@ -226,11 +233,18 @@ func TestLSPRoleString(t *testing.T) {
 		{RoleIngress, "ingress"},
 		{RoleTransit, "transit"},
 		{RoleEgress, "egress"},
-		{lspRole(99), "unknown"},
 	}
 	for _, tt := range tests {
 		if got := tt.role.String(); got != tt.want {
 			t.Errorf("LSPRole(%d).String() = %q, want %q", tt.role, got, tt.want)
 		}
 	}
+	t.Run("invalid internal role", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: rsvpte: invalid LSP role" {
+				t.Fatalf("panic = %v, want invalid LSP role BUG", got)
+			}
+		}()
+		_ = lspRole(99).String()
+	})
 }

@@ -46,9 +46,8 @@ const (
 
 // String returns the name of the outcome, for a CLI row and for a log line.
 //
-// A value outside the enumeration spells itself "invalid": RecordSetup refuses
-// one, so it can only arrive here through a conversion, and a reader is told
-// that rather than shown a plausible outcome.
+// The count sentinel spells itself "invalid". All stored outcomes pass through
+// RecordSetup's range check; an unnamed value reaching the renderer is a bug.
 func (o SetupOutcome) String() string {
 	switch o {
 	case SetupUnknown:
@@ -59,8 +58,10 @@ func (o SetupOutcome) String() string {
 		return "soft-failure"
 	case SetupFailedHard:
 		return "hard-failure"
-	default:
+	case setupOutcomeCount:
 		return "invalid"
+	default:
+		panic("BUG: unknown plugin setup outcome")
 	}
 }
 

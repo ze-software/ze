@@ -45,8 +45,10 @@ func (e Encoder) String() string {
 		return encoderNameJSON
 	case EncoderText:
 		return encoderNameText
-	default:
+	case EncoderUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: invalid bridge encoder")
 	}
 }
 

@@ -77,7 +77,7 @@ importing its package:
 | `ConfigurePluginServer` | `func(server PluginServerAccessor)` | Called before `RunEngine` with the plugin server, through a leaf interface |
 | `RPCHandlers` | `map[string]func(json.RawMessage) (any, error)` | RPC method name to handler, collected by the plugin server |
 | `InProcessDecoder` | `func(input, output *bytes.Buffer) int` | Decode function for the CLI fallback path |
-| `InProcessNLRIDecoder` | `func(family, hex string, addPath bool) (any, error)` | NLRI decode without RPC. `addPath` states whether each NLRI in `hex` carries a 4-octet Path Identifier ahead of it (RFC 7911 Section 3) |
+| `InProcessNLRIDecoder` | `func(family, hex string, addPath, withdraw bool) (any, error)` | NLRI decode without RPC. `addPath` carries negotiated four-octet Path Identifier framing, including identifier zero. `withdraw` selects MP_UNREACH withdrawal semantics; false means announcement |
 | `InProcessNLRIEncoder` | `func(family string, args []string) (string, error)` | NLRI encode without RPC |
 | `InProcessRouteEncoder` | `func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)` | Builds a full UPDATE for `ze bgp encode` |
 | `InProcessConfigVerifier` | `func([]rpc.ConfigSection) error` | Side-effect-free equivalent of `OnConfigVerify`, used by static, API and CLI validation |
@@ -85,6 +85,14 @@ importing its package:
 | `InProcessConfigRouteParser` | `func(req ConfigRouteRequest) (PluginRoute, error)` | Parses an update block's NLRI tokens and attribute block into a route |
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration -->
+
+`sdk.OnDecodeNLRI` uses the same four-argument callback contract. Both RPC
+directions carry the flags as `add-path` and `withdraw` in `DecodeNLRIInput`;
+absent flags mean false, so an absent `withdraw` means announcement. The caller
+passes negotiation and the enclosing message's action explicitly. Decoders
+must not infer either from the bytes or synthesize label bytes to mimic an
+announcement. Under RFC 8277 Section 2.4, a withdrawal Compatibility field is
+ignored rather than treated as a label stack.
 
 BGP forwarding policy uses the BGP-owned `filterapi.Filter` registration, not
 the generic plugin registry. Its optional `PreserveOpaqueAttributes` selector

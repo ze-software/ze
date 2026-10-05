@@ -537,7 +537,7 @@ func (installer *Installer) executeScenarios(ctx context.Context, work string, r
 		case InstallVerdictUnspecified, InstallVerdictFail:
 			failed = append(failed, scenario.Name)
 		default:
-			failed = append(failed, scenario.Name)
+			panic("BUG: invalid installer scenario verdict")
 		}
 	}
 	tb.Reset()

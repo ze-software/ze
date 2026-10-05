@@ -34,6 +34,8 @@ func runHooks(cfg ProbeConfig, state State) {
 		stateHooks = cfg.OnDisabled
 	case StateInit, StateRising, StateFalling, StateExit, StateEnd:
 		// No state-specific hooks for these states.
+	default:
+		panic("BUG: invalid healthcheck hook state")
 	}
 
 	sName := stateName(state)
@@ -104,6 +106,7 @@ func stateName(s State) string {
 		return "EXIT"
 	case StateEnd:
 		return "END"
+	default:
+		panic("BUG: invalid healthcheck state name")
 	}
-	return "UNKNOWN"
 }

@@ -204,7 +204,7 @@ func (f NLRIFilter) includesFamily(fam family.Family) bool {
 	case FilterModeSelective:
 		return f.Families[fam]
 	default:
-		return true
+		panic("BUG: invalid NLRI filter mode")
 	}
 }
 
@@ -385,7 +385,7 @@ func (f AttributeFilter) Includes(code attribute.AttributeCode) bool {
 	case FilterModeSelective:
 		return f.codeSet[code]
 	default:
-		return true
+		panic("BUG: invalid attribute filter mode")
 	}
 }
 
@@ -428,7 +428,7 @@ func (f AttributeFilter) Apply(wire *attribute.AttributesWire) (FilterResult, er
 		return result, nil
 
 	default:
-		return result, fmt.Errorf("unknown filter mode: %d", f.Mode)
+		panic("BUG: invalid attribute filter mode")
 	}
 }
 

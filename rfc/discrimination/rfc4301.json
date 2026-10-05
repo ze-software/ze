@@ -291,7 +291,7 @@
       "rid": "RFC4301-4.4.1-11",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",
-      "unit-sha": "59f5213807d30a44",
+      "unit-sha": "475a94494f156f48",
       "claim-sha": "ecf362aad43b412b",
       "route": "revert",
       "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
@@ -324,7 +324,7 @@
       "rid": "RFC4301-4.4.1-12",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",
-      "unit-sha": "59f5213807d30a44",
+      "unit-sha": "475a94494f156f48",
       "claim-sha": "1befb34f8127fb58",
       "route": "revert",
       "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
@@ -857,7 +857,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/ipsec_install.go::setConfig",
       "producer-sha": "105a438ab75af3a8",
-      "break": "line 243: \"ic.IPsec != nil\" -> \"false\""
+      "break": "line 243: \"ic.IPsec != nil\" -\u003e \"false\""
     },
     {
       "rid": "RFC4301-4.5.2-1",
@@ -1219,7 +1219,7 @@
       "claim-sha": "ec1b93bba0690840",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::selectorPort",
-      "producer-sha": "b968de2dacf2c91e",
+      "producer-sha": "b4063ed005f49c0f",
       "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1241,7 +1241,7 @@
       "claim-sha": "1abf1ad06b90ad71",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::selectorPort",
-      "producer-sha": "b968de2dacf2c91e",
+      "producer-sha": "b4063ed005f49c0f",
       "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1252,7 +1252,7 @@
       "claim-sha": "972632628cfa08cb",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::selectorPort",
-      "producer-sha": "b968de2dacf2c91e",
+      "producer-sha": "b4063ed005f49c0f",
       "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1263,7 +1263,7 @@
       "claim-sha": "fd1ff3613e3fecf7",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::selectorPort",
-      "producer-sha": "b968de2dacf2c91e",
+      "producer-sha": "b4063ed005f49c0f",
       "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1395,7 +1395,7 @@
       "claim-sha": "556cfdba92b50b13",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyAction",
-      "producer-sha": "1f63b72cffff670c",
+      "producer-sha": "610ae1d0993ef1c0",
       "break": "body of xfrmPolicyAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1406,7 +1406,7 @@
       "claim-sha": "9592d750c9b462a7",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyAction",
-      "producer-sha": "1f63b72cffff670c",
+      "producer-sha": "610ae1d0993ef1c0",
       "break": "body of xfrmPolicyAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1424,11 +1424,11 @@
       "rid": "RFC4301-7.4-1",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_discard_vpp_test.go::TestVPPSPDActionCarriesEveryDisposition",
-      "unit-sha": "67d885840a71ce34",
+      "unit-sha": "c25376b2537d2fee",
       "claim-sha": "7e64b11380eb06a8",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/vpp_policy.go::vppSPDAction",
-      "producer-sha": "895262879d278616",
+      "producer-sha": "bb7810089c2f39bd",
       "break": "body of vppSPDAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

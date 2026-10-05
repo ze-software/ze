@@ -151,8 +151,10 @@ func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 	// when this package READS an interface that carries one.
 	case traffic.QdiscClsact, traffic.QdiscIngress:
 		return nil, fmt.Errorf("qdisc type %v attaches at the ingress hook, not at the root, and is not configurable", q.Type)
+	default:
+		// Backend models are open inputs, including unset qdisc types.
+		return nil, fmt.Errorf("unsupported qdisc type %v", q.Type)
 	}
-	return nil, fmt.Errorf("unsupported qdisc type %v", q.Type)
 }
 
 // findDefaultClassMinor returns the minor handle number for the default class.
@@ -189,8 +191,10 @@ func translateClass(qt traffic.QdiscType, tc traffic.TrafficClass, linkIdx int, 
 		traffic.QdiscTBF, traffic.QdiscNetem, traffic.QdiscPrio,
 		traffic.QdiscClsact, traffic.QdiscIngress:
 		return nil, fmt.Errorf("qdisc type %v is classless and cannot have classes", qt)
+	default:
+		// Backend models are open inputs, including unset qdisc types.
+		return nil, fmt.Errorf("unsupported classful qdisc type %v", qt)
 	}
-	return nil, fmt.Errorf("unsupported classful qdisc type %v", qt)
 }
 
 func ceilOrRate(tc traffic.TrafficClass) uint64 {
@@ -225,8 +229,10 @@ func translateFilter(f traffic.TrafficFilter, linkIdx int, parentHandle, classHa
 			return nil, fmt.Errorf("protocol value %d out of range (0-%d)", f.Value, maxProtocol)
 		}
 		return protocolFilters(f.Value, linkIdx, parentHandle, classHandle)
+	default:
+		// Backend models are open inputs, including unset filter types.
+		return nil, fmt.Errorf("unsupported filter type %v", f.Type)
 	}
-	return nil, fmt.Errorf("unsupported filter type %v", f.Type)
 }
 
 func dscpFilters(dscp uint32, linkIdx int, parentHandle, classHandle uint32) ([]netlink.Filter, error) {

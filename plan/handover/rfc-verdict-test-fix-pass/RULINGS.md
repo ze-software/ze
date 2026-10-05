@@ -345,3 +345,39 @@ Evidence is in the same session scratch directory:
 `job-rfc-step4-mrt-aac0f32b.log`,
 `job-rfc-step4-mrt-claim-b5e3b917.log`, and
 `job-rfc-step4-gr-cf6e5d61.log`.
+
+### Pending cross-session ownership acknowledgment (2026-10-05)
+
+The BGP continuation is session `01a0fdb1-2ee3-7297-adf9-cd21f70400f0`.
+The verification/enum continuation is `01a10694-3795-71f2-8250-25e3a877f4cf`.
+Its current state now also assigns BGP reactor, RIB and SDK repairs, beyond
+the tooling/site/test-health boundary recorded above. That overlaps this
+continuation's active producers; neither session may infer that the other
+has acknowledged a new boundary.
+
+This BGP continuation owns forwarding deduplication and receive-storage
+handoff, prefix accounting, GR/LLGR sent ownership, AIGP source-cost recovery,
+FlowSpec forwarding/replay, VPN withdrawal identity and JSON/SDK consumers,
+whole-set MED, and the associated independent-peer proofs. Its OSPF work
+owns BGP-LS Router-ID source selection and the opaque-summary negotiation
+defect that blocked the two FRR export scenarios.
+
+Canonical evidence for those changes is written here: RFC9494, RFC4724,
+RFC7311, RFC8277, RFC5575, RFC8955, the affected RFC4271/RFC9552/RFC7911
+rows, and the accepted link-local rows. The eight stale RFC9494 records
+were renewed successfully; the next AIGP batch stopped before recording
+because a new RIB call required explicit AFI/SAFI conversions.
+
+The verification continuation retains its independent directional
+message-length, AS_PATH-bounds, enum, tooling, site and test-health work.
+Overlapping lifetime/VPN repairs and canonical writes need an explicit
+handoff before either side treats this proposed division as agreed.
+No native cross-session message route was available, and publication of
+this note is not acknowledgment. The owner must relay this existing path
+or assign the overlapping producers to one session.
+
+The owner selected **“Keep overlapping BGP fixes here.”** This continuation
+therefore remains the implementation and evidence owner for the overlapping
+BGP producers above. The verification session keeps its separate enum,
+message-length, AS_PATH, tooling and test-health repairs. Delivery of this
+boundary to that session is not yet confirmed.

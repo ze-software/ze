@@ -143,6 +143,11 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 					t.Logf("SendResult failed: %v", sendErr)
 					return
 				}
+			} else if req.Method == rpc.MethodDispatchCommand || req.Method == rpc.MethodDispatchCommandArgs {
+				if sendErr := rpc.WriteDocumentAnswer(mux.AnswerWriter(handlerCtx), req.ID, rpc.AnswerTail{}, nil); sendErr != nil {
+					t.Logf("command answer failed: %v", sendErr)
+					return
+				}
 			} else {
 				if sendErr := mux.SendOK(handlerCtx, req.ID); sendErr != nil {
 					t.Logf("SendOK failed: %v", sendErr)

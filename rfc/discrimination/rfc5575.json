@@ -68,6 +68,28 @@
       "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5575-4-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
+      "unit-sha": "df568cdde62ec74a",
+      "claim-sha": "84ddc6229c7f223b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
+      "producer-sha": "00c66da121f7c3e0",
+      "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
+      "unit-sha": "df568cdde62ec74a",
+      "claim-sha": "667a76bd942d8b30",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
+      "producer-sha": "183dde33bd18124a",
+      "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5575-5.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival",

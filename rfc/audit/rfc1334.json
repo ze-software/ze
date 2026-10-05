@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -130,8 +131,8 @@
       "note": "Both entry points now proven. TestConfiguredPAPStillOffersCHAPFirst starts a session through Driver/spawnSession with AuthMethod PAP and the default order: the first Configure-Request must offer CHAP 0xc223 (red on the old copy of StartSession.AuthMethod, observed before the fix and recorded against initialAuthMethod), PAP only after the peer's PAP Nak; the PAP-alone control keeps PAP first where no stronger method is included. TestAuthOffersCHAPBeforePAP drives the default path and the fallback after a PAP Nak. The negative (first Configure-Request never PAP while CHAP is in the order) reads the same first frame as the positive; a send-side MUST has no refusing input, so the pair is the correct shape. TestDefaultAuthFallbackOrder and TestSelectAuthFallback are supporting unit tags with no discrimination record.",
       "requirement_sha": "b9bbe3e692d702fa",
       "tests": {
-        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder": "f630a02fc0831e73",
-        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "f630a02fc0831e73",
+        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder": "e73935b035b39f17",
+        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "e73935b035b39f17",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "06a708c70689e703",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "06a708c70689e703",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "06a708c70689e703",

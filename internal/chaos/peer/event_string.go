@@ -2,10 +2,8 @@
 
 package peer
 
-import "github.com/ze-software/ze/internal/core/textbuf"
-
 // String returns a kebab-case human-readable name for the event type.
-// Unknown values return "unknown-N" to prevent panics in logging paths.
+// An unnamed internal event kind is a programming error.
 func (et EventType) String() string {
 	switch et {
 	case EventEstablished:
@@ -33,7 +31,6 @@ func (et EventType) String() string {
 	case EventDroppedEvents:
 		return "dropped-events"
 	default:
-		var b textbuf.Buffer
-		return b.Reset().Str("unknown-").Int(int64(et)).String()
+		panic("BUG: invalid chaos event type")
 	}
 }

@@ -258,7 +258,7 @@ linters:
       min-occurrences: 3
 
     exhaustive:
-      default-signifies-exhaustive: true
+      default-signifies-exhaustive: false
 
     forbidigo:
       analyze-types: true

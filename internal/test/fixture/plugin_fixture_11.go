@@ -53,7 +53,7 @@ func init() {
 // the daemon sends its shutdown notification. Route-producing fixtures use
 // this path because their peer, rather than the plugin, decides when the test
 // has observed every expected wire message.
-func runPlugin11(ctx context.Context, name string, registration sdk.Registration, setup func(*sdk.Plugin), scenario ObserverScenario) error {
+func runPlugin11(ctx context.Context, name string, setup func(*sdk.Plugin), scenario ObserverScenario) error {
 	plugin, err := newObserver(name)
 	if err != nil {
 		return fmt.Errorf("connect plugin %s: %w", name, err)
@@ -73,7 +73,7 @@ func runPlugin11(ctx context.Context, name string, registration sdk.Registration
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, registration)
+	runErr := plugin.Run(ctx, sdk.Registration{})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -156,7 +156,7 @@ func fastRoutes(ctx context.Context, _ []string) error {
 		"update text nhop 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24",
 		"update text nhop 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0",
 	}
-	return runPlugin11(ctx, "announce-routes", sdk.Registration{}, nil, func(ctx context.Context, p *sdk.Plugin) error {
+	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
 		for index, command := range commands {
 			if err := update11(ctx, p, command); err != nil {
 				return err
@@ -170,13 +170,13 @@ func fastRoutes(ctx context.Context, _ []string) error {
 }
 
 func notificationRoute(ctx context.Context, _ []string) error {
-	return runPlugin11(ctx, "announce-routes", sdk.Registration{}, nil, func(ctx context.Context, p *sdk.Plugin) error {
+	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
 		return update11(ctx, p, "update text nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32")
 	})
 }
 
 func reconnectRoute(ctx context.Context, _ []string) error {
-	return runPlugin11(ctx, "announce-routes", sdk.Registration{}, nil, func(ctx context.Context, p *sdk.Plugin) error {
+	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := update11(ctx, p, "update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16"); err != nil {
 			return err
 		}
@@ -190,7 +190,7 @@ func nexthopRoutes(ctx context.Context, _ []string) error {
 		"update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128",
 		"update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128",
 	}
-	return runPlugin11(ctx, "announce-routes", sdk.Registration{}, nil, func(ctx context.Context, p *sdk.Plugin) error {
+	return runPlugin11(ctx, "announce-routes", nil, func(ctx context.Context, p *sdk.Plugin) error {
 		if err := update11(ctx, p, commands[0]); err != nil {
 			return err
 		}
@@ -232,7 +232,7 @@ func refreshRoute(ctx context.Context, _ []string) error {
 			return nil
 		})
 	}
-	return runPlugin11(ctx, "announce-routes", sdk.Registration{}, setup, func(ctx context.Context, p *sdk.Plugin) error {
+	return runPlugin11(ctx, "announce-routes", setup, func(ctx context.Context, p *sdk.Plugin) error {
 		select {
 		case <-stateUp:
 		case <-time.After(5 * time.Second):
@@ -285,7 +285,7 @@ func registrationObserver(ctx context.Context, _ []string) error {
 }
 
 func watchdogCommands(ctx context.Context, _ []string) error {
-	return runPlugin11(ctx, "service-watchdog", sdk.Registration{}, nil, func(ctx context.Context, p *sdk.Plugin) error {
+	return runPlugin11(ctx, "service-watchdog", nil, func(ctx context.Context, p *sdk.Plugin) error {
 		if !peerDetailReady(ctx, p, 60, "eor-sent", func(value any) bool { return number09(value) >= 1 }) {
 			return errors.New("watchdog: initial End-of-RIB was not sent")
 		}

@@ -223,7 +223,7 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 
 	// Trigger DOWN for the leaving peer. Use handleStructuredState so
 	// the whole DOWN flow runs (ribInPool delete + peerMeta delete +
-	// purge under peerMu).
+	// off-peer-lock purge).
 	r.handleStructuredState(&rpc.StructuredEvent{
 		PeerAddress: leavingPeer.String(),
 		State:       rpc.SessionStateDown,
@@ -1230,48 +1230,37 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 	})
 }
 
-// TestBestPrevInternerForgetPeer validates that forgetPeer releases a
-// slot, the next internPeer call reuses the reclaimed slot rather than
-// growing the reverse table, and a second forgetPeer for an unknown peer
-// is a silent no-op.
-//
-// VALIDATES: peers[] stays bounded by concurrent-peer count, not by
-// total-peers-ever-seen.
-// PREVENTS: bestPathInterner.peers unbounded growth under high peer churn
-// across a long-running daemon lifetime.
-func TestBestPrevInternerForgetPeer(t *testing.T) {
+// TestBestPrevInternerReleasePeer proves that a slot remains stable while any
+// record owns it, and is reused only after the final reference is released.
+func TestBestPrevInternerReleasePeer(t *testing.T) {
 	ir := newBestPrevInterner()
-
 	idxA, ok := ir.internPeer("192.0.2.1")
 	require.True(t, ok)
-	_, ok = ir.internPeer("192.0.2.2")
+	idxAgain, ok := ir.internPeer("192.0.2.1")
 	require.True(t, ok)
-	require.Len(t, ir.peers, 2, "two distinct peers occupy two slots")
+	require.Equal(t, idxA, idxAgain)
+	ir.releasePeer(idxA)
+	assert.Equal(t, "192.0.2.1", ir.peerAt(idxAgain))
+	assert.Empty(t, ir.peersFree, "a remaining record still owns this slot")
 
-	// Forget A: free-list gains one entry, peers[] stays length-2 but A's
-	// slot is zeroed so the old string can be GC'd.
-	ir.forgetPeer("192.0.2.1")
-	assert.Len(t, ir.peers, 2, "peers slice does not shrink on forget")
-	assert.Equal(t, []uint16{idxA}, ir.peersFree, "A's slot lands on the free-list")
-	assert.Empty(t, ir.peers[idxA], "reclaimed slot must be zeroed for GC")
-	_, present := ir.peerIdx["192.0.2.1"]
-	assert.False(t, present, "forgotten peer is removed from the forward map")
-
-	// Next first-sighting consumes the free-list entry and reuses A's slot.
+	idxB, ok := ir.internPeer("192.0.2.2")
+	require.True(t, ok)
+	assert.NotEqual(t, idxAgain, idxB, "live records must not alias another peer")
+	ir.releasePeer(idxAgain)
+	assert.Equal(t, []uint16{idxA}, ir.peersFree)
+	assert.Empty(t, ir.peers[idxA], "last release clears the borrowed address")
 	idxC, ok := ir.internPeer("192.0.2.3")
 	require.True(t, ok)
-	assert.Equal(t, idxA, idxC, "newcomer reuses the reclaimed slot")
-	assert.Len(t, ir.peers, 2, "no growth when free-list has an entry")
-	assert.Empty(t, ir.peersFree, "free-list drained")
-
-	// Forgetting a peer that was never interned is a no-op.
-	ir.forgetPeer("198.51.100.99")
-	assert.Empty(t, ir.peersFree, "no slot reclaimed for unknown peer")
+	assert.Equal(t, idxA, idxC, "a newcomer reuses the unowned slot")
 	assert.Len(t, ir.peers, 2)
+	_, present := ir.retainPeer("198.51.100.99")
+	assert.False(t, present, "an absent peer cannot be pinned")
+	ir.releasePeer(idxB)
+	ir.releasePeer(idxC)
 }
 
 // TestBestPrevInternerChurnBounded validates that cycling many peers
-// through intern + forget keeps peers[] bounded by the concurrent-peer
+// through intern + release keeps peers[] bounded by the concurrent-peer
 // count, not by the total number of distinct peers seen.
 //
 // VALIDATES: the free-list is consumed in preference to growing peers[],
@@ -1288,25 +1277,25 @@ func TestBestPrevInternerChurnBounded(t *testing.T) {
 	)
 
 	// First wave: intern concurrent peers. peers[] grows to 8.
-	peers := make([]string, concurrent)
+	peers := make([]uint16, concurrent)
 	for i := range concurrent {
-		peers[i] = syntheticPeerKey(i)
-		_, ok := ir.internPeer(peers[i])
+		idx, ok := ir.internPeer(syntheticPeerKey(i))
 		require.True(t, ok)
+		peers[i] = idx
 	}
 	require.Len(t, ir.peers, concurrent)
 
-	// Churn: forget all, intern a new batch, repeat. Each cycle should
+	// Churn: release all, intern a new batch, repeat. Each cycle should
 	// consume the free-list rather than grow peers[].
 	for f := range flaps {
 		for _, p := range peers {
-			ir.forgetPeer(p)
+			ir.releasePeer(p)
 		}
-		assert.Len(t, ir.peersFree, concurrent, "cycle %d: forget populates free-list", f)
+		assert.Len(t, ir.peersFree, concurrent, "cycle %d: release populates free-list", f)
 		for i := range concurrent {
-			peers[i] = syntheticPeerKey((f+1)*concurrent + i) // new unique strings
-			_, ok := ir.internPeer(peers[i])
+			idx, ok := ir.internPeer(syntheticPeerKey((f+1)*concurrent + i))
 			require.True(t, ok)
+			peers[i] = idx
 		}
 		assert.Empty(t, ir.peersFree, "cycle %d: intern drains free-list", f)
 		assert.Len(t, ir.peers, concurrent, "cycle %d: peers[] bounded by concurrent count", f)
@@ -1319,8 +1308,8 @@ func TestBestPrevInternerChurnBounded(t *testing.T) {
 // can reuse it.
 //
 // VALIDATES: the DOWN handler triggers slot reclaim end-to-end.
-// PREVENTS: a future refactor that detaches forgetPeer from the purge
-// path, leaking slots.
+// PREVENTS: a future refactor omitting the removed record's release and leaking
+// peer slots.
 func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
@@ -1341,7 +1330,7 @@ func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 	require.True(t, ok, "peerA must be in the interner forward map after seed")
 
 	// DOWN path: handleStructuredState removes ribInPool entry and calls
-	// purgeBestPrevForPeer which forgetPeers peerA.
+	// purgeBestPrevForPeer, which releases the final record's peer slot.
 	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerA.String(), State: rpc.SessionStateDown})
 
 	_, stillThere := r.bestPathInterner.peerIdxOf(peerA.String())
@@ -1400,7 +1389,7 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 				// inter-goroutine sharing is exercised via the interner's
 				// internal locks (peerIdx map mutations concurrent with
 				// reads from other goroutines). Every intern in this
-				// iteration is paired with a matching forget at the end
+				// iteration is paired with a matching release at the end
 				// so the free-list keeps peers[] bounded rather than
 				// letting it grow monotonically with total intern events.
 				base := (g*iterations + i) * uniquePerWave
@@ -1408,11 +1397,14 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 				for k := range uniquePerWave {
 					peers[k] = syntheticPeerKey(base + k)
 				}
-				for _, p := range peers {
-					if _, ok := ir.internPeer(p); !ok {
+				indices := make([]uint16, len(peers))
+				for k, p := range peers {
+					idx, ok := ir.internPeer(p)
+					if !ok {
 						t.Errorf("g=%d i=%d: internPeer(%q) rejected", g, i, p)
 						return
 					}
+					indices[k] = idx
 				}
 				// Mixed reads that race with other goroutines' writes.
 				for _, p := range peers {
@@ -1420,8 +1412,8 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 						_ = ir.peerAt(idx)
 					}
 				}
-				for _, p := range peers {
-					ir.forgetPeer(p)
+				for _, idx := range indices {
+					ir.releasePeer(idx)
 				}
 			}
 		}(g)
@@ -1430,7 +1422,7 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 
 	// Invariant: peers[] is bounded by the peak concurrent cardinality
 	// of LIVE peers, NOT by total intern events (32 000 in this test).
-	// With every intern paired to a forget, peers[] should stay within
+	// With every intern paired to a release, peers[] should stay within
 	// a small multiple of (concurrent * uniquePerWave) even though the
 	// test interned 32 000 distinct strings. A missing free-list would
 	// grow peers[] to ~32 000 and fail this cap by orders of magnitude.
@@ -1442,38 +1434,26 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 	ir.peersMu.RUnlock()
 	assert.LessOrEqual(t, peersLen, generousCap,
 		"peers[] must stay bounded by concurrent cardinality, not total-ever-seen")
-	// After the final forget-heavy waves the map is much smaller than
+	// After the final release-heavy waves the map is much smaller than
 	// the slice, and the free-list accounts for the difference.
 	assert.Equal(t, peersLen, liveMapSize+freeLen,
 		"peers[] slots == live peerIdx entries + peersFree entries (accounting invariant)")
 }
 
-// TestPurgeBestPrevForPeerReclaimsWithoutRecords validates reclaim on the
-// edge case where the peer was interned (connected, metadata populated,
-// maybe sent OPEN) but never contributed a winning route, so no bestPrev
-// record ever referenced its slot. The slot must still be reclaimed at
-// peer-down so idle flaps do not leak slots.
-//
-// VALIDATES: forgetPeer fires unconditionally at the end of purge.
-// PREVENTS: a daemon where every peer that connects-and-flaps without
-// announcing a winning route accumulates a slot.
-func TestPurgeBestPrevForPeerReclaimsWithoutRecords(t *testing.T) {
-	bus := newTestEventBus()
-	r := newTestRIBManagerWithBus(bus)
-
+// TestPurgeBestPrevForPeerRetainsIndependentOwner proves a purge releases only
+// records it removes and its own scan pin, not a reference held by another user.
+func TestPurgeBestPrevForPeerRetainsIndependentOwner(t *testing.T) {
+	r := newTestRIBManagerWithBus(newTestEventBus())
 	peerAddr := netip.MustParseAddr("192.0.2.77")
 	idx, ok := r.bestPathInterner.internPeer(peerAddr.String())
 	require.True(t, ok)
-	require.Contains(t, r.bestPathInterner.peerIdx, peerAddr.String())
-
-	// No bestPrev records for this peer. Purge still reclaims the slot.
 	pending := r.purgeBestPrevForPeer(peerAddr.String())
 	r.emitPurgedWithdraws(pending)
-
-	assert.NotContains(t, r.bestPathInterner.peerIdx, peerAddr.String(),
-		"purge forgetPeers the interned peer even when it had no bestPrev records")
-	assert.Contains(t, r.bestPathInterner.peersFree, idx,
-		"slot lands on the free-list for the next peer")
+	assert.Equal(t, peerAddr.String(), r.bestPathInterner.peerAt(idx))
+	assert.Empty(t, r.bestPathInterner.peersFree)
+	r.bestPathInterner.releasePeer(idx)
+	assert.NotContains(t, r.bestPathInterner.peerIdx, peerAddr.String())
+	assert.Contains(t, r.bestPathInterner.peersFree, idx)
 }
 
 // syntheticPeerKey builds a guaranteed-unique string for the overflow test

@@ -106,8 +106,10 @@ func (f Family) String() string {
 		return "IPv4"
 	case FamilyIPv6:
 		return "IPv6"
-	default:
+	case FamilyAny:
 		return "any"
+	default:
+		panic("BUG: probe: invalid address family")
 	}
 }
 
@@ -118,8 +120,10 @@ func (f Family) network() string {
 		return "ip4"
 	case FamilyIPv6:
 		return "ip6"
-	default:
+	case FamilyAny:
 		return "ip"
+	default:
+		panic("BUG: probe: invalid address family")
 	}
 }
 

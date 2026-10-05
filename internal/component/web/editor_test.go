@@ -160,15 +160,11 @@ func TestEditorManagerConcurrentAccess(t *testing.T) {
 	wg.Wait()
 }
 
-// TestEditorManagerDiff verifies that Diff does not error and returns empty
-// when no session exists, then returns without error after changes.
-// In write-through mode (which the web EditorManager uses), Diff compares
-// the serialized original vs working strings. The write-through path
-// modifies the tree and change files but may not update the raw working
-// content string, so the diff may be empty even with pending changes.
+// TestEditorManagerDiff verifies that an absent session has no diff and a real
+// editor's pending change reaches the web renderer through the adapter.
 //
-// VALIDATES: Diff returns without error for both missing and existing sessions.
-// PREVENTS: Diff panicking on nil session, or returning error for valid session.
+// VALIDATES: the normalized Set change from the editor is rendered, not dropped.
+// PREVENTS: a missing provider/adapter path passing because an empty diff is allowed.
 func TestEditorManagerDiff(t *testing.T) {
 	mgr := newTestEditorManager(t)
 
@@ -181,9 +177,10 @@ func TestEditorManagerDiff(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err, "SetValue must succeed")
 
-	// Diff must not error after SetValue, regardless of content.
-	_, err = mgr.Diff("alice")
+	// The concrete editor and adapter must preserve the value change.
+	diff, err = mgr.Diff("alice")
 	require.NoError(t, err, "Diff must not error for existing session")
+	assert.Contains(t, diff, "+ bgp router-id 10.0.0.1\n")
 
 	// Diff for a different user (no session) must still be empty.
 	diff, err = mgr.Diff("bob")

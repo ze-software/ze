@@ -665,7 +665,9 @@ func TestChangeKindString(t *testing.T) {
 	assert.Equal(t, "update", ChangeUpdate.String())
 	assert.Equal(t, "remove", ChangeRemove.String())
 	assert.Equal(t, "unspecified", ChangeUnspecified.String())
-	assert.Equal(t, "unspecified", ChangeKind(255).String())
+	assert.PanicsWithValue(t, "BUG: locrib: invalid change kind", func() {
+		_ = ChangeKind(255).String()
+	})
 }
 
 // TestAdminDistanceTrumpsMetric verifies that a path with lower AdminDistance

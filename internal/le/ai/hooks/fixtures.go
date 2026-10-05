@@ -161,11 +161,12 @@ var (
 	// substitution or +N start line.
 	// Re-sealed 2026-09-27 after lint and compound-guard fixes: split guards in
 	// runsDeletion, testPath and hookStop; hookSessionStart returns nothing.
+	// Re-sealed 2026-10-05 over unchanged committed source inputs.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x69, 0x7c, 0x07, 0x47, 0x66, 0xce, 0xe7, 0x64,
-		0x65, 0xfb, 0x0e, 0xa5, 0x8f, 0x23, 0xc0, 0x91,
-		0x25, 0xb6, 0xb5, 0x9a, 0xf7, 0xa8, 0xb8, 0x93,
-		0x8e, 0xaa, 0xd3, 0xc7, 0xae, 0x46, 0x86, 0x28,
+		0xdd, 0x04, 0x70, 0xc7, 0x78, 0x52, 0x47, 0x0e,
+		0x61, 0x04, 0x54, 0x95, 0x89, 0x64, 0xdd, 0x21,
+		0x3f, 0x7c, 0x91, 0x3e, 0x8a, 0x05, 0xe6, 0xd2,
+		0x12, 0x92, 0x1a, 0xcb, 0xbe, 0x3d, 0x41, 0x38,
 	}
 )
 
@@ -594,8 +595,7 @@ const (
 	probeGoPath      = "internal/probe/probe.go"
 )
 
-// probeGitTimeout bounds the one git call a probe tree makes. `git init` in an
-// empty directory is milliseconds, so a run past this is a wedged host.
+// probeGitTimeout bounds each local Git operation that builds a probe tree.
 const probeGitTimeout = 30 * time.Second
 
 // probeTree makes a throwaway checkout holding files, each keyed by a
@@ -814,7 +814,7 @@ const probeLedgerRows = "| Test | Reason |\n| --- | --- |\n| TestLedgered | the 
 // RFC approval file, so an edit that changes what the tagged unit proves has
 // nowhere to be authorized.
 func rfcGuardTree(string) (string, error) {
-	return probeTree("rfc-guard", map[string]string{probeTestPath: probeTaggedTest})
+	return committedProbeTree("rfc-guard", map[string]string{probeTestPath: probeTaggedTest})
 }
 
 // rfcApprovalTree adds the session's RFC approval file, the one `./le rfc
@@ -836,7 +836,7 @@ func weakenedHatchTree(string) (string, error) {
 // same path from the same identity, so the fixture proves the derivation as
 // well as the row matching: a file written anywhere else would read as absent.
 func probeLedgerTree(name, test string, ledgerPath func(session string) string) (string, error) {
-	root, err := probeTree(name, map[string]string{probeTestPath: test})
+	root, err := committedProbeTree(name, map[string]string{probeTestPath: test})
 	if err != nil {
 		return root, err
 	}
@@ -854,7 +854,7 @@ func probeLedgerTree(name, test string, ledgerPath func(session string) string) 
 // draftIncubatorTree holds one tagged test twice, inside the draft incubator
 // and outside it. Only the path differs, which is what the exemption reads.
 func draftIncubatorTree(string) (string, error) {
-	return probeTree("draft-incubator", map[string]string{
+	return committedProbeTree("draft-incubator", map[string]string{
 		"test/draft/probe_test.go": probeTaggedTest,
 		"test/unit/probe_test.go":  probeTaggedTest,
 	})
@@ -1012,6 +1012,33 @@ func sessionSummaryTree(value string) (string, error) {
 	return root, errors.Join(writeErr, file.Close())
 }
 
+// committedProbeTree records the original test in HEAD before a Write proposal
+// is judged. An initialized repository without HEAD cannot prove ownership.
+func committedProbeTree(name string, files map[string]string) (string, error) {
+	root, err := probeTree(name, files)
+	if err != nil {
+		return root, err
+	}
+	if err := initProbeRepository(root); err != nil {
+		return root, err
+	}
+	for _, args := range [][]string{
+		{"add", "."},
+		{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+			"-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Original probe"},
+	} {
+		ctx, cancel := stdcontext.WithTimeout(stdcontext.Background(), probeGitTimeout)
+		command := exec.CommandContext(ctx, "git", args...)
+		command.Dir = root
+		output, err := command.CombinedOutput()
+		cancel()
+		if err != nil {
+			return root, fmt.Errorf("git %s in the probe tree: %w: %s", args[0], err, strings.TrimSpace(string(output)))
+		}
+	}
+	return root, nil
+}
+
 // initProbeRepository makes the probe tree a git repository. session.EndSummary
 // reads `git status --porcelain` and returns without writing when it is empty,
 // so a plain directory would leave the probe with no answer at all.
@@ -1143,6 +1170,14 @@ func probeVerdict(probe categoryProbe, value string) (bool, error) {
 	code, output, err := askProducer(probe, value, root)
 	if err != nil {
 		return false, err
+	}
+	if probe.check == weakeningCheckName && code != 0 {
+		if code != 2 {
+			return false, fmt.Errorf("weakening probe returned unexpected code %d: %s", code, output)
+		}
+		if !strings.Contains(output, "proposed test evidence change is not authorized") {
+			return false, fmt.Errorf("weakening probe failed before judging authorization: %s", output)
+		}
 	}
 	if probe.answer != nil {
 		return probe.answer(probeAnswer{code: code, output: output, root: root, value: value})

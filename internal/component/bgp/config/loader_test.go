@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -242,10 +243,11 @@ bgp {
 	// Check both capabilities are present
 	var hasRouteRefresh, hasEnhancedRouteRefresh bool
 	for _, cap := range settings.Capabilities {
-		switch cap.Code() { //nolint:exhaustive // Only checking specific capabilities
-		case 2: // RouteRefresh
+		//exhaustive:ignore // This assertion observes only basic and enhanced route-refresh capability presence.
+		switch cap.Code() {
+		case capability.CodeRouteRefresh:
 			hasRouteRefresh = true
-		case 70: // EnhancedRouteRefresh
+		case capability.CodeEnhancedRouteRefresh:
 			hasEnhancedRouteRefresh = true
 		}
 	}

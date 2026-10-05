@@ -103,8 +103,10 @@ func (p RelatedPlacement) String() string {
 		return "row"
 	case RelatedPlacementField:
 		return "field"
-	default:
+	case RelatedPlacementDetail:
 		return "detail"
+	default:
+		panic("BUG: unknown related placement")
 	}
 }
 
@@ -115,8 +117,10 @@ func (p RelatedPresentation) String() string {
 		return "drawer"
 	case RelatedPresentationPanel:
 		return "panel"
-	default:
+	case RelatedPresentationModal:
 		return "modal"
+	default:
+		panic("BUG: unknown related presentation")
 	}
 }
 
@@ -131,8 +135,10 @@ func (c RelatedClass) String() string {
 		return "refresh"
 	case RelatedClassDanger:
 		return "danger"
-	default:
+	case RelatedClassNone:
 		return ""
+	default:
+		panic("BUG: unknown related class")
 	}
 }
 
@@ -143,8 +149,10 @@ func (e RelatedEmpty) String() string {
 		return "omit"
 	case RelatedEmptyAllow:
 		return "allow"
-	default:
+	case RelatedEmptyDisable:
 		return configDisable
+	default:
+		panic("BUG: unknown related empty behavior")
 	}
 }
 

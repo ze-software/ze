@@ -228,6 +228,18 @@ traffic in the clear.
 | BYPASS | `ikeBypassPolicies`, the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched bypass` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
 | DISCARD | the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched discard` | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
 
+The template-free XFRM action mapper is called only after `isTemplateFree`
+selects BYPASS or DISCARD. An unnamed action at that internal mapper raises a
+`BUG` panic; an explicit PROTECT input still returns its existing unsupported
+operation error because it belongs to the template path.
+The VPP mapper receives actions from the same local policy builders or checked
+operator policy parsing. It also asserts `BUG` for an unnamed internal action
+rather than choosing a VPP disposition.
+
+MOBIKE migration policies likewise come from the local Child SA builder with
+inbound/outbound directions. A named forward direction retains its refusal;
+an unnamed internal direction raises a `BUG` panic before migration proceeds.
+
 `unmatchedPolicies` (`engine/unmatched.go`) is the catch-all of RFC 4301 Section
 5: a wildcard selector in, out and fwd for both families at
 `PriorityUnmatched`, the largest u32 the kernel holds, so it is searched last.

@@ -223,8 +223,10 @@ func (target cleanTarget) emptier(ctx context.Context) func() error {
 	case lintFormatCache:
 		return func() error { return removeCache(target.path) }
 	case unspecifiedCache:
+		return func() error { return fmt.Errorf("BUG: cache %s was declared with no kind", target.name) }
+	default:
+		panic("BUG: cache target has an unknown kind")
 	}
-	return func() error { return fmt.Errorf("BUG: cache %s was declared with no kind", target.name) }
 }
 
 // cleanTargets answers every cache a checkout at root fills, in report order.

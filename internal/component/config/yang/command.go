@@ -658,7 +658,6 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
 	def := command.ArgDef{Name: name}
 
-	//nolint:exhaustive // only handle types relevant to command arguments
 	switch yt.Kind {
 	case gyang.Yenum:
 		def.Kind = command.ArgEnum
@@ -707,7 +706,12 @@ func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
 			}
 		}
 
+	case gyang.Ynone, gyang.Yint8, gyang.Yint16, gyang.Yint32, gyang.Yint64,
+		gyang.Ybinary, gyang.Ybits, gyang.Ybool, gyang.Ydecimal64,
+		gyang.Yidentityref, gyang.YinstanceIdentifier, gyang.Yleafref:
+		return def, false
 	default:
+		// Schema kinds are dependency-owned and open; unsupported kinds have no argument.
 		return def, false
 	}
 

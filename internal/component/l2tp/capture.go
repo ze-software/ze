@@ -194,6 +194,7 @@ func (m MessageType) String() string {
 	case 0:
 		return "ZLB"
 	default:
+		// Message types are an open wire set; retain unknown numeric codes.
 		return textbuf.StrInt("MSG-", int64(uint16(m)))
 	}
 }

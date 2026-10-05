@@ -63,6 +63,7 @@ func (n RouteNextHop) IsValid() bool {
 	case NextHopUnset:
 		return false
 	default:
+		// The caller-supplied policy is open until validated; reject unknown values.
 		return false
 	}
 }
@@ -80,6 +81,7 @@ func (n RouteNextHop) String() string {
 	case NextHopUnset:
 		return ""
 	default:
+		// Caller-supplied policies are open; unknown values retain the invalid display.
 		return ""
 	}
 }

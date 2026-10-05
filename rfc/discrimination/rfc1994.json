@@ -20,7 +20,7 @@
       "claim-sha": "885d83fba3bf4855",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/auth.go::authMethodToLCPOptions",
-      "producer-sha": "7917d642d32d1603",
+      "producer-sha": "f013ef79e83f64eb",
       "break": "body of authMethodToLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "a2ae5ccffe5b0cb4",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-      "producer-sha": "4b81d99c1cda8e01",
+      "producer-sha": "8ad6dc9ca36b4096",
       "break": "body of negotiateIPCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "0e1ed14b5994b589",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-      "producer-sha": "4b81d99c1cda8e01",
+      "producer-sha": "8ad6dc9ca36b4096",
       "break": "body of negotiateIPCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

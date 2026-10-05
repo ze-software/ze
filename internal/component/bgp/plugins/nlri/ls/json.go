@@ -114,7 +114,7 @@ func appendBGPLSJSON(buf []byte, n bGPLSNLRI) []byte {
 			buf = appendJSONQuoted(buf, formatIPv6Compressed(v.SRv6SID.SRv6SID))
 		}
 
-	default: // unknown type — emit only the always-present keys
+	default: // The interface admits an open type set; emit only common keys.
 		buf = appendTopology(buf, n)
 		buf = append(buf, ',')
 		buf = appendType(buf, n)

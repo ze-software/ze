@@ -60,8 +60,9 @@ func DirectionToken(eventType string, dir Direction) string {
 		return tb.Str(eventType).Str(suffixSent).String()
 	case DirBoth, DirUnspecified:
 		return eventType
+	default:
+		panic("BUG: events: invalid direction")
 	}
-	return eventType
 }
 
 // DirectionWordHint explains a token that is a bare direction word, and

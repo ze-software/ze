@@ -45,6 +45,7 @@ The raw observer receives the original OPEN bytes on this new epoch.
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
+| `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | administrative start if delivered after startup; normal startup uses a fresh Idle FSM | ignored; ConnectRetryCounter untouched | none | `OpenConfirm` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventKeepaliveMsg` | `handleKeepalive` on received KEEPALIVE | log transition | nothing additional from the FSM | `Established` |

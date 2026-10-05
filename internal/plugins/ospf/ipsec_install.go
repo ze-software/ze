@@ -552,9 +552,12 @@ func (i *ipsecInstaller) setGauges(name string, rec installedIPsec) {
 			inbound++
 		case dataplane.SADirOut:
 			outbound++
-		default: // unset: the shared state of RFC 4552 §7, which serves both directions.
+		case ipsecSharedDir, dataplane.SADirFwd:
+			// A shared multicast state serves both directions.
 			inbound++
 			outbound++
+		default:
+			panic("BUG: invalid OSPF IPsec SA direction")
 		}
 	}
 	i.metrics.sas.With(name, rec.spec.Protocol, "in").Set(float64(inbound))

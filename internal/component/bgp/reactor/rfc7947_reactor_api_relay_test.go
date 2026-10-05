@@ -464,10 +464,10 @@ func TestRelayStoredRouteRejectsMalformedInput(t *testing.T) {
 		{"nlri missing", errRelayHex, func(r *rpc.StoredRoute) { r.NLRIHex = "" }},
 		{"next-hop missing", errRelayHex, func(r *rpc.StoredRoute) { r.NextHopHex = "" }},
 		{"attr block truncated", errRelayAttrs, func(r *rpc.StoredRoute) { r.AttrHex = "4001" }},
-		// RFC 4271 Section 5.1.3 fixes legacy NEXT_HOP at 4 octets. An RFC 5549
-		// route stores a 16-byte next hop; emitting it as type-3 would be an
-		// attribute-length error at the peer.
-		{"ipv4 next-hop not 4 bytes", errRelayNextHopLen, func(r *rpc.StoredRoute) {
+		// This source context negotiated no RFC 8950 IPv4/IPv6-next-hop pair.
+		// A stored 16-byte next hop cannot invent that negotiation or become
+		// a malformed legacy type-3 attribute.
+		{"unnegotiated IPv6 next-hop", errRelayNextHopLen, func(r *rpc.StoredRoute) {
 			r.AttrHex = "4001010040020602010000FBF1" // ORIGIN + AS_PATH, no type-3
 			r.NextHopHex = "20010db8000000000000000000000001"
 		}},

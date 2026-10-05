@@ -263,8 +263,9 @@ func visitServer(answer serverAnswer) Outcome {
 		return Outcome{Name: name, State: StateSkipped, Detail: answer.Detail}
 	case HealthBroken:
 		return Outcome{Name: name, State: StateMissing, Detail: answer.Detail}
+	default:
+		panic("BUG: unknown language-server health")
 	}
-	return Outcome{Name: name, State: StateMissing, Detail: answer.Detail}
 }
 
 // visitLspPlugin says whether the harness can reach the language server for
@@ -351,6 +352,8 @@ func (s *Setup) visitKvm(report *Report) Outcome {
 	case kvmNoGroup:
 		// The device exists, but this user cannot open it. The steps below can
 		// correct only this state.
+	default:
+		panic("BUG: unknown KVM access state")
 	}
 
 	if s.Check {

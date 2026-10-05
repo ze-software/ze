@@ -60,9 +60,7 @@ func (c retryCause) String() string {
 	case retryCauseNone:
 		return "unset"
 	default:
-		// The same word wire.NotifyTypeName uses for a type it does not know, so a
-		// metric label reads the same way whichever side produced it.
-		return "unrecognized"
+		panic("BUG: unknown IKE retry cause")
 	}
 }
 
@@ -190,6 +188,8 @@ func retrySAInit(
 		// beside a retained N(COOKIE) and an unchanged Ni.
 	case retryCauseNone:
 		return false
+	default:
+		panic("BUG: unknown IKE retry cause")
 	}
 
 	// RFC 7296 Section 2.6: "When the IKE_SA_INIT exchange does not result in the

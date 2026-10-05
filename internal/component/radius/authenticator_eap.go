@@ -32,11 +32,11 @@ var errEAPNoResponse = errors.New("radius: the EAP peer discarded the challenge 
 // (*eap.PeerSession).Process.
 //
 // The loop is bounded on both axes, and a server can disable neither. The peer
-// counts every Process call against its own maxEAPRounds and returns
-// ErrTooManyRounds past it (internal/core/eap/peer.go), and ctx carries the
-// authenticator's time budget, which SendToServers cannot outlive. A server
-// that challenges forever therefore ends the login with an error, and the AAA
-// chain tries the next backend.
+// counts defined packets addressed to its role against maxEAPRounds and returns
+// ErrTooManyRounds past it (internal/core/eap/peer.go); undefined and wrong-role
+// Codes are discarded before that counter. The context carries the authenticator's
+// time budget, which SendToServers cannot outlive. A server that challenges
+// forever therefore ends the login with an error, and AAA tries the next backend.
 func (a *radiusAuthenticator) authenticateEAP(ctx context.Context, request aaa.AuthRequest) (aaa.AuthResult, error) {
 	method, ok := a.method.EAPType()
 	if !ok {

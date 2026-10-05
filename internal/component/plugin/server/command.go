@@ -406,6 +406,7 @@ func PeersMatching(ctx *CommandContext, sel *selector.Selector) []plugin.PeerInf
 // (ai/rules/evidence.md).
 func selectorMatchesPeer(sel *selector.Selector, p *plugin.PeerInfo) bool {
 	var match bool
+	//exhaustive:ignore // Only name and ASN selectors need peer metadata; Matches owns address matching.
 	switch sel.SelectorKind() {
 	case selector.KindName:
 		match = p.Name == sel.NameValue()

@@ -357,6 +357,7 @@ func (m *EditorManager) Diff(username string) (string, error) {
 		switch change.Kind {
 		case contract.PendingChangeRename:
 			b.Str("~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
+			continue
 		case contract.PendingChangeDelete:
 			b.Str("- ").Str(change.Path).Byte(' ')
 			if change.Member == "" {
@@ -365,16 +366,22 @@ func (m *EditorManager) Diff(username string) (string, error) {
 				b.Str(change.Member)
 			}
 			b.Byte('\n')
+			continue
 		case contract.PendingChangeDeactivate:
 			writeMemberDiffLine(&b, "~ deactivate ", change)
+			continue
 		case contract.PendingChangeActivate:
 			writeMemberDiffLine(&b, "~ activate ", change)
+			continue
+		case contract.PendingChangeSet:
+			// Render the value change below.
 		default:
-			if change.Previous != "" {
-				b.Str("- ").Str(change.Path).Byte(' ').Str(previous).Byte('\n')
-			}
-			b.Str("+ ").Str(change.Path).Byte(' ').Str(value).Byte('\n')
+			panic("BUG: unknown editor pending change kind")
 		}
+		if change.Previous != "" {
+			b.Str("- ").Str(change.Path).Byte(' ').Str(previous).Byte('\n')
+		}
+		b.Str("+ ").Str(change.Path).Byte(' ').Str(value).Byte('\n')
 	}
 	return b.String(), nil
 }
@@ -431,6 +438,7 @@ func (m *EditorManager) pendingChangePaths(username string) []string {
 	}
 	out := make([]string, 0, len(pending))
 	for _, p := range pending {
+		//exhaustive:ignore // Rename projects two paths; every other change projects its Path.
 		switch p.Kind {
 		case contract.PendingChangeRename:
 			// Both old and new locations carry the change.

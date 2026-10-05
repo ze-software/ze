@@ -44,12 +44,11 @@ func TestEveryReconcileUnderTheLockCountsTheApplyFirst(t *testing.T) {
 		before := source[:site[0]]
 		// The count must be the last thing before the lock, allowing comments
 		// and blank lines between them.
-		lastCall := strings.LastIndex(before, "countConfigApply()")
-		if lastCall == -1 {
+		_, between, found := strings.CutLast(before, "countConfigApply()")
+		if !found {
 			t.Errorf("a reconcile under dhcpMu at byte %d has no countConfigApply() before it anywhere: the apply counter stops counting and nothing else notices", site[0])
 			continue
 		}
-		between := before[lastCall+len("countConfigApply()"):]
 		if strings.Contains(between, "dhcpMu.Unlock()") {
 			t.Errorf("the countConfigApply() nearest the reconcile at byte %d is separated from it by a dhcpMu.Unlock(), so it belongs to a different site and this one counts nothing", site[0])
 		}

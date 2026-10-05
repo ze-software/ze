@@ -25,6 +25,12 @@ func init() {
 	Register("ui/le-spec-status-answers", uiDriver(leSpecStatusAnswers))
 }
 
+const (
+	leSpecBucketAfter     = "after"
+	leSpecCategoryBacklog = "backlog"
+	leSpecFieldBucket     = "bucket"
+)
+
 type uiLeSpecStatusAnswersCommandAnswer struct {
 	stdout []byte
 	stderr []byte
@@ -136,7 +142,7 @@ func leSpecStatusAnswers(ctx context.Context) error {
 }
 
 func checkRecordContract(records []map[string]json.RawMessage, page []byte) error {
-	required := []string{fieldName, fieldStatus, "bucket", "category", fieldUpdated, "git-modified", statusStale}
+	required := []string{fieldName, fieldStatus, leSpecFieldBucket, "category", fieldUpdated, "git-modified", statusStale}
 	lines := strings.Split(string(page), "\n")
 	lineAt := 0
 	section := ""
@@ -157,7 +163,7 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		if err != nil {
 			return uiLeSpecStatusAnswersFailf("record %q has an invalid status: %v", name, err)
 		}
-		bucket, err := stringField(record, "bucket")
+		bucket, err := stringField(record, leSpecFieldBucket)
 		if err != nil {
 			return uiLeSpecStatusAnswersFailf("record %q has an invalid bucket: %v", name, err)
 		}
@@ -209,21 +215,21 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		// (specstatus.Category). Reading the section off `bucket` asks the
 		// wrong record for the answer.
 		wantSection := map[string]string{
-			"backlog": "Committed backlog",
-			"idea":    "Idea capture",
-			"other":   "Other",
+			leSpecCategoryBacklog: "Committed backlog",
+			"idea":                "Idea capture",
+			"other":               "Other",
 		}[category]
 		if wantSection == "" || !strings.Contains(section, wantSection) {
 			return uiLeSpecStatusAnswersFailf("the page files %q under %q, want category %q", name, section, category)
 		}
-		if !slices.Contains([]string{"after", "immediate", "pre-release"}, bucket) {
+		if !slices.Contains([]string{leSpecBucketAfter, "immediate", "pre-release"}, bucket) {
 			return uiLeSpecStatusAnswersFailf("record %q carries bucket %q, which names no release bucket", name, bucket)
 		}
 		for key, value := range map[string]string{
-			fieldName:    name,
-			fieldStatus:  status,
-			"bucket":     bucket,
-			fieldUpdated: updated,
+			fieldName:         name,
+			fieldStatus:       status,
+			leSpecFieldBucket: bucket,
+			fieldUpdated:      updated,
 		} {
 			if value != "" && !strings.Contains(lines[row], value) {
 				return uiLeSpecStatusAnswersFailf("the page row for %q does not render %s %q: %q", name, key, value, lines[row])
@@ -357,10 +363,10 @@ type leSpecStatusCase struct {
 func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []string, error) {
 	const committed = "2000-01-02"
 	expected := []leSpecStatusCase{
-		{"fixture-ready", "plan/immediate", "immediate", "ready", "backlog", committed, committed, false},
-		{"fixture-untracked", "plan/immediate", "immediate", "design", "backlog", "2001-02-03", "unknown", false},
-		{"fixture-fresh", "plan", "after", "skeleton", "idea", time.Now().UTC().Format("2006-01-02"), committed, false},
-		{"fixture-stale", "plan", "after", "skeleton", "idea", "2000-01-01", committed, true},
+		{"fixture-ready", "plan/immediate", "immediate", "ready", leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-untracked", "plan/immediate", "immediate", "design", leSpecCategoryBacklog, "2001-02-03", "unknown", false},
+		{"fixture-fresh", "plan", leSpecBucketAfter, "skeleton", "idea", time.Now().UTC().Format("2006-01-02"), committed, false},
+		{"fixture-stale", "plan", leSpecBucketAfter, "skeleton", "idea", "2000-01-01", committed, true},
 		{"fixture-blocked", "plan/pre-release", "pre-release", "blocked", "other", "2000-01-01", committed, false},
 	}
 	if err := os.MkdirAll(root, 0o750); err != nil {
@@ -373,15 +379,15 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		}
 	}
 	childEnv := childEnvironment(baseEnv, map[string]string{
-		envRepoRoot:           root,
-		"GIT_CONFIG_GLOBAL":   os.DevNull,
-		"GIT_CONFIG_NOSYSTEM": "1",
-		"GIT_AUTHOR_NAME":     "Fixture",
-		"GIT_AUTHOR_EMAIL":    "fixture@example.invalid",
-		"GIT_COMMITTER_NAME":  "Fixture",
-		"GIT_COMMITTER_EMAIL": "fixture@example.invalid",
-		"GIT_AUTHOR_DATE":     committed + "T12:00:00Z",
-		"GIT_COMMITTER_DATE":  committed + "T12:00:00Z",
+		envRepoRoot:          root,
+		envGitConfigGlobal:   os.DevNull,
+		envGitConfigSystem:   "1",
+		"GIT_AUTHOR_NAME":    gitFixtureName,
+		envGitAuthorEmail:    "fixture@example.invalid",
+		envGitCommitName:     gitFixtureName,
+		envGitCommitEmail:    "fixture@example.invalid",
+		"GIT_AUTHOR_DATE":    committed + "T12:00:00Z",
+		"GIT_COMMITTER_DATE": committed + "T12:00:00Z",
 	})
 	for _, spec := range expected {
 		dir := filepath.Join(root, spec.dir)
@@ -400,10 +406,10 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		}
 	}
 	commands := [][]string{
-		{"init", "--quiet", "--template=", "--initial-branch=fixture"},
-		{"add", "--", "plan"},
+		{"init", argQuiet, "--template=", "--initial-branch=fixture"},
+		{argAdd, "--", "plan"},
 		{"rm", "--cached", "--", "plan/immediate/spec-fixture-untracked.md"},
-		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Fixture specs"},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", argCommit, argQuiet, "-m", "Fixture specs"},
 	}
 	for _, args := range commands {
 		answer, err := uiLeSpecStatusAnswersRunCommand(ctx, root, childEnv, "git", args...)
@@ -424,7 +430,7 @@ func leSpecStatusExpectedRecords(records []map[string]json.RawMessage, expected 
 	for i, spec := range expected {
 		for key, want := range map[string]string{
 			"name": spec.name, "title": spec.name, "path": spec.dir + "/spec-" + spec.name + ".md",
-			"status": spec.status, "bucket": spec.bucket, "category": spec.category,
+			"status": spec.status, leSpecFieldBucket: spec.bucket, "category": spec.category,
 			"updated": spec.updated, "git-modified": spec.modified,
 			"phase": "fixture-phase", "depends": "fixture-dependency",
 		} {

@@ -293,7 +293,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters
 		// (announce vs withdraw per prefix) belong in the RIB plugin.
 		if direction == rpc.DirectionReceived {
-			switch msgType { //nolint:exhaustive // only counting updates and keepalives
+			//exhaustive:ignore // Only received UPDATE and KEEPALIVE messages contribute to these counters.
+			switch msgType {
 			case msgtype.TypeUPDATE:
 				peer.incrUpdatesReceived()
 				// Additionally count EOR as a subset of updates.
@@ -332,7 +333,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				peer.incrKeepalivesReceived()
 			}
 		} else {
-			switch msgType { //nolint:exhaustive // only counting updates and keepalives
+			//exhaustive:ignore // Only sent UPDATE and KEEPALIVE messages contribute to these counters.
+			switch msgType {
 			case msgtype.TypeUPDATE:
 				peer.incrUpdatesSent()
 				// EOR sent is counted at BuildEOR call sites via incrEORSent()
@@ -365,7 +367,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		r.invalidateAIGPReceived(peerAddr, wireUpdate)
 
 		// Derive AttrsWire for observation callback
-		// Errors logged but not fatal - handleUpdate() validates separately
+		// Errors are logged but not fatal; the session validates received UPDATEs
+		// before handing their ownership to this callback.
 		attrsWire, parseErr := wireUpdate.Attrs()
 		if parseErr != nil {
 			sessionLogger().Debug("WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)

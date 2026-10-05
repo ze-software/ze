@@ -247,6 +247,63 @@ func TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment(t *testin
 	require.True(t, reached, "the client on the advertiser's segment is owed the route")
 	assert.True(t, attribute.IsLinkLocalOnlyNextHop(field),
 		"it receives the link-local-only next hop the advertiser sent")
+
+	// Both clients are directly attached, but only one shares the advertiser's
+	// segment. The multihop refusal cannot mask the reflection requirement.
+	// MUTATION: bypassing the reflection segment refusal advertises fe80::1 to
+	// the other attached segment instead of writing its exact withdrawal.
+	t.Run("directly-attached-other-segment", func(t *testing.T) {
+		connected := []netip.Prefix{
+			netip.MustParsePrefix("2001:db8:1::/64"),
+			netip.MustParsePrefix("2001:db8:9::/64"),
+		}
+		offSegment := llnhClient(t, llnhOffSegmentAddr, connected, false /*nextHopSelf*/)
+		onSegment := llnhClient(t, llnhOnSegmentAddr, connected, false /*nextHopSelf*/)
+		for _, client := range []*Peer{offSegment, onSegment} {
+			client.settings.NextHopMode = NextHopUnchanged
+			client.fwdFacts.Store(client.buildForwardFacts())
+		}
+
+		type reflectedWire struct {
+			llnhWritten
+			hasReach bool
+		}
+		read := func(t *testing.T, items []fwdItem) reflectedWire {
+			t.Helper()
+			w := reflectedWire{llnhWritten: llnhItemWritten(t, items)}
+			readAttrs := func(attrs []byte) {
+				_, _, _, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
+				w.hasReach = w.hasReach || found
+			}
+			for i := range items {
+				for _, body := range items[i].rawBodies {
+					u, err := message.UnpackUpdate(body)
+					require.NoError(t, err)
+					readAttrs(u.PathAttributes)
+				}
+				for _, u := range items[i].updates {
+					readAttrs(u.PathAttributes)
+				}
+			}
+			return w
+		}
+		got := llnhForwardRead(t, llnhReflectedPayload("fe80::1"), forwardSourceInfo{
+			resolved: true, isIBGP: true, isRRClient: true, globalLocalAS: 65000,
+		}, read, offSegment, onSegment)
+
+		off, written := got[netip.MustParseAddr(llnhOffSegmentAddr)]
+		require.True(t, written, "the attached off-segment client is written the withdrawal")
+		assert.Equal(t, []byte{0x00, 0x02, 0x01, 0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x07, 0x00, 0x00},
+			off.unreach, "the attached off-segment client must receive the exact withdrawal of 2001:db8:7::/64")
+		assert.False(t, off.hasReach, "the attached off-segment client must receive no MP_REACH_NLRI")
+		assert.Nil(t, off.nextHop, "the attached off-segment client is announced no next hop")
+
+		on, written := got[netip.MustParseAddr(llnhOnSegmentAddr)]
+		require.True(t, written, "the same-segment client is owed the route")
+		assert.True(t, on.hasReach, "the same-segment client receives MP_REACH_NLRI")
+		assert.Equal(t, netip.MustParseAddr("fe80::1").AsSlice(), on.nextHop)
+		assert.Nil(t, on.unreach, "the same-segment client receives no withdrawal")
+	})
 }
 
 // VALIDATES: for a client off the advertiser's segment, ze takes one of the two

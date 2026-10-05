@@ -412,7 +412,7 @@ func TestSDKDecodeNLRI(t *testing.T) {
 
 	p, engine := newTestPair(t)
 
-	p.OnDecodeNLRI(func(family string, hex string, _ bool) (any, error) {
+	p.OnDecodeNLRI(func(family string, hex string, _, _ bool) (any, error) {
 		return []string{"10.0.0.0/24"}, nil
 	})
 
@@ -1634,7 +1634,7 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 		err  error
 	}, 1)
 	go func() {
-		j, err := p.DecodeNLRI(ctx, "ipv4/flow", "0701180A0000", false)
+		j, err := p.DecodeNLRI(ctx, "ipv4/flow", "0701180A0000", false, false)
 		decodeDone <- struct {
 			json json.RawMessage
 			err  error

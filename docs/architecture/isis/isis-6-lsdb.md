@@ -57,6 +57,16 @@ Sequence, then a purge tiebreak, then checksum.
 
 Skipping the lifetime tier loses every purge that arrives at the same sequence.
 
+Freshness is a local comparison result, not a received numeric code. The LSDB,
+flooder and engine handle all three outcomes explicitly. An unknown result is a
+`BUG` assertion; raw sequence, lifetime and checksum values still pass through the
+comparison before these consumers see them. Zero remains `Older`.
+
+<!-- source: internal/plugins/isis/lsdb/entry.go -- Freshness, compareFreshness -->
+<!-- source: internal/plugins/isis/lsdb/lsdb.go -- Receive -->
+<!-- source: internal/plugins/isis/lsdb/flooding.go -- ReceiveLSP -->
+<!-- source: internal/plugins/isis/flooding_wiring.go -- handleLSP -->
+
 ## Decision: purge is not expiry, and both are retained
 
 A lifetime-0 LSP is **marked** purged, not deleted, and kept for the zero-age

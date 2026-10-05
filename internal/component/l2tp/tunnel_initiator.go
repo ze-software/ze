@@ -295,7 +295,8 @@ func parseSCCRP(payload []byte) (sccrpInfo, error) {
 			first = false
 			continue
 		}
-		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
+		//exhaustive:ignore // Extract only SCCRP tunnel setup fields after generic AVP validation.
+		switch attrType {
 		case AVPProtocolVersion:
 			// RFC 2661 Section 4.4.3 draws the Protocol Version AVP as one
 			// Ver octet followed by one Rev octet.

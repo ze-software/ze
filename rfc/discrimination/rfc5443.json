@@ -53,7 +53,7 @@
       "claim-sha": "9a76bee07c7cfd3b",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

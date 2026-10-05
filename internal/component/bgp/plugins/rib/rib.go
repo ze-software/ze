@@ -376,9 +376,11 @@ type RIBManager struct {
 	// state above remains authoritative for BGP replay, show commands, and
 	// BGP-only consumers.
 	//
-	// May be nil in tests that do not wire a Loc-RIB; callers that touch
-	// this field MUST nil-check first.
-	locRIB  *locrib.RIB
+	// Atomic publication is independent of peerMu and bestPrev shard locks.
+	// Readers MUST load once and use that snapshot for the whole operation.
+	// The shared RIB outlives the manager; shutdown drains accepted SDK event
+	// deliveries before detaching the mirror and its tracker.
+	locRIB  atomic.Pointer[locrib.RIB]
 	forkRIB *remoteRIB
 
 	// unsubForwardObs releases the forward-handle observability
@@ -423,8 +425,8 @@ type RIBManager struct {
 	// bestprev_shard.go) and has its own per-shard locks. bestPathInterner
 	// has its own per-table mutexes. Readers take peerMu.RLock for brief
 	// map-level reads, then work on PeerRIB content under PeerRIB's own
-	// lock. Lock order when held together: peerMu (outer) -> shard.mu
-	// (inner). Nobody holds peerMu while acquiring an interner mutex.
+	// lock. Elections take bestPrev shard.mu before peerMu.RLock. A writer MUST
+	// release peerMu before taking any bestPrev shard or interner lock.
 	peerMu sync.RWMutex
 
 	// lastMetricsInPeers / lastMetricsOutPeers track peer labels emitted in the
@@ -579,25 +581,32 @@ var bmpProtocolID = redistevents.RegisterProtocol("bmp")
 // Also registers the forward-handle observability subscriber so
 // operators can see (at debug level) when a Change carries a non-nil
 // Forward (i.e., the BGP producer attached a wire-byte handle).
-// Safe to call once at plugin setup; nil disables the mirror.
+// Safe for concurrent access. Nil disables future mirror operations; an operation
+// that already loaded loc may finish on that shared RIB. Plugin shutdown MUST
+// drain SDK delivery before calling SetLocRIB(nil), so accepted withdrawals finish.
 func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
-	if r.locRIB == loc {
+	if r.locRIB.Load() == loc {
+		r.peerMu.Unlock()
 		return
 	}
-	if r.unsubForwardObs != nil {
-		r.unsubForwardObs()
-		r.unsubForwardObs = nil
-	}
-	if r.forwardTracker != nil {
-		r.forwardTracker.Stop()
-		r.forwardTracker = nil
-	}
-	r.locRIB = loc
+	unsubscribe := r.unsubForwardObs
+	tracker := r.forwardTracker
+	r.unsubForwardObs = nil
+	r.forwardTracker = nil
+	r.locRIB.Store(loc)
 	if loc != nil {
 		r.unsubForwardObs = observeForwardHandles(loc)
 		r.forwardTracker = newForwardStateTracker(loc)
+	}
+	r.peerMu.Unlock()
+
+	// Never join a consumer under peerMu: its callbacks can re-enter the RIB.
+	if unsubscribe != nil {
+		unsubscribe()
+	}
+	if tracker != nil {
+		tracker.Stop()
 	}
 }
 
@@ -651,8 +660,8 @@ func runRIBPlugin(conn net.Conn) int {
 	// In-process consumers use the shared Loc-RIB; a subprocess mirrors selected
 	// routes and resolves next-hop distances over the registered engine RPC.
 	r.SetLocRIB(locrib.Default())
-	defer r.SetLocRIB(nil) // Unsubscribe and join the forwarding tracker on every exit.
-	if r.locRIB == nil {
+	defer r.SetLocRIB(nil) // SDK Run MUST drain event delivery before this detach.
+	if r.locRIB.Load() == nil {
 		r.setupRemoteRIB()
 	}
 	if bus := getEventBus(); bus != nil {
@@ -846,7 +855,7 @@ func (r *RIBManager) dispatch(event *Event) {
 	eventType := event.GetEventType()
 	logger().Debug("dispatch event", "eventType", eventType, "peer", event.GetPeerAddress())
 
-	switch eventType { //nolint:exhaustive // RIB only handles event types with route data
+	switch eventType {
 	case rpc.EventKindSent:
 		r.handleSent(event)
 	case rpc.EventKindUpdate:
@@ -863,6 +872,11 @@ func (r *RIBManager) dispatch(event *Event) {
 	case rpc.EventKindEoRR:
 		// RFC 7313: End of Route Refresh from peer - log only
 		logger().Debug("received EoRR marker", "peer", event.GetPeerAddress())
+	case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
+		rpc.EventKindKeepalive, rpc.EventKindEOR, rpc.EventKindNegotiated, rpc.EventKindCount:
+		// These events do not change the RIB.
+	default:
+		// The plugin event set is open; unknown events do not change the RIB.
 	}
 }
 
@@ -930,7 +944,7 @@ func (r *RIBManager) handleSent(event *Event) {
 
 	for fam, ops := range event.FamilyOps {
 		for _, op := range ops {
-			switch op.Action { //nolint:exhaustive // only Add/Del relevant for rib-out
+			switch op.Action {
 			case routeaction.Add:
 				if len(event.GetRawNLRIBytes(fam)) > 0 {
 					continue
@@ -1000,6 +1014,10 @@ func (r *RIBManager) handleSent(event *Event) {
 				if len(r.ribOut[peerAddr]) == 0 {
 					delete(r.ribOut, peerAddr)
 				}
+			case routeaction.Unspecified, routeaction.Update, routeaction.Withdraw:
+				// Only Add and Del change this sent-route inventory.
+			default:
+				// The plugin action set is open; unknown actions leave routes unchanged.
 			}
 		}
 	}
@@ -1094,7 +1112,12 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 	for _, fam := range event.RawNLRIFamilies() {
 		nlriBytes := event.GetRawNLRIBytes(fam)
 		if len(nlriBytes) > 0 {
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, attrBytes, event.AddPath[fam], event.GetMsgID())
+			familyAttrs, err := receivedFamilyAttrs(event, fam, attrBytes)
+			if err != nil {
+				logger().Warn("received event: invalid next hop", "family", fam.String(), "error", err)
+				continue
+			}
+			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID())
 		}
 	}
 }
@@ -1115,7 +1138,22 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 	if err != nil {
 		logger().Warn("pool: split error, inserting parsed prefix", "peer", peerRIB.PeerAddr(), "family", famStr, "error", err, "parsed", len(prefixes))
 	}
+	cidr := nlrisplit.KeysByCIDR(fam)
 	for _, wirePrefix := range prefixes {
+		if cidr {
+			var affected [1]affectedPrefix
+			prefixes := affected[:0]
+			// RFC 8277 Section 2.2: keep labels beside the normalized CIDR,
+			// exactly as on the structured receive path.
+			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, &prefixes)
+			if len(prefixes) == 0 {
+				continue
+			}
+			peerRIB.ModifyFamilyEntry(fam, prefixes[0].nlriBytes, func(entry *storage.RouteEntry) {
+				entry.MsgID = msgID
+			})
+			continue
+		}
 		peerRIB.Insert(fam, attrBytes, wirePrefix)
 		peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 			entry.MsgID = msgID
@@ -1210,7 +1248,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	// See ai/rules/evidence.md (the zero-value trap).
 	cameUp := false
 	var replayGroups []replayGroup
-	var pendingPurgeEmits map[family.Family][]bestChangeEntry
+	purgePeer := false
 
 	if isUp && !wasUp {
 		cameUp = true
@@ -1226,23 +1264,16 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 			}
 			delete(r.peerMeta, peerAddr)
 			r.refreshSelfNextHopsLocked()
-			// Purge bestPrev records belonging to the departing peer so
-			// cross-protocol consumers see the withdrawal immediately
-			// (instead of waiting for the next UPDATE per prefix to
-			// trigger the natural "newBest == nil && havePrev" path).
-			// Called under peerMu.Lock so concurrent UPDATE Phase 1 for
-			// this peer cannot re-insert records mid-purge. The purge
-			// itself DOES NOT emit on the EventBus; it returns per-family
-			// batches we dispatch via emitPurgedWithdraws AFTER peerMu
-			// is released (emitting under the write lock could deadlock
-			// any in-process subscriber that re-enters RIBManager).
-			// The interner is keyed by the canonical address string.
-			pendingPurgeEmits = r.purgeBestPrevForPeer(peerAddr.String())
+			// Purge only after releasing peerMu: an election may hold a shard
+			// while a synchronous Loc-RIB subscriber reads peer state.
+			purgePeer = true
 		}
 	}
 	r.peerMu.Unlock()
 
-	r.emitPurgedWithdraws(pendingPurgeEmits)
+	if purgePeer {
+		r.emitPurgedWithdraws(r.purgeBestPrevForPeer(peerAddr.String()))
+	}
 
 	// Call on every peer-up, including with zero groups: replayRoutesWithCursor
 	// is what signals "plugin session ready", and an empty Adj-RIB-Out still has
@@ -1276,7 +1307,7 @@ func (r *RIBManager) handleState(event *Event) {
 	// rather than inferred from replayGroups != nil.
 	cameUp := false
 	var replayGroups []replayGroup
-	var pendingPurgeEmits map[family.Family][]bestChangeEntry
+	purgePeer := false
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
@@ -1294,14 +1325,15 @@ func (r *RIBManager) handleState(event *Event) {
 			}
 			delete(r.peerMeta, peerAddr)
 			r.refreshSelfNextHopsLocked()
-			// See handleStructuredState for the emit-after-unlock contract.
-			// The interner is keyed by the canonical address string.
-			pendingPurgeEmits = r.purgeBestPrevForPeer(peerAddr.String())
+			// See handleStructuredState for the off-peer-lock purge contract.
+			purgePeer = true
 		}
 	}
 	r.peerMu.Unlock()
 
-	r.emitPurgedWithdraws(pendingPurgeEmits)
+	if purgePeer {
+		r.emitPurgedWithdraws(r.purgeBestPrevForPeer(peerAddr.String()))
+	}
 
 	// I/O operations after releasing lock. Called on every peer-up, including
 	// with zero groups (see handleStructuredState).

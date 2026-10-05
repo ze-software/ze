@@ -152,7 +152,7 @@ func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
 	case FlowFlowLabel:
 		return kwFlowLabel, formatNumericMatches(comp, compType)
 
-	default: // unknown component type — format as type-N
+	default: // Component implementations form an open set; retain numeric keys.
 		var b textbuf.Buffer
 		return b.Reset().Str("type-").Uint8(uint8(compType)).String(), [][]string{}
 	}
@@ -241,7 +241,8 @@ func formatWithOperator(value string, op FlowOperator) string {
 	compOp := op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask)
 
 	var prefix string
-	switch compOp { //nolint:exhaustive // Masked bits cannot match
+	//exhaustive:ignore // Render only comparison bits after masking the operator framing flags.
+	switch compOp {
 	case FlowOpEqual:
 		prefix = "="
 	case FlowOpGreater:

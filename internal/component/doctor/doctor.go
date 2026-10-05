@@ -211,6 +211,7 @@ func outputText(ready bool, diags []diagnostic.Diagnostic) int {
 			warnCount++
 			b.Str("WARN  ")
 		default:
+			// Registered checks can return open plugin severity strings.
 			b.Str("INFO  ")
 		}
 		b.Str("[").Str(diags[i].Code).Str("] ").Str(diags[i].Message).Byte('\n')

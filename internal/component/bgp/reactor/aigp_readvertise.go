@@ -54,6 +54,8 @@ type aigpAdvertisement struct {
 	revision  uint64
 	metric    uint64
 	hasMetric bool
+	// A successful cost-withheld withdrawal retains this recipient for recovery.
+	costWithheld bool
 }
 
 // dispatch serializes receive invalidation and replay enqueueing. mu protects
@@ -245,7 +247,12 @@ func (s *Session) noteAIGPWrite(body []byte) {
 	out := wireu.NewWireUpdate(body, s.sendCtxID)
 	walkAIGPNLRI(out, func(key aigpNLRI, _, nextHop []byte, withdrawn bool) {
 		entry := aigpAdvertisement{key: aigpRecipientKey{peer: s.aigpPeer, nlri: key}, session: s, sender: s.sentAIGPOrigin.sender, revision: s.sentAIGPRevision, metric: metric, hasMetric: hasMetric}
-		if !withdrawn && localNextHop && s.sentAIGPOrigin.sender.IsSet() && s.settings.AIGPEnabled() {
+		entry.costWithheld = withdrawn && s.sentAIGPCostWithheld
+		track := !withdrawn && localNextHop
+		if entry.costWithheld {
+			track = true
+		}
+		if track && s.sentAIGPOrigin.sender.IsSet() && s.settings.AIGPEnabled() {
 			route := sources[aigpSourceKey{peer: sourcePeer, nlri: key}]
 			if remapped := mapped[key]; remapped != nil {
 				route = remapped
@@ -370,12 +377,13 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	// A family can arrive in either legacy or MP framing. The retained route
 	// records the next hop from the field that carried this particular NLRI.
 	nextHop, _ := nextHopAddr(ad.route.nextHop)
-	increment, usable := aigpIncrement(nextHop, src.addr, r.sourceAIGPLinkMetric(src.addr))
-	present = present && usable
+	distance := aigpIncrement(nextHop, src.addr, r.sourceAIGPLinkMetric(src.addr))
+	costWithheld := present && !distance.Resolved && !distance.MissingAIGP
+	present = present && distance.Resolved && !distance.MissingAIGP
 	if present {
-		metric = igpcost.Add(metric, increment)
+		metric = igpcost.Add(metric, distance.Cost)
 	}
-	if present == ad.hasMetric && (!present || metric == ad.metric) {
+	if costWithheld == ad.costWithheld && present == ad.hasMetric && (!present || metric == ad.metric) {
 		r.aigp.mu.Lock()
 		if r.aigp.advertised[ad.key] == ad {
 			ad.revision = revision

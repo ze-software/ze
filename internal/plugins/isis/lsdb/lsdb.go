@@ -216,8 +216,10 @@ func (d *LSDB) Receive(level Level, lsp *packet.LSP, raw []byte, own bool) Recei
 			// Clause 7.3.16: a duplicate refreshes the held Remaining Lifetime.
 			existing.setLifetime(lsp.RemainingLifetime)
 			return ReceiveResult{Freshness: Equal, Stored: false}
-		default:
+		case Older:
 			return ReceiveResult{Freshness: Older, Stored: false}
+		default:
+			panic("BUG: invalid LSP freshness")
 		}
 	}
 	// First sighting of this LSP ID.

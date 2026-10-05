@@ -477,6 +477,38 @@ func TestEVPNRouteTypeString(t *testing.T) {
 	assert.Equal(t, "ip-prefix", EVPNRouteType5.String())
 }
 
+// TestParseEVPNUnknownTypeKeepsFraming checks the open decoder path with an
+// ADD-PATH identifier and a following malformed known route.
+func TestParseEVPNUnknownTypeKeepsFraming(t *testing.T) {
+	t.Parallel()
+	wire := []byte{0, 0, 0, 7, 99, 3, 0xaa, 0xbb, 0xcc, 0, 0, 0, 8, 1, 0}
+	route, rest, err := ParseEVPN(wire, true)
+	require.NoError(t, err)
+	if got := route.RouteType(); got != EVPNRouteType(99) {
+		t.Fatalf("route type = %d, want 99", got)
+	}
+	if got := route.PathID(); got != 7 {
+		t.Fatalf("path ID = %d, want 7", got)
+	}
+	if !bytes.Equal(route.Bytes(), wire[4:9]) {
+		t.Fatalf("unknown payload = %x, want %x", route.Bytes(), wire[4:9])
+	}
+	if !bytes.Equal(rest, wire[9:]) {
+		t.Fatalf("remainder = %x, want %x", rest, wire[9:])
+	}
+	if got := evpnRouteName(route.RouteType()); got != "EVPN Type 99" {
+		t.Fatalf("route name = %q, want EVPN Type 99", got)
+	}
+	next, remainder, err := ParseEVPN(rest, true)
+	require.ErrorIs(t, err, ErrEVPNTruncated)
+	if next != nil {
+		t.Fatal("malformed known route became a generic route")
+	}
+	if remainder != nil {
+		t.Fatalf("malformed known route returned remainder %x", remainder)
+	}
+}
+
 // TestEVPNType1 verifies Type 1 Ethernet Auto-Discovery route parsing.
 //
 // VALIDATES: RFC 7432 Section 7.1 - Ethernet A-D route format.

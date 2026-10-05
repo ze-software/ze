@@ -1057,12 +1057,7 @@ func parseNATSpec(v string) (addr, addrEnd netip.Addr, port, portEnd uint16, err
 	if strings.Count(v, ":") >= 2 {
 		return netip.Addr{}, netip.Addr{}, 0, 0, fmt.Errorf("NAT target %q: IPv6 address ranges not supported (use bracketed single-address form [addr]:port)", v)
 	}
-	addrPart := v
-	portPart := ""
-	if ci := strings.LastIndexByte(v, ':'); ci >= 0 {
-		addrPart = v[:ci]
-		portPart = v[ci+1:]
-	}
+	addrPart, portPart, _ := strings.CutLast(v, ":")
 
 	// addr-portion is either "<addr>" or "<addr>-<addr>".
 	if loStr, hiStr, isRange := strings.Cut(addrPart, "-"); isRange {

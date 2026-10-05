@@ -75,7 +75,7 @@
       "claim-sha": "0622ba11c9b0392d",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ncp.go::sendNCPConfigureRequest",
-      "producer-sha": "4afc19189d550fc7",
+      "producer-sha": "bb0b510833344112",
       "break": "body of sendNCPConfigureRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "81707b4d585f5429",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",
-      "producer-sha": "fc52407612e13c73",
+      "producer-sha": "16b68ded075d3f96",
       "break": "body of runAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "13bbcfaa2bb29577",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "f7286b00583e016d",
+      "producer-sha": "6042a717a7a8b10f",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -218,7 +218,7 @@
       "claim-sha": "1e2bb6733f91d7cb",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "f7286b00583e016d",
+      "producer-sha": "6042a717a7a8b10f",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "6d6eceecff843292",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "f7286b00583e016d",
+      "producer-sha": "6042a717a7a8b10f",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -300,17 +300,6 @@
     },
     {
       "rid": "RFC1661-5.1-1",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire",
-      "unit-sha": "80d0a05714d2e0a2",
-      "claim-sha": "cf3dda1829c0d237",
-      "route": "revert",
-      "producer": "internal/component/l2tp/ppp/session_run.go::performAction",
-      "producer-sha": "455a9c76bb0a0a53",
-      "break": "body of performAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1661-5.1-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire",
       "unit-sha": "80d0a05714d2e0a2",
@@ -323,12 +312,23 @@
     {
       "rid": "RFC1661-5.1-1",
       "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire",
+      "unit-sha": "80d0a05714d2e0a2",
+      "claim-sha": "cf3dda1829c0d237",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::performAction",
+      "producer-sha": "8d94a576652f2b4d",
+      "break": "body of performAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.1-1",
+      "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest",
       "unit-sha": "24ad46d6d51c2b3d",
       "claim-sha": "a7786cc776750b1b",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "f7286b00583e016d",
+      "producer-sha": "6042a717a7a8b10f",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "667c522c13a51ee0",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "f7286b00583e016d",
+      "producer-sha": "6042a717a7a8b10f",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,7 +350,7 @@
       "claim-sha": "fc7d5a95b0d549a5",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ncp.go::evalIPCPRequest",
-      "producer-sha": "747da0042eb89b8e",
+      "producer-sha": "b4ebab10c57dfc59",
       "break": "body of evalIPCPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -394,7 +394,7 @@
       "claim-sha": "f969b3eece3fafc4",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
-      "producer-sha": "589197fb91373fdc",
+      "producer-sha": "9993047d948a7188",
       "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,18 +405,7 @@
       "claim-sha": "eac33a528143e585",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
-      "producer-sha": "589197fb91373fdc",
-      "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1661-5.3-6",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions",
-      "unit-sha": "465001b2dec6b6b3",
-      "claim-sha": "f377fabaf601d9e8",
-      "route": "revert",
-      "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
-      "producer-sha": "589197fb91373fdc",
+      "producer-sha": "9993047d948a7188",
       "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -427,7 +416,18 @@
       "claim-sha": "3835c288886afacd",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
-      "producer-sha": "589197fb91373fdc",
+      "producer-sha": "9993047d948a7188",
+      "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.3-6",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions",
+      "unit-sha": "465001b2dec6b6b3",
+      "claim-sha": "f377fabaf601d9e8",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
+      "producer-sha": "9993047d948a7188",
       "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -438,7 +438,7 @@
       "claim-sha": "ef4a66cfc3502425",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
-      "producer-sha": "589197fb91373fdc",
+      "producer-sha": "9993047d948a7188",
       "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "fc79ef394c76c7aa",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
-      "producer-sha": "589197fb91373fdc",
+      "producer-sha": "9993047d948a7188",
       "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -473,6 +473,17 @@
       "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
       "producer-sha": "9fd88333faf59f88",
       "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
+      "unit-sha": "4119340d64a6de8c",
+      "claim-sha": "7dc8d088aff69a2e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ipcp.go::isKnownIPCPOption",
+      "producer-sha": "291b853605e765e8",
+      "break": "body of isKnownIPCPOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1661-5.4-1",
@@ -532,34 +543,12 @@
     {
       "rid": "RFC1661-5.4-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
-      "unit-sha": "4119340d64a6de8c",
-      "claim-sha": "7dc8d088aff69a2e",
-      "route": "revert",
-      "producer": "internal/component/l2tp/ppp/ipcp.go::isKnownIPCPOption",
-      "producer-sha": "291b853605e765e8",
-      "break": "body of isKnownIPCPOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1661-5.4-1",
-      "polarity": "negative",
       "unit": "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol",
       "unit-sha": "93106acfe733eb81",
       "claim-sha": "fff5c6939805d97e",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/lcp_options.go::ParseLCPOptions",
-      "producer-sha": "986b0bf4b8f5dc57",
-      "break": "body of ParseLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1661-5.4-1",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength",
-      "unit-sha": "4b2831a2f6de5625",
-      "claim-sha": "9b586ffcf51dd7ed",
-      "route": "revert",
-      "producer": "internal/component/l2tp/ppp/lcp_options.go::ParseLCPOptions",
-      "producer-sha": "986b0bf4b8f5dc57",
+      "producer-sha": "99dccadbf4584e87",
       "break": "body of ParseLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -570,7 +559,18 @@
       "claim-sha": "e1680e852e3d86a8",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/lcp_options.go::ParseLCPOptions",
-      "producer-sha": "986b0bf4b8f5dc57",
+      "producer-sha": "99dccadbf4584e87",
+      "break": "body of ParseLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength",
+      "unit-sha": "4b2831a2f6de5625",
+      "claim-sha": "9b586ffcf51dd7ed",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::ParseLCPOptions",
+      "producer-sha": "99dccadbf4584e87",
       "break": "body of ParseLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -713,7 +713,7 @@
       "claim-sha": "815271c6447235f2",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "f7286b00583e016d",
+      "producer-sha": "6042a717a7a8b10f",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -724,7 +724,7 @@
       "claim-sha": "0780a74cfcc16e8e",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-      "producer-sha": "fc99bcb5059f671c",
+      "producer-sha": "f652f1dccc36474b",
       "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -927,24 +927,24 @@
     },
     {
       "rid": "RFC1661-6.4-7",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue",
-      "unit-sha": "050c414ada48c58e",
-      "claim-sha": "d17d4ab60b82d3aa",
-      "route": "revert",
-      "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-      "producer-sha": "fc99bcb5059f671c",
-      "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1661-6.4-7",
       "polarity": "negative",
       "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue",
       "unit-sha": "050c414ada48c58e",
       "claim-sha": "75a365c911cc93b4",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-      "producer-sha": "fc99bcb5059f671c",
+      "producer-sha": "f652f1dccc36474b",
+      "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-6.4-7",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue",
+      "unit-sha": "050c414ada48c58e",
+      "claim-sha": "d17d4ab60b82d3aa",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+      "producer-sha": "f652f1dccc36474b",
       "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

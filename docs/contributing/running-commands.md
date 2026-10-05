@@ -167,16 +167,24 @@ lines only. Package-wide analysis is what finds the rest:
 - type mismatches from an interface change
 - constants and vars that became unreferenced
 
-`./le go lint run` lints every package holding an uncommitted Go change, once
-for each BUILD rather than once. golangci-lint analyzes one GOOS, one GOARCH and
-one tag set for each run, so a file outside that build is not merely unchecked:
-the pass exits 0 and reads as clean over it. The flavor matrix that closes that
-hole is `testing.md`, "The builds the linter reads"; the rows themselves are
-`flavorMatrix` in `internal/le/go/lint/matrix.go`.
+`./le go lint run` lints the full tree through each selected build. An explicit
+`scope "<packages>"` limits the same matrix to those package patterns.
+golangci-lint analyzes one GOOS, one GOARCH and one tag set per invocation, so a
+file outside that build is unchecked. The flavor matrix that closes that hole
+is `testing.md`, "The builds the linter reads"; its rows are `flavorMatrix` in
+`internal/le/go/lint/matrix.go`.
+<!-- source: internal/le/go/lint/verifylint.go -- Plan, planScope, plan -->
+<!-- source: internal/le/go/lint/actions.go -- runRunner -->
 
-Cost: 3 to 10 seconds once the caches are warm, plus about 2 seconds for each
-flavor whose packages the change reaches. The first run after a checkout pays a
-cold analysis for each build, which is minutes.
+Before querying the matrix, after each flavor query, and after full-tree
+coverage enumeration, the planner compares the shared lint input fingerprint.
+Source content and build tags, nonignored file additions and deletions, lint
+configuration, and module and feature manifests participate. A changed
+fingerprint or a failed measurement refuses the plan before any lint child
+starts; rerun after source edits stop. It does not retry or remove packages to
+obtain a plan. These are observation checks, not an atomic filesystem snapshot.
+<!-- source: internal/le/go/lint/verifylint.go -- plan, checkPlanningInputs -->
+<!-- source: internal/le/job/treehash.go -- InputHash, writeReadPaths, lintIgnores -->
 
 ## The changed-set selector
 
@@ -304,6 +312,13 @@ Do not read it as a full disk: that case says `no space left on device` and
 survives a retry. Do not read it as a code defect either. Retry the command
 once, and if you are the session about to run `cache-clean`, remember that every
 other session in this checkout pays for it.
+
+Store trim charges allocated blocks for directory entries as well as files.
+An `ENOTEMPTY` directory remains charged; `ENOENT` releases its recorded bytes
+without counting a removal by this run. Contention fixtures budget the measured
+retained directory plus the newest file, rather than assuming an empty
+directory uses no blocks.
+<!-- source: internal/le/scratch/cachetrim.go -- treeBytes, allocatedBytes, walkCacheSubdirectory, removeOldest -->
 
 ## When the disk is full
 

@@ -5,7 +5,10 @@
 
 package zefs
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 // errFrameTreeUnsupported is a package variable rather than a fresh error on
 // each call so the caller's nil check stays a real branch on this platform.
@@ -17,4 +20,16 @@ func walkFrameTree(_ string, _ func(string, []byte) error) error {
 
 func repairFrameTree(_, _ string) (*RepairReport, error) {
 	return nil, errFrameTreeUnsupported
+}
+
+// OpenDirectory refuses secure traversal on unsupported platforms without
+// opening or creating any path. It never returns a directory descriptor.
+func OpenDirectory(_ string, _ bool) (*os.File, error) {
+	return nil, errFrameTreeUnsupported
+}
+
+// RenameNoReplace refuses publication on unsupported platforms without
+// inspecting the parent descriptor or changing either directory entry.
+func RenameNoReplace(_ *os.File, _, _ string) error {
+	return errFrameTreeUnsupported
 }

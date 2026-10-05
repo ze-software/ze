@@ -440,8 +440,10 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		switch zeweb.ReadUIModeFromRequest(r, uiMode) {
 		case zeweb.UIModeWorkbench:
 			workbenchHandler(w, r)
-		default:
+		case zeweb.UIModeFinder:
 			finderHandler(w, r)
+		default:
+			panic("BUG: unknown web UI mode")
 		}
 	})
 	// Fragment handler still serves /fragment/detail HTMX requests regardless

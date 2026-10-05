@@ -765,7 +765,8 @@ func TestSessionExtendedMessageValidation(t *testing.T) {
 
 	// Verify extended message is NOT negotiated
 	neg := session.Negotiated()
-	require.False(t, neg.ExtendedMessage, "extended message should not be negotiated")
+	require.False(t, neg.ExtendedMessageRecv, "local OPEN did not advertise extended receive")
+	require.False(t, neg.ExtendedMessageSend, "peer OPEN did not advertise extended receive")
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
@@ -871,7 +872,8 @@ func TestSessionExtendedMessageAccepted(t *testing.T) {
 
 	// Verify extended message IS negotiated
 	neg := session.Negotiated()
-	require.True(t, neg.ExtendedMessage, "extended message should be negotiated")
+	require.True(t, neg.ExtendedMessageRecv, "local OPEN advertised extended receive")
+	require.True(t, neg.ExtendedMessageSend, "peer OPEN advertised extended receive")
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()

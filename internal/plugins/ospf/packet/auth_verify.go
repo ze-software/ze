@@ -200,8 +200,10 @@ func Sign(pkt []byte, auType AuType, key AuthKey, seq uint64, src [4]byte) ([]by
 		out = append(out, seqb[:]...)
 		out = append(out, digest...)
 		return out, nil
+	default:
+		// Authentication codes are an open set at this API boundary.
+		return nil, ErrUnknownType
 	}
-	return nil, ErrUnknownType
 }
 
 // Verify checks an OSPF packet's authentication under auType with key and returns the
@@ -262,8 +264,10 @@ func Verify(wire []byte, auType AuType, key AuthKey, src [4]byte) (uint64, bool)
 		esn := AuthKey{Algorithm: key.Algorithm, Secret: append(append([]byte{}, key.Secret...), ospfv2CryptoProtocolID[:]...)}
 		expect := cryptoDigest(esn, wire[:plen+8], apadSrc(l, src))
 		return seq, subtle.ConstantTimeCompare(expect, wire[plen+8:plen+8+l]) == 1
+	default:
+		// Authentication codes are an open wire set; unknown codes cannot verify.
+		return 0, false
 	}
-	return 0, false
 }
 
 // AuthKeyID returns the Key ID a received packet names, and false for an AuType that
@@ -285,6 +289,8 @@ func AuthKeyID(h Header) (uint32, bool) {
 		return readUint32(h.Auth[:], 4), true
 	case AuTypeNull, AuTypeSimple:
 		return 0, false
+	default:
+		// Authentication codes are an open wire set; unknown codes name no key.
+		return 0, false
 	}
-	return 0, false
 }

@@ -182,7 +182,8 @@ func TestRFC5492CapabilitiesSpreadOverSeveralParameters(t *testing.T) {
 	require.Equal(t, fsm.StateOpenConfirm, s.State())
 	requireOnlyKeepalive(t, conn.written()[sent:])
 	require.True(t, s.Negotiated().RouteRefresh)
-	require.True(t, s.Negotiated().ExtendedMessage)
+	require.True(t, s.Negotiated().ExtendedMessageRecv)
+	require.True(t, s.Negotiated().ExtendedMessageSend)
 }
 
 // Goal: prove an OPEN spread over several Capabilities parameters that lacks a

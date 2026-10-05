@@ -656,12 +656,12 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 	childEnv := childEnvironment(baseEnv, map[string]string{
 		envRepoRoot:           root,
 		"GOCACHE":             gotoolchain.GoCache(checkout),
-		"GIT_CONFIG_GLOBAL":   os.DevNull,
-		"GIT_CONFIG_NOSYSTEM": "1",
-		"GIT_AUTHOR_NAME":     "Fixture",
-		"GIT_AUTHOR_EMAIL":    "fixture@example.invalid",
-		"GIT_COMMITTER_NAME":  "Fixture",
-		"GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+		envGitConfigGlobal:    os.DevNull,
+		envGitConfigSystem:    "1",
+		"GIT_AUTHOR_NAME":     gitFixtureName,
+		envGitAuthorEmail:     "fixture@example.invalid",
+		envGitCommitName:      gitFixtureName,
+		envGitCommitEmail:     "fixture@example.invalid",
 		"GIT_AUTHOR_DATE":     "2000-01-02T12:00:00Z",
 		"GIT_COMMITTER_DATE":  "2000-01-02T12:00:00Z",
 		repocompiles.RevKey:   "HEAD",
@@ -669,9 +669,9 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 		repocompiles.KeepKey:  "false",
 	})
 	for _, args := range [][]string{
-		{"init", "--quiet", "--template=", "--initial-branch=fixture"},
-		{"add", "--", "."},
-		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Build fixture"},
+		{"init", argQuiet, "--template=", "--initial-branch=fixture"},
+		{argAdd, "--", "."},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", argCommit, argQuiet, "-m", "Build fixture"},
 	} {
 		result, err := leChecksRunEnvironment(ctx, root, childEnv, "git", args...)
 		if err != nil {

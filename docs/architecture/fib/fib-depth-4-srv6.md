@@ -1,9 +1,9 @@
 # SRv6 FIB Programming
 
 Both FIB backends read the `SRv6SID` field of a best-change entry. The kernel
-backend builds a SEG6 encapsulation. The VPP backend issues a steering request
-but does not install the SR policy that request needs, so it does not yet
-provide an end-to-end SRv6 encapsulation path.
+backend builds a SEG6 encapsulation. The VPP backend creates a local
+encapsulation policy and steers the destination prefix into it. API-model
+coverage is not dataplane evidence: real VPP forwarding proof remains pending.
 
 ## Where the SID comes from
 
@@ -39,19 +39,130 @@ so the kernel never receives a silently reduced group.
 
 ## VPP backend
 
-`processSRv6Change` dispatches on the route verb. Install and replace call
-`addSRv6Steer` (an `sr.SrSteeringAddDel` call carrying the SID as the BSID);
-remove calls `delSRv6Steer`. The backend tracks installed prefixes so a removal
-of a prefix it never installed is a no-op rather than an error. A change with no
-SID is a no-op in the same verb switch.
+`processEvent` selects the SRv6 path when a change carries a valid SID or its
+prefix and table have owned SRv6 steering or a durable ordinary fallback from a
+previous transition. `processSRv6Change` dispatches the normalized route verb.
+Install and replace call `addSRv6Steer`; remove calls `delSRv6Steer`.
+Unspecified and unknown actions normalize to Skip.
+IPv4 and IPv6 destinations select their respective VPP steering traffic types.
 
-The received Service SID is used as the binding SID without a matching
-`sr_policy_add`. Sending this steering request is not evidence that VPP can
-forward the route. The owner assigned policy installation and local binding-SID
-allocation to a separate spec on 2026-10-02; the existing red
-`TestRFC9252VPPServiceRouteEncapsulatesTowardTheSID` probe remains open.
+The received Service SID is the policy's **only segment**, never its local
+binding SID. `acquirePolicy` allocates a random IPv6 ULA binding SID and sends
+`sr_policy_add` with encapsulation enabled. Only then may steering reference
+that policy. Prefixes sharing a SID share the policy within the configured
+underlay table. Replacing one prefix installs its new policy first, updates
+steering without a preceding delete, and releases the old policy only after
+its last reference leaves. Before attaching another prefix, Ze validates the
+cached shared policy against a fresh VPP dump; a sequential foreign change is
+not accepted as the original policy. Failed API requests return errors;
+reconciliation checks the actual outcome where VPP exposes sufficient identity.
 
-<!-- source: internal/plugins/fib/vpp/srv6.go -- processSRv6Change, addSRv6Steer, delSRv6Steer -->
+VPP's policy `FibTable` selects both the binding-SID FIB and the **outer IPv6
+lookup table**. Ze uses the configured backend table for that underlay lookup.
+A route's nonzero table override selects only its destination steering table.
+The two tables must already exist in VPP. VPP's encapsulation source address
+and SID underlay reachability must also be configured; this path does not
+provision them. A zero-table withdrawal can recover a uniquely owned prefix's
+table. If the prefix exists in multiple tables, the withdrawal must identify
+one; Ze refuses to guess.
+
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, flushRoutes -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- processSRv6Change, acquirePolicy, addSRv6Steer, delSRv6Steer -->
+
+### Ownership and restart
+
+The existing daemon-owned state service stores policy, steering and ordinary
+fallback records under the feature-registered
+`meta/fib-vpp/srv6/{kind}/{identity}` key.
+Storage errors block mutation. No extra operator option or loose state file is
+introduced. A planned policy record precedes creation; only a successful API
+reply followed by durable acknowledgement confirms ownership. Steering records
+retain current and proposed binding SIDs before a replacement.
+
+Admission reuses the production state-list contract, `rpc.StateListMax`
+(4096 keys), for the **whole ownership namespace**, not per resource kind.
+Every temporary policy, steering and fallback record needed by a transition
+must fit before its first state or hardware mutation. For example, replacing
+the last reference to a policy still needs a spare policy slot; its old record
+cannot be released early. A new IP-to-SRv6 transition can need three slots.
+At the limit, existing-key replay and withdrawal remain recoverable, but an
+operation requiring additional records is refused. Ordinary fallback records
+continue to count after a completed SRv6-to-IP transition until that ordinary
+ownership is explicitly removed. No larger RPC limit, pagination protocol or
+additional capacity option is introduced.
+
+On process reconnect or restart, Ze checks durable records against VPP policy
+and steering dumps. Confirmed policies must match encapsulation mode, underlay
+table, weight and the single received SID. Foreign steering references or
+conflicting policy contents cause an explicit error rather than adoption,
+overwrite or deletion. A live **unconfirmed** policy is ambiguous: the API may
+have succeeded before its durable confirmation failed. Ze reports its binding
+SID and refuses adoption or cleanup. The operator must inspect that BSID and
+the durable record before reconciling the uncertain resource; resemblance to a
+desired policy is not proof of ownership.
+
+Confirmed live ownership survives process restart; replay does not create
+duplicates. A **Ze-managed VPP restart** emits the reconnect event: reconciliation
+removes absent ownership records and replay recreates policies before steering. The old
+consumer is retired before the replacement restores ownership. VPP offers no
+conditional steering replacement, so external writers must not race Ze's
+ownership checks with CLI changes.
+
+External-VPP mode does not currently emit that event when its separately
+supervised VPP process restarts. Automatic recovery from that external restart
+is not provided by this change; a Ze process restart reconnects and reconciles
+durable ownership normally. Runtime restart proof must use Ze-managed VPP,
+not a fabricated reconnect event.
+
+<!-- source: internal/component/vpp/vpp.go -- runOnce -->
+
+Sysrib replay has no complete-snapshot boundary. Ze therefore retains
+durable-owned live references until explicit withdrawal; absence from a
+partial replay is not permission to sweep them. Withdrawal removes steering
+before last-reference policy cleanup. Unrelated policies are never swept.
+
+Changing a service route back to ordinary IP persists an unconfirmed fallback
+intent, installs the replacement, confirms ownership durably, then removes
+steering. Changing ordinary IP to SRv6 checkpoints previously successful
+ordinary ownership **before** creating a policy or steering; it removes that
+older route only after steering succeeds. Restart can therefore restore the
+exact prefix-and-table cleanup obligation in either direction. Ordinary
+ownership, withdrawal, flush and installed-route output preserve table identity;
+the same prefix in another table is not overwritten. Retained table zero is an
+actual table identity, even if the configured default later changes.
+
+A known VPP rejection rolls back the IP intent without removing previous SR
+forwarding. A lost API reply or failed durable confirmation leaves unconfirmed
+IP ownership and blocks further mutation pending operator reconciliation.
+VPP's IP dumps encode the best FIB source, not an ordinary API-source route
+hidden beneath SR steering. Ze therefore does **not** infer ordinary ownership
+from a matching live route. Confirmed ownership is durable installation history:
+other writers must not replace those owned API-source routes, even
+sequentially. The API does not provide a hidden-source contents check.
+
+Withdrawal and flush remove an owned ordinary fallback before removing SR
+steering; failed API or durable-record removal retains cleanup ownership and
+SR forwarding for retry. A completed SRv6-to-IP transition retains its fallback record so a
+later process restart still recognizes an explicit ordinary withdrawal.
+The existing MPLS backend supports only its configured table; a transition or
+restored MPLS fallback requiring another configured table is refused.
+
+<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore, loadState, sameSRv6Policy -->
+<!-- source: internal/plugins/fib/vpp/register.go -- srv6OwnershipKey, runFibVPPPlugin -->
+<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback, beginSRv6Fallback, finishSRv6Fallback -->
+<!-- source: internal/plugins/fib/vpp/backend.go -- addRichRouteInTable, delRouteInTable, errVPPMutationUncertain -->
+
+The owner included policy installation and local binding-SID ownership in this
+pass on 2026-10-04, superseding the 2026-10-02 separate-scope decision.
+`TestRFC9252VPPServiceRouteEncapsulatesTowardTheSID` and lifecycle controls model
+the API dependency, not real packets. Closure still requires real VPP
+encapsulation evidence through the production best-change consumer.
+
+Primary semantics:
+[RFC 9252 Section 1](https://www.rfc-editor.org/rfc/rfc9252#section-1),
+[VPP steering](https://github.com/FDio/vpp/blob/stable/2502/src/vnet/srv6/sr_steering.c),
+[VPP policy/encapsulation](https://github.com/FDio/vpp/blob/stable/2502/src/vnet/srv6/sr_policy_rewrite.c),
+and [VPP IP API dumps and route source](https://github.com/FDio/vpp/blob/stable/2502/src/vnet/ip/ip_api.c).
 
 ## Trap
 

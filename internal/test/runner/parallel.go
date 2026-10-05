@@ -420,17 +420,19 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 
 			// Respect terminal states set by the Run function (e.g.,
 			// StateTimeout from .ci's runTest). Only set Success/Fail
-			// when the state is still Running.
+			// when the state is None, Starting or Running.
 			switch t.Record.State {
 			case StateSuccess, StateFail, StateTimeout, StateSkip:
 				// already terminal
-			default:
+			case StateNone, StateStarting, StateRunning:
 				if passed {
 					t.Record.SetState(StateSuccess)
 				} else {
 					t.Record.SetState(StateFail)
 					t.Record.Error = err
 				}
+			default:
+				panic("BUG: unknown test state")
 			}
 
 			results <- result{test: t, passed: passed, err: err}

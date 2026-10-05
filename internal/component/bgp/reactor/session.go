@@ -201,6 +201,9 @@ const sendHoldTimerMin = 8 * time.Minute
 // argument rather than being re-read from peer.session in the receiver, which would race
 // the peer run goroutine that nils/replaces peer.session under peer.mu.
 // Returns true if callback took ownership of buf (caller should not return to pool).
+// The reactor takes ownership only of received UPDATEs. Their bytes may already
+// be recycled when the callback returns; control messages remain borrowed until
+// their session handlers finish.
 type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) (kept bool)
 
 // Lock hierarchy (acquire in this order; never reverse):
@@ -272,7 +275,7 @@ type Session struct {
 	// peerOpen stores the peer's OPEN for reference.
 	peerOpen *message.Open
 
-	// extendedMessage tracks if Extended Message capability was negotiated.
+	// extendedMessage records our advertised receive permission (RFC 8654 Section 6).
 	// Thread safety: only accessed from session's read goroutine:
 	//   negotiate() ← handleOpen() ← processMessage() ← readAndProcessMessage()
 	// No synchronization needed.
@@ -290,7 +293,7 @@ type Session struct {
 	writeMu sessionWriteMutex
 
 	// Write buffer for zero-allocation message building.
-	// Allocated at 4096 bytes initially, resized to 65535 if Extended Message negotiated.
+	// Allocated at 4096 bytes initially, resized to 65535 if the peer advertises it.
 	// All access must hold writeMu.
 	writeBuf *wire.SessionBuffer
 
@@ -347,8 +350,8 @@ type Session struct {
 	// policyTeardownPending, when non-nil, queues a NOTIFICATION + session close
 	// requested by the import policy filter chain (e.g. filter_family tear-down).
 	// Set on the session read goroutine inside the onMessageReceived callback;
-	// honored in session_read after the callback, before handleUpdate. Accessed
-	// only from the session read goroutine — no lock.
+	// honored in session_read after the callback, before the normal UPDATE FSM
+	// event. Accessed only from the session read goroutine — no lock.
 	policyTeardownPending *policyTeardownRequest
 
 	// advertised says an UPDATE that makes a destination reachable has been
@@ -385,6 +388,8 @@ type Session struct {
 
 	// sendCtxID is the encoding context for sent messages.
 	// Set by Peer after capability negotiation for AttrsWire creation in callbacks.
+	// All reads and writes MUST hold writeMu, including context publication.
+	// The context cannot change between a transport write and its callbacks.
 	sendCtxID bgpctx.ContextID
 
 	// wireWriter is the observer of this connection's accepted outbound bytes.
@@ -407,9 +412,12 @@ type Session struct {
 	// Forward authority and pending actual writes, all guarded by writeMu.
 	sentAIGPOrigin   sendOrigin
 	sentAIGPRevision uint64
-	aigpReactor      *Reactor
-	aigpPeer         *Peer
-	aigpPending      []aigpAdvertisement
+	// Set only by applyFactsAIGP's unavailable-cost withdrawal, never by policy.
+	sentAIGPCostWithheld bool
+
+	aigpReactor *Reactor
+	aigpPeer    *Peer
+	aigpPending []aigpAdvertisement
 
 	// fwdDirty tracks destination sessions with unflushed writes from the RS
 	// fast path (tryDirectWriteNoFlush). Flushed by flushFwdDirty when the
@@ -778,9 +786,13 @@ func (s *Session) setRecvCtxID(ctxID bgpctx.ContextID) {
 
 // setSendCtxID sets the encoding context ID for sent messages.
 // Called by Peer after capability negotiation for AttrsWire creation in callbacks.
+// Acquires mu before writeMu, matching connectionEstablished. Writers MUST hold
+// writeMu through their callbacks and MUST NOT acquire mu while they hold it.
 func (s *Session) setSendCtxID(ctxID bgpctx.ContextID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	s.sendCtxID = ctxID
 	if s.wireWriter != nil {
 		s.wireWriter.context.Store(uint32(ctxID))
@@ -824,7 +836,7 @@ func (s *Session) setOpenValidator(validator func(string, *message.Open, *messag
 }
 
 // getReadBuffer gets an appropriately-sized buffer from pool.
-// Uses 4K pool before Extended Message negotiation, 64K after.
+// Uses the 64K pool only after our OPEN advertises extended receive permission.
 func (s *Session) getReadBuffer() BufHandle {
 	if s.extendedMessage {
 		return bufMuxExt.Get()
@@ -911,9 +923,9 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 		// connections that are in Idle, Connect, or Active states"
 		// OpenSent MAY detect if BGP ID known by other means - we don't implement this
 		return true, false
+	default:
+		panic("BUG: invalid session collision state")
 	}
-	// Unreachable, but required for exhaustive switch
-	return true, false
 }
 
 // collisionPeerAS returns the peer's AS number for the RFC 6286 Section 2.3
@@ -1029,7 +1041,7 @@ type policyTeardownRequest struct {
 
 // requestPolicyTeardown queues a NOTIFICATION + session close to run after the
 // current received UPDATE's filter chain (honored in session_read, before
-// handleUpdate). Called on the session read goroutine from the import policy
+// the normal UPDATE FSM event). Called on the session read goroutine from the import policy
 // filter chain (notifyMessageReceiver via onMessageReceived). The first request
 // for a given UPDATE wins.
 func (s *Session) requestPolicyTeardown(code message.NotifyErrorCode, subcode uint8) {

@@ -33,11 +33,14 @@ const (
 // String is for display only; never compare with it.
 func (m Mode) String() string {
 	switch m {
+	case ModeUnspecified:
+		return "unspecified"
 	case ModeTransport:
 		return "transport"
 	case ModeTunnel:
 		return "tunnel"
 	default:
+		// Snapshot providers supply an open set of modes; unknown modes stay unspecified.
 		return "unspecified"
 	}
 }

@@ -550,7 +550,10 @@ func (t *Table) setStateLocked(n *Neighbor, next state) eventEmission {
 		n.lastLSReqs = nil
 	case stateLoading:
 		n.ddRetransmitDeadline = time.Time{}
+	case stateAttempt, stateInit, stateExStart, stateExchange:
+		// These transitions retain both retransmission timers.
 	default:
+		panic("BUG: invalid OSPF neighbor state")
 	}
 	if prev != stateDown {
 		t.metrics.Neighbors.With(n.AreaID.String(), n.InterfaceName, prev.String()).Set(float64(t.countStateLocked(n.AreaID, n.InterfaceName, prev)))

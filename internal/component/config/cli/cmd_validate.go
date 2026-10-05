@@ -232,12 +232,14 @@ func runValidation(input, path string) *validationResult {
 	switch config.DetectFormat(input) {
 	case config.FormatSet, config.FormatSetMeta:
 		tree, err = config.ParseTreeForValidation(input)
-	default:
+	case config.FormatHierarchical:
 		p := config.NewParser(schema)
 		tree, err = p.Parse(input)
 		if err == nil {
 			warnings = p.Warnings()
 		}
+	default:
+		panic("BUG: unknown detected config format")
 	}
 	if err != nil {
 		result.addErrorLine("config-parse", err.Error(), extractLine(err.Error()))
@@ -523,7 +525,8 @@ func listenerConflictRelated(c *config.ListenerConflict) []diagnostic.Related {
 }
 
 func yangRepair(t configyang.ErrorType) (*diagnostic.Repair, diagnostic.FixSafety) {
-	switch t { //nolint:exhaustive // only codes with known repairs
+	//exhaustive:ignore // Only errors with a known repair contribute repair metadata.
+	switch t {
 	case configyang.ErrTypeMissing:
 		return &diagnostic.Repair{ID: "add-missing-field", Summary: "Insert mandatory field with its default or required value"}, diagnostic.SafetySectionLocal
 	case configyang.ErrTypeType:
@@ -542,7 +545,7 @@ func yangRepair(t configyang.ErrorType) (*diagnostic.Repair, diagnostic.FixSafet
 }
 
 func yangErrorCode(t configyang.ErrorType) string {
-	switch t { //nolint:exhaustive // default handles unknown
+	switch t {
 	case configyang.ErrTypeMissing:
 		return diagnostic.CodeConfigYANGMissing
 	case configyang.ErrTypeType:
@@ -557,8 +560,10 @@ func yangErrorCode(t configyang.ErrorType) string {
 		return diagnostic.CodeConfigYANGLength
 	case configyang.ErrTypeCardinality:
 		return diagnostic.CodeConfigYANGCardinality
-	default:
+	case configyang.ErrTypeUnknown:
 		return diagnostic.CodeConfigYANGType
+	default:
+		panic("BUG: unknown YANG diagnostic error type")
 	}
 }
 

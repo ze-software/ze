@@ -26,6 +26,28 @@
     {
       "rid": "RFC8955-4-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
+      "unit-sha": "df568cdde62ec74a",
+      "claim-sha": "7f6a1458ee09bec2",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler",
+      "producer-sha": "4eb1234ab72f9efc",
+      "break": "body of mpReachNextHopHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
+      "unit-sha": "df568cdde62ec74a",
+      "claim-sha": "02a2159a3d547a48",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
+      "producer-sha": "00c66da121f7c3e0",
+      "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4-3",
+      "polarity": "positive",
       "unit": "test/encode/flow-encode.ci",
       "unit-sha": "a0315c9992b4a0e5",
       "claim-sha": "50a1b4d264e7337a",
@@ -108,9 +130,9 @@
       "unit-sha": "a3b9e25c643f0cc3",
       "claim-sha": "bd100247e82e8d38",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
-      "producer-sha": "a25995d8706e455b",
-      "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::selectBestCandidates",
+      "producer-sha": "2f1d07c11c858e50",
+      "break": "body of selectBestCandidates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8955-6-5",
@@ -120,7 +142,7 @@
       "claim-sha": "bc1bf2bc576ef3f2",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-      "producer-sha": "8c57c97e8f7b4428",
+      "producer-sha": "3876e83317b96188",
       "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

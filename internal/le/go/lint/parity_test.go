@@ -12,6 +12,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -117,9 +118,10 @@ func fixtureOps(root string, tracked []string) (runnerOps, *[]captureCall) {
 		}
 	}
 	return runnerOps{
-		lookPath: func(name string) (string, error) { return "/bin/" + name, nil },
-		capture:  capture,
-		stream:   func(context.Context, []string, string, []string, io.Writer) (int, error) { return 0, nil },
+		lookPath:  func(name string) (string, error) { return "/bin/" + name, nil },
+		capture:   capture,
+		stream:    func(context.Context, []string, string, []string, io.Writer) (int, error) { return 0, nil },
+		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
 	}, &calls
 }
 
@@ -318,6 +320,309 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 	}
 }
 
+// TestPlanRefusesInputChangesBetweenFlavors changes the measured generation
+// after a live flavor query. Both full and scoped plans must refuse before
+// executing any child, rather than credit later files to an earlier build.
+func TestPlanRefusesInputChangesBetweenFlavors(t *testing.T) {
+	for _, scoped := range []bool{false, true} {
+		for _, changeAfter := range []int{1, 3, len(basePasses()) + len(flavorMatrix(nil))} {
+			name := "full"
+			if scoped {
+				name = "scoped"
+			}
+			t.Run(name+"-query-"+strconv.Itoa(changeAfter), func(t *testing.T) {
+				root, tracked := lintFixture(t)
+				ops, calls := fixtureOps(root, tracked)
+				generation := "before"
+				ops.inputHash = func(string) (string, error) { return generation, nil }
+				capture := ops.capture
+				queries := 0
+				ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
+					result := capture(ctx, argv, dir, environment)
+					if argv[0] == listProgram {
+						queries++
+						if queries == changeAfter {
+							generation = "after"
+						}
+					}
+					return result
+				}
+				ops.stream = func(context.Context, []string, string, []string, io.Writer) (int, error) {
+					t.Fatal("input drift started a lint child")
+					return 0, nil
+				}
+				runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+				if err != nil {
+					t.Fatalf("newRunner: %v", err)
+				}
+				arguments := leaction.Arguments{}
+				if scoped {
+					arguments["scope"] = []string{"./pkg/p00"}
+				}
+				answer, code := runRunner(runner, arguments)
+				report, ok := answer.(Report)
+				if !ok {
+					t.Fatalf("answer = %T, want Report", answer)
+				}
+				if code != cannotPlan || report.Code != cannotPlan || len(report.Passes) != 0 {
+					t.Fatalf("mixed-generation result = %#v, code %d", report, code)
+				}
+				for _, detail := range []string{"inputs changed", "planning", "rerun"} {
+					if !strings.Contains(report.Error, detail) {
+						t.Errorf("refusal %q does not explain %q", report.Error, detail)
+					}
+				}
+				if len(*calls) == 0 {
+					t.Fatal("fixture never reached a flavor query")
+				}
+			})
+		}
+	}
+}
+
+// TestPlanRefusesUnmeasuredInputs proves that a failed fingerprint cannot
+// become an empty matching generation, at either end of planning.
+func TestPlanRefusesUnmeasuredInputs(t *testing.T) {
+	for _, failAt := range []int{1, 2} {
+		t.Run(strconv.Itoa(failAt), func(t *testing.T) {
+			root, tracked := lintFixture(t)
+			ops, _ := fixtureOps(root, tracked)
+			measured := 0
+			want := errors.New("fixture input read failed")
+			ops.inputHash = func(string) (string, error) {
+				measured++
+				if measured == failAt {
+					return "", want
+				}
+				return "unchanged", nil
+			}
+			runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+			if err != nil {
+				t.Fatalf("newRunner: %v", err)
+			}
+			if _, err := runner.Plan(); !errors.Is(err, want) {
+				t.Fatalf("Plan error = %v, want input read cause %v", err, want)
+			}
+		})
+	}
+}
+
+// TestPlanInputDriftPreservesQueryErrors makes both observations fail, so the
+// refusal must retain the go-list cause as well as the changed-input diagnosis.
+func TestPlanInputDriftPreservesQueryErrors(t *testing.T) {
+	root, tracked := lintFixture(t)
+	ops, _ := fixtureOps(root, tracked)
+	generation := "before"
+	ops.inputHash = func(string) (string, error) { return generation, nil }
+	want := errors.New("fixture go-list failure")
+	ops.capture = func(context.Context, []string, string, []string) commandResult {
+		generation = "after"
+		return commandResult{err: want}
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	_, err = runner.Plan()
+	if !errors.Is(err, want) {
+		t.Fatalf("Plan lost the query failure: %v", err)
+	}
+	if !strings.Contains(err.Error(), "inputs changed during planning after host") {
+		t.Fatalf("Plan lost the input-change refusal: %v", err)
+	}
+}
+
+// TestPlanRefusesCoverageInputDrift changes inputs during the final tracked
+// population query, after every flavor has completed without a change.
+func TestPlanRefusesCoverageInputDrift(t *testing.T) {
+	root, tracked := lintFixture(t)
+	ops, _ := fixtureOps(root, tracked)
+	generation := "before"
+	ops.inputHash = func(string) (string, error) { return generation, nil }
+	capture := ops.capture
+	ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
+		result := capture(ctx, argv, dir, environment)
+		if argv[0] == trackedProgram {
+			generation = "after"
+		}
+		return result
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	plan, err := runner.Plan()
+	if err == nil {
+		t.Fatalf("coverage drift produced a plan: %#v", plan)
+	}
+	if !strings.Contains(err.Error(), "inputs changed during planning after tracked-file coverage") {
+		t.Fatalf("uninformative coverage refusal: %v", err)
+	}
+}
+
+// TestPlanRefusesChangedLoadedTags covers the gap between construction and
+// planning: live linter configuration must still agree with the cached tags.
+func TestPlanRefusesChangedLoadedTags(t *testing.T) {
+	root, tracked := lintFixture(t)
+	ops, calls := fixtureOps(root, tracked)
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	writeLintFile(t, root, configName, strings.ReplaceAll(fixtureConfig, "ze_a", "ze_changed"))
+	plan, err := runner.Plan()
+	if err == nil {
+		t.Fatalf("changed loaded tags produced a plan: %#v", plan)
+	}
+	if !strings.Contains(err.Error(), "configuration differs from the loaded tags") {
+		t.Fatalf("uninformative loaded-tag refusal: %v", err)
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("stale tags reached %d population queries", len(*calls))
+	}
+}
+
+// TestPlanRefusesLiveInputChanges drives the real shared fingerprint against
+// a Git fixture. A command seam edits an input after the second flavor reads
+// its population; the planner must refuse instead of returning a mixed plan.
+func TestPlanRefusesLiveInputChanges(t *testing.T) {
+	changes := []struct {
+		name   string
+		change func(*testing.T, string)
+	}{
+		{"build-tags", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p00/file.go", "//go:build freebsd\n\npackage fixture\n")
+		}},
+		{"new-file", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p00/new.go", "package fixture\n")
+		}},
+		{"deleted-file", func(t *testing.T, root string) {
+			if err := os.Remove(filepath.Join(root, "pkg/p00/file.go")); err != nil {
+				t.Fatalf("delete source input: %v", err)
+			}
+		}},
+		{"renamed-file", func(t *testing.T, root string) {
+			if err := os.Rename(filepath.Join(root, "pkg/p00/file.go"), filepath.Join(root, "pkg/p00/file_freebsd.go")); err != nil {
+				t.Fatalf("rename source input: %v", err)
+			}
+		}},
+		{"module", func(t *testing.T, root string) {
+			writeLintFile(t, root, "go.mod", "module fixture\n\ngo 1.27.0\n")
+		}},
+		{"checksums", func(t *testing.T, root string) {
+			writeLintFile(t, root, "go.sum", "example.com/changed v1.0.0 h1:changed\n")
+		}},
+		{"vendor-manifest", func(t *testing.T, root string) {
+			writeLintFile(t, root, "vendor/modules.txt", "# example.com/changed v1.0.0\n")
+		}},
+		{"feature-manifest", func(t *testing.T, root string) {
+			writeLintFile(t, root, "feature-gates.txt", "ze_changed pkg/changed\n")
+		}},
+		{"lint-tags", func(t *testing.T, root string) {
+			writeLintFile(t, root, configName, strings.ReplaceAll(fixtureConfig, "ze_a", "ze_changed"))
+		}},
+	}
+	for _, change := range changes {
+		t.Run(change.name, func(t *testing.T) {
+			root, tracked := lintInputRepository(t)
+			ops, _ := fixtureOps(root, tracked)
+			ops.inputHash = realRunnerOps().inputHash
+			capture := ops.capture
+			queries := 0
+			ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
+				result := capture(ctx, argv, dir, environment)
+				if argv[0] == listProgram {
+					queries++
+					if queries == 2 {
+						change.change(t, root)
+					}
+				}
+				return result
+			}
+			runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+			if err != nil {
+				t.Fatalf("newRunner: %v", err)
+			}
+			plan, err := runner.Plan()
+			if err == nil {
+				t.Fatalf("changed %s produced a plan: %#v", change.name, plan)
+			}
+			if !strings.Contains(err.Error(), "inputs changed during planning after linux-integration") {
+				t.Fatalf("uninformative %s refusal: %v", change.name, err)
+			}
+			if !reflect.DeepEqual(plan, LintPlan{}) {
+				t.Fatalf("input refusal exposed a partial plan: %#v", plan)
+			}
+			if queries != 2 {
+				t.Fatalf("input refusal ran %d queries, want exactly 2", queries)
+			}
+		})
+	}
+}
+
+// TestPlanStableInputsRetainExactMatrix compares the real fingerprint route
+// with the pinned planner fixture, including a concurrent documentation edit
+// that the shared lint input declaration excludes.
+func TestPlanStableInputsRetainExactMatrix(t *testing.T) {
+	root, tracked := lintInputRepository(t)
+	ops, _ := fixtureOps(root, tracked)
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	want, err := runner.Plan()
+	if err != nil {
+		t.Fatalf("reference Plan: %v", err)
+	}
+	ops, _ = fixtureOps(root, tracked)
+	ops.inputHash = realRunnerOps().inputHash
+	capture := ops.capture
+	queries := 0
+	ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
+		result := capture(ctx, argv, dir, environment)
+		if argv[0] == listProgram {
+			queries++
+			if queries == 2 {
+				writeLintFile(t, root, "docs/concurrent.md", "Documentation is not a lint input.\n")
+			}
+		}
+		return result
+	}
+	runner, err = newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner with real fingerprint: %v", err)
+	}
+	got, err := runner.Plan()
+	if err != nil {
+		t.Fatalf("stable Plan: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("fingerprint guard changed the native plan:\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func lintInputRepository(t *testing.T) (string, []string) {
+	t.Helper()
+	root, tracked := lintFixture(t)
+	writeLintFile(t, root, ".gitignore", "tmp/\n")
+	writeLintFile(t, root, "go.mod", "module fixture\n\ngo 1.26.0\n")
+	writeLintFile(t, root, "go.sum", "")
+	writeLintFile(t, root, "vendor/modules.txt", "")
+	writeLintFile(t, root, "feature-gates.txt", "ze_a pkg/a\n")
+	for _, argv := range [][]string{
+		{"init", "--quiet"},
+		{"add", "."},
+		{"-c", "user.name=fixture", "-c", "user.email=fixture@example.com", "commit", "--quiet", "-m", "lint input fixture"},
+	} {
+		command := exec.CommandContext(t.Context(), "git", argv...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %q: %v: %s", argv, err, output)
+		}
+	}
+	return root, tracked
+}
+
 func TestScopedRunParsesPackagesAndNeverBroadensToTheTree(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, captureCalls := fixtureOps(root, tracked)
@@ -444,6 +749,10 @@ func TestPopulationSkipsTestdataFixtures(t *testing.T) {
 func TestEmptyScopeRunsNoCommandsAndPrintsNothing(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, captureCalls := fixtureOps(root, tracked)
+	ops.inputHash = func(string) (string, error) {
+		t.Fatal("empty scope measured inputs despite selecting no packages")
+		return "", nil
+	}
 	streamed := 0
 	ops.stream = func(context.Context, []string, string, []string, io.Writer) (int, error) {
 		streamed++
@@ -532,6 +841,7 @@ func TestExecuteRunsAllChildrenAndReturnsTheFirstFailureCode(t *testing.T) {
 				return 0, nil
 			}
 		},
+		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
 	}
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
@@ -674,6 +984,7 @@ func TestExecuteRemovesDerivedTaglessConfiguration(t *testing.T) {
 			seen = !strings.Contains(string(content), "build-tags:")
 			return 0, nil
 		},
+		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
 	}
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
@@ -776,6 +1087,7 @@ func TestExecuteCopiesChildOutputToTheSlotLog(t *testing.T) {
 			}
 			return 1, nil
 		},
+		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
 	}
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {

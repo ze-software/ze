@@ -37,6 +37,18 @@ import (
 //
 // Returns 0 when srcASN4 == dstASN4, which is the destination that needs no
 // work at all. Returns the number of bytes written to dst on success.
+//
+// RFC 4271 Section 4.3: "This 2-octet unsigned integer indicates the total
+// length of the Path Attributes field in octets."
+//
+// UPDATE body offsets (w = withdrawn length, a = total attribute length):
+//
+//	0       2       2+w     4+w             4+w+a
+//	+-------+-------+-------+---------------+-------------+
+//	| w (2) | routes| a (2) | attributes(a) | NLRI        |
+//	+-------+-------+-------+---------------+-------------+
+//
+// Headers and values must fit inside the attribute section, not in the NLRI.
 func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	if srcASN4 == dstASN4 {
 		return 0, nil
@@ -57,12 +69,11 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	attrLenOff := 2 + wdLen
 	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
 	attrsStart := attrLenOff + 2
+	attrsEnd := attrsStart + attrLen
 
-	if len(payload) < attrsStart+attrLen {
+	if len(payload) < attrsEnd {
 		return 0, fmt.Errorf("transcode AS_PATH: %w", ErrUpdateTruncated)
 	}
-
-	nlriStart := attrsStart + attrLen
 
 	aspAttrOff := -1
 	aspHdrLen := 0
@@ -78,8 +89,8 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	as4AggValueLen := 0
 
 	off := attrsStart
-	for off < attrsStart+attrLen {
-		if off+3 > len(payload) {
+	for off < attrsEnd {
+		if off+3 > attrsEnd {
 			return 0, fmt.Errorf("transcode AS_PATH: truncated attribute at offset %d: %w", off, ErrUpdateMalformed)
 		}
 
@@ -89,7 +100,7 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 		var length int
 		var hdrLen int
 		if flags.IsExtLength() {
-			if off+4 > len(payload) {
+			if off+4 > attrsEnd {
 				return 0, fmt.Errorf("transcode AS_PATH: truncated ext-length attribute: %w", ErrUpdateMalformed)
 			}
 			length = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
@@ -99,8 +110,8 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 			hdrLen = 3
 		}
 
-		if off+hdrLen+length > len(payload) {
-			return 0, fmt.Errorf("transcode AS_PATH: attribute value overflows payload: %w", ErrUpdateMalformed)
+		if off+hdrLen+length > attrsEnd {
+			return 0, fmt.Errorf("transcode AS_PATH: attribute value overflows the attribute section: %w", ErrUpdateMalformed)
 		}
 
 		if code == attribute.AttrASPath {
@@ -208,7 +219,7 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	n := copy(dst, payload[:attrsStart])
 
 	off = attrsStart
-	for off < nlriStart {
+	for off < attrsEnd {
 		flags := attribute.AttributeFlags(payload[off])
 		code := attribute.AttributeCode(payload[off+1])
 		var length, hdrLen int
@@ -220,6 +231,7 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 			hdrLen = 3
 		}
 
+		//exhaustive:ignore // Transcode only AS-path-family attributes; copy all other codes unchanged.
 		switch code {
 		case attribute.AttrASPath:
 			if existingPath != nil {
@@ -311,7 +323,7 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	}
 
 	// Copy NLRI.
-	n += copy(dst[n:], payload[nlriStart:])
+	n += copy(dst[n:], payload[attrsEnd:])
 
 	// Update attrLen.
 	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max

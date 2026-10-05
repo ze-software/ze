@@ -60,7 +60,8 @@ func ownedCapabilities(read openParams, id openIdentity) (map[byte]ownedCapabili
 		for _, tlv := range param.caps {
 			code := tlv[0]
 			value := tlv[2:]
-			switch capability.Code(code) { //nolint:exhaustive // only the codes whose value describes the SENDER are resolved here
+			//exhaustive:ignore // Override sender-owned capabilities only; other codes remain mirrored.
+			switch capability.Code(code) {
 			case capability.CodeRole:
 				role, err := complementaryRole(value)
 				if err != nil {
@@ -302,6 +303,8 @@ func invertedAddPath(value []byte) ([]byte, error) {
 			// Both is its own complement, and None is what RFC 7911 Section 4
 			// leaves undefined. Neither is changed, so a .ci that drove an
 			// invalid direction still drives it.
+		default:
+			// The wire mode set is open; preserve unknown octets so malformed fixtures stay malformed.
 		}
 	}
 	tlv := make([]byte, addPath.Len())

@@ -85,12 +85,12 @@ def receive(self, afi, safi):
 +---------------------------+
 ```
 
-### Special Values
+### Identifier Presence
 
 | Value | Meaning |
 |-------|---------|
-| 0x00000000 | NOPATH - ADD-PATH enabled but no specific ID |
-| (absent) | DISABLED - ADD-PATH not negotiated |
+| 0x00000000 | A valid Path Identifier, including one assigned by Ze |
+| (absent) | No Path Identifier field; ADD-PATH is not used for that family |
 <!-- source: internal/core/bgp/nlri/wire.go -- WireNLRI.PathID, HasAddPath -->
 
 ### Path ID Assignment
@@ -99,6 +99,10 @@ Path IDs are locally significant:
 - Sender chooses any 32-bit value
 - Must be unique per prefix per peer
 - Typically: incrementing counter, hash, or peer-derived
+
+Zero has no special wire meaning. Negotiated framing, not the identifier's
+numeric value, determines whether a Path Identifier is present.
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDTable.mintLocked -->
 
 ---
 
@@ -397,7 +401,7 @@ func encodeNLRI(n nlri.NLRI, ctx *nlri.PackContext) []byte {
 
 **Path ID value:**
 - Uses `n.PathID()` (stored value, 0 if unset)
-- Value 0 is valid per RFC 7911 (NOPATH)
+- Value 0 is a valid identifier, not an absent-identifier sentinel
 <!-- source: internal/core/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
 <!-- source: internal/core/bgp/nlri/nlri.go -- NLRI interface, PathID(), WriteTo() -->
 

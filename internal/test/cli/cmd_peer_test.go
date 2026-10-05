@@ -118,7 +118,8 @@ func TestPeerFileConfigMergeIsComplete(t *testing.T) {
 // merge check above can tell "carried over" from "left untouched".
 func setNonZero(t *testing.T, f reflect.Value, name string) {
 	t.Helper()
-	switch f.Kind() { //nolint:exhaustive // the cases below cover every peer.Config field kind
+	//exhaustive:ignore // Seed only peer.Config field kinds; fail the test for unsupported kinds.
+	switch f.Kind() {
 	case reflect.Bool:
 		f.SetBool(true)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

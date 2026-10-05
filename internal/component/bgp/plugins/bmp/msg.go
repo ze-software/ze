@@ -122,7 +122,7 @@ func DecodeMsg(buf []byte) (any, error) {
 	end := int(ch.Length)
 	off := n
 
-	switch ch.Type { //nolint:exhaustive // BMP has exactly 7 types, handled below + error
+	switch ch.Type {
 	case MsgInitiation:
 		return decodeInitiation(buf, off, end)
 	case MsgTermination:

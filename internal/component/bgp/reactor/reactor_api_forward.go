@@ -783,12 +783,18 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
 		}
+		baseNextHop := srcNextHop
+		if peerBaseWire != sourceWire {
+			baseNextHop = payloadNextHop(peerBaseWire.Payload())
+		}
+		applyNextHopFamily(&mods, baseNextHop)
 		// A raw policy can introduce a second next hop even when the received
 		// UPDATE was single-field. Its AIGP decision needs each output section,
 		// but always the original received metric and next hop.
 		aigpBySection := len(srcAIGP) != 0 && peerBaseWire.MixesNLRIFields()
+		var aigpCostWithheld bool
 		if !aigpBySection {
-			applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), update.SourcePeerIP, srcAIGPLinkMetric, &mods)
+			aigpCostWithheld = applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), update.SourcePeerIP, srcAIGPLinkMetric, &mods)
 		}
 
 		// draft-ietf-idr-linklocal-capability Section 4: "When sending a message
@@ -817,10 +823,6 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// A refused destination is sent the withdrawal of the routes, its own
 		// withdrawals included, as at the gates above.
 		if !mods.IsWithdraw() {
-			baseNextHop := srcNextHop
-			if peerBaseWire != sourceWire {
-				baseNextHop = payloadNextHop(peerBaseWire.Payload())
-			}
 			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
 			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
 			if gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr); gate != withholdNone {
@@ -925,6 +927,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// No continuation invokes policy or recreates a mixed section.
 		for _, peerBaseWire := range wires {
 			modBufIdx, modPoolRef := splitBufIdx, splitPool
+			sectionAIGPCostWithheld := aigpCostWithheld
 			if partitioned {
 				mods.Reset()
 				baseNextHop := aigpNextHop(peerBaseWire.Payload())
@@ -935,7 +938,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 					mods.SetWithdraw()
 				}
 				if aigpBySection && !mods.IsWithdraw() && baseNextHop.valid() {
-					applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), srcAddr, srcAIGPLinkMetric, &mods)
+					sectionAIGPCostWithheld = applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), srcAddr, srcAIGPLinkMetric, &mods)
 				}
 			}
 
@@ -999,6 +1002,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// intermediate rewritten payload is produced here, no read buffer is
 			// borrowed, and nothing is adopted onto the entry.
 			peerWire := peerBaseWire
+			opaqueReady := false
+			var candidate fwdDedupCand
+			var materialization []byte
 
 			// A destination refused the announcement is sent the withdrawal of the
 			// routes instead: RFC 9494 (the LLGR egress filter, toward an EBGP peer
@@ -1036,12 +1042,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				// 0.5% and is not worth its blast radius.
 				var modified []byte
 				var bufIdx int
-				shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire}, &mods)
+				shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire, preserveOpaque: facts.preserveOpaqueAttributes}, &mods)
 				if shared != nil {
 					modified, bufIdx = copyMaterialization(shared, modPool)
 				} else {
 					var modFail modifyFailure
-					modified, bufIdx, modFail = buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil)
+					modified, bufIdx, modFail = buildForwardPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, facts.preserveOpaqueAttributes)
 					// Counts AND says it, once per reason per second; see
 					// recordModifyFailure. This fires once per DESTINATION, so an
 					// unbounded line here scaled with fan-out.
@@ -1062,9 +1068,10 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 					if modified != nil {
 						recordMaterialization()
 					}
-					dedup.commit(cand, modified)
+					candidate, materialization = cand, modified
 				}
 				if modified != nil {
+					opaqueReady = true
 					if modBufIdx > 0 && modPoolRef != nil {
 						modPoolRef.Return(modBufIdx)
 					}
@@ -1099,6 +1106,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			item.aigpOrigin = announceOrigin(srcInfo.sender)
 			item.aigpRevision = metricRevision
 			item.aigpReplay = update.aigpReplay
+			// applyFactsAIGP's cost refusal MUST reach the write receipt;
+			// ordinary policy and source withdrawals must not retain a route.
+			item.aigpCostWithheld = sectionAIGPCostWithheld
 
 			extendedMessage := facts.extendedMsg
 			maxMsgSize := facts.maxMsgSize
@@ -1115,17 +1125,23 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			}
 
 			{
-				// RFC 4271 Section 5: the cache key and builder MUST use one treatment.
-				effectiveWire, attrErr := parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes)
-				if attrErr != nil {
-					fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
-					a.r.fwdPool.releaseItem(&item)
-					continue
+				effectiveWire := peerWire
+				if !opaqueReady {
+					// RFC 4271 Section 5: unmodified input is shared and MUST stay immutable.
+					var attrErr error
+					effectiveWire, attrErr = parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes, update)
+					if attrErr != nil {
+						fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
+						dedup.abandon(candidate)
+						a.r.fwdPool.releaseItem(&item)
+						continue
+					}
 				}
 				body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 				if !ok {
 					// A failed build MUST release any outgoing-pool buffer acquired by
 					// the rebuild, just as a failed attribute treatment above does.
+					dedup.abandon(candidate)
 					a.r.fwdPool.releaseItem(&item)
 					continue
 				}
@@ -1148,6 +1164,11 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				}
 			}
 		dispatch:
+			// Dedup borrows this item's buffer. Publish only after the body can
+			// dispatch; an earlier failure MUST abandon before returning its slot.
+			if candidate.valid {
+				dedup.commit(candidate, materialization)
+			}
 
 			pending = append(pending, pendingFwd{
 				item: item,

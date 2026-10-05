@@ -281,6 +281,7 @@ func levelOfPDUType(pt packet.PDUType) (lsdbLevel, bool) {
 	case packet.PDUTypeP2PHello:
 		return levelOne, true
 	default:
+		// PDU types come from the wire; unknown codes have no key-store level.
 		return levelOne, false
 	}
 }
@@ -288,6 +289,7 @@ func levelOfPDUType(pt packet.PDUType) (lsdbLevel, bool) {
 // isIIHType reports whether a PDU type is an IS-IS Hello (per-interface auth) as
 // opposed to an LSP/CSNP/PSNP (per-level auth).
 func isIIHType(pt packet.PDUType) bool {
+	//exhaustive:ignore // Only Hello PDUs use the per-interface authentication chain.
 	switch pt {
 	case packet.PDUTypeL1LANHello, packet.PDUTypeL2LANHello, packet.PDUTypeP2PHello:
 		return true

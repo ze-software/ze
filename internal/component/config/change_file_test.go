@@ -264,3 +264,29 @@ func TestCoalesceRenameOpsSkipsDeleteOps(t *testing.T) {
 	assert.Equal(t, "b", result[0].NewKey, "rename NewKey must not be overwritten")
 	assert.Equal(t, StructuralOpDeleteEntry, result[1].Type)
 }
+
+// TestPendingChangeSummaryPreservesSetStyleFallback exercises member deactivation
+// and the valid zero kind. Both retain set-style display and masking.
+func TestPendingChangeSummaryPreservesSetStyleFallback(t *testing.T) {
+	op := StructuralOp{
+		Type:       StructuralOpDeactivateMember,
+		ParentPath: "system",
+		ListName:   "name-server",
+		NewKey:     "192.0.2.1",
+	}
+	change := op.PendingChange()
+	if got := change.Summary(nil); got != "set system name-server " {
+		t.Fatalf("deactivation summary = %q, want existing set-style display", got)
+	}
+
+	change.Kind = ""
+	change.Value = "private-value"
+	if got := change.Summary(nil); got != "set system name-server "+SecretDataPlaceholder {
+		t.Fatalf("zero-kind summary = %q, want masked set-style display", got)
+	}
+
+	change.Kind = PendingChangeKind("future-change")
+	require.PanicsWithValue(t, "BUG: invalid pending change kind", func() {
+		change.Summary(nil)
+	})
+}

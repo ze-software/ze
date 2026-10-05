@@ -1,5 +1,8 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-05",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7311-3-1": {
@@ -76,8 +79,8 @@
       "note": "Forbidden: acting on, or passing along, a malformed AIGP, or escalating beyond ignoring it. TestAIGPReceiveValidatesEveryTLV (IBGP, AIGP enabled) appends a truncated trailing TLV and asserts require.Equal(!malformed, present) on the payload leaving enforceRFC7606 (the bytes passed along), require.NoError (quietly, no session reset) and the NLRI kept (route not withdrawn). The well-formed half (unknown TLV plus duplicate metric) keeps the metric, so a blanket AIGP strip goes red.",
       "requirement_sha": "4b6ba95ea04b6437",
       "tests": {
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV": "b7c71e460d127db3",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV#2": "b7c71e460d127db3"
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV": "2223aed73d442a71",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV#2": "2223aed73d442a71"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV": "3b4825f95627f2c2",
@@ -102,8 +105,8 @@
       "note": "Forbidden: an EBGP (non-confederation) session defaulting AIGP_SESSION to enabled. TestAIGPSessionReceiveBoundary case external-default (peer AS 65002, local 65001, AIGPSession nil) asserts require.Equal(false, present) for AIGP after enforceRFC7606, which goes red on an enabled default; external-enabled shows the item is honoured when set; internal-default keeps AIGP, so the check is not a blanket strip.",
       "requirement_sha": "bf6f97ece0e68f9d",
       "tests": {
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary": "b7c71e460d127db3",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary#2": "b7c71e460d127db3"
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary": "2223aed73d442a71",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary#2": "2223aed73d442a71"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary": "5c6e71448aa83dd0",
@@ -154,21 +157,29 @@
       "verdict": "enforced"
     },
     "RFC7311-3.4.3-6": {
-      "note": "RFC 7311 \u00a73.4.3: \"It is possible that R1 and R2 above are EBGP neighbors and that there is a direct link between them on which no IGP is running. Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount. The amount of the increase SHOULD be such that it is properly comparable to the IGP metrics.\" Both tagged carriers internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire and rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears assert 100+7=107 at final wire and now include unresolved direct-link cost zero with AIGP absent, closing the previous missing input case. They nevertheless call forward_aigp.go::applyFactsAIGP directly with a literal sourceLinkMetric. Neither traverses sourceAIGPLinkMetric or the actual general/route-server source-cost plumbing; changing that plumbing to use the destination peer metric can leave both green. Current producer correctly chooses source Settings().AIGPLinkMetric when the received next hop is the source peer, but the row does not prove that provenance. In addition, zero-cost suppression avoids an unchanged metric but does not itself prove the RFC-mandated nonzero increase; the RFC explicitly permits dropping for missing recursive AIGP, not as an equivalent direct-link increase. Keep weak instead of promoting helper arithmetic to the whole direct-link obligation. No production change or policy invention authorized.",
+      "note": "RFC 7311 Section 3.4.3, in the context of EBGP neighbors with a direct link running no IGP: 'Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.' Re-read all four tagged units under internal/component/bgp/reactor/: rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire, rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears, rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient and TestRFC7311UnknownCostWithdrawsUntilMetricRecovers. The first two directly call the arithmetic producer but now distinguish an exact withdrawal from an attribute-free announcement. The source-cost test closes their prior integration gap: a received UPDATE enters notifyMessageReceiver and the cache, then general ForwardUpdate or the live RS cached fallback through ForwardUpdatesDirect, finally reaching the worker/session socket. No IGP distance is available; source costs 7 and 19 deliberately differ from destination cost 43. The recipient must contain the same NLRI, no withdrawal, rewritten local NEXT_HOP, exact AIGP TLV/flags and metrics 107 or 119, with received source bytes unchanged. Transparent controls preserve metric 100, including unavailable cost, and boundary cases saturate rather than wrap as required by the surrounding paragraph. Unknown/resolved-zero controls on both rails require the exact withdrawn prefix with no announcement or attributes, both initially and after a prior metric-107 advertisement; supplying distance 11 restores the retained received metric as 111, without a new source UPDATE. These are substantive source-to-recipient assertions, not direct helper success or mere AIGP absence. Producing symbols: forward_aigp.go::sourceAIGPLinkMetric, aigpIncrement, applyFactsAIGP; reactor_api_forward.go::forwardUpdateSection and ForwardUpdate; forward_rs.go::sourceUsesCachedForward and reactorForwardRS (AIGP selects cached forwarding). Native panic records prove applyFactsAIGP reachability only, not arithmetic, source provenance or withdrawal semantics. The optional metric-comparability SHOULD is not silently promoted to this MUST row. No new checks, semantic mutation execution or interop pass is claimed.",
       "requirement_sha": "34dc4991d650d0ca",
       "tests": {
-        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "1a701ac0896c4262",
-        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "1a701ac0896c4262",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "b7c71e460d127db3",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "b7c71e460d127db3"
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "9c19647d73501aae",
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "9c19647d73501aae",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "2223aed73d442a71",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "2223aed73d442a71",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient": "1afa0b5f8194f1d1",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient#2": "1afa0b5f8194f1d1",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers": "1afa0b5f8194f1d1",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers#2": "1afa0b5f8194f1d1"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "96b9643d495e7fcb",
-        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "96b9643d495e7fcb",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d0354c9b21293131",
-        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d0354c9b21293131"
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "eda0cccfbeb366e5",
+        "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "eda0cccfbeb366e5",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "cf523b4a126a1556",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "cf523b4a126a1556",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient": "a99506dc91a54368",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient#2": "a99506dc91a54368",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers": "c3f5a44b5bfa295d",
+        "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers#2": "c3f5a44b5bfa295d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7311-3.4.3-7": {
       "note": "RFC 7311 \u00a73.4.3: \"The AIGP TLV value of a given route depends on (a) the AIGP TLV values of all the next hops that are recursively resolved during this procedure, and (b) the IGP distance to any next hop that is not recursively resolved. Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route. Whether a change due to (b) triggers a new AIGP computation depends upon whether the change in IGP distance exceeds a configurable threshold.\" Read all four tagged carriers. reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire now changes a recursive BGP received AIGP in the actual Loc-RIB and waits for real forwarding-worker/socket output, without new source UPDATE or manual replay; expected 307/max/507/max/507 distinguishes notification loss, missing recomputation and accumulation from prior advertisement. reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration separately proves source generation survives cache eviction and exact 107 then 111. plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes and sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics are supplementary manual recomputation assertions, not credited as automatic-trigger proof. Producers reactor/aigp_readvertise.go::runAIGPAdvertisements/readvertiseAIGP/replayAIGP subscribe to Loc-RIB changes and recompute from retained received bytes using igpcost.Resolve; source AIGP is not an operator/MED substitute. The recursive carrier closes the prior clause-(a) trigger gap; the finite-after-saturation cases supply a distinct negative. This does not promote configurable clause-(b) threshold policy or runtime verification.",

@@ -165,6 +165,8 @@ func validateValue(k KeyDef, value string) error {
 		if v < k.Min || v > k.Max {
 			return fmt.Errorf("sysctl %s: value %d not in range [%d, %d]", k.Name, v, k.Min, k.Max)
 		}
+	default:
+		panic("BUG: sysctl: invalid registered value type")
 	}
 	return nil
 }

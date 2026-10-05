@@ -67,7 +67,7 @@ func viewState(s fsm.State) string {
 	case fsm.StateMaster:
 		return "master"
 	default:
-		return "unknown"
+		panic("BUG: vrrp: invalid FSM state")
 	}
 }
 

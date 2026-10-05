@@ -37,6 +37,6 @@ func suppressLFA(t RouteType, area types.AreaID, abrCount, asbrCount int, virtua
 		}
 		return asbrCount > 1 || abrCount > 1
 	default:
-		return true
+		panic("BUG: suppressLFA: invalid route type")
 	}
 }

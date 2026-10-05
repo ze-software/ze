@@ -114,9 +114,14 @@ func TestModeStringAndParse(t *testing.T) {
 	if ModeEcho.String() != "echo" {
 		t.Errorf("ModeEcho.String() = %q, want %q", ModeEcho.String(), "echo")
 	}
-	if Mode(99).String() != "unknown" {
-		t.Errorf("Mode(99).String() = %q, want %q", Mode(99).String(), "unknown")
-	}
+	t.Run("unknown internal mode", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: unknown peer mode" {
+				t.Errorf("Mode(99).String() panic = %v, want BUG: unknown peer mode", got)
+			}
+		}()
+		_ = Mode(99).String()
+	})
 
 	// Test ParseMode (case-insensitive)
 	tests := []struct {

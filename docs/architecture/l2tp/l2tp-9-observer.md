@@ -31,6 +31,12 @@ processing, so there is no contention to split.
 summed round-trip time. The average is the sum over the count. A negative
 round-trip time is clamped to zero.
 
+The observer assigns bucket phases and event types locally, rather than reading
+their numbers from a peer. Their `String` methods name every declared value and
+panic with `BUG:` for an unnamed internal value. Existing zeros retain their
+meaning: a zero bucket phase is `established`, and a zero event type is the empty
+record, displayed as `unknown`.
+
 ## Traps this code exists to avoid
 
 **Closing a bucket must not spin on a large time gap.** A system suspend or an

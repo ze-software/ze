@@ -25,13 +25,15 @@ import (
 // every build case runs in.
 func fixture(t *testing.T) selftestEnv {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), selftestDeadline)
-	t.Cleanup(cancel)
-
-	env, err := WriteFixture(ctx, t.TempDir())
+	setup, cancelSetup := context.WithTimeout(t.Context(), selftestDeadline)
+	env, err := WriteFixture(setup, t.TempDir())
+	cancelSetup()
 	if err != nil {
 		t.Fatalf("write the fixture: %v", err)
 	}
+	ctx, cancel := context.WithTimeout(t.Context(), selftestDeadline)
+	t.Cleanup(cancel)
+	env.ctx = ctx
 	return env
 }
 

@@ -44,7 +44,7 @@ func (s lspState) String() string {
 	case LSPStateUp:
 		return "up"
 	default:
-		return "unknown"
+		panic("BUG: rsvpte: invalid LSP state")
 	}
 }
 
@@ -66,7 +66,7 @@ func (r lspRole) String() string {
 	case RoleEgress:
 		return "egress"
 	default:
-		return "unknown"
+		panic("BUG: rsvpte: invalid LSP role")
 	}
 }
 

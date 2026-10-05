@@ -228,7 +228,7 @@ func pythonTruthy(value jsonValue) bool {
 	case jsonObject:
 		return len(value.members) != 0
 	default:
-		return false
+		panic("BUG: invalid mutation JSON kind")
 	}
 }
 

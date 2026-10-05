@@ -7,7 +7,7 @@
 | **Format** | TLV: Type (1) + Length (1) + Value (variable) |
 | **Key Codes** | 1=MP, 2=RouteRefresh, 65=ASN4, 69=ADD-PATH, 6=ExtMsg |
 | **ADD-PATH Flags** | 1=receive, 2=send, 3=both |
-| **Negotiation** | Intersection of peer caps; unknown ignored; last wins |
+| **Negotiation** | Capability-specific rules; Extended Message uses independent local and peer advertisements |
 | **Modes** | `enable`/`disable`/`require`/`refuse` — enforcement after negotiation |
 | **Key Types** | `Capability` interface, `CapabilityCode`, `Negotiated` |
 
@@ -220,7 +220,12 @@ RFC 8654 - Support for BGP messages > 4096 bytes.
 [Empty - Length = 0]
 ```
 
-No value field. When negotiated, max message size increases to 65535 bytes.
+No value field. The local advertisement permits receiving up to 65,535 octets;
+the peer advertisement permits sending up to 65,535 octets. OPEN remains limited
+to 4,096 octets and KEEPALIVE remains exactly 19 octets. See
+[Extended Message](../edge-cases/extended-message.md) for asymmetric combinations.
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate -->
+<!-- source: internal/component/bgp/message/header.go -- ValidateLengthWithMax -->
 
 <!-- source: internal/core/bgp/capability/capability.go -- ExtendedMessage struct -->
 
@@ -584,13 +589,14 @@ type Negotiated struct {
     // Sub-components (composite pattern)
     Identity *PeerIdentity // ASNs, Router IDs
     Encoding *EncodingCaps // ASN4, families, ADD-PATH
-    Session  *SessionCaps  // ExtendedMessage, GR
+    Session  *SessionCaps  // Route Refresh, GR
 
     // Backward-compat fields (delegates to sub-components)
     LocalASN             uint32
     PeerASN              uint32
     ASN4                 bool
-    ExtendedMessage      bool
+    ExtendedMessageRecv  bool // Local advertisement
+    ExtendedMessageSend  bool // Peer advertisement
     RouteRefresh         bool
     EnhancedRouteRefresh bool
     BFDStrictMode        bool

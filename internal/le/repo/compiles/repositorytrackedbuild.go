@@ -427,10 +427,14 @@ func setBuildCache(repo string) error {
 	return nil
 }
 
-// goEnv answers the explicit CGO-free environment for one flavor's toolchain
-// calls. A cross-target flavor also sets GOOS.
+// goEnv answers the module-local, CGO-free environment for one flavor.
+// The declared tags must not inherit GOFLAGS or an enclosing workspace.
+// GOCACHE and the launcher's toolchain pin remain shared across extracted trees.
+// The archive has no .git, so Go's default VCS stamping would inspect the
+// enclosing working checkout, even in go list. That checkout's status is not
+// part of the extracted commit's compile or package-selection proof.
 func goEnv(flavor Flavor) []string {
-	environ := append(os.Environ(), "CGO_ENABLED=0")
+	environ := append(os.Environ(), "CGO_ENABLED=0", "GOENV=off", "GOFLAGS=-buildvcs=false", "GOWORK=off")
 	if flavor.GOOS != "" {
 		var tb textbuf.Buffer
 		environ = append(environ, tb.Str("GOOS=").Str(flavor.GOOS).String())
@@ -468,6 +472,12 @@ func Build(ctx context.Context, dest string, flavor Flavor, features []string, f
 	out, err := cmd.CombinedOutput()
 	result.Output = strings.TrimSpace(string(out))
 	if err != nil {
+		var detail textbuf.Buffer
+		detail.Str("go build: ").Err(errors.Join(err, ctx.Err()))
+		if result.Output != "" {
+			detail.Byte('\n').Str(result.Output)
+		}
+		result.Output = detail.String()
 		return result
 	}
 

@@ -80,6 +80,42 @@ an interleaving no assertion can schedule
 (`TestEvictionWalksTheBodyBeforeItFreesTheBuffer`).
 <!-- source: internal/component/bgp/reactor/recent_cache.go -- evictLocked, Delete -->
 
+**Received UPDATE publication ends the session's byte access.** `processMessage`
+finishes family and prefix validation before calling `onMessageReceived`. The
+callback may transfer the buffer to the cache, whose consumers can finish and
+recycle it before the callback returns. The session then handles a pending policy
+teardown or fires the normal UPDATE FSM event without reading the payload again.
+The event still owns the HoldTimer restart. Control messages do not transfer
+their buffers to this cache and retain their existing post-callback handlers.
+`TestReceiveUpdateDoesNotReadTransferredStorage` makes reuse deterministic inside
+the ownership-taking callback; a borrowed-buffer control preserves ordinary
+delivery.
+<!-- source: internal/component/bgp/reactor/session_read.go -- processMessage -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
+
+**A forwarding dedup entry borrows an outgoing item, not a pool slot forever.**
+Both rails MUST finish body construction before publishing a materialization
+to the per-fan-out dedup table. A failed body MUST abandon its candidate before
+returning the outgoing slot; otherwise later destinations can copy a different
+UPDATE that has reused that slot. Successful items retain their buffers in the
+pending fan-out until all lookups and copies finish, then dispatch normally.
+No second buffer owner or retain count is needed.
+`TestFailedBodyDoesNotPublishReleasedMaterialization` schedules slot reuse
+between a failed destination and a healthy one, and checks the healthy peer's
+exact NLRI on both rails, with dedup-disabled controls.
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+
+**Stopping a cache scan does not release cached ownership.** `RecentUpdateCache.Stop`
+only stops its background scanner. A fixture that keeps a consumer outstanding
+must unregister that consumer at cleanup; the cache then returns adopted buffers
+after the last worker retain is released. The fan-out fixtures stop their workers
+before unregistering. Direct `buildFwdBody` callers must also return the result's
+`transcodeBuf`, including same-context ADD-PATH rewrites whose split output has
+already copied the bytes.
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- Stop, UnregisterConsumer -->
+<!-- source: internal/component/bgp/reactor/forward_dedup_test.go -- newFanoutHarnessWith, newReflectorHarness -->
+
 ### B. attrpool Handle — never copies
 Attribute bytes are interned once and shared (refcounted) across thousands of
 routes; copying on retain would destroy the dedup memory win. `Get` returns a

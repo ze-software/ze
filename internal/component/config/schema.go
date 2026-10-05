@@ -80,6 +80,7 @@ func (t ValueType) String() string {
 	case TypeASN:
 		return valueTypeASN
 	default:
+		// Caller-supplied schema types are open; unnamed values render as unknown.
 		return "unknown"
 	}
 }
@@ -868,6 +869,7 @@ func ValidateValue(typ ValueType, value string) error {
 		return nil
 
 	default:
+		// Caller-supplied schema types are open; reject types without a validator.
 		return fmt.Errorf("unknown type: %v", typ)
 	}
 }
@@ -983,6 +985,7 @@ func validateNumericRanges(typ ValueType, value string, ranges []NumericRange) e
 }
 
 func parseNumericRangeValue(typ ValueType, value string) (*big.Int, error) {
+	//exhaustive:ignore // Only numeric leaf types project to integer range values.
 	switch typ {
 	case TypeUint16:
 		v, err := strconv.ParseUint(value, 10, 16)

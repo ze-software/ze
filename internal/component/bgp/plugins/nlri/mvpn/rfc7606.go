@@ -24,6 +24,7 @@ package mvpn
 // so the two cannot drift: a type ze can name is a type ze recognizes, and a type
 // String renders as "type(N)" is one it does not.
 func (t MVPNRouteType) Implemented() bool {
+	//exhaustive:ignore // Recognizes only MCAST-VPN route types implemented by this codec.
 	switch t {
 	case MVPNIntraASIPMSIAD, MVPNInterASIPMSIAD, MVPNSPMSIAD, MVPNLeafAD,
 		MVPNSourceActive, MVPNSharedTreeJoin, MVPNSourceTreeJoin:

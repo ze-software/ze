@@ -271,7 +271,7 @@ func newAnnounceFactPeer(t *testing.T, dest announceFactPeer) (*Peer, *recording
 	// the capability is negotiated, which session_negotiate.go does on a live
 	// session. Without it an extended peer cannot receive the larger message it
 	// negotiated, and the case below would compare two truncations.
-	session.writeBuf.Resize(neg.ExtendedMessage)
+	session.writeBuf.Resize(neg.ExtendedMessageSend)
 	session.mu.Unlock()
 
 	peer.mu.Lock()

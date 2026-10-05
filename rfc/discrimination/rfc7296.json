@@ -190,24 +190,24 @@
     },
     {
       "rid": "RFC7296-2.1-3",
-      "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
-      "unit-sha": "56f97c2e0a07f8ff",
-      "claim-sha": "ddc601ffd1951ec9",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
-      "producer-sha": "b10ac19df9523aa3",
-      "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-2.1-3",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
       "unit-sha": "56f97c2e0a07f8ff",
       "claim-sha": "ef2c2a888bf90de8",
       "route": "revert",
       "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
-      "producer-sha": "b10ac19df9523aa3",
+      "producer-sha": "08f9f0eec1855c93",
+      "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
+      "unit-sha": "56f97c2e0a07f8ff",
+      "claim-sha": "ddc601ffd1951ec9",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+      "producer-sha": "08f9f0eec1855c93",
       "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -234,24 +234,24 @@
     },
     {
       "rid": "RFC7296-2.1-4",
-      "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
-      "unit-sha": "56f97c2e0a07f8ff",
-      "claim-sha": "6bd6ac4f0d333a97",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
-      "producer-sha": "b10ac19df9523aa3",
-      "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-2.1-4",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
       "unit-sha": "56f97c2e0a07f8ff",
       "claim-sha": "817a232de1e5a894",
       "route": "revert",
       "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
-      "producer-sha": "b10ac19df9523aa3",
+      "producer-sha": "08f9f0eec1855c93",
+      "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
+      "unit-sha": "56f97c2e0a07f8ff",
+      "claim-sha": "6bd6ac4f0d333a97",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+      "producer-sha": "08f9f0eec1855c93",
       "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -564,17 +564,6 @@
     },
     {
       "rid": "RFC7296-2.18-3",
-      "polarity": "negative",
-      "unit": "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone",
-      "unit-sha": "92fc3d09151a2e76",
-      "claim-sha": "5de58943ab04c2ce",
-      "route": "revert",
-      "producer": "internal/component/ike/crypto/dh.go::NewDHExchange",
-      "producer-sha": "5f5725ea4408ea4f",
-      "break": "body of NewDHExchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-2.18-3",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone",
       "unit-sha": "92fc3d09151a2e76",
@@ -583,6 +572,17 @@
       "producer": "internal/component/ike/engine/rekey.go::initiateIKERekey",
       "producer-sha": "3ee270496e27ed3c",
       "break": "body of initiateIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.18-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone",
+      "unit-sha": "92fc3d09151a2e76",
+      "claim-sha": "5de58943ab04c2ce",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/dh.go::NewDHExchange",
+      "producer-sha": "63986082ffdd264b",
+      "break": "body of NewDHExchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.18-3",
@@ -1213,28 +1213,6 @@
     },
     {
       "rid": "RFC7296-2.4-3",
-      "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA",
-      "unit-sha": "680f1a5f86d7462e",
-      "claim-sha": "bfee1b5e5f2205d1",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
-      "producer-sha": "75c5777fb2fe7f45",
-      "break": "body of tryResponderSAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-2.4-3",
-      "polarity": "negative",
-      "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit",
-      "unit-sha": "45a7a6b75a6bd4ac",
-      "claim-sha": "717d3e9b2946791e",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
-      "producer-sha": "75c5777fb2fe7f45",
-      "break": "body of tryResponderSAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-2.4-3",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing",
       "unit-sha": "d9c4092481dfbf07",
@@ -1257,14 +1235,25 @@
     },
     {
       "rid": "RFC7296-2.4-3",
-      "polarity": "negative",
-      "unit": "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing",
-      "unit-sha": "3bb3adfe3559cc34",
-      "claim-sha": "b6a86d982c6396e1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA",
+      "unit-sha": "680f1a5f86d7462e",
+      "claim-sha": "bfee1b5e5f2205d1",
       "route": "revert",
-      "producer": "internal/component/ike/engine/fsm.go::handleInbound",
-      "producer-sha": "eb80074bbbe4833f",
-      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+      "producer-sha": "75c5777fb2fe7f45",
+      "break": "body of tryResponderSAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.4-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit",
+      "unit-sha": "45a7a6b75a6bd4ac",
+      "claim-sha": "717d3e9b2946791e",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+      "producer-sha": "75c5777fb2fe7f45",
+      "break": "body of tryResponderSAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.4-3",
@@ -1276,6 +1265,17 @@
       "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
       "producer-sha": "16e89dc41a6d249a",
       "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.4-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing",
+      "unit-sha": "3bb3adfe3559cc34",
+      "claim-sha": "b6a86d982c6396e1",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/fsm.go::handleInbound",
+      "producer-sha": "d62214a5808eed73",
+      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.5-18",
@@ -1455,24 +1455,24 @@
     },
     {
       "rid": "RFC7296-2.8-6",
-      "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA",
-      "unit-sha": "2b08a1db621b831c",
-      "claim-sha": "a3cf4716a8406fb8",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
-      "producer-sha": "a3e2df043c6db376",
-      "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-2.8-6",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA",
       "unit-sha": "2b08a1db621b831c",
       "claim-sha": "ad3273d28423d375",
       "route": "revert",
       "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
-      "producer-sha": "a3e2df043c6db376",
+      "producer-sha": "e0f026e5963c9b00",
+      "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.8-6",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA",
+      "unit-sha": "2b08a1db621b831c",
+      "claim-sha": "a3cf4716a8406fb8",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+      "producer-sha": "e0f026e5963c9b00",
       "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1505,7 +1505,7 @@
       "claim-sha": "2caae3d0a054229a",
       "route": "revert",
       "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
-      "producer-sha": "614ae83f1fcca2f8",
+      "producer-sha": "12d94c65a350be00",
       "break": "body of handleResponderInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1532,24 +1532,24 @@
     },
     {
       "rid": "RFC7296-3.1-12",
-      "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse",
-      "unit-sha": "4f67d0182d090c16",
-      "claim-sha": "0b52f7d9337e3592",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
-      "producer-sha": "a3e2df043c6db376",
-      "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-3.1-12",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse",
       "unit-sha": "4f67d0182d090c16",
       "claim-sha": "473a9aa73738f15d",
       "route": "revert",
       "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
-      "producer-sha": "a3e2df043c6db376",
+      "producer-sha": "e0f026e5963c9b00",
+      "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.1-12",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse",
+      "unit-sha": "4f67d0182d090c16",
+      "claim-sha": "0b52f7d9337e3592",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+      "producer-sha": "e0f026e5963c9b00",
       "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1659,7 +1659,7 @@
       "claim-sha": "70757e7d9c11a9c1",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
-      "producer-sha": "f8ed7151f00a7d1a",
+      "producer-sha": "7ee950b373201a43",
       "break": "body of retrySAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1681,7 +1681,7 @@
       "claim-sha": "bdbdda17e89e64d2",
       "route": "revert",
       "producer": "internal/component/ike/engine/fsm.go::handleInbound",
-      "producer-sha": "eb80074bbbe4833f",
+      "producer-sha": "d62214a5808eed73",
       "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

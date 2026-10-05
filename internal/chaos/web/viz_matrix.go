@@ -617,6 +617,8 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 			totalReconn++
 		case PeerIdle:
 			totalIdle++
+		default:
+			panic("BUG: invalid dashboard peer status")
 		}
 
 		famStr := ""

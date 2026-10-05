@@ -2125,10 +2125,12 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 		}
 		err := target.session.sendBodyWithSplit(ctx, modified, maxMsgSize, facts.addPath, batch.Replay)
 		return err == nil, err
-	default: // staleKeep
+	case staleKeep:
 		// LLGR-capable peer: send the stale route unchanged.
 		err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath, batch.Replay)
 		return err == nil, err
+	default:
+		panic("BUG: invalid stale readvertise outcome")
 	}
 }
 

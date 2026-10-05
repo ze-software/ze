@@ -247,6 +247,8 @@ func runReloadRESTScenario(ctx context.Context, plugin *sdk.Plugin, mode reloadR
 		if status := restStatus(ctx, port, ""); status != http.StatusOK {
 			return fmt.Errorf("after SIGHUP: unauthenticated read status=%d, want 200", status)
 		}
+	default:
+		panic("BUG: unknown REST reload fixture mode")
 	}
 	return nil
 }

@@ -35,6 +35,10 @@ type nextHopValue struct {
 	// RFC 8950 Section 4 licenses an IPv6 next hop for. Zero when the UPDATE
 	// carries no MP_REACH_NLRI. A next-hop rewrite never changes it.
 	mpFamily family.Family
+
+	// A received field that the family forbids must leave on advertisement,
+	// but its bytes never identify a forwarding address or a withholding gate.
+	mpIgnored bool
 }
 
 // has reports whether any address this UPDATE offers is addr.
@@ -106,11 +110,42 @@ func payloadNextHop(payload []byte) nextHopValue {
 			out.mpFamily = family.Family{AFI: family.AFI(binary.BigEndian.Uint16(value)), SAFI: family.SAFI(value[2])}
 			nhLen := int(value[3])
 			if 4+nhLen <= len(value) {
-				out.mp, out.mpLL = nextHopAddr(value[4 : 4+nhLen])
+				if out.mpFamily.NeedsNextHop() {
+					out.mp, out.mpLL = nextHopAddr(value[4 : 4+nhLen])
+				} else {
+					out.mpIgnored = nhLen != 0
+				}
 			}
 		}
 	}
 	return out
+}
+
+// applyNextHopFamily enforces the same family contract as origination before
+// any egress next-hop decision. RFC 8955 Section 4: "When advertising Flow
+// Specifications, the Length of the Next-Hop Network Address MUST be set to 0.
+// The Network Address of the Next-Hop field MUST be ignored."
+//
+// Clear only MP operations, retaining a genuine legacy sibling's NEXT_HOP.
+// Reuse existing operation slots rather than growing the accumulator. Received
+// bytes remain immutable; the registered handler materializes the empty field
+// in the destination-owned output. An already empty, unchanged field costs no
+// edit and keeps the forwarding identity path.
+func applyNextHopFamily(mods *filterapi.ModAccumulator, base nextHopValue) {
+	if base.mpFamily.NeedsNextHop() {
+		return
+	}
+	found := false
+	ops := mods.Ops()
+	for i := range ops {
+		if ops[i].Code == uint8(attribute.AttrMPReachNLRI) && ops[i].Action == filterapi.AttrModSet {
+			ops[i] = filterapi.AttrOp{Code: uint8(attribute.AttrMPReachNLRI), Action: filterapi.AttrModSet}
+			found = true
+		}
+	}
+	if base.mpIgnored && !found {
+		mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, nil)
+	}
 }
 
 // modsNextHop reports the NEXT_HOP this destination's accumulated operations
@@ -520,9 +555,9 @@ func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, mods *fil
 //     not been negotiated, the procedures in this document do not apply."
 //     (egressNextHopLinkLocalOnlyRefused).
 func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, reflected bool, advertiser netip.Addr) withholdGate {
-	// A payload with no next hop announces nothing: its routes are withdrawals,
-	// which none of these gates refuses. It is the withdrawal-only section of a
-	// split UPDATE (withdrawalBySection).
+	// Withdrawals and families without forwarding next hops have no address
+	// for these gates to refuse. FlowSpec's received field is ignored by
+	// payloadNextHop; applyNextHopFamily also clears destination MP rewrites.
 	if !base.valid() {
 		return withholdNone
 	}

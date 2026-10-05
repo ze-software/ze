@@ -58,8 +58,9 @@ func (s Severity) String() string {
 		return "warning"
 	case SeverityError:
 		return "error"
+	default:
+		panic("BUG: report: invalid severity")
 	}
-	return "unknown"
 }
 
 // MarshalJSON encodes Severity as the lowercase label string ("warning" or

@@ -135,6 +135,8 @@ func (p *Peer) run() {
 				case PrefixReconnectBackoff, PrefixReconnectUnset:
 					// The operator asked for the usual backoff, which is the
 					// code below. PrefixReconnectFor never returns Unset.
+				default:
+					// Configuration-backed modes form an open set; keep normal backoff for unknown values.
 				}
 			}
 

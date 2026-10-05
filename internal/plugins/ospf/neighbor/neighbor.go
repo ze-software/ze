@@ -83,7 +83,7 @@ func (s state) String() string {
 	case stateFull:
 		return stateNameFull
 	default:
-		return "unknown"
+		panic("BUG: invalid OSPF neighbor state")
 	}
 }
 

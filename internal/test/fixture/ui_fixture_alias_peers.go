@@ -249,11 +249,10 @@ system {
 			return fmt.Errorf("read ssh.addr: %w", err)
 		}
 		address := strings.TrimSpace(string(addressBytes))
-		colon := strings.LastIndexByte(address, ':')
-		if colon < 0 {
+		host, port, found := strings.CutLast(address, ":")
+		if !found {
 			return fmt.Errorf("invalid SSH address %q", address)
 		}
-		host, port := address[:colon], address[colon+1:]
 		cliEnv := uiAliasPeersEnv(os.Environ(), map[string]string{
 			envSSHHost:     host,
 			envSSHPort:     port,

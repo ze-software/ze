@@ -382,10 +382,14 @@ func DialTLSEnvRaw(name string) (net.Conn, error) {
 	return conn, nil
 }
 
-// Close closes the underlying connections, unblocking any goroutines waiting
-// on Read(). Must be called when the plugin is done to prevent goroutine and
-// socket leaks. Safe to call multiple times.
+// Close fences direct event delivery and closes callback and socket transports.
+// It does not join handlers: an event handler may call Close itself. The owner
+// MUST let Run return before releasing plugin state; Run drains admitted events.
+// MUST be called when the plugin is done. Safe to call multiple times.
 func (p *Plugin) Close() error {
+	if p.bridge != nil {
+		p.bridge.CloseCallbacks()
+	}
 	// Close MuxConn first -- its background reader must stop before
 	// closing the underlying engineConn (which it reads from).
 	if p.engineMux != nil {
@@ -397,8 +401,16 @@ func (p *Plugin) Close() error {
 }
 
 // Run executes the 5-stage startup protocol and enters the event loop.
-// Returns nil on clean shutdown (bye received), or error on failure.
+// Returns nil on clean shutdown (bye received), or error on failure. Before
+// returning it fences and drains direct event handlers, so the owner MUST wait
+// for Run to return before releasing state those handlers use.
 func (p *Plugin) Run(ctx context.Context, reg Registration) error {
+	if p.bridge != nil {
+		defer func() {
+			p.bridge.CloseCallbacks()
+			p.bridge.WaitDelivery()
+		}()
+	}
 	// A plugin that registered an OPEN validation handler asks to be consulted
 	// on every OPEN, and declares it here rather than in the registration it
 	// wrote. The engine sends validate-open to exactly the plugins that

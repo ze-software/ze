@@ -177,6 +177,12 @@ needs MD4, MS-CHAPv2 and NTLM among them, has to bring its own.
 **EAP session state is stored on the SA as `any`.** Importing the eap package
 into the engine package would create an import cycle.
 
+The EAP session and MS-CHAPv2 method assign their private phases locally, so
+an unnamed phase is an internal defect and their dispatch switches panic with
+`BUG:`. Completed phases remain explicit: the session returns no packet, and
+the MS-CHAPv2 method returns `ErrMethodFailed`. Received EAP codes and method
+data still pass through the existing packet validation and refusal paths.
+
 **The Request Type decides the outcome before any method sees the packet.**
 `PeerSession.handleRequest` produces four outcomes: a Notification Response, a
 legacy Nak, a method dispatch, or a silent discard. Three of the four belong to
@@ -219,6 +225,30 @@ ended the IKE SA.
 
 <!-- source: internal/component/ike/engine/eap_auth.go -- eapMessageDiscarded -->
 <!-- source: internal/component/ike/wire/payload_eap.go -- ErrEAPLengthExceedsData -->
+
+**Code admission precedes exchange state and the peer's round budget.** RFC 3748
+Section 4 requires both roles to discard undefined Codes. Sections 2.2 and 2.3
+route Request, Success and Failure to the peer, and Response to the
+authenticator. An authenticator session therefore discards Request, Success and
+Failure instead of answering them with Failure; a peer session discards Response.
+These packets change no identifier, method state, keys or round count. More than
+twenty such packets cannot exhaust the peer's twenty-round exchange budget.
+Defined packets addressed to the receiving role still undergo the existing
+method, state and round-limit checks.
+During an active IKE EAP exchange, `handleEAPResponse` returns on a discard
+before resetting the retransmission deadline or retry count. Ignored Codes
+therefore cannot keep postponing the outstanding IKE request.
+
+`eap_discard_admission_test.go` drives both encrypted IKE receive entry points,
+holds back each legitimate packet while delivering ignored Codes, then requires
+the same exchange to derive matching MSKs and produce a verifiable final AUTH.
+`rfc3748_role_budget_test.go` also snapshots the library's private state and
+method across each discarded packet. These are regression tests, not evidence
+of a run against an independent peer.
+
+<!-- source: internal/core/eap/eap.go -- Session.Process -->
+<!-- source: internal/core/eap/peer.go -- PeerSession.Process -->
+<!-- source: internal/component/ike/engine/eap_discard_admission_test.go -- TestEngineDiscardedEAPCodesPreserveExchange -->
 
 **EAP-TLS runs Go's `crypto/tls` over a custom `net.Conn`.** The transport pipes
 TLS records through EAP request and response packets. Implementing TLS again was

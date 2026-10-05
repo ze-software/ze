@@ -1387,7 +1387,10 @@ func rpkiOriginASFromASPath(asp *attribute.ASPath, localAS uint32) uint32 {
 		return last.ASNs[len(last.ASNs)-1]
 	case attribute.ASConfedSequence, attribute.ASConfedSet:
 		return localAS
+	case attribute.ASSet:
+		return OriginNone
 	default:
+		// Segment types are open input; unknown types have no usable origin.
 		return OriginNone
 	}
 }

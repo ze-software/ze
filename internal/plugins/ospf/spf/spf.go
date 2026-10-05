@@ -243,7 +243,7 @@ func transitEdges(g *Graph, from VertexID, cur *tent, rootID VertexID, nh NextHo
 		}
 		return out
 	default:
-		return nil
+		panic("BUG: transitEdges: invalid vertex kind")
 	}
 }
 

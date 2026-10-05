@@ -59,6 +59,11 @@ type forwardStateTracker struct {
 	doneCh chan struct{}
 	unsub  func()
 
+	// deliveryMu fences callbacks retained in a Loc-RIB subscriber snapshot.
+	// Unsubscribe alone cannot stop a snapshot already being dispatched.
+	deliveryMu sync.Mutex
+	stopped    bool
+
 	mu    sync.Mutex
 	state map[family.Family]map[netip.Prefix]int // prefix -> last forwarded UPDATE byte length
 
@@ -69,7 +74,7 @@ type forwardStateTracker struct {
 }
 
 // newForwardStateTracker subscribes to loc and starts the worker. The returned
-// tracker is inert until Enable(). Stop() unsubscribes and joins the worker.
+// tracker is inert until Enable(). The owner MUST call Stop to join the worker.
 func newForwardStateTracker(loc *locrib.RIB) *forwardStateTracker {
 	t := &forwardStateTracker{
 		ch:     make(chan forwardTrackItem, forwardTrackQueue),
@@ -95,6 +100,11 @@ func (t *forwardStateTracker) Enabled() bool { return t.enabled.Load() }
 // RIB write lock.
 func (t *forwardStateTracker) onChange(c locrib.Change) { //nolint:gocritic // hugeParam: locrib.ChangeHandler fixes the value signature; a pointer through that func value escapes and allocates per change
 	if !t.enabled.Load() {
+		return
+	}
+	t.deliveryMu.Lock()
+	defer t.deliveryMu.Unlock()
+	if t.stopped {
 		return
 	}
 	item := forwardTrackItem{family: c.Family, prefix: c.Prefix, kind: c.Kind}
@@ -168,26 +178,24 @@ func (t *forwardStateTracker) process(item forwardTrackItem) {
 	t.bytes.Add(uint64(n)) //nolint:gosec // G115: n is a bounded UPDATE length (>= 0)
 }
 
-// Stop unsubscribes from loc and joins the worker, releasing any queued handles.
-// A final non-blocking drain catches a handle enqueued by an onChange that
-// raced the stop signal, keeping the pool balanced.
+// Stop fences callbacks, unsubscribes and joins the worker, releasing queued
+// handles. The owner MUST call Stop before releasing the tracker. A callback
+// retained in an older subscriber snapshot cannot enqueue after this fence.
 func (t *forwardStateTracker) Stop() {
+	t.deliveryMu.Lock()
+	if t.stopped {
+		t.deliveryMu.Unlock()
+		<-t.doneCh
+		return
+	}
+	t.stopped = true
+	t.deliveryMu.Unlock()
 	if t.unsub != nil {
 		t.unsub()
 		t.unsub = nil
 	}
 	close(t.stopCh)
 	<-t.doneCh
-	for {
-		select {
-		case item := <-t.ch:
-			if item.handle != nil {
-				item.handle.Release()
-			}
-		default:
-			return
-		}
-	}
 }
 
 // forwardStats is a snapshot of the tracker's observable state.

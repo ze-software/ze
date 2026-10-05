@@ -42,8 +42,9 @@ func (s L2TPSessionState) String() string {
 		return "wait-cs-answer"
 	case L2TPSessionEstablished:
 		return bucketStateEstablishedStr
+	default:
+		panic("BUG: unknown L2TP session state")
 	}
-	return stateUnknown
 }
 
 // L2TPSession carries one call's state within a tunnel. NOT safe for

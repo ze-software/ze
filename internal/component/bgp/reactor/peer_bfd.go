@@ -425,8 +425,10 @@ func bfdEventFor(state api.State) (fsm.Event, bool) {
 		return fsm.EventBfdAdminDown, true
 	case api.StateInit:
 		return 0, false
+	default:
+		// BFD service states form an open set; unknown values deliver no event.
+		return 0, false
 	}
-	return 0, false
 }
 
 // deliverBFDEvent hands one FSM event to the peer's live session. A peer with

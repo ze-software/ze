@@ -59,8 +59,10 @@ func rfc8665MappedInstall(t *testing.T, route srRoute, nh types.RouterID, flags 
 			transit, pop = true, e.InLabel == 18000+9
 		case mplsfibevents.OpSwap:
 			transit = true
-		default:
+		case mplsfibevents.OpUnspecified:
 			t.Fatalf("unexpected mpls-fib op toward %s: %+v", nh, e)
+		default:
+			panic("BUG: rfc8665MappedInstall: invalid locally emitted MPLS operation")
 		}
 	}
 	if !transit {

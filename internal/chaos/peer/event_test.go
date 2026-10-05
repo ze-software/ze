@@ -10,7 +10,7 @@ import (
 // TestEventTypeString verifies all event types return kebab-case names.
 //
 // VALIDATES: EventType.String() returns human-readable kebab-case names.
-// PREVENTS: Missing event type in String() causing "unknown-N" in logs.
+// PREVENTS: Incorrect event names in logs.
 func TestEventTypeString(t *testing.T) {
 	tests := []struct {
 		typ  EventType
@@ -37,13 +37,12 @@ func TestEventTypeString(t *testing.T) {
 	}
 }
 
-// TestEventTypeStringUnknown verifies unknown EventType values return "unknown-N".
-//
-// VALIDATES: Out-of-range EventType doesn't panic, returns descriptive string.
-// PREVENTS: Dashboard or JSON log crashing on unexpected event type.
+// TestEventTypeStringUnknown verifies that a fabricated internal event kind
+// triggers the BUG assertion instead of producing a log label.
 func TestEventTypeStringUnknown(t *testing.T) {
-	unknown := EventType(99)
-	assert.Equal(t, "unknown-99", unknown.String())
+	assert.PanicsWithValue(t, "BUG: invalid chaos event type", func() {
+		_ = EventType(99).String()
+	})
 }
 
 // TestEventTypeStringCompleteness verifies all iota values 0..12 have non-unknown names.

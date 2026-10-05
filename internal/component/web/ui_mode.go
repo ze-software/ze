@@ -41,8 +41,10 @@ func (m UIMode) String() string {
 	switch m {
 	case UIModeFinder:
 		return uiModeTokenFinder
-	default:
+	case UIModeWorkbench:
 		return uiModeTokenWorkbench
+	default:
+		panic("BUG: unknown normalized web UI mode")
 	}
 }
 

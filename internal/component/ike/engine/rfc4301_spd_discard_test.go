@@ -107,6 +107,8 @@ func TestSPDPolicyMirrorsTheInboundSelector(t *testing.T) {
 			t.Fatalf("an operator SPD entry produced a forward policy; RFC 4301 Section 4.4.1 "+
 				"splits the database into SPD-O and SPD-I, and a forward entry would exempt or "+
 				"drop transit traffic the operator never named (dir %d)", params[i].Dir)
+		default:
+			panic("BUG: operator SPD policy has unknown direction")
 		}
 	}
 	if out == nil || in == nil {

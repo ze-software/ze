@@ -134,6 +134,7 @@ func BuildGraph(src Source, area types.AreaID) *Graph {
 		if h.Age.IsMaxAge() {
 			continue
 		}
+		//exhaustive:ignore // The transit graph projects only Router and Network LSAs.
 		switch h.Type {
 		case types.LSTypeRouter:
 			lsa, ok := src.LookupLSA(area, h.Key())

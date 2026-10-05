@@ -337,8 +337,10 @@ func argumentKind(kind command.ArgKind) string {
 		return "union"
 	case command.ArgFlag:
 		return "flag"
-	default:
+	case command.ArgString:
 		return "string"
+	default:
+		panic("BUG: command catalog has an unknown argument kind")
 	}
 }
 

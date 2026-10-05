@@ -479,6 +479,10 @@ func TestSpecialCheckerParsers(t *testing.T) {
 func TestBespokeCheckerBranches(t *testing.T) {
 	t.Run(pathsLimitScenario, pathsLimitCheckerBranches)
 	t.Run(rpkiReloadScenario, rpkiReloadCheckerBranches)
+	t.Run(medWholeSetScenario, medWholeSetEpochBranches)
+	t.Run(scenarioGracefulRestartFRR, llgrCheckerBranches)
+	t.Run(scenarioFlowspecGoBGP, flowSpecCheckerBranches)
+	t.Run(scenarioAIGPSourceCostFRR, aigpSourceCostCheckerBranches)
 
 	t.Run("bfd-frr", func(t *testing.T) {
 		const established = "BGP state = Established, up for 00:00:05\n  Connections established 1; dropped 0\n"
@@ -1714,6 +1718,8 @@ func recorderFor(current *operation) *recordingLab {
 		recorder.logs = strings.Join(current.contains, " ")
 	case opExec, opSignal, opStart:
 		recorder.output = ""
+	default:
+		panic("BUG: recorder has an unknown operation kind")
 	}
 	return recorder
 }
@@ -1759,6 +1765,8 @@ func contradictoryRecorderFor(current *operation) *recordingLab {
 		recorder.logs = "note: result: FAIL\n"
 	case opWaitLogContains:
 		recorder.logs = "measured log without required values"
+	default:
+		panic("BUG: contradictory recorder has an unknown operation kind")
 	}
 	return recorder
 }

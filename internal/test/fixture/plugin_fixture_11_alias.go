@@ -97,6 +97,8 @@ func aliasProvider(which aliasCase) Driver {
 			}
 		case aliasCaseShape:
 			registration = sdk.Registration{Commands: []sdk.CommandDecl{{Name: "show shape typo", Shape: renderTable, Columns: []string{columnAddress, columnState}}}}
+		default:
+			panic("BUG: unknown alias provider fixture")
 		}
 		plugin.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 			switch command {
@@ -325,7 +327,7 @@ func aliasDriver(which aliasCase) Driver {
 			fmt.Println("OK")
 			return nil
 		default:
-			return errors.New("unknown alias fixture")
+			panic("BUG: unknown alias driver fixture")
 		}
 	}
 }

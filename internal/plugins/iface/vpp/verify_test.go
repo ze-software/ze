@@ -192,22 +192,30 @@ func TestCreateTunnelLocalInterfaceRejected(t *testing.T) {
 	}
 }
 
-// TestCreateTunnelUnsupportedKind verifies a netlink-only kind is rejected
-// (defense in depth behind the ze:backend commit gate).
-// VALIDATES: AC-2/R-2 -- exact-or-reject for unwired kinds.
-// PREVENTS: a widened annotation silently no-oping sit/ip6tnl on VPP.
+// TestCreateTunnelUnsupportedKind passes unsupported, unset and unknown kinds
+// directly to the backend, proving rejection emits no programming request.
 func TestCreateTunnelUnsupportedKind(t *testing.T) {
-	ch := &progChannel{}
-	b := newTunnelBackend(ch)
-
-	err := b.CreateTunnel(iface.TunnelSpec{
-		Kind:          iface.TunnelKindSIT,
-		Name:          "sit0",
-		LocalAddress:  "192.0.2.1",
-		RemoteAddress: "192.0.2.2",
-	})
-	if err == nil {
-		t.Fatal("expected error for sit tunnel on VPP, got nil")
+	for _, tc := range []struct {
+		name string
+		kind iface.TunnelKind
+		want string
+	}{
+		{"unsupported", iface.TunnelKindSIT, "ifacevpp: CreateTunnel kind sit (netlink-only on this backend) not supported on VPP backend"},
+		{"unset", iface.TunnelKindUnknown, "ifacevpp: CreateTunnel kind unknown (netlink-only on this backend) not supported on VPP backend"},
+		{"unknown", iface.TunnelKind(99), "ifacevpp: CreateTunnel kind unknown (netlink-only on this backend) not supported on VPP backend"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := &progChannel{}
+			b := newTunnelBackend(ch)
+			err := b.CreateTunnel(iface.TunnelSpec{
+				Kind:          tc.kind,
+				Name:          "tun0",
+				LocalAddress:  "192.0.2.1",
+				RemoteAddress: "192.0.2.2",
+			})
+			require.EqualError(t, err, tc.want)
+			require.Empty(t, ch.requests)
+		})
 	}
 }
 

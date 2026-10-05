@@ -533,6 +533,8 @@ func (r *responder) probeTick(observedBps float64) {
 	case probeActionReTighten:
 		logger().Info("ddos-flowspec: probe saturated, re-tightening", "target", r.target.DstPrefix)
 	case probeActionNone, probeActionProbe:
+	default:
+		panic("BUG: invalid probe action")
 	}
 }
 

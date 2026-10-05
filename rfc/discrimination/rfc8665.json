@@ -108,7 +108,7 @@
       "claim-sha": "32cf682a0d004dfb",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr/install.go::OutgoingLabel",
-      "producer-sha": "8a10ba17b123d1d6",
+      "producer-sha": "9fdec6d9d22d3541",
       "break": "body of OutgoingLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "dcb4c0d3e26a9782",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr/install.go::OutgoingLabel",
-      "producer-sha": "8a10ba17b123d1d6",
+      "producer-sha": "9fdec6d9d22d3541",
       "break": "body of OutgoingLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

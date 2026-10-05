@@ -608,7 +608,8 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 			first = false
 			continue
 		}
-		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown are silently skipped per RFC
+		//exhaustive:ignore // Extract only ICRQ fields after generic AVP validation.
+		switch attrType {
 		case AVPAssignedSessionID:
 			v, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -714,7 +715,8 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 			first = false
 			continue
 		}
-		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
+		//exhaustive:ignore // Extract only ICCN connection and proxy fields after generic AVP validation.
+		switch attrType {
 		case AVPTxConnectSpeed:
 			v, rerr := readAVPUint32(value)
 			if rerr != nil {
@@ -831,7 +833,8 @@ func parseOCRQ(payload []byte) (ocrqInfo, error) {
 			first = false
 			continue
 		}
-		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
+		//exhaustive:ignore // Extract only OCRQ call setup fields after generic AVP validation.
+		switch attrType {
 		case AVPAssignedSessionID:
 			v, rerr := readAVPUint16(value)
 			if rerr != nil {
@@ -933,7 +936,8 @@ func parseOCCN(payload []byte) (occnInfo, error) {
 			first = false
 			continue
 		}
-		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
+		//exhaustive:ignore // Extract only OCCN connection fields after generic AVP validation.
+		switch attrType {
 		case AVPTxConnectSpeed:
 			v, rerr := readAVPUint32(value)
 			if rerr != nil {
@@ -1022,7 +1026,8 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 			first = false
 			continue
 		}
-		switch attrType { //nolint:exhaustive // only known AVPs handled; unknown skipped per RFC
+		//exhaustive:ignore // Extract only CDN teardown fields after generic AVP validation.
+		switch attrType {
 		case AVPResultCode:
 			rc, rerr := readResultCode(value)
 			if rerr != nil {

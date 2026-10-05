@@ -66,9 +66,11 @@ package repochanged
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/build/constraint"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -79,6 +81,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
@@ -363,8 +366,10 @@ func knownPrintMode(mode printMode) bool {
 	switch mode {
 	case printPackages, printTags, printBoth:
 		return true
+	default:
+		// Print modes are open CLI input; unknown spellings are rejected.
+		return false
 	}
-	return false
 }
 
 // loadFeatureGates answers the manifest's "<tag> <pkg>" rows, through
@@ -753,40 +758,61 @@ func dirExists(root, dir string) bool {
 	return info.IsDir()
 }
 
-// loadPackageGraph builds the first-party import graph in ONE go list run, with
-// ze_core and every feature tag the manifest declares.
-//
-// One run costs 2.6s on the current tree against 2.9s for an untagged run. A
-// per-tag loop was measured at 94.6s over 37 tag sets, which is over three times
-// the whole 30s budget the spec sets for the selector. The single run is
-// therefore the only affordable shape, not an optimisation.
+// loadPackageGraph builds the first-party import graph in one go list run, with
+// ze_core and every feature tag the manifest declares. Selecting JSON fields
+// avoids Go's unused build-info/VCS and embed-file scans without dropping the
+// direct imports that -find would omit.
 func loadPackageGraph(root string, featureTags []string) (*packageGraph, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), goListDeadline)
+	defer cancel()
+	return loadPackageGraphContext(ctx, root, featureTags)
+}
+
+func loadPackageGraphContext(ctx context.Context, root string, featureTags []string) (*packageGraph, error) {
+	toolchain, err := gotoolchain.New(root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve graph toolchain: %w", err)
+	}
 	tags := make([]string, 0, len(featureTags)+1)
 	tags = append(tags, "ze_core")
 	tags = append(tags, featureTags...)
-
-	const format = "{{.ImportPath}}\t{{.Dir}}\t" +
-		"{{range .Imports}}{{.}} {{end}}{{range .TestImports}}{{.}} {{end}}{{range .XTestImports}}{{.}} {{end}}"
-
-	ctx, cancel := context.WithTimeout(context.Background(), goListDeadline)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "go", "list", "-e", "-tags", strings.Join(tags, ","), "-f", format, "./...") //nolint:gosec // the only variable is the build-tag list read from the tracked feature manifest
+	const fields = "-json=ImportPath,Dir,Imports,TestImports,XTestImports,Error,DepsErrors,Incomplete"
+	cmd := exec.CommandContext(ctx, "go", "list", "-e", "-tags", strings.Join(tags, ","), fields, "./...") //nolint:gosec // tags come from the tracked feature manifest
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	// The graph belongs to this module and tag set, not an enclosing workspace
+	// or a user's persisted Go flags. The toolchain pin comes from this go.mod.
+	cmd.Env = append(toolchain.Environment(gotoolchain.EnvOptions{Procs: true}),
+		"GOENV=off", "GOFLAGS=", "GOWORK=off")
 	out, err := cmd.Output()
 	if err != nil {
+		cause := errors.Join(err, ctx.Err())
 		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-			return nil, fmt.Errorf("go list: %w: %s", err, strings.TrimSpace(string(exit.Stderr)))
+			return nil, fmt.Errorf("go list: %w: %s", cause, strings.TrimSpace(string(exit.Stderr)))
 		}
-		return nil, fmt.Errorf("go list: %w", err)
+		return nil, fmt.Errorf("go list: %w", cause)
 	}
 	return parsePackageGraph(root, string(out))
 }
 
-// parsePackageGraph reads the tab-separated go list records into the graph. The
-// three fields are the import path, the directory, and the imports of the
-// package and of its tests.
+// packageRecord is the selected part of Go's JSON package description.
+type packageRecord struct {
+	ImportPath   string
+	Dir          string
+	Imports      []string
+	TestImports  []string
+	XTestImports []string
+	Error        *packageError
+	DepsErrors   []packageError
+	Incomplete   bool
+}
+
+type packageError struct {
+	Pos string
+	Err string
+}
+
+// parsePackageGraph refuses incomplete records before placing directories.
+// With -e, a successful command may still report only a pattern and its error.
 func parsePackageGraph(root, listing string) (*packageGraph, error) {
 	graph := &packageGraph{
 		dirOf:     map[string]string{},
@@ -794,26 +820,54 @@ func parsePackageGraph(root, listing string) (*packageGraph, error) {
 		importers: map[string][]string{},
 	}
 	imports := map[string][]string{}
-	for line := range strings.SplitSeq(listing, "\n") {
-		if line == "" {
-			continue
+	decoder := json.NewDecoder(strings.NewReader(listing))
+	for {
+		var record packageRecord
+		if err := decoder.Decode(&record); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("decode go list package: %w", err)
 		}
-		fields := strings.Split(line, "\t")
-		if len(fields) < 3 {
-			return nil, fmt.Errorf("go list wrote a record with %d fields, want 3: %q", len(fields), line)
+		if record.Error != nil {
+			return nil, fmt.Errorf("go list %q: %s: %s", record.ImportPath, record.Error.Pos, record.Error.Err)
 		}
-		importPath, dir := fields[0], fields[1]
+		if len(record.DepsErrors) != 0 {
+			var detail textbuf.Buffer
+			for _, dependency := range record.DepsErrors {
+				detail.Str(dependency.Pos).Str(": ").Str(dependency.Err).Byte('\n')
+			}
+			return nil, fmt.Errorf("go list %q dependencies: %s", record.ImportPath, strings.TrimSpace(detail.String()))
+		}
+		if record.Incomplete {
+			return nil, fmt.Errorf("go list %q reported an incomplete package without a diagnostic", record.ImportPath)
+		}
+		if record.ImportPath == "" {
+			return nil, errors.New("go list reported a package without an import path")
+		}
+		if !filepath.IsAbs(record.Dir) {
+			return nil, fmt.Errorf("go list %q reported no absolute package directory: %q", record.ImportPath, record.Dir)
+		}
+		importPath, dir := record.ImportPath, record.Dir
 		rel, err := filepath.Rel(root, dir)
 		if err != nil {
 			return nil, fmt.Errorf("place %s under the repository root: %w", importPath, err)
 		}
 		rel = filepath.ToSlash(rel)
+		if rel == ".." {
+			return nil, fmt.Errorf("go list %q reported a directory outside the repository: %s", importPath, dir)
+		}
+		if strings.HasPrefix(rel, "../") {
+			return nil, fmt.Errorf("go list %q reported a directory outside the repository: %s", importPath, dir)
+		}
 		if rel == rootPackage {
 			rel = ""
 		}
 		graph.dirOf[importPath] = rel
 		graph.pathOf[rel] = importPath
-		imports[importPath] = strings.Fields(fields[2])
+		dependencies := slices.Grow(record.Imports, len(record.TestImports)+len(record.XTestImports))
+		dependencies = append(dependencies, record.TestImports...)
+		imports[importPath] = append(dependencies, record.XTestImports...)
 	}
 	if len(graph.dirOf) == 0 {
 		return nil, errors.New("go list reported no package at all")

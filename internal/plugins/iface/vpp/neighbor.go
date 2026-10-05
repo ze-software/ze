@@ -145,8 +145,10 @@ func neighborAddrString(a ip_types.Address) (string, string) {
 	case ip_types.ADDRESS_IP6:
 		ip6 := a.Un.GetIP6()
 		return netip.AddrFrom16(ip6).String(), familyIPv6
+	default:
+		// VPP reply families are open; an unknown neighbor remains unusable.
+		return "", ""
 	}
-	return "", ""
 }
 
 // neighborStateName translates the VPP IPNeighborFlags bitfield to the

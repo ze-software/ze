@@ -45,10 +45,10 @@ func TestModifyFailureLabelsAreClosedAndStable(t *testing.T) {
 		})
 	}
 
-	// The set is closed: a value no constant above produced still maps into it
-	// rather than escaping as a fresh label.
-	assert.Equal(t, "unclassified", modifyFailure(200).String(),
-		"an out-of-range value must fold into the closed set")
+	// Only a programming error can produce an unnamed internal failure reason.
+	assert.PanicsWithValue(t, "BUG: invalid modify failure", func() {
+		_ = modifyFailure(200).String()
+	})
 
 	// Every label is distinct, or two failure kinds would be indistinguishable
 	// on a dashboard.
@@ -119,7 +119,7 @@ func TestModifyFailureLogCoversEveryReason(t *testing.T) {
 
 	// A value no constant produced: folded in, never a panic and never silence.
 	assert.NotPanics(t, func() { l.allow(modifyFailure(200), 1) },
-		"an out-of-range reason must fold into the closed set, as String() already does")
+		"the limiter must keep its reserved slot for an out-of-range reason")
 }
 
 // VALIDATES: AC-3 — "nothing to modify" is NOT a failure. The route is forwarded

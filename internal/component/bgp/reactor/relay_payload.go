@@ -97,16 +97,15 @@ func scanAttrBlock(spans []relayAttrSpan, block []byte) ([]relayAttrSpan, bool) 
 // including 14/15. Re-emitting it verbatim beside a synthesized MP_REACH would
 // duplicate the attribute AND re-announce every NLRI the source UPDATE carried,
 // not just the one route being replayed.
-func isRelayStrippedAttr(code attribute.AttributeCode, fam family.Family) bool {
+func isRelayStrippedAttr(code attribute.AttributeCode, legacyIPv4 bool) bool {
 	if code == attribute.AttrMPReachNLRI || code == attribute.AttrMPUnreachNLRI {
 		return true
 	}
 	// A legacy NEXT_HOP belongs only to the IPv4-unicast encoding. One UPDATE may
-	// legally carry body NLRI (IPv4) AND MP_REACH (say IPv6), and Adj-RIB-In
-	// stores the SAME attribute block for both families, so replaying the IPv6
-	// route while keeping type-3 would attach a different route's IPv4 next hop.
-	// The synthesized MP_REACH carries the correct next hop for these families.
-	return code == attribute.AttrNextHop && fam != family.IPv4Unicast
+	// legally carry body NLRI (IPv4) AND MP_REACH, and Adj-RIB-In stores the
+	// SAME attribute block for both routes. The synthesized MP_REACH carries
+	// the route's own next hop, including RFC 8950 IPv4 with an IPv6 next hop.
+	return code == attribute.AttrNextHop && !legacyIPv4
 }
 
 // relayNeedsNextHopAttr reports whether the reconstruction must add a legacy
@@ -199,25 +198,22 @@ func relayPayloadLen(spans []relayAttrSpan, nextHop, nlri []byte, fam family.Fam
 	if len(nextHop) > maxNextHopLen || len(nlri) == 0 {
 		return 0, false
 	}
-	// RFC 4271 Section 5.1.3: the legacy NEXT_HOP attribute is exactly 4 octets.
-	// A route can reach here with a 16-byte next hop -- RFC 5549 carries IPv4
-	// unicast with an IPv6 next hop inside MP_REACH, and the stored next-hop is
-	// whatever the source sent. Emitting those 16 bytes as a well-known mandatory
-	// type-3 attribute produces an attribute-length error at the peer, so reject
-	// rather than encode something the destination must discard.
-	if fam == family.IPv4Unicast && needNextHopAttr && len(nextHop) != 4 {
+	// RFC 8950 Section 3 carries IPv4 unicast with a 16/32-octet IPv6
+	// next hop in MP_REACH, never in the four-octet legacy NEXT_HOP.
+	legacyIPv4 := fam == family.IPv4Unicast && len(nextHop) == 4
+	if fam == family.IPv4Unicast && !legacyIPv4 && len(nextHop) != 16 && len(nextHop) != 32 {
 		return 0, false
 	}
 	// Withdrawn Routes Length (2) + Total Path Attribute Length (2).
 	total := 4
 	attrLen := 0
 	for _, s := range spans {
-		if isRelayStrippedAttr(s.code, fam) {
+		if isRelayStrippedAttr(s.code, legacyIPv4) {
 			continue
 		}
 		attrLen += s.end - s.start
 	}
-	if fam == family.IPv4Unicast {
+	if legacyIPv4 {
 		if needNextHopAttr {
 			attrLen += attrHdrMinLen + len(nextHop)
 		}
@@ -232,7 +228,7 @@ func relayPayloadLen(spans []relayAttrSpan, nextHop, nlri []byte, fam family.Fam
 		return 0, false
 	}
 	total += attrLen
-	if fam == family.IPv4Unicast {
+	if legacyIPv4 {
 		total += len(nlri)
 	}
 	if total > maxUpdateBodyLen {
@@ -264,6 +260,7 @@ func relayPayloadLen(spans []relayAttrSpan, nextHop, nlri []byte, fam family.Fam
 // peer_rib_routes.go buildRIBRouteUpdate.
 func writeRelayPayload(buf []byte, off int, spans []relayAttrSpan, attrs, nextHop, nlri []byte, fam family.Family, needNextHopAttr bool) int {
 	start := off
+	legacyIPv4 := fam == family.IPv4Unicast && len(nextHop) == 4
 
 	// RFC 4271 Section 4.3: Withdrawn Routes Length = 0 (this is an announce).
 	buf[off] = 0
@@ -280,7 +277,7 @@ func writeRelayPayload(buf []byte, off int, spans []relayAttrSpan, attrs, nextHo
 	// legacy NEXT_HOP when an IPv4 unicast route arrived inside MP_REACH.
 	// Returns the bytes written (zero when there is nothing to substitute).
 	writeSynthesized := func(at int) int {
-		if fam != family.IPv4Unicast {
+		if !legacyIPv4 {
 			return writeMPReach(buf, at, fam, nextHop, nlri)
 		}
 		if !needNextHopAttr {
@@ -295,7 +292,7 @@ func writeRelayPayload(buf []byte, off int, spans []relayAttrSpan, attrs, nextHo
 
 	substituted := false
 	for _, s := range spans {
-		if isRelayStrippedAttr(s.code, fam) {
+		if isRelayStrippedAttr(s.code, legacyIPv4) {
 			// Slot the replacement in where the source's MP_REACH stood. Only
 			// the FIRST such span gets it: a block carrying both MP_REACH and
 			// MP_UNREACH must still yield exactly one synthesized attribute.
@@ -316,9 +313,9 @@ func writeRelayPayload(buf []byte, off int, spans []relayAttrSpan, attrs, nextHo
 
 	binary.BigEndian.PutUint16(buf[attrLenPos:], uint16(off-attrStart)) //nolint:gosec // bounded by relayPayloadLen
 
-	// RFC 4271 Section 4.3: IPv4 unicast NLRI rides the body field; every other
-	// family is carried inside the MP_REACH_NLRI written above.
-	if fam == family.IPv4Unicast {
+	// RFC 8950 IPv4 with an IPv6 next hop stays inside MP_REACH, like the
+	// other MP families. Only the four-octet IPv4 next hop uses body NLRI.
+	if legacyIPv4 {
 		off += copy(buf[off:], nlri)
 	}
 

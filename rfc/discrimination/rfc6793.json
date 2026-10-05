@@ -453,7 +453,7 @@
       "claim-sha": "85d545d8d90b8374",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/as4.go::countASNs",
-      "producer-sha": "8c6ce8c8e0bc9bf6",
+      "producer-sha": "9e85c0cfa13607a1",
       "break": "body of countASNs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -475,7 +475,7 @@
       "claim-sha": "254a7eb33d744c9f",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/as4.go::countASNs",
-      "producer-sha": "8c6ce8c8e0bc9bf6",
+      "producer-sha": "9e85c0cfa13607a1",
       "break": "body of countASNs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

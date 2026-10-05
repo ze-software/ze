@@ -92,7 +92,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	// The CLI and the plugin text command both hand over NLRI octets with no
 	// negotiation behind them, so no Path Identifier precedes them
 	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
-	data, err := DecodeNLRIHex(family, hexData, false)
+	data, err := DecodeNLRIHex(family, hexData, false, false)
 	if err != nil {
 		writeErr("error: %v\n", err)
 		return 1
@@ -166,7 +166,7 @@ func RunDecode(input io.Reader, output io.Writer) int {
 			// The CLI and the plugin text command both hand over NLRI octets with no
 			// negotiation behind them, so no Path Identifier precedes them
 			// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
-			data, err := DecodeNLRIHex(fam, hexData, false)
+			data, err := DecodeNLRIHex(fam, hexData, false, false)
 			if err == nil {
 				if raw, merr := json.Marshal(data); merr == nil {
 					write("decoded json " + string(raw))

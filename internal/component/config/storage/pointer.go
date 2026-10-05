@@ -40,6 +40,7 @@ func (p pointerName) valid() bool {
 	case pointerActive, pointerCandidate, pointerRollback, pointerRecovery:
 		return true
 	default:
+		// Pointer names can come from store keys; reject unknown names.
 		return false
 	}
 }
@@ -432,8 +433,9 @@ func pointerPath(backing Storage, configPath string, pointer pointerName) (strin
 		return zefs.KeyConfigRollback.Key(name), nil
 	case pointerRecovery:
 		return zefs.KeyConfigRecovery.Key(name), nil
+	default:
+		panic("BUG: validated config pointer is unknown")
 	}
-	return "", fmt.Errorf("unknown config pointer %q", pointer)
 }
 
 func versionPath(backing Storage, configPath, stamp string) (string, error) {

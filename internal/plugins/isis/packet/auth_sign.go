@@ -40,10 +40,7 @@ func SignPDU(pdu []byte, key Key) ([]byte, error) {
 		return nil, ErrAuthMalformed
 	}
 	defer dec.Release()
-	class, ok := classOf(dec.Header.PDUType)
-	if !ok {
-		return nil, ErrAuthMalformed
-	}
+	class := classOf(dec.Header.PDUType)
 	value, err := placeholderValue(key)
 	if err != nil {
 		return nil, err
@@ -221,6 +218,7 @@ func tlvRegionStart(pdu []byte) (int, bool) {
 	case PDUTypeL1PSNP, PDUTypeL2PSNP:
 		return CommonHeaderLen + psnpFixedLen, true
 	default:
+		// PDU types are read directly from the wire; unknown codes have no layout.
 		return 0, false
 	}
 }

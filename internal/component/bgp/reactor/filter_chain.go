@@ -273,6 +273,8 @@ func PolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer string,
 			current = applyFilterDelta(current, result.Delta)
 		case PolicyAccept:
 			// continue with current text
+		default:
+			panic("BUG: invalid policy action")
 		}
 	}
 
@@ -560,6 +562,7 @@ func formatFilterAttrs(attrs *filterAttrs) string {
 			buf = append(buf, ' ')
 		}
 		name := filterAttrNames[id]
+		//exhaustive:ignore // Only NLRI and valueless flags need special formatting; other attributes use name/value formatting.
 		switch id {
 		case faNLRI:
 			buf = append(buf, val...)
@@ -777,6 +780,8 @@ func toPolicyAction(a rpc.FilterAction) (PolicyAction, bool) {
 		return PolicyModify, true
 	case rpc.FilterUnspecified:
 		return PolicyReject, false
+	default:
+		// Plugin actions form an open set; reject unknown values.
+		return PolicyReject, false
 	}
-	return PolicyReject, false
 }

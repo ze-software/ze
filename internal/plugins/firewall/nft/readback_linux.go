@@ -229,8 +229,10 @@ func raisePolicy(p *nftables.ChainPolicy) (firewall.Policy, bool) {
 		return firewall.PolicyAccept, true
 	case nftables.ChainPolicyDrop:
 		return firewall.PolicyDrop, true
+	default:
+		// Kernel policies are open; leave unrecognized values unrepresented.
+		return 0, false
 	}
-	return 0, false
 }
 
 func raiseChainType(ct nftables.ChainType) (firewall.ChainType, bool) {
@@ -241,8 +243,10 @@ func raiseChainType(ct nftables.ChainType) (firewall.ChainType, bool) {
 		return firewall.ChainNAT, true
 	case nftables.ChainTypeRoute:
 		return firewall.ChainRoute, true
+	default:
+		// Kernel chain types are open; leave unrecognized values unrepresented.
+		return 0, false
 	}
-	return 0, false
 }
 
 // raiseSetType compares the kernel-reported SetDatatype name to the

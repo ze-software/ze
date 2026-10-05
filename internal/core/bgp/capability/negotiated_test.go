@@ -120,11 +120,13 @@ func TestNegotiateExtendedMessage(t *testing.T) {
 	}
 
 	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
-	assert.True(t, neg.ExtendedMessage)
+	assert.True(t, neg.ExtendedMessageRecv)
+	assert.True(t, neg.ExtendedMessageSend)
 
 	// Without remote support
 	neg2 := Negotiate(local, []Capability{}, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
-	assert.False(t, neg2.ExtendedMessage)
+	assert.True(t, neg2.ExtendedMessageRecv)
+	assert.False(t, neg2.ExtendedMessageSend)
 }
 
 // TestNegotiatedFamilies verifies family list access.
@@ -168,7 +170,8 @@ func TestNegotiateEmpty(t *testing.T) {
 	neg := Negotiate(nil, nil, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	assert.False(t, neg.ASN4)
-	assert.False(t, neg.ExtendedMessage)
+	assert.False(t, neg.ExtendedMessageRecv)
+	assert.False(t, neg.ExtendedMessageSend)
 	assert.Len(t, neg.Families(), 1)
 	assert.True(t, neg.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 }
@@ -205,7 +208,8 @@ func TestNegotiateMismatches(t *testing.T) {
 	// Verify negotiated capabilities
 	assert.True(t, neg.ASN4)
 	assert.True(t, neg.RouteRefresh)
-	assert.False(t, neg.ExtendedMessage)
+	assert.True(t, neg.ExtendedMessageRecv)
+	assert.False(t, neg.ExtendedMessageSend)
 	assert.False(t, neg.EnhancedRouteRefresh)
 	assert.True(t, neg.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 	assert.False(t, neg.SupportsFamily(Family{AFI: AFIIPv6, SAFI: SAFIUnicast}))
@@ -216,7 +220,8 @@ func TestNegotiateMismatches(t *testing.T) {
 	// Count mismatches by type
 	var extMsgMismatch, errMismatch, ipv6Mismatch, evpnMismatch bool
 	for _, m := range neg.Mismatches {
-		switch m.Code { //nolint:exhaustive // Test only checks specific codes
+		//exhaustive:ignore // Observe only the capability mismatches asserted by this fixture.
+		switch m.Code {
 		case CodeExtendedMessage:
 			extMsgMismatch = true
 			assert.True(t, m.LocalSupported)
@@ -426,7 +431,8 @@ func TestNegotiateComposite(t *testing.T) {
 	// Verify Encoding sub-component
 	require.NotNil(t, neg.Encoding, "Encoding should be populated")
 	assert.True(t, neg.Encoding.ASN4)
-	assert.True(t, neg.Encoding.ExtendedMessage) // Moved from Session to Encoding
+	assert.True(t, neg.Encoding.ExtendedMessageRecv)
+	assert.True(t, neg.Encoding.ExtendedMessageSend)
 	assert.True(t, neg.Encoding.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 	assert.Equal(t, AddPathBoth, neg.Encoding.AddPathFor(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 

@@ -572,9 +572,10 @@ func levelString(level slog.Level) string {
 		return levelWarn
 	case slog.LevelError:
 		return levelError
+	default:
+		// slog levels are open numeric values; retain stdlib formatting.
+		return level.String()
 	}
-	// Non-standard level (e.g. custom numeric) — use stdlib formatting.
-	return level.String()
 }
 
 // ConfigureFilter sets flag and scope filters on a subsystem's filterHandler.

@@ -128,8 +128,9 @@ func decoderForEncoding(enc plugin.WireEncoding) decodeFunc {
 		return decodeB64
 	case plugin.WireEncodingText:
 		return decodeHex // Default fallback for non-wire encodings
+	default:
+		panic("BUG: invalid UPDATE wire encoding")
 	}
-	return decodeHex // Default fallback
 }
 
 // decodeHex decodes hex string, stripping whitespace.

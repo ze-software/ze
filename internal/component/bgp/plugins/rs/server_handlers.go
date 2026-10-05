@@ -206,7 +206,7 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 	var tb textbuf.Buffer
 	byGroup := make(map[withdrawalGroup][]string)
 	for wk, entry := range entries {
-		// A CIDR-keyed route goes out as the hex of its latest announcement.
+		// CIDR and native VPN identities retain the latest announcement's hex.
 		if entry.wire != "" {
 			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: entry.addPath}
 			byGroup[g] = append(byGroup[g], entry.wire)

@@ -112,6 +112,7 @@ func readablePage(t *testing.T, fragment string) ([]string, []readableLink) {
 	var anchor *readableLink
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(fragment))
 	for {
+		//exhaustive:ignore // Projects visible words and anchor links; other tokens carry neither.
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			if !errors.Is(tokenizer.Err(), io.EOF) {

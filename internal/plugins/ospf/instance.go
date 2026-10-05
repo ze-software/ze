@@ -445,6 +445,7 @@ func (e *engine) handleNeighborPacket(rp transport.RawPacket, h Header, typ Pack
 	// via ospfv3/packet. Only DBDesc/LSReq reach here (handleDBDesc/handleLSReq); LSUpdate has
 	// its own handler (its typed LSA bodies stay version-specific until the AFPrefixStrategy).
 	var reason string
+	//exhaustive:ignore // This helper serves only DD and LS Request; other packets have separate handlers.
 	switch typ {
 	case PacketTypeDBDesc:
 		dd, err := e.dispatch.codec.DecodeDBDesc(rp.Payload)

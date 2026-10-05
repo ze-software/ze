@@ -463,7 +463,7 @@ func (e WireEncoding) String() string {
 	case WireEncodingText:
 		return EncodingText
 	default:
-		return wireEncHex
+		panic("BUG: unknown wire encoding")
 	}
 }
 

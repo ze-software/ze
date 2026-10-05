@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5492-3-1": {
       "note": "Forbidden: an Unsupported Capability NOTIFICATION that omits a causing capability or lists one that did not cause it. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet drives handleOpen on a session requiring Route Refresh and Extended Message and reads the wire: none sent -> one 2/7 NOTIFICATION with Data exactly 02 00 06 00; Route Refresh plus unknown 254 sent -> Data exactly 06 00 (sent and unknown capabilities excluded); both sent -> no NOTIFICATION, OpenConfirm.",
@@ -24,8 +25,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "6069318487a1dc5e",
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "6069318487a1dc5e",
-        "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "b3428c78168b854d"
+        "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "3b6ab22b8c99761b",
+        "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "3b6ab22b8c99761b"
       },
       "units": {
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "11a18f6ff74ad27b",
@@ -39,7 +40,7 @@
       "note": "Forbidden: terminating the session because a received capability is not supported. TestOpenIgnoresUnknownCapability sends an OPEN with code 254 and asserts handleOpen returns nil, state OpenConfirm then Established after KEEPALIVE, and s.Conn() is the same connection. {single-polarity: positive} is justified: a prohibition with no conforming termination input.",
       "requirement_sha": "01756f2830fd72b5",
       "tests": {
-        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "36ad5ca29acc4eb4"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "44d90c337eb5fecd"
       },
       "units": {
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"
@@ -50,7 +51,7 @@
       "note": "Quote now covers both halves: no Unsupported Capability NOTIFICATION and no termination for an unsupported capability. TestOpenIgnoresUnknownCapability asserts the bytes written after the OPEN are exactly one KEEPALIVE (Len HeaderLen, type KEEPALIVE) and unchanged after establishment (no NOTIFICATION), and that the connection survives to Established. Single-polarity marker present.",
       "requirement_sha": "bfdbf5c628cce4f6",
       "tests": {
-        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "36ad5ca29acc4eb4"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "44d90c337eb5fecd"
       },
       "units": {
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"
@@ -62,7 +63,7 @@
       "requirement_sha": "2ad7c926df955bc6",
       "tests": {
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "6069318487a1dc5e",
-        "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "b3428c78168b854d"
+        "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "3b6ab22b8c99761b"
       },
       "units": {
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "29fb443f05d0168c",
@@ -76,8 +77,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "6069318487a1dc5e",
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "6069318487a1dc5e",
-        "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "b3428c78168b854d"
+        "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "3b6ab22b8c99761b",
+        "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "3b6ab22b8c99761b"
       },
       "units": {
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "a1f957c885fbf491",
@@ -110,7 +111,7 @@
       "note": "Clause 1 (Unsupported Capability MUST NOT be used for a capability not understood): TestOpenIgnoresUnknownCapability asserts only a KEEPALIVE is written for an OPEN with code 254. Clause 2 (such capabilities MUST be ignored): the same unit asserts the following Route Refresh TLV is negotiated and the session reaches Established. Single-polarity marker present.",
       "requirement_sha": "31d1a170026868a1",
       "tests": {
-        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "36ad5ca29acc4eb4"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "44d90c337eb5fecd"
       },
       "units": {
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"

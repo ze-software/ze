@@ -466,7 +466,8 @@ Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN ex
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
-    ExtendedMessage bool                   // Max message: 4096 or 65535 bytes
+    ExtendedMessageRecv bool              // Local advertisement: receive up to 65535
+    ExtendedMessageSend bool              // Peer advertisement: send up to 65535
     ExtendedNextHop map[Family]AFI         // Per-family next-hop AFI mapping
     Families()      []Family               // Method returning negotiated families
     GracefulRestart *GracefulRestart       // RFC 4724 graceful restart state

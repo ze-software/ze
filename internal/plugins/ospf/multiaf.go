@@ -51,9 +51,6 @@ const (
 	afIPv6MulticastMin, afIPv6MulticastMax uint8 = 32, 63
 	afIPv4UnicastMin, afIPv4UnicastMax     uint8 = 64, 95
 	afIPv4MulticastMin, afIPv4MulticastMax uint8 = 96, 127
-	// afInstanceIDMax is the largest Instance ID usable for AF mapping; RFC 5838 §2.1
-	// reserves 0-127. 128-255 is invalid for AF use.
-	afInstanceIDMax uint8 = 127
 )
 
 // afFromInstanceID maps an OSPFv3 Instance ID to its RFC 5838 §2.1 address family. ok is
@@ -86,7 +83,7 @@ func afInstanceIDRange(af addressFamily) (min, max uint8) {
 	case afIPv4Multicast:
 		return afIPv4MulticastMin, afIPv4MulticastMax
 	default:
-		return 0, afInstanceIDMax
+		panic("BUG: invalid OSPF address family")
 	}
 }
 
@@ -110,7 +107,7 @@ func (af addressFamily) family() family.Family {
 	case afIPv4Multicast:
 		return family.IPv4Multicast
 	default:
-		return family.IPv6Unicast
+		panic("BUG: invalid OSPF address family")
 	}
 }
 
@@ -146,7 +143,7 @@ func (af addressFamily) String() string {
 	case afIPv4Multicast:
 		return afNameIPv4Multicast
 	default:
-		return "unknown-af"
+		panic("BUG: invalid OSPF address family")
 	}
 }
 

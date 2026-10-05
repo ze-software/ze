@@ -424,8 +424,9 @@ func statusColor(s PeerStatus) string {
 		return colorDegraded
 	case PeerIdle:
 		return "#6e7681"
+	default:
+		panic("BUG: invalid dashboard peer status")
 	}
-	return "#6e7681"
 }
 
 // pctOfDuration returns the percentage position of d within total.

@@ -147,6 +147,7 @@ func sendReplyFrom(tr *transport.UDPTransport, data []byte, local, remote *net.U
 // Method is where they are compared: it hands every mode IsEAPMode names to
 // newEAPSession and fails on a refusal.
 func eapMethodType(mode ipsec.AuthMode) (uint8, bool) {
+	//exhaustive:ignore // Projects only EAP authentication modes to method types; other modes are not EAP.
 	switch mode {
 	case ipsec.AuthEAPMD5:
 		return eap.TypeMD5Challenge, true

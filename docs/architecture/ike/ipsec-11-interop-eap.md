@@ -291,9 +291,12 @@ outside 1-4 is dropped by the peer and by the authenticator.
 A discard is not an error. `handleEAPResponse` (`internal/component/ike/engine`)
 puts the SA in `StateDead` for any non-nil `PeerResult.Err`, so a discard that
 reported one would trade the bypass above for a denial of service: one forged
-packet would end the exchange. The SA is left alone, it stays in
-`StateEAPInProgress`, and `maxEAPRounds` still counts the round, so a flood ends
-the exchange rather than holding it open.
+packet would end the exchange. The SA stays in `StateEAPInProgress`. Undefined
+Codes and wrong-role Responses are discarded before the round counter, so a
+flood of those packets cannot spend the termination budget. Defined packets
+addressed to the peer still count toward `maxEAPRounds`, including those
+discarded by a later method or state check. The carrier's retransmission budget
+remains the bound when no usable reply arrives.
 
 **The silence is owed to the authenticator, not to the operator.** The drop is
 `PeerResult.Discarded`, a field rather than the absence of the other three
@@ -312,6 +315,31 @@ Ze as the initiator and strongSwan as the authenticator. The MS-CHAPv2 and MD4
 primitives worked against strongSwan on the first run; what interop found was
 elsewhere. See `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` for the five
 defects that a same-implementation suite could not see.
+
+For Code-admission changes, run both `eap-mschapv2` and
+`responder-eap-mschapv2` through
+`IPSEC_INTEROP_SCENARIO=<scenario> ./le test integration interop-ipsec`.
+The initiator checker requires established IKE and Child SAs and strongSwan
+XFRM state; when Ze has XFRM state it also checks tunnel traffic. The responder
+checker requires establishment, terminates the first SA, then drops replies and
+requires strongSwan to retransmit and establish again without Ze reprocessing
+the duplicate. These cover legitimate EAP exchanges with Ze in each role.
+`eap-tls13` and `responder-eap-tls13` require TLS-method establishment and XFRM
+state on both ends. The initiator scenario also requires tunnel traffic; the
+responder scenario checks strongSwan's protected success indication.
+
+<!-- source: internal/le/test/integration/gates.go -- ipsec.interop.scenario -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPMSCHAPv2, checkResponderEAPMSCHAPv2, checkEAPTLS13, checkResponderEAPTLS13 -->
+
+These stock strongSwan scenarios do not inject undefined or wrong-role EAP
+Codes. The adversarial regression is
+`TestEngineDiscardedEAPCodesPreserveExchange`, which drives Ze's encrypted IKE
+entry points and completes authentication after more than twenty ignored
+packets per round. It is not an interop result and must not be reported as one.
+Record the real scenario runs separately from this regression; neither a run
+nor a full RFC conformance verdict follows from adding the tests.
+
+<!-- source: internal/component/ike/engine/eap_discard_admission_test.go -- TestEngineDiscardedEAPCodesPreserveExchange -->
 
 `eap-tls` runs against a STOCK strongSwan, which lands on TLS 1.2 and
 negotiates no RFC 7627 extended master secret. Ze cannot derive the RFC 5216

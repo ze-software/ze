@@ -312,8 +312,9 @@ func validateSetFamilyCompat(tbl *Table, ch *Chain, term *Term, m MatchInSet, se
 	case familyUnknown, FamilyARP, FamilyBridge, FamilyNetdev:
 		return fmt.Errorf("table %q chain %q term %q: address match against %q is invalid in family %s (use ip, ip6, or inet)",
 			tbl.Name, ch.Name, term.Name, m.SetName, tbl.Family)
+	default:
+		panic("BUG: unknown validated firewall table family")
 	}
-	return nil
 }
 
 // validateInterfaceName rejects the two ways an interface-name match can

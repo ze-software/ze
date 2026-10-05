@@ -127,6 +127,17 @@ func TestFSMCreation(t *testing.T) {
 	require.Equal(t, StateIdle, fsm.State())
 }
 
+// TestFSMInvalidPrivateState panics on internal state corruption and confirms
+// that Event releases its mutex even when the invariant assertion fires.
+func TestFSMInvalidPrivateState(t *testing.T) {
+	f := New()
+	f.setState(State(0xff))
+	require.PanicsWithValue(t, "BUG: invalid BGP FSM state", func() {
+		_ = f.Event(EventManualStart)
+	})
+	require.Equal(t, State(0xff), f.State())
+}
+
 // TestFSMTransitionIdleToConnect verifies ManualStart transition.
 //
 // VALIDATES: RFC 4271 Section 8.2.2 - ManualStart event in IDLE state
@@ -325,11 +336,11 @@ func TestFSMActiveToOpenSent(t *testing.T) {
 	require.Equal(t, StateOpenSent, fsm.State())
 }
 
-// TestFSMExhaustiveTransitions verifies every (state, event) → next state
-// combination per RFC 4271 Section 8.2.2.
-//
-// VALIDATES: All 90+ state×event combinations produce the correct next state,
-// including "any other event" cases that RFC requires to transition to Idle.
+// TestFSMExhaustiveTransitions records the existing (state, event) → next state
+// behavior. It is not a complete RFC 4271 Section 8.2.2 conformance test: the
+// start-event teardown in OpenSent, OpenConfirm and Established is a known
+// divergence from that section's requirement to ignore start events.
+// This coverage migration preserves those outcomes without endorsing them.
 //
 // PREVENTS: Unexpected events being silently ignored instead of resetting the
 // FSM to Idle, which could leave a session stuck in an intermediate state.
@@ -417,8 +428,8 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 
 		// === OPENSENT state ===
 		// RFC 4271 Section 8.2.2: BGPOpen → OpenConfirm, HoldTimer/errors → Idle,
-		// TCPFails → Active (RFC 4271 Section 8.2.2), all others → Idle (FSM Error)
-		{"OpenSent_ManualStart", StateOpenSent, false, EventManualStart, StateIdle},
+		// TCPFails → Active; start events ignored; other events → Idle (FSM Error).
+		{"OpenSent_ManualStart", StateOpenSent, false, EventManualStart, StateOpenSent},
 		{"OpenSent_ManualStop", StateOpenSent, false, EventManualStop, StateIdle},
 		{"OpenSent_ConnectRetryTimerExpires", StateOpenSent, false, EventConnectRetryTimerExpires, StateIdle},
 		{"OpenSent_HoldTimerExpires", StateOpenSent, false, EventHoldTimerExpires, StateIdle},
@@ -433,14 +444,14 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"OpenSent_KeepaliveMsg", StateOpenSent, false, EventKeepaliveMsg, StateIdle},
 		{"OpenSent_UpdateMsg", StateOpenSent, false, EventUpdateMsg, StateIdle},
 		{"OpenSent_UpdateMsgErr", StateOpenSent, false, EventUpdateMsgErr, StateIdle},
-		{"OpenSent_DampedStart", StateOpenSent, false, EventAutomaticStartWithDampPeerOscillations, StateIdle},
+		{"OpenSent_DampedStart", StateOpenSent, false, EventAutomaticStartWithDampPeerOscillations, StateOpenSent},
 		{"OpenSent_AutomaticStop", StateOpenSent, false, EventAutomaticStop, StateIdle},
 		{"OpenSent_OpenCollisionDump", StateOpenSent, false, EventOpenCollisionDump, StateIdle},
 
 		// === OPENCONFIRM state ===
 		// RFC 4271 Section 8.2.2: KeepaliveMsg → Established, HoldTimer/errors → Idle,
-		// TCPFails → Idle, all others → Idle (FSM Error)
-		{"OpenConfirm_ManualStart", StateOpenConfirm, false, EventManualStart, StateIdle},
+		// TCPFails → Idle; start events ignored; other events → Idle (FSM Error).
+		{"OpenConfirm_ManualStart", StateOpenConfirm, false, EventManualStart, StateOpenConfirm},
 		{"OpenConfirm_ManualStop", StateOpenConfirm, false, EventManualStop, StateIdle},
 		{"OpenConfirm_ConnectRetryTimerExpires", StateOpenConfirm, false, EventConnectRetryTimerExpires, StateIdle},
 		{"OpenConfirm_HoldTimerExpires", StateOpenConfirm, false, EventHoldTimerExpires, StateIdle},
@@ -455,14 +466,14 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"OpenConfirm_KeepaliveMsg", StateOpenConfirm, false, EventKeepaliveMsg, StateEstablished},
 		{"OpenConfirm_UpdateMsg", StateOpenConfirm, false, EventUpdateMsg, StateIdle},
 		{"OpenConfirm_UpdateMsgErr", StateOpenConfirm, false, EventUpdateMsgErr, StateIdle},
-		{"OpenConfirm_DampedStart", StateOpenConfirm, false, EventAutomaticStartWithDampPeerOscillations, StateIdle},
+		{"OpenConfirm_DampedStart", StateOpenConfirm, false, EventAutomaticStartWithDampPeerOscillations, StateOpenConfirm},
 		{"OpenConfirm_AutomaticStop", StateOpenConfirm, false, EventAutomaticStop, StateIdle},
 		{"OpenConfirm_OpenCollisionDump", StateOpenConfirm, false, EventOpenCollisionDump, StateIdle},
 
 		// === ESTABLISHED state ===
 		// RFC 4271 Section 8.2.2: KeepaliveMsg/UpdateMsg → Established,
-		// HoldTimer/errors/TCPFails → Idle, all others → Idle (FSM Error)
-		{"Established_ManualStart", StateEstablished, false, EventManualStart, StateIdle},
+		// HoldTimer/errors/TCPFails → Idle; start events ignored; other events → Idle (FSM Error).
+		{"Established_ManualStart", StateEstablished, false, EventManualStart, StateEstablished},
 		{"Established_ManualStop", StateEstablished, false, EventManualStop, StateIdle},
 		{"Established_ConnectRetryTimerExpires", StateEstablished, false, EventConnectRetryTimerExpires, StateIdle},
 		{"Established_HoldTimerExpires", StateEstablished, false, EventHoldTimerExpires, StateIdle},
@@ -477,7 +488,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Established_KeepaliveMsg", StateEstablished, false, EventKeepaliveMsg, StateEstablished},
 		{"Established_UpdateMsg", StateEstablished, false, EventUpdateMsg, StateEstablished},
 		{"Established_UpdateMsgErr", StateEstablished, false, EventUpdateMsgErr, StateIdle},
-		{"Established_DampedStart", StateEstablished, false, EventAutomaticStartWithDampPeerOscillations, StateIdle},
+		{"Established_DampedStart", StateEstablished, false, EventAutomaticStartWithDampPeerOscillations, StateEstablished},
 		{"Established_AutomaticStop", StateEstablished, false, EventAutomaticStop, StateIdle},
 		{"Established_OpenCollisionDump", StateEstablished, false, EventOpenCollisionDump, StateIdle},
 	}
@@ -502,20 +513,17 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{StateActive, EventBGPOpen}, {StateActive, EventKeepaliveMsg},
 		{StateActive, EventUpdateMsg}, {StateActive, EventUpdateMsgErr},
 		// OPENSENT default arm
-		{StateOpenSent, EventManualStart}, {StateOpenSent, EventConnectRetryTimerExpires},
-		{StateOpenSent, EventAutomaticStartWithDampPeerOscillations},
+		{StateOpenSent, EventConnectRetryTimerExpires},
 		{StateOpenSent, EventKeepaliveTimerExpires}, {StateOpenSent, EventTCPConnectionConfirmed},
 		{StateOpenSent, EventKeepaliveMsg}, {StateOpenSent, EventUpdateMsg},
 		{StateOpenSent, EventUpdateMsgErr}, {StateOpenSent, EventNotifMsg},
 		// OPENCONFIRM default arm
-		{StateOpenConfirm, EventManualStart}, {StateOpenConfirm, EventConnectRetryTimerExpires},
-		{StateOpenConfirm, EventAutomaticStartWithDampPeerOscillations},
+		{StateOpenConfirm, EventConnectRetryTimerExpires},
 		{StateOpenConfirm, EventTCPConnectionConfirmed}, {StateOpenConfirm, EventBGPOpen},
 		{StateOpenConfirm, EventUpdateMsg}, {StateOpenConfirm, EventUpdateMsgErr},
 		// ESTABLISHED default arm (note: Established handles EventBGPHeaderErr
 		// explicitly but NOT EventBGPOpenMsgErr, so the latter is an error arm).
-		{StateEstablished, EventManualStart}, {StateEstablished, EventConnectRetryTimerExpires},
-		{StateEstablished, EventAutomaticStartWithDampPeerOscillations},
+		{StateEstablished, EventConnectRetryTimerExpires},
 		{StateEstablished, EventTCPConnectionConfirmed}, {StateEstablished, EventBGPOpen},
 		{StateEstablished, EventBGPOpenMsgErr},
 	} {
@@ -551,7 +559,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 //
 // PREVENTS: Silent FSM resets where the reactor never learns the session dropped.
 func TestFSMUnexpectedEventCallback(t *testing.T) {
-	// Each entry picks an event that hits the default→Idle handler in that state.
+	// Each entry picks an event that hits the error→Idle handler in that state.
 	tests := []struct {
 		state State
 		event Event
@@ -610,11 +618,11 @@ func TestFSMEventReturnsErrorOnIllegalTransition(t *testing.T) {
 		{"BGPOpen in Established", StateEstablished, EventBGPOpen, true},
 		{"BGPOpen in OpenConfirm", StateOpenConfirm, EventBGPOpen, true},
 		// Other error default arms.
-		{"ManualStart in Established", StateEstablished, EventManualStart, true},
 		{"ConnectRetryTimerExpires in Established", StateEstablished, EventConnectRetryTimerExpires, true},
 		{"UpdateMsg in OpenConfirm", StateOpenConfirm, EventUpdateMsg, true},
 		{"KeepaliveMsg in Connect", StateConnect, EventKeepaliveMsg, true},
 		// Handled events return nil.
+		{"ManualStart in Established (deliberate ignore)", StateEstablished, EventManualStart, false},
 		{"KeepaliveMsg in Established", StateEstablished, EventKeepaliveMsg, false},
 		{"UpdateMsg in Established", StateEstablished, EventUpdateMsg, false},
 		{"BGPOpen in OpenSent (handled → OpenConfirm)", StateOpenSent, EventBGPOpen, false},

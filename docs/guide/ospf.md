@@ -373,13 +373,20 @@ On receipt, Ze validates top-level TLVs and nested sub-TLV framing before any LS
 
 The OSPF engines publish native LSDB snapshots to the BGP-LS exporter. The
 snapshots include router and network-pseudonode identities, links and prefixes,
-with decoded TE and Segment Routing attributes where those LSAs provide them.
+with decoded TE and Segment Routing attributes where the applicable source LSAs
+provide them. OSPFv2 TE Router Addresses come only from area-scoped Type-10,
+opaque-type-1 LSAs. Inter-AS TE Link TLVs use opaque type 6 in Type-10 or Type-11
+LSAs; a Router Address body in that carrier does not supply an auxiliary ID.
+When both TLVs occur together, the adapter ignores the inapplicable Router
+Address and still exports the valid inter-AS Link TLV.
+The BGP-LS adapter ignores those bodies in other carriers without changing OSPF
+LSA storage or flooding.
 OSPFv2 and OSPFv3 keep their protocol, instance and area identities separate.
 The exporter consumes completed SPF reachability, including routers that
 advertise no selected IP prefix, and receives an updated snapshot after an
 LSDB change or SPF run. Removing an area or stopping an engine withdraws its
 previous snapshot.
-<!-- source: internal/plugins/ospf/bgpls_export.go -- startBGPLS, publishBGPLSLocked, stopBGPLS -->
+<!-- source: internal/plugins/ospf/bgpls_export.go -- startBGPLS, publishBGPLSLocked, stopBGPLS, indexV2 -->
 
 For RFC 9552 Section 5.2.3.1, OSPFv2 Extended Prefix advertisements inherit
 their route type from matching base LSAs when the Extended Prefix leaves it

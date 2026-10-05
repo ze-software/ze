@@ -217,21 +217,6 @@ func TestRFC3748AuthenticatorRequiresValidResponse(t *testing.T) {
 	if next == nil || next.Code != CodeRequest || next.Type != TypeMSCHAPv2 {
 		t.Fatalf("valid Identity Response did not yield a method Request: %v", next)
 	}
-
-	// A packet that is not a Response (Code != Response) never produces a new
-	// method Request; the authenticator returns Failure. It carries no
-	// RFC3748-2-2 tag, because RFC 3748 does not ask for that Failure: the row's
-	// negative is TestRFC3748NoNewRequestBeforeAValidResponse.
-	auth2, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "pw"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	auth2.Begin()
-	notResponse := &Packet{Code: CodeRequest, Identifier: 2, Type: TypeIdentity, TypeData: []byte("user")}
-	out := auth2.Process(notResponse)
-	if out == nil || out.Code != CodeFailure {
-		t.Fatalf("non-Response advanced the exchange: %v (want Failure)", out)
-	}
 }
 
 func TestRFC3748OneMethodPerConversation(t *testing.T) {

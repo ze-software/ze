@@ -106,13 +106,28 @@ on it at startup rather than registering an attribute whose flags nothing judges
 | 17 | 0x11 | AS4_PATH | 0xC0 (O-T) | RFC 6793 | implemented |
 | 18 | 0x12 | AS4_AGGREGATOR | 0xC0 (O-T) | RFC 6793 | implemented |
 | 22 | 0x16 | PMSI_TUNNEL | 0xC0 (O-T) | RFC 6514 | not implemented |
-| 23 | 0x17 | TUNNEL_ENCAP | 0xC0 (O-T) | RFC 9012 | parsed (on-demand sub-TLVs) |
+| 23 | 0x17 | TUNNEL_ENCAP | 0xC0 (O-T) | RFC 9012 | parsed; carrier-aware receive validation |
 | 25 | 0x19 | IPV6_EXT_COMMUNITY | 0xC0 (O-T) | RFC 5701 | implemented |
 | 26 | 0x1A | AIGP | 0x80 (O-NT) | RFC 7311 | implemented |
 | 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 | not implemented |
 | 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 | implemented |
 | 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669, RFC 9252 | parsed (TLVs kept whole, decoded for JSON) |
 | 252 | 0xFC | ATTR_TOMBSTONE | 0x80/0xC0 (O, T mirrors discarded attr) | draft-mangin-idr-attr-tombstone-00 | marker implemented, Section 5.3 egress clear not implemented (provisional code point) |
+
+Tunnel carrier constraints derive only from reachable legacy NLRI and
+MP_REACH_NLRI. MP_UNREACH_NLRI is independently syntax-validated; a withdrawn
+family does not constrain an unrelated announcement's tunnel type or endpoints.
+RFC 9012 Section 6 carriers require exactly one Tunnel Egress Endpoint per TLV.
+The receiver removes TLVs with invalid endpoint count or encoded length; invalid
+framing or no surviving TLV invokes treat-as-withdraw.
+
+Actual SR Policy carriers (AFI 1 or 2, SAFI 73) require exactly one type-15 TLV
+and ignore endpoint, color, UDP, and protocol sub-TLVs under RFC 9830 Sections
+2.2 and 2.3. IPv4 unicast with tunnel type 15 is not an SR Policy carrier.
+This validation does not provide SRPM/headend support or complete endpoint
+address semantics: RFC 9012 Section 3.1's special-purpose address restriction
+remains an existing gap.
+<!-- source: internal/component/bgp/reactor/session_tunnel_encap.go -- applyTunnelEncap, tunnelTLVLayout, tunnelEndpointLengthValid -->
 
 Legend: WK=Well-known, O=Optional, M=Mandatory, D=Discretionary, T=Transitive, NT=Non-transitive.
 Unimplemented attributes are parsed as opaque (raw bytes preserved for forwarding).
@@ -445,6 +460,12 @@ Used when:
 3. AS_PATH contains ASNs > 65535
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrAS4Path -->
 <!-- source: internal/core/bgp/attribute/as4.go -- AS4 path processing -->
+
+When narrowing an UPDATE for an OLD speaker, `TranscodeASPath` bounds each
+attribute header and value by Total Path Attribute Length. Trailing NLRI bytes
+cannot complete a truncated attribute. A section overrun returns
+`ErrUpdateMalformed` before output is written; valid trailing NLRI is preserved.
+<!-- source: internal/component/bgp/wireu/aspath_transcode.go -- TranscodeASPath -->
 
 ### No received AS4_PATH survives ingest
 

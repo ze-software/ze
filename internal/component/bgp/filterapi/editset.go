@@ -652,8 +652,9 @@ func (e *EditSet) SlotSize(id SlotID) int {
 		return int(s.hdrLen) + int(s.outLen)
 	case slotDrop, slotFail:
 		return 0
+	default:
+		panic("BUG: invalid edit slot kind")
 	}
-	return 0
 }
 
 // SlotWrite materializes the slot into buf at off and returns the new offset.
@@ -738,6 +739,8 @@ func (e *EditSet) SlotWrite(id SlotID, section []byte, ops []AttrOp, buf []byte,
 				return off
 			}
 			src = e.arena[f.off:end]
+		default:
+			panic("BUG: invalid edit fragment source")
 		}
 		copy(buf[w:], src)
 		w += len(src)

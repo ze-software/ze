@@ -109,6 +109,7 @@ func (op StructuralOp) SessionKey() string {
 
 // isMemberOp reports whether the op targets one leaf-list member.
 func (op StructuralOp) isMemberOp() bool {
+	//exhaustive:ignore // Only classifies leaf-list member operations for path construction.
 	switch op.Type {
 	case StructuralOpInsertMember, StructuralOpDeactivateMember, StructuralOpActivateMember:
 		return true
@@ -171,14 +172,16 @@ func (op StructuralOp) PendingChange() PendingChange {
 			Value:     op.NewKey,
 			Member:    op.NewKey,
 		}
+	case "", StructuralOpRename:
 	default:
-		return PendingChange{
-			SessionID: op.SessionKey(),
-			Kind:      PendingChangeRename,
-			Path:      op.DestinationPath(),
-			OldPath:   op.SourcePath(),
-			NewPath:   op.DestinationPath(),
-		}
+		panic("BUG: invalid structural operation")
+	}
+	return PendingChange{
+		SessionID: op.SessionKey(),
+		Kind:      PendingChangeRename,
+		Path:      op.DestinationPath(),
+		OldPath:   op.SourcePath(),
+		NewPath:   op.DestinationPath(),
 	}
 }
 
@@ -187,17 +190,19 @@ func (pc PendingChange) ConflictPaths() []string {
 	switch pc.Kind {
 	case PendingChangeRename:
 		return []string{pc.OldPath, pc.NewPath}
+	case "", PendingChangeSet, PendingChangeDelete, PendingChangeDeactivate, PendingChangeActivate:
 	default:
-		if pc.Path == "" {
-			return nil
-		}
-		return []string{pc.Path}
+		panic("BUG: invalid pending change kind")
 	}
+	if pc.Path == "" {
+		return nil
+	}
+	return []string{pc.Path}
 }
 
 // Summary returns a concise human-readable form of the pending change.
 //
-// It takes the schema because the default branch echoes Value, which is what
+// It takes the schema because set-style summaries echo Value, which is what
 // the operator typed at Path. A schema that marks that leaf ze:sensitive or
 // ze:bcrypt makes the summary a display path for a credential, and the
 // adoption prompt of `ze config edit` writes one line of it per change. A nil
@@ -213,10 +218,12 @@ func (pc PendingChange) Summary(schema *Schema) string {
 		return tb.String()
 	case PendingChangeRename:
 		return tb.Str("rename ").Str(pc.OldPath).Str(" to ").Str(pc.NewPath).String()
+	case "", PendingChangeSet, PendingChangeDeactivate, PendingChangeActivate:
 	default:
-		value := DisplayValueAtPath(schema, strings.Fields(pc.Path), pc.Value)
-		return tb.Str("set ").Str(pc.Path).Byte(' ').Str(value).String()
+		panic("BUG: invalid pending change kind")
 	}
+	value := DisplayValueAtPath(schema, strings.Fields(pc.Path), pc.Value)
+	return tb.Str("set ").Str(pc.Path).Byte(' ').Str(value).String()
 }
 
 // PendingChangeFromSessionEntry converts a leaf-level metadata entry into the
@@ -457,8 +464,10 @@ func formatStructuralLine(op StructuralOp) string {
 		return formatInsertMemberLine(op)
 	case StructuralOpDeactivateMember, StructuralOpActivateMember:
 		return formatMemberToggleLine(op)
-	default:
+	case "", StructuralOpRename:
 		return formatRenameLine(op)
+	default:
+		panic("BUG: invalid structural operation")
 	}
 }
 

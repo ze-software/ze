@@ -13,17 +13,25 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/statestore"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
 	fibvppyang "github.com/ze-software/ze/internal/plugins/fib/vpp/yang"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // configRoot is the YANG container this plugin reads. The plugin registers as
 // "fib-vpp"; the config path is "fib/vpp".
 const configRoot = "fib/vpp"
 
+var srv6OwnershipKey = zefs.MustRegister(zefs.KeyEntry{
+	Pattern:     srv6StatePrefix + "{kind}/{identity}",
+	Description: "VPP SRv6 policy, steering and ordinary fallback ownership (JSON)",
+})
+
 func init() {
+	statestore.RegisterPluginKeys("fib-vpp", srv6OwnershipKey)
 	reg := registry.Registration{
 		Name:         "fib-vpp",
 		Description:  "FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API",
@@ -139,23 +147,33 @@ func runFibVPPPlugin(conn net.Conn) int {
 			}
 			f := newFibVPP(newGovppBackend(ch, table))
 			f.mplsBackend = newGovppMPLSBackend(ch, table)
-			f.srv6Backend = newGovppSRv6Backend(ch, table)
+			f.srv6TableID = table
+			f.srv6Backend = newGovppSRv6Backend(ch, table, p.StateKeys(ctx))
+			if err := f.restoreSRv6(); err != nil {
+				lg.Error("fib-vpp: SRv6 ownership restore failed", "error", err)
+			}
 			return f
 		}
 
-		// restart builds a backend against the current connector, cancels the
-		// run loop the previous one owned, and runs the new one. The build
-		// comes first so the old loop keeps serving until the replacement is
-		// ready. Each new fibVPP asks sysrib to replay the whole table, so a
-		// reconnect reprograms every route the noop backend swallowed.
+		// Retire the old writer before restoring durable ownership. Its event
+		// callback MUST stop mutating resources before the replacement reads
+		// them; the replacement MUST request replay after subscribing.
 		restart := func() {
 			fibMu.Lock()
 			defer fibMu.Unlock()
 
-			next := newBackend(tableID)
+			if fib != nil {
+				fib.mu.Lock()
+				fib.retired = true
+				if err := fib.backend.close(); err != nil {
+					lg.Error("fib-vpp: retire backend failed", "error", err)
+				}
+				fib.mu.Unlock()
+			}
 			if runCancel != nil {
 				runCancel()
 			}
+			next := newBackend(tableID)
 			var runCtx context.Context
 			runCtx, runCancel = context.WithCancel(ctx)
 			fib = next

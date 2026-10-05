@@ -236,14 +236,16 @@ func TestRFC9494DelayedDownPreservesLLSTDeadlines(t *testing.T) {
 					rib.down()
 					checkRoutes()
 					for _, entry := range families {
-						if remaining := time.Until(entry.deadline); remaining > 0 {
-							<-time.After(remaining - time.Nanosecond)
-							synctest.Wait()
-							checkRoutes()
-							<-time.After(time.Nanosecond)
-							synctest.Wait()
-							checkRoutes()
+						remaining := time.Until(entry.deadline)
+						if remaining <= 0 {
+							continue
 						}
+						<-time.After(remaining - time.Nanosecond)
+						synctest.Wait()
+						checkRoutes()
+						<-time.After(time.Nanosecond)
+						synctest.Wait()
+						checkRoutes()
 					}
 					assert.False(t, gp.state.peerActive(testPeer), "the last absolute LLST deadline releases the peer")
 				})

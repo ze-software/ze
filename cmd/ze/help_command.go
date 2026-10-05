@@ -535,8 +535,10 @@ func argKindString(k command.ArgKind) string {
 		return "union"
 	case command.ArgFlag:
 		return "flag"
-	default:
+	case command.ArgString:
 		return typeNameString
+	default:
+		panic("BUG: unknown command argument kind")
 	}
 }
 

@@ -238,6 +238,8 @@ func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, error) 
 		fields, err = parseT1STFields(spec)
 	case MUPT2ST:
 		fields, err = parseT2STFields(spec)
+	default:
+		panic("BUG: invalid parsed MUP route type")
 	}
 	if err != nil {
 		return 0, err
@@ -265,6 +267,8 @@ func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, error) 
 		pos += writeT1STData(buf, pos, fields)
 	case MUPT2ST:
 		pos += writeT2STData(buf, pos, fields)
+	default:
+		panic("BUG: invalid parsed MUP route type")
 	}
 
 	return pos - off, nil

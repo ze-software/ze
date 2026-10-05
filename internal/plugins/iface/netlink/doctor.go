@@ -82,6 +82,7 @@ func checkIfaceMacvlan(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			Severity: diagnostic.SeverityError,
 			Message:  "kernel cannot create a bridge-mode macvlan device; enable CONFIG_MACVLAN or load the macvlan module",
 		}}
+	default:
+		panic("BUG: unknown macvlan probe result")
 	}
-	return nil
 }

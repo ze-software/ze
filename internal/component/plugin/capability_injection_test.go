@@ -103,6 +103,17 @@ func TestCapabilityDecoding(t *testing.T) {
 	})
 }
 
+// TestCapabilityDecodingRejectsUnknownEncoding preserves the direct plugin API
+// boundary: a numeric encoding bypassing text decoding returns an error, not data.
+func TestCapabilityDecodingRejectsUnknownEncoding(t *testing.T) {
+	decoded, err := decodeCapabilityPayload(PluginCapability{
+		Encoding: rpc.CapEncoding(255),
+		Payload:  "payload",
+	})
+	require.EqualError(t, err, "unknown encoding: unspecified")
+	assert.Nil(t, decoded)
+}
+
 // TestCapabilityInjection verifies plugin capabilities are added to OPEN.
 //
 // VALIDATES: Capability bytes from plugins appear in OPEN message.

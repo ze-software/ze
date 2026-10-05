@@ -36,7 +36,7 @@ func rfc8092SessionAttrs(value []byte) []byte {
 // 18 0a 00 00, no attributes, no NLRI), with no NOTIFICATION and the session
 // still Established.
 func TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes(t *testing.T) {
-	session, client, capture, cleanup := setupCapturingSession(t, 65001, false)
+	session, client, capture, cleanup := setupCapturingSession(t, 65001, false, false)
 	defer cleanup()
 	nlri := []byte{0x18, 0x0a, 0x00, 0x00}
 	attrs := rfc8092SessionAttrs([]byte{0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05})
@@ -66,7 +66,7 @@ func TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes(t *testing.T) {
 // length is 12 is dispatched with its attributes and NLRI 18 0a 00 00
 // unchanged and an empty Withdrawn Routes field.
 func TestRFC8092WellFormedLargeCommunityKeepsTheRoutes(t *testing.T) {
-	session, client, capture, cleanup := setupCapturingSession(t, 65001, false)
+	session, client, capture, cleanup := setupCapturingSession(t, 65001, false, false)
 	defer cleanup()
 	nlri := []byte{0x18, 0x0a, 0x00, 0x00}
 	attrs := rfc8092SessionAttrs([]byte{

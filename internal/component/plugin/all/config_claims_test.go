@@ -153,6 +153,7 @@ func TestClaimAllowlistReasons(t *testing.T) {
 	report := claims.Audit(root, cs, allow)
 
 	for _, f := range report.Findings {
+		//exhaustive:ignore // Only allowlist-integrity findings belong to this independent check.
 		switch f.Kind {
 		case claims.KindAllowlistNoReason, claims.KindAllowlistStale:
 			t.Errorf("%s", f.String())

@@ -89,6 +89,8 @@ func (f *icyFarEnd) advance(ini *SA, respPS *PeerSession, table *SATable, log *s
 			}
 			handleAuthResponse(ini, answer, f.sa.LastSentMsg, table, nil, log)
 		case StateIdle, StateSAInitReceived, StateAuthReceived, StateEAPInProgress, StateEstablished, StateDead:
+		default:
+			panic("BUG: unknown IKE SA state in handshake test driver")
 		}
 		return nil
 	}

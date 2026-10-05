@@ -1516,7 +1516,7 @@ func (s *sysRIB) showRIB() (any, error) {
 
 // changeToBatch converts a locrib.Change into the BestChangeBatch shape
 // sysrib's processEvent consumes. One Change -> one single-entry batch.
-// Returns nil for unspecified / unrecognized ChangeKind.
+// Returns nil for ChangeUnspecified.
 func changeToBatch(c *locrib.Change) *incomingBatch {
 	var action routeaction.Action
 	switch c.Kind {
@@ -1539,7 +1539,7 @@ func changeToBatch(c *locrib.Change) *incomingBatch {
 	case locrib.ChangeUnspecified:
 		return nil
 	default:
-		return nil
+		panic("BUG: invalid Loc-RIB change kind")
 	}
 	var nextHop netip.Addr
 	var iface string

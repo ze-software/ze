@@ -42,7 +42,7 @@ func (t tokenType) String() string {
 	case tokenSemicolon:
 		return "SEMICOLON"
 	default:
-		return "UNKNOWN"
+		panic("BUG: unknown config token type")
 	}
 }
 

@@ -134,6 +134,8 @@ func TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage(t *testing.T) {
 						side.name, i, pkt.TypeData[0])
 				}
 			case eapTLSFirstOfMany:
+			default:
+				panic("BUG: invalid EAP-TLS fragment role")
 			}
 		}
 	}

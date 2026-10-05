@@ -289,7 +289,7 @@ func TestExtendedMessageNilEncoding(t *testing.T) {
 
 // TestExtendedMessageValues verifies ExtendedMessage returns correct value.
 //
-// VALIDATES: ExtendedMessage() reflects EncodingCaps.ExtendedMessage.
+// VALIDATES: ExtendedMessage() reflects the direction's EncodingCaps permission.
 // PREVENTS: Wrong message size limit calculation.
 func TestExtendedMessageValues(t *testing.T) {
 	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
@@ -305,7 +305,7 @@ func TestExtendedMessageValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			encoding := &capability.EncodingCaps{
-				ExtendedMessage: tt.extended,
+				ExtendedMessageSend: tt.extended,
 			}
 			ctx := NewEncodingContext(identity, encoding, DirectionSend)
 			assert.Equal(t, tt.extended, ctx.ExtendedMessage())
@@ -337,14 +337,14 @@ func TestMaxMessageSizeBoundary(t *testing.T) {
 		{
 			name: "extended_false_returns_4096",
 			ctx: NewEncodingContext(identity, &capability.EncodingCaps{
-				ExtendedMessage: false,
+				ExtendedMessageSend: false,
 			}, DirectionSend),
 			wantSize: 4096,
 		},
 		{
 			name: "extended_true_returns_65535",
 			ctx: NewEncodingContext(identity, &capability.EncodingCaps{
-				ExtendedMessage: true,
+				ExtendedMessageSend: true,
 			}, DirectionSend),
 			wantSize: 65535,
 		},
@@ -368,13 +368,13 @@ func TestMaxMessageSizeExactValues(t *testing.T) {
 
 	// Standard: exactly 4096 (RFC 4271)
 	stdCtx := NewEncodingContext(identity, &capability.EncodingCaps{
-		ExtendedMessage: false,
+		ExtendedMessageSend: false,
 	}, DirectionSend)
 	assert.Equal(t, 4096, stdCtx.MaxMessageSize(), "Standard size must be exactly 4096")
 
 	// Extended: exactly 65535 (RFC 8654)
 	extCtx := NewEncodingContext(identity, &capability.EncodingCaps{
-		ExtendedMessage: true,
+		ExtendedMessageSend: true,
 	}, DirectionSend)
 	assert.Equal(t, 65535, extCtx.MaxMessageSize(), "Extended size must be exactly 65535")
 }
@@ -387,15 +387,39 @@ func TestExtendedMessageHashDiffers(t *testing.T) {
 	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
 
 	ctx1 := NewEncodingContext(identity, &capability.EncodingCaps{
-		ExtendedMessage: false,
+		ExtendedMessageSend: false,
 	}, DirectionSend)
 
 	ctx2 := NewEncodingContext(identity, &capability.EncodingCaps{
-		ExtendedMessage: true,
+		ExtendedMessageSend: true,
 	}, DirectionSend)
 
 	assert.NotEqual(t, ctx1.Hash(), ctx2.Hash(),
 		"Different ExtendedMessage should produce different hashes")
+}
+
+// TestExtendedMessageDirection pins asymmetric permission and hash identity by
+// varying the opposite direction independently of the context being constructed.
+func TestExtendedMessageDirection(t *testing.T) {
+	for _, recv := range []bool{false, true} {
+		for _, send := range []bool{false, true} {
+			caps := &capability.EncodingCaps{
+				ExtendedMessageRecv: recv,
+				ExtendedMessageSend: send,
+			}
+			receive := NewEncodingContext(nil, caps, DirectionRecv)
+			transmit := NewEncodingContext(nil, caps, DirectionSend)
+			// RFC 8654 Section 4.
+			assert.Equal(t, recv, receive.ExtendedMessage())
+			assert.Equal(t, send, transmit.ExtendedMessage())
+			assert.Equal(t, NewEncodingContext(nil, &capability.EncodingCaps{
+				ExtendedMessageRecv: recv,
+			}, DirectionRecv).Hash(), receive.Hash(), "send permission cannot alter receive identity")
+			assert.Equal(t, NewEncodingContext(nil, &capability.EncodingCaps{
+				ExtendedMessageSend: send,
+			}, DirectionSend).Hash(), transmit.Hash(), "receive permission cannot alter send identity")
+		}
+	}
 }
 
 // TestEncodingContextPathsLimit verifies direction-specific pathsLimit derivation.

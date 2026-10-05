@@ -3,6 +3,7 @@
 // policy limit rather than a protocol error
 // RFC: rfc/short/rfc4486.md — Section 4, the "Maximum Number of Prefixes Reached"
 // subcode, and the Data field of Figure 1 carrying AFI, SAFI and the upper bound
+// RFC: rfc/short/rfc8277.md — Sections 2.4 and 2.5, label-independent identity.
 // Overview: session.go — Session struct and message processing loop
 // Related: session_handlers.go — UPDATE handler calls prefix limit check
 
@@ -15,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/report"
@@ -220,9 +222,9 @@ type prefixCounts struct {
 	counts map[uint32]int64
 	warned map[uint32]bool // true once warning has been logged for a family (reset on drop below)
 
-	// sets holds, per PrefixCountInstalled family, the wire identity of every
-	// NLRI that family currently has in the session's Adj-RIB-In. counts[fk] is
-	// len(sets[fk]) for such a family, always: the installed count is the
+	// sets holds, per PrefixCountInstalled family, the registered route identity
+	// of every accepted NLRI, including its negotiated ADD-PATH identifier.
+	// counts[fk] is len(sets[fk]) for such a family, always: the installed count is the
 	// CARDINALITY OF A SET, never a tally of wire events.
 	//
 	// That is what the two reference implementations count. FRR reads
@@ -507,7 +509,7 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		if s.prefixCounts.installed[sec.fk] {
 			continue // already applied above
 		}
-		delta := int64(countPrefixEntries(sec.fk, sec.bytes, sec.addPath))
+		delta := int64(countPrefixEntries(sec.fk, sec.bytes, sec.addPath, !sec.announce))
 		if delta == 0 {
 			continue
 		}
@@ -535,16 +537,17 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 // that message is being checked. checkPrefixLimits clears the journal before it
 // returns, which is exactly that window.
 type prefixSetChange struct {
-	fk    uint32
-	entry []byte
-	added bool
+	fk      uint32
+	entry   []byte
+	addPath bool
+	added   bool
 }
 
 // applyInstalledPrefixSections settles every PrefixCountInstalled family of one
 // UPDATE. It returns the same pair as applyPrefixCheck.
 //
 // The mode's whole content is here, and it is a SET, not a tally. Each installed
-// family holds the wire identity of every NLRI it currently has, and its count
+// family holds the registered identity of every NLRI it currently has, and its count
 // is that set's size. So:
 //
 //   - a re-announcement of a prefix the peer already has moves nothing, which is
@@ -632,6 +635,8 @@ func (s *Session) applyInstalledPrefixSection(sec prefixSection, hasLimits bool)
 	w.set = s.prefixCounts.setFor(sec.fk)
 	w.fk = sec.fk
 	w.announce = sec.announce
+	w.addPath = sec.addPath
+	w.keyFunc = nlrisplit.GetPrefixKey(familyFromKey(sec.fk))
 	w.maximum = 0
 	w.hasMax = false
 	w.over = false
@@ -640,7 +645,7 @@ func (s *Session) applyInstalledPrefixSection(sec prefixSection, hasLimits bool)
 		w.maximum, _, w.hasMax = s.prefixConfigLookup(sec.fk)
 	}
 
-	forEachPrefixEntry(sec.fk, sec.bytes, sec.addPath, s.prefixSetVisit)
+	forEachPrefixEntry(sec.fk, sec.bytes, sec.addPath, !sec.announce, s.prefixSetVisit)
 
 	return w.maximum, w.over
 }
@@ -652,16 +657,21 @@ func (s *Session) applyInstalledPrefixSection(sec prefixSection, hasLimits bool)
 // heap allocation for every section of every inbound UPDATE. Bound once in
 // NewSession, it is none.
 //
-// One section is walked at a time, on the session read goroutine, so the fields
-// are overwritten for each section and never read across two of them.
+// One section is walked at a time, on the session read goroutine. Section state
+// is overwritten for each walk; identity scratch is reused by that same goroutine.
 type prefixSetWalk struct {
-	session  *Session
-	set      map[string]struct{}
-	fk       uint32
-	maximum  uint32
-	announce bool
-	hasMax   bool
-	over     bool
+	session    *Session
+	set        map[string]struct{}
+	fk         uint32
+	maximum    uint32
+	announce   bool
+	hasMax     bool
+	over       bool
+	addPath    bool
+	keyFunc    nlrisplit.PrefixKeyFunc
+	scratch    [nlrisplit.PrefixKeyScratchSize]byte
+	pathInline [4 + nlrisplit.PrefixKeyScratchSize]byte
+	pathKey    []byte
 }
 
 // visit applies one NLRI to the family's set and journals the change it makes.
@@ -672,20 +682,70 @@ func (w *prefixSetWalk) visit(entry []byte) {
 	if w.over {
 		return
 	}
+	// RFC 8277 Sections 2.4 and 2.5: labels and Compatibility do not name routes.
+	key, err := w.identity(entry, w.addPath, !w.announce)
+	if err != nil {
+		return // The registered key rejects malformed NLRIs; none enters the set.
+	}
 	if !w.announce {
-		if _, held := w.set[string(entry)]; !held {
+		if _, held := w.set[string(key)]; !held {
 			return
 		}
-		delete(w.set, string(entry))
-		w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{fk: w.fk, entry: entry})
+		delete(w.set, string(key))
+		w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{
+			fk: w.fk, entry: entry, addPath: w.addPath,
+		})
 		return
 	}
-	if _, held := w.set[string(entry)]; held {
+	if _, held := w.set[string(key)]; held {
 		return
 	}
-	w.set[string(entry)] = struct{}{}
-	w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{fk: w.fk, entry: entry, added: true})
+	w.set[string(key)] = struct{}{}
+	w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{
+		fk: w.fk, entry: entry, addPath: w.addPath, added: true,
+	})
 	w.over = w.hasMax && int64(len(w.set)) > int64(w.maximum)
+}
+
+// identity returns a borrowed registered key, retaining the negotiated Path ID.
+// entry is one registered splitter's output, whose ADD-PATH width is checked
+// here before any slice assumes it. Callers MUST copy a key they retain; the
+// next call reuses scratch and pathKey. A pathKey holds at most one NLRI key
+// plus its four-octet Path ID; its backing storage is reused.
+//
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." Also: "If the procedures of [RFC7911] are being used, the
+// respective values of the "path identifier" fields must match as well."
+// Wire layout: [Path ID:4, if negotiated][native NLRI framing and value].
+// The registered operation removes non-key fields from the native NLRI;
+// the four Path ID octets precede the resulting key, including Path ID zero.
+func (w *prefixSetWalk) identity(entry []byte, addPath, withdraw bool) ([]byte, error) {
+	raw := entry
+	if addPath {
+		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
+		// the Path Identifier field, which is of four octets."
+		if len(raw) < 4 {
+			return nil, nlri.ErrPathIDTruncated
+		}
+		raw = raw[4:]
+	}
+	key, err := w.keyFunc(raw, w.scratch[:], withdraw)
+	if err != nil {
+		return nil, err
+	}
+	if !addPath {
+		return key, nil
+	}
+	if len(key) == len(raw) && len(raw) > 0 && &key[0] == &raw[0] {
+		return entry, nil // Opaque identity already includes the Path ID without copying.
+	}
+	if w.pathKey == nil {
+		w.pathKey = w.pathInline[:0]
+	}
+	w.pathKey = slices.Grow(w.pathKey[:0], 4+len(key))
+	w.pathKey = append(w.pathKey, entry[:4]...)
+	w.pathKey = append(w.pathKey, key...)
+	return w.pathKey, nil
 }
 
 // rollbackPrefixSets undoes every change this message made to an installed
@@ -695,11 +755,20 @@ func (w *prefixSetWalk) visit(entry []byte) {
 func (s *Session) rollbackPrefixSets() {
 	for _, c := range slices.Backward(s.prefixSetJournal) {
 		set := s.prefixCounts.sets[c.fk]
+		// Rebuild from the unchanged journal input, never the reused key scratch.
+		// RFC 8277 Section 2.4 requires withdrawal context for Compatibility.
+		s.prefixSetWalk.keyFunc = nlrisplit.GetPrefixKey(familyFromKey(c.fk))
+		key, err := s.prefixSetWalk.identity(c.entry, c.addPath, !c.added)
+		if err != nil {
+			// Only successfully keyed entries are journaled, and neither the
+			// message nor the registry changes during checkPrefixLimits.
+			panic("BUG: rollbackPrefixSets: journaled route identity changed")
+		}
 		if c.added {
-			delete(set, string(c.entry))
+			delete(set, string(key))
 			continue
 		}
-		set[string(c.entry)] = struct{}{}
+		set[string(key)] = struct{}{}
 	}
 }
 
@@ -975,27 +1044,25 @@ func buildPrefixNotification(fk, upperBound uint32) *message.Notification {
 // Wire shape: RFC 4271 Section 4.3 for the length-then-value entry, RFC 7911
 // Section 3 for the 4-octet path identifier in front of it.
 //
-// The entry bytes ARE the identity the installed count keys on. Two NLRIs name
-// the same route when their encodings are equal, which is the only identity
-// available to a check that runs before any family-specific decoder. It is also
-// strictly finer than the count this function replaces: a family whose entries
-// this walk mis-measures (VPN, flowspec) had a wrong count before and now has a
-// wrong set, never a set that merges two distinct routes.
-func forEachPrefixEntry(fk uint32, data []byte, addPath bool, fn func(entry []byte)) int {
+// Framing and logical route identity are separate registry operations. The
+// visitor receives wire bytes; prefixSetWalk.identity derives the installed key.
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." GetWithdraw frames exactly that field, not an S-bit stack.
+func forEachPrefixEntry(fk uint32, data []byte, addPath, withdraw bool, fn func(entry []byte)) int {
 	// RFC 9552 Section 8.2.6: "An implementation MUST have the means to limit
 	// inbound updates." The means is the per-family prefix maximum, and it is only
 	// a means if the number it compares is the number of NLRIs the peer sent.
 	//
-	// The CIDR walk below reads octet 0 as a prefix length, which is true for
-	// unicast and multicast and false for every typed family. For bgp-ls it reads
-	// the high byte of the NLRI Type, so the maximum was compared against a
-	// meaningless number and the limit could not bind. VPN and flowspec were
-	// mis-measured the same way, which the comment above already conceded.
-	//
-	// nlrisplit is the per-family framing registry the RIB already dispatches
-	// through, so asking it here makes the count agree with what the RIB stores,
-	// family by family, rather than approximating it.
-	if splitter := nlrisplit.Get(familyFromKey(fk)); splitter != nil {
+	// Use the family's registered framing for both offered and installed counts.
+	// There is no CIDR approximation for an unregistered family.
+	fam := familyFromKey(fk)
+	var splitter nlrisplit.Splitter
+	if withdraw {
+		splitter = nlrisplit.GetWithdraw(fam)
+	} else {
+		splitter = nlrisplit.Get(fam)
+	}
+	if splitter != nil {
 		// The splitter is a walk, so it visits the entries and counts them without
 		// building a slice: a nil fn here costs nothing at all. A malformed section
 		// stops at the corruption and returns what it visited before it. Counting
@@ -1005,38 +1072,13 @@ func forEachPrefixEntry(fk uint32, data []byte, addPath bool, fn func(entry []by
 		return count
 	}
 
-	count := 0
-	offset := 0
-	for offset < len(data) {
-		start := offset
-		if addPath {
-			if offset+4 > len(data) {
-				break
-			}
-			offset += 4 // Skip path-ID
-		}
-		if offset >= len(data) {
-			break
-		}
-		// Prefix bytes = ceil(prefixLen / 8), after the prefix-length byte.
-		offset += 1 + (int(data[offset])+7)/8
-		if offset > len(data) {
-			break // Truncated entry, stop counting
-		}
-		count++
-		if fn != nil {
-			fn(data[start:offset])
-		}
-	}
-	return count
+	return 0
 }
 
-// countPrefixEntries counts prefix entries in raw NLRI bytes.
-// Works for families using standard prefix-length encoding (unicast, multicast).
-// For complex families (VPN, flowspec), the count may be inaccurate but is
-// bounded (cannot overcount due to prefix-length advancing).
-func countPrefixEntries(fk uint32, data []byte, addPath bool) int {
-	return forEachPrefixEntry(fk, data, addPath, nil)
+// countPrefixEntries counts entries using registered announcement or withdrawal
+// framing without materializing NLRI slices.
+func countPrefixEntries(fk uint32, data []byte, addPath, withdraw bool) int {
+	return forEachPrefixEntry(fk, data, addPath, withdraw, nil)
 }
 
 // --- Prometheus metric helpers ---

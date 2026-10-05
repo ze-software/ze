@@ -92,6 +92,8 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 		replayCachedResponse(sa, msg, pkt, tr, log)
 	case StateAuthSent, StateAuthReceived, StateSAInitSent, StateDead:
 		log.Debug("ike: responder message in unexpected state", "peer", sa.PeerName, "state", sa.State)
+	default:
+		panic("BUG: unknown IKE SA state in responder dispatch")
 	}
 }
 

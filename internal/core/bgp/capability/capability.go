@@ -85,6 +85,10 @@ const (
 	CodeLinkLocalNextHop     Code = 77 // draft-ietf-idr-linklocal-capability Section 2
 )
 
+// codeSoftwareVersion names an unsupported capability; core parsing and display
+// retain its Unknown representation.
+const codeSoftwareVersion Code = 75
+
 // String returns human-readable capability code name.
 func (c Code) String() string {
 	switch c {
@@ -114,7 +118,10 @@ func (c Code) String() string {
 		return "PATHS-LIMIT(76)"
 	case CodeLinkLocalNextHop:
 		return "Link-Local Next Hop(77)"
+	case codeSoftwareVersion:
+		return "Unknown(75)"
 	default:
+		// Capability codes are an open wire set; retain unknown numeric identities.
 		return textbuf.StrIntStr("Unknown(", int64(c), ")")
 	}
 }
@@ -236,7 +243,7 @@ func Parse(data []byte) ([]Capability, error) {
 // RFC 5492 Section 3: If a BGP speaker receives from its peer a capability
 // that it does not itself support or recognize, it MUST ignore that capability.
 func parseCapability(code Code, data []byte) (Capability, error) {
-	switch code { //nolint:exhaustive // Unknown capabilities handled in default
+	switch code {
 	case CodeMultiprotocol:
 		return parseMultiprotocol(data)
 	case CodeASN4:
@@ -261,8 +268,14 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return parsePathsLimit(data)
 	case CodeLinkLocalNextHop:
 		return parseZeroLengthCapability(code, data, &LinkLocalNextHop{})
-	default: // RFC 5492 Section 3: Unrecognized capabilities MUST be ignored.
-		// We preserve raw data for debugging/logging purposes.
+	case CodeRole, codeSoftwareVersion:
+		// These named codes have no core decoder; preserve their opaque values.
+		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
+	default:
+		// Capability codes are an open wire set.
+		// RFC 5492 Section 3: "If a BGP speaker receives from its peer a capability
+		// that it does not itself support or recognize, it MUST ignore that capability."
+		// Preserve raw data for debugging/logging purposes.
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
 	}
 }
@@ -537,7 +550,9 @@ func (m AddPathMode) Label() string {
 		return "send"
 	case AddPathBoth:
 		return "send-receive"
-	default: // AddPathNone and any unknown value
+	case AddPathNone:
+		return ""
+	default: // ADD-PATH modes come from an open wire field; unknown modes have no label.
 		return ""
 	}
 }

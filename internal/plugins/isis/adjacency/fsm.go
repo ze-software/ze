@@ -135,6 +135,22 @@ type Transition struct {
 // the area list is refreshed. The function mutates adj in place and returns the
 // resulting Transition.
 func ReceiveHello(adj *Adjacency, local Local, in HelloInput, now time.Time) Transition {
+	// RFC 5303 Section 3.2: "If the option is present and contains invalid
+	// Adjacency Three-Way State, the PDU SHALL be discarded and no further
+	// action is taken." Guard the raw HelloInput boundary before even the
+	// neighbor identity or hold deadline can change.
+	if local.Kind == KindP2P {
+		if in.HasThreeWay {
+			switch in.ThreeWay.State {
+			case packet.AdjThreeWayDown, packet.AdjThreeWayInitializing, packet.AdjThreeWayUp:
+				// Every named wire state has a column in the RFC table.
+			default:
+				// The received state is an open wire value.
+				return Transition{State: adj.State, Rejected: true, RejectReason: "invalid-three-way-state"}
+			}
+		}
+	}
+
 	// ISO/IEC 10589 section 8.2: an IS forms adjacencies with OTHER intermediate
 	// systems; it must never form an adjacency with itself. A Hello carrying our own System
 	// ID is a looped-back or spoofed frame (e.g. a LAN hairpin or a duplicate
@@ -227,6 +243,7 @@ func bidirectional(adj *Adjacency, local Local, in HelloInput) bool {
 		// section 8.2.4.2 are followed."
 		return !adj.sawTLV240
 	default:
+		// Local.Kind is caller-supplied; unknown media prove no bidirectionality.
 		return false
 	}
 }
@@ -285,8 +302,8 @@ func threeWayTableAction(adj *Adjacency) threeWayAction {
 	case packet.AdjThreeWayUp:
 		return threeWayOnReceivedUp(adj.State)
 	default:
-		// An invalid received state: RFC 5303 sec 3.2 discards the PDU
-		// (RFC5303-3.2-7, a gap). The table has no column for it.
+		// The reported state is an open wire value. ReceiveHello rejects
+		// invalid input before mutation; direct table callers get no action.
 		return threeWayActionUnspecified
 	}
 }
@@ -301,6 +318,7 @@ func threeWayOnReceivedUp(current State) threeWayAction {
 	case StateUp:
 		return threeWayAccept
 	default:
+		// Adjacency.State is caller-owned and can contain an unknown state.
 		return threeWayActionUnspecified
 	}
 }
@@ -324,7 +342,7 @@ func applyThreeWayAction(adj *Adjacency, action threeWayAction, now time.Time) {
 	case threeWayAccept:
 		// Accept is reached only from the Up row: the adjacency stays Up.
 		adj.State = StateUp
-	case threeWayInitialize, threeWayActionUnspecified:
+	case threeWayInitialize:
 		// RFC 5303 Section 3.2: "If the new action is "Initialize", no event is
 		// generated and the adjacency three-way state SHALL be set to
 		// "Initializing"."
@@ -337,6 +355,11 @@ func applyThreeWayAction(adj *Adjacency, action threeWayAction, now time.Time) {
 		// link from its LSPs." The RFC's "no event is generated" is about the
 		// adjacencyStateChange event, not about withdrawing a non-Up adjacency.
 		adj.State = StateInitializing
+	case threeWayActionUnspecified:
+		// An unknown input has no table action and cannot initialize a peer.
+		return
+	default:
+		panic("BUG: invalid three-way adjacency action")
 	}
 }
 

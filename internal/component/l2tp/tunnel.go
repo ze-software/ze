@@ -38,8 +38,9 @@ func (s L2TPTunnelState) String() string {
 		return "established"
 	case L2TPTunnelClosed:
 		return "closed"
+	default:
+		panic("BUG: unknown L2TP tunnel state")
 	}
-	return stateUnknown
 }
 
 // L2TPTunnel carries one control connection's state. NOT safe for

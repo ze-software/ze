@@ -1,5 +1,6 @@
 {
   "audited": "2026-10-04",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9252-3.1-1": {
       "note": "(a) forbidden: the sender emits a non-zero Service TLV RESERVED octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[3]==0 on EncodePrefixSIDSRv6 output, with a non-zero behavior code so the zero is not a zero-filled buffer. Single-polarity marker present (no reject path on encode).",
@@ -157,9 +158,9 @@
       "note": "Section 7 lists the malformed cases. Asserted to give treat-as-withdraw: trailing bytes after the last Sub-TLV (TestValidateSRv6ServiceTLV_TrailingBytes) and a SID Information Sub-TLV under 21 octets (TestValidateSRv6ServiceTLV_SIDInfoTooShort). Not asserted by any tagged unit: TLV Length less than 1, and TLV Length inconsistent with the Prefix-SID attribute length. The second one gives the wrong action: validatePrefixSIDAttr answers RFC7606ActionAttributeDiscard for a type 5 or 6 TLV that overruns the attribute, not treat-as-withdraw.",
       "requirement_sha": "ea6bba09fa831885",
       "tests": {
-        "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "41fae6472d6a1c4d",
-        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort": "41fae6472d6a1c4d",
-        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes": "41fae6472d6a1c4d"
+        "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "3419f399675b6247",
+        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort": "3419f399675b6247",
+        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes": "3419f399675b6247"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "d4174f79b335902c",

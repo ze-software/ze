@@ -162,6 +162,15 @@ seed publishes. An operator who finds an empty store beside a stage on FreeBSD
 removes the placeholder and re-runs the `ze init` that was interrupted.
 <!-- source: pkg/zefs/check_tree_freebsd.go -- RenameNoReplace -->
 
+Secure directory traversal and tree publication are supported only on Linux,
+Darwin and FreeBSD. On other platforms, including DragonFly,
+`zefs.OpenDirectory` and `zefs.RenameNoReplace` retain their public signatures
+but return the same unsupported-platform error as framed-tree integrity and
+repair. These two operations do not inspect or alter the filesystem, and an
+unsupported directory open never returns a descriptor. Compiling a consumer
+there is not a secure-storage port or evidence of runtime support.
+<!-- source: pkg/zefs/check_tree_other.go -- OpenDirectory, RenameNoReplace, walkFrameTree, repairFrameTree -->
+
 ## Import and artifacts
 
 `ImportBlob` (`ze init --from`) and `RestoreBlob` (`ze data restore <file> full`)

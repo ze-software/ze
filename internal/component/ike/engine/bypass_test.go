@@ -163,9 +163,11 @@ func TestIKEBypassPoliciesSelectorAndPriority(t *testing.T) {
 							i, p.SrcPort.Port)
 					}
 					seenIn[p.DstPort.Port] = true
-				default:
+				case dataplane.SADirFwd:
 					t.Errorf("policy[%d] direction = %d; IKE is locally originated and delivered, so only in and out apply (a fwd bypass would exempt transit traffic)",
 						i, p.Dir)
+				default:
+					panic("BUG: IKE bypass policy has unknown direction")
 				}
 			}
 

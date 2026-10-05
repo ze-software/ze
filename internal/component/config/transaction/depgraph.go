@@ -251,6 +251,7 @@ func resourceIdentity(ref *ResourceRef) string {
 		}
 		return tb.Str(string(ref.Kind)).Byte(':').Str(ref.Prefix).Byte(':').Str(normalizeAddress(ref.NextHop)).String()
 	default:
+		// Resource kinds are open plugin metadata; retain identity for extensions.
 		return identityKey(&tb, ref.Kind, firstNonEmpty(ref.Name, ref.Interface, ref.Address, ref.Peer, ref.Prefix))
 	}
 }

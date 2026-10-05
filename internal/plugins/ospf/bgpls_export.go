@@ -327,8 +327,46 @@ func (a *bgplsArea) indexV2(views []ospflsdb.NativeLSAView) {
 			continue
 		}
 		if v.Type.IsOpaque() && (v.LinkStateID[0] == packet.TEOpaqueType || v.LinkStateID[0] == packet.InterAsTEOpaqueType) {
+			// OSPFv2 LSA header (RFC 5250 Appendix A.2), byte offsets:
+			//  0       2       3       4            5              8
+			//  +-------+-------+-------+------------+--------------+
+			//  | Age   |Options|LS Type|Opaque Type | Opaque ID    |
+			//  +-------+-------+-------+------------+--------------+
+			// A decodable body alone does not establish its source protocol.
+			if v.LinkStateID[0] == packet.TEOpaqueType {
+				// RFC 3630 Section 2.1: "This proposal uses only Type 10
+				// LSAs, which have an area flooding scope."
+				if v.Type != types.LSTypeOpaqueArea {
+					continue
+				}
+			} else {
+				// RFC 5392 Section 3.1.1: "The inter-AS TE link advertisement
+				// SHOULD be carried in a Type 10 Opaque LSA [RFC5250] if the
+				// flooding scope is to be limited to within the single IGP
+				// area to which the ASBR belongs, or MAY be carried in a Type
+				// 11 Opaque LSA [RFC5250] if the information is intended to
+				// reach all routers (including area border routers, ASBRs,
+				// and PCEs) in the AS."
+				if v.Type != types.LSTypeOpaqueArea {
+					if v.Type != types.LSTypeOpaqueAS {
+						continue
+					}
+				}
+			}
 			te, err := packet.DecodeTELSA(v.Body)
 			if err == nil {
+				if v.LinkStateID[0] == packet.InterAsTEOpaqueType {
+					// RFC 5392 Section 3.2: "Both the Inter-AS-TE-v2 LSA
+					// and Inter-AS-TE-v3 LSA contain one top level TLV:
+					// 2 - Link TLV".
+					if !te.IsLink {
+						continue
+					}
+					// RFC 3630 Section 2.3.2: "Unrecognized types are ignored."
+					// A Router Address beside this Link TLV is not an inter-AS
+					// attribute. Ignore it in the adapter, preserving the link.
+					te.IsRouterAddress = false
+				}
 				a.v2TE[v] = te
 				if te.IsLink && te.Link.HasRemoteAS && te.Link.HasRemoteASBRv4 && te.Link.HasRemoteASBRv6 {
 					if a.v2RemoteIPv6 == nil {
@@ -346,6 +384,7 @@ func (a *bgplsArea) indexV2(views []ospflsdb.NativeLSAView) {
 		if binary.BigEndian.Uint32(v.Area[:]) != a.snapshot.Domain.Area {
 			continue
 		}
+		//exhaustive:ignore // This correlation index reads only Router and Network topology.
 		switch v.Type {
 		case types.LSTypeRouter:
 			router, err := packet.DecodeRouterLSA(v.Body)
@@ -550,8 +589,10 @@ func (a *bgplsArea) v2(v *ospflsdb.NativeLSAView, views []ospflsdb.NativeLSAView
 		case packet.ExtLinkOpaqueType:
 			a.extendedV2Link(v, views)
 		}
+	case types.LSTypeSummaryASBR, types.LSTypeLink, types.LSTypeGraceV6:
+		// These types carry no BGP-LS topology.
 	default:
-		// Other LSA types carry no BGP-LS topology.
+		// LS types are an open wire set; unknown types export no topology.
 	}
 }
 
@@ -682,7 +723,13 @@ func (a *bgplsArea) v3(v *ospflsdb.NativeLSAView) {
 	case v3types.LSTypeERouter, v3types.LSTypeENetwork, v3types.LSTypeEIntraAreaPrefix,
 		v3types.LSTypeEInterAreaPrefix, v3types.LSTypeEASExternal, v3types.LSTypeEType7:
 		a.extendedV3(v, id)
+	case v3types.RIFunctionCode, v3types.LSTypeRouterInformationLink,
+		v3types.LSTypeRouterInformationArea, v3types.LSTypeRouterInformationAS:
+		a.routerInformation(v, id)
+	case v3types.LSTypeInterAreaRouter, v3types.LSTypeLink, v3types.LSTypeGrace, v3types.LSTypeELink:
+		// These types carry no BGP-LS topology.
 	default:
+		// The wire set is open; unnamed RI encodings still match by function code.
 		if v3types.LSType(v.Type)&0x1FFF == v3types.RIFunctionCode {
 			a.routerInformation(v, id)
 		}
@@ -1117,6 +1164,7 @@ func (a *bgplsArea) prefixRange(id linkstateevents.NodeID, prefix netip.Prefix, 
 func (a *bgplsArea) extendedV3(v *ospflsdb.NativeLSAView, id linkstateevents.NodeID) {
 	typ := v3types.LSType(v.Type)
 	offset := 0
+	//exhaustive:ignore // Only extended LSAs with fixed headers need a nonzero TLV offset.
 	switch typ {
 	case v3types.LSTypeERouter, v3types.LSTypeENetwork:
 		offset = 4
@@ -1295,6 +1343,7 @@ func (a *bgplsArea) resolveV3Links(views []ospflsdb.NativeLSAView) {
 			continue
 		}
 		key := interfaceKey{router: v.AdvertisingRouter, id: binary.BigEndian.Uint32(v.LinkStateID[:])}
+		//exhaustive:ignore // Only Link and E-Link LSAs supply interface-address enrichment.
 		switch v3types.LSType(v.Type) {
 		case v3types.LSTypeLink:
 			lsa := v3packet.LSA{Body: v.Body}

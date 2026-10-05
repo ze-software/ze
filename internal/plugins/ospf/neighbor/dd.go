@@ -85,6 +85,14 @@ func (t *Table) handleExStartDDLocked(cfg InterfaceConfig, n *Neighbor, dd packe
 	}
 	n.Master = localMaster
 	n.Options = dd.Options
+	if !n.Options.Has(types.OptionO) {
+		// RFC 5250 Section 3.1 permits opaque summary headers only when
+		// this negotiated DD, not a Hello or our own options, advertises O.
+		// Exact v2 opaque types leave full-width v3 types and Grace intact.
+		n.SummaryList = slices.DeleteFunc(n.SummaryList, func(h packet.LSAHeader) bool {
+			return h.Type.IsOpaque()
+		})
+	}
 	n.lastDD = dd
 	n.hasLastDD = true
 	for _, h := range dd.Headers {

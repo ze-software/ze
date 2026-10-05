@@ -47,6 +47,8 @@ func normalizeASPath(segments []attribute.ASPathSegment) ([]uint32, bool) {
 					hops = append(hops, asn)
 				}
 			}
+		default:
+			// Segment types are open input; retain the existing skip for unknown types.
 		}
 	}
 
@@ -100,6 +102,8 @@ func verifyASPA(cache *aSPACache, path []uint32) uint8 {
 			return ASPAInvalid
 		case HopNoAttestation:
 			hasUnknown = true
+		default:
+			panic("BUG: invalid ASPA hop result")
 		}
 	}
 
@@ -156,8 +160,10 @@ func verifyASPAPath(cache *aSPACache, path []uint32, mode aspaMode) uint8 {
 		return verifyASPA(cache, path)
 	case aspaDownstream:
 		return verifyASPADownstream(cache, path)
-	default:
+	case aspaModeUnspecified:
 		return ASPAUnknown
+	default:
+		panic("BUG: invalid ASPA verification mode")
 	}
 }
 

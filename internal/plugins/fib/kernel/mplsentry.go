@@ -89,7 +89,10 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 			result = errors.Join(result, f.delMPLSEntryLocked(e, rb, mb))
 		case mplsfibevents.ActionRemoveLabelSource:
 			result = errors.Join(result, f.delMPLSSourceLocked(e.Source, rb, mb))
+		case mplsfibevents.ActionUnspecified:
+			result = errors.Join(result, fmt.Errorf("mpls-fib: unsupported entry action %d", e.Action))
 		default:
+			// Entry actions are open inputs from MPLS forwarding producers.
 			result = errors.Join(result, fmt.Errorf("mpls-fib: unsupported entry action %d", e.Action))
 		}
 	}
@@ -145,7 +148,10 @@ func (f *fibKernel) addMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBacke
 			return err
 		}
 		f.mplsSwaps[e.InLabel] = e.Source
+	case mplsfibevents.OpUnspecified:
+		return fmt.Errorf("mpls-fib: unsupported label operation %d", e.Op)
 	default:
+		// Label operations are open inputs from MPLS forwarding producers.
 		return fmt.Errorf("mpls-fib: unsupported label operation %d", e.Op)
 	}
 	if m := fibMetricsPtr.Load(); m != nil {
@@ -200,7 +206,10 @@ func (f *fibKernel) delMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBacke
 			return errors.New("mpls-fib: cannot remove label without AF_MPLS backend")
 		}
 		delete(f.mplsSwaps, e.InLabel)
+	case mplsfibevents.OpUnspecified:
+		return fmt.Errorf("mpls-fib: unsupported label operation %d", e.Op)
 	default:
+		// Label operations are open inputs from MPLS forwarding producers.
 		return fmt.Errorf("mpls-fib: unsupported label operation %d", e.Op)
 	}
 	if m := fibMetricsPtr.Load(); m != nil {

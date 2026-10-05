@@ -50,8 +50,9 @@ func (k ChangeKind) String() string {
 		return "remove"
 	case ChangeUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: locrib: invalid change kind")
 	}
-	return "unspecified"
 }
 
 // Change is the payload delivered to a ChangeHandler. Value-typed; carries

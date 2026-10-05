@@ -537,6 +537,8 @@ func attachmentVertices(res *Result, g *Graph) map[netip.Prefix]VertexID {
 			if pfx, ok := stubPrefix(nv.ID, nv.NetworkMask); ok {
 				m[pfx] = id
 			}
+		default:
+			panic("BUG: attachmentVertices: invalid vertex kind")
 		}
 	}
 	return m

@@ -217,3 +217,39 @@ func TestPortSelectorWireRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: the unset selector keeps its legacy ANY rendering but remains invalid
+// config; a nonzero unnamed internal form is programming misuse, not a wire range.
+// PREVENTS: an exhaustiveness assertion breaking zero-value callers or silently
+// widening an impossible internal form into an ANY selector.
+func TestPortSelectorZeroAndMisuseContracts(t *testing.T) {
+	var zero PortSelector
+	if got := zero.String(); got != "any" {
+		t.Errorf("zero selector spelling = %q, want any", got)
+	}
+	if start, end := zero.Wire(); start != 0 || end != 65535 {
+		t.Errorf("zero selector encoding = %d/%d, want 0/65535", start, end)
+	}
+	if err := checkPortProgrammable("peer", "1", "local", zero, 6); !errors.Is(err, ErrTrafficSelectorPolicy) {
+		t.Errorf("zero selector validation = %v, want ErrTrafficSelectorPolicy", err)
+	}
+
+	invalid := PortSelector{Form: PortForm(255)}
+	for _, tt := range []struct {
+		name string
+		run  func()
+	}{
+		{"spelling", func() { _ = invalid.String() }},
+		{"wire", func() { invalid.Wire() }},
+		{"validation", func() { _ = checkPortProgrammable("peer", "1", "local", invalid, 6) }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if got := recover(); got != "BUG: unknown traffic selector port form" {
+					t.Errorf("panic = %v, want BUG assertion for an unnamed internal form", got)
+				}
+			}()
+			tt.run()
+		})
+	}
+}

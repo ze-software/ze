@@ -946,6 +946,8 @@ func (e *engine) handlePathTear(msg *ParsedMessage) {
 					e.log.Warn("rsvp-te: fib remove pop failed", "lsp", key.String(), "error", err)
 				}
 			}
+		default:
+			panic("BUG: rsvpte: invalid LSP role")
 		}
 	}
 	// Relay the teardown downstream so the rest of the LSP is cleared.
@@ -1076,6 +1078,8 @@ func (e *engine) handleLinkDown(ifaceName string) {
 			}
 		case RoleIngress:
 			e.emitLocalPathErr(key, es)
+		default:
+			panic("BUG: rsvpte: invalid LSP role")
 		}
 		e.tearLSPLocal(key)
 		e.log.Info("rsvp-te: LSP torn down on link failure", "lsp", key.String(), "iface", ifaceName)
@@ -1140,6 +1144,8 @@ func (e *engine) tearLSPLocal(key lspKey) {
 			if err := e.fib.removePush(fec, tableID); err != nil {
 				e.log.Warn("rsvp-te: fib remove failed on link-down", "lsp", key.String(), "error", err)
 			}
+		default:
+			panic("BUG: rsvpte: invalid LSP role")
 		}
 	}
 	e.table.releaseLabel(inLabel)

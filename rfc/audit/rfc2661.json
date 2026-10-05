@@ -4,6 +4,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -13,9 +14,9 @@
       "requirement_sha": "7eadfdeae6dfa6d7",
       "tests": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "055162183ff6df00",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_AnyState": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_EstablishedSession": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_AnyState": "9f78f3f88883c2a2",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_EstablishedSession": "9f78f3f88883c2a2",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "9f78f3f88883c2a2",
         "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently": "ed0cb3271bdc0590",
         "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently#2": "ed0cb3271bdc0590"
       },
@@ -37,8 +38,8 @@
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerZeroTunnelIDRefused": "055162183ff6df00",
         "internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes": "0cc7f6cc41e76f75",
         "internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "0cc7f6cc41e76f75",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_Zero": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "9f78f3f88883c2a2",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_Zero": "9f78f3f88883c2a2",
         "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestParseSCCRP_Rejects": "fb2f8aaa2ddb2a00",
         "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "fb2f8aaa2ddb2a00",
         "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "aca9894b4579f5a6",
@@ -83,7 +84,7 @@
       "tests": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType": "055162183ff6df00",
         "internal/component/l2tp/rfc2661_reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "967923124e21ac52",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody": "9f78f3f88883c2a2",
         "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
       },
       "units": {
@@ -98,10 +99,10 @@
       "note": "Judge 2026-09-30 (cont 8, D-8 fix). Scope checked against RFC 2661 section 4.1: a message associated with a particular session ends that session, the tunnel only for tunnel-scoped messages (4.1-4). Producer: parseSingleAVPMessage wraps errUnrecognizedMandatoryAVP for IETF and vendor M=1; handleWEN/handleSLI tear down that session with CDN (quote above each). + TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession (WEN, SLI x IETF 200 / vendor 9999: exactly one CDN, session gone; failing-first observed before the fix), + TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession (OCRQ, ICRP, OCRP, ICCN, OCCN x IETF/vendor: one CDN, 0 sessions), + TestSession_UnknownMandatoryAVP now asserts MsgCDN and 0 sessions (earlier overstatement fixed), + TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession. - TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession: two sessions, M=1 gives one CDN never StopCCN, tunnel established and the sibling session kept (the over-reaction polarity), M=0 sends nothing. Every tagged unit has an observed-red record. CDN not tabled: a received CDN ends the session whatever it carries. Residual supplementary positive at session_fsm_test.go (well-formed ICRQ accepted) has no record.",
       "requirement_sha": "8af8f6c776a076f3",
       "tests": {
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "99bdcf87bcb0dfa3",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "9f78f3f88883c2a2",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP": "9f78f3f88883c2a2",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "9f78f3f88883c2a2",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "9f78f3f88883c2a2",
         "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession": "c0360f2e4708f9ce",
         "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession": "c0360f2e4708f9ce",
         "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession": "c0360f2e4708f9ce",
@@ -353,8 +354,8 @@
       "requirement_sha": "d0add38fb6db42ea",
       "tests": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "055162183ff6df00",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "99bdcf87bcb0dfa3",
-        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "99bdcf87bcb0dfa3"
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "9f78f3f88883c2a2",
+        "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "9f78f3f88883c2a2"
       },
       "units": {
         "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "327914a7c874074a",

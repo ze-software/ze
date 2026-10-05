@@ -157,6 +157,8 @@ func (d *Display) Status() {
 				pending++
 				pendingTests = append(pendingTests, nick)
 			}
+		default:
+			panic("BUG: unknown test state")
 		}
 	}
 
@@ -274,6 +276,7 @@ func (d *Display) TestFinished(nick string, state State, elapsed time.Duration) 
 		return
 	}
 	var tag string
+	//exhaustive:ignore // Report completed outcomes only; ongoing states emit no completion line.
 	switch state {
 	case StateSuccess:
 		tag = "PASS"

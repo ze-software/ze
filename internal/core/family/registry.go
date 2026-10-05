@@ -28,7 +28,7 @@ const familyAFISlots = 4
 // afiSlot maps known AFI values to compact indices for the family string cache.
 // Returns -1 for unknown AFIs (rare, not on hot path).
 func afiSlot(a AFI) int {
-	switch a { //nolint:exhaustive // only 4 known AFIs need cache slots
+	switch a {
 	case AFIIPv4:
 		return 0
 	case AFIIPv6:
@@ -37,8 +37,10 @@ func afiSlot(a AFI) int {
 		return 2
 	case AFIBGPLS:
 		return 3
+	default:
+		// The AFI registry is open; unknown AFIs bypass the compact cache.
+		return -1
 	}
-	return -1
 }
 
 // registry is the single immutable snapshot of all registry state, swapped

@@ -405,6 +405,8 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv4
+		default:
+			// The wire SAFI set is open; unknown combinations have no length table.
 		}
 	case AFIIPv6:
 		switch safi {
@@ -421,6 +423,8 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv6
+		default:
+			// The wire SAFI set is open; unknown combinations have no length table.
 		}
 	case AFIL2VPN:
 		switch safi {
@@ -428,7 +432,11 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 			return []int{4, 16} // IPv4 or IPv6
 		case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel, SAFIVPN, SAFIFlowSpec, SAFISRPolicy, SAFIMVPN:
 			// These SAFIs don't apply to L2VPN AFI
+		default:
+			// The wire SAFI set is open; unknown combinations have no length table.
 		}
+	default:
+		// The wire AFI set is open; unknown combinations have no length table.
 	}
 	return nil // unknown AFI/SAFI combination
 }
@@ -543,7 +551,7 @@ func parseNextHops(afi AFI, safi SAFI, data []byte) ([]netip.Addr, error) {
 			return nil, ErrInvalidNextHopLen
 		}
 
-	default: // Unknown AFI -- parse by length (16/32-byte IPv6 already handled above)
+	default: // The wire AFI set is open; unknown AFIs retain length-based parsing.
 		if len(data) != 4 {
 			return nil, ErrInvalidNextHopLen
 		}

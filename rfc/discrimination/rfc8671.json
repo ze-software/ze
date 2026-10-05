@@ -31,7 +31,7 @@
       "claim-sha": "6e18b4aa30dd77a9",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::handleSenderState",
-      "producer-sha": "ffe5146e9ddda902",
+      "producer-sha": "be5f35fa653711aa",
       "break": "body of handleSenderState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

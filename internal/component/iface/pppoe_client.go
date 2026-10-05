@@ -177,8 +177,9 @@ func (c *PPPoEClient) stateString() string {
 		return "ncp"
 	case sessStateUp:
 		return "up"
+	default:
+		panic("BUG: unknown PPPoE client session state")
 	}
-	return "unknown"
 }
 
 func (c *PPPoEClient) stopped() bool {

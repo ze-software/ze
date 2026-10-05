@@ -16,6 +16,41 @@ those answers unknown rather than drift.
 
 ## Decisions
 
+**An unnamed internal state is a programming error, not an unknown peer code.**
+The SA constructors and lifecycle handlers assign named `SAState` values;
+`classifyInbound` returns one of four local outcomes; the rekey constructors
+choose Child or IKE; and `handleSAInitResponse` selects a retry cause by comparing
+notification types rather than converting their numbers. Their complete
+switches assert `BUG` for an unnamed value. `StateIdle` remains the valid zero
+state, and an unset retry cause still starts no retry.
+
+This is a contract of those producers, not structural encapsulation:
+`SA.State` remains exported. Wire parsing, authentication and unsupported-input
+refusals are unchanged. In particular, an admitted inbound classification still
+passes through decryption and authentication before it acts on the message.
+
+<!-- source: internal/component/ike/engine/sa.go -- SAState.String -->
+<!-- source: internal/component/ike/engine/msgid.go -- classifyInbound, pendingRekey -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound, handleCreateChildSAOwned -->
+<!-- source: internal/component/ike/engine/sa_init_retry.go -- retryCause.String, retrySAInit -->
+
+The same distinction applies to the engine's typed configuration and selectors.
+Plugin JSON becomes a config tree before the parsers choose authentication
+modes, SPD actions and directions. Port selectors come from those parsers or
+from wire-range conversion and narrowing, not from a received `PortForm` number;
+intersection, NAT address substitution and rekey copy those forms unchanged.
+Their complete local dispatch/rendering switches assert `BUG` for unnamed
+values. An unset port selector still renders and encodes as ANY and is rejected
+by config validation, an unset SPD direction still renders as `unspecified`,
+and `AuthUnknown` still returns the unsupported-mode error.
+
+<!-- source: internal/component/ike/engine/config.go -- parseIPsecFromJSON -->
+<!-- source: internal/component/ike/engine/auth.go -- computeLocalAuth -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdActionName -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- wireToSelectors, intersectPort -->
+<!-- source: internal/component/ike/ipsec/traffic_selector.go -- PortSelector.Wire, PortSelector.String, checkPortProgrammable -->
+<!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDDirection.String, parseSPDPolicy -->
+
 **The engine registers as a named plugin, it is not wired directly.** It
 registers as `ike` over the SDK protocol and claims the `vpn` and `pki` config
 roots, so it receives config through the standard plugin pipeline instead of a

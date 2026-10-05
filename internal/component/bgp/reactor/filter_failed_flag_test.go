@@ -134,6 +134,23 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 		assert.False(t, got.Failed, "nothing was overridden")
 		assert.Equal(t, "origin incomplete", got.Delta)
 	})
+
+	// A plugin's open action code must be rejected before the closed chain consumes it.
+	t.Run("an unknown plugin action", func(t *testing.T) {
+		r := &Reactor{filterTransportSeam: &fakeFilterTransport{
+			onError: rpc.OnErrorAccept,
+			out:     &rpc.FilterUpdateOutput{Action: rpc.FilterAction(255)},
+		}}
+
+		got := PolicyFilterChain(
+			[]filterapi.FilterRef{{Name: plug + ":" + filter}},
+			directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil),
+		)
+
+		assert.Equal(t, PolicyReject, got.Action, "unknown plugin actions are rejected even under on-error accept")
+		assert.True(t, got.Failed, "an invalid action is not a policy decision")
+		assert.Empty(t, got.Text, "no update text may escape the failed chain")
+	})
 }
 
 // TestEgressChainCarriesTheFailedFlagToTheStep is the consequence half: the flag

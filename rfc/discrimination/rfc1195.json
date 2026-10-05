@@ -9,7 +9,7 @@
       "claim-sha": "0f3bf4822882f30e",
       "route": "revert",
       "producer": "internal/plugins/isis/lsdb/flooding.go::ReceiveLSP",
-      "producer-sha": "05a0c3aa11ab5bac",
+      "producer-sha": "71ade1972f991393",
       "break": "body of ReceiveLSP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "ba62cb6933ad2510",
       "route": "revert",
       "producer": "internal/plugins/isis/packet/auth_verify.go::VerifyPDU",
-      "producer-sha": "0161e11c870b1404",
+      "producer-sha": "c97d50142ac6f421",
       "break": "body of VerifyPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -212,24 +212,24 @@
     },
     {
       "rid": "RFC1195-4.4-1",
-      "polarity": "positive",
-      "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
-      "unit-sha": "3e899cc3c83f0b81",
-      "claim-sha": "e1d1fe0869902884",
-      "route": "revert",
-      "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
-      "producer-sha": "2ff54a713a76969c",
-      "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1195-4.4-1",
       "polarity": "negative",
       "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
       "unit-sha": "3e899cc3c83f0b81",
       "claim-sha": "53ac4a1a8c941d82",
       "route": "revert",
       "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
-      "producer-sha": "2ff54a713a76969c",
+      "producer-sha": "1ba199aaa6a897bd",
+      "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+      "unit-sha": "3e899cc3c83f0b81",
+      "claim-sha": "e1d1fe0869902884",
+      "route": "revert",
+      "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
+      "producer-sha": "1ba199aaa6a897bd",
       "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -253,28 +253,6 @@
       "producer": "internal/plugins/isis/spf_wiring.go::ResolveNextHop",
       "producer-sha": "fa86deec17306279",
       "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1195-4.4-2",
-      "polarity": "positive",
-      "unit": "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHConfiguredPassword",
-      "unit-sha": "5b20c64a9f8c6e03",
-      "claim-sha": "dd773cf6ef970b4f",
-      "route": "revert",
-      "producer": "internal/plugins/isis/ish_auth.go::signISHPDU",
-      "producer-sha": "217c9c751dcf4ab5",
-      "break": "body of signISHPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1195-4.4-2",
-      "polarity": "negative",
-      "unit": "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHWrongPassword",
-      "unit-sha": "a6b38ca91812f0c9",
-      "claim-sha": "6becbf8d75cefe10",
-      "route": "revert",
-      "producer": "internal/plugins/isis/ish_auth.go::verifyISHFrame",
-      "producer-sha": "d4bbe786eb933dd5",
-      "break": "body of verifyISHFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-4.4-2",
@@ -308,6 +286,28 @@
       "producer": "internal/plugins/isis/circuit/runtime.go::applyHello",
       "producer-sha": "29bd11019b7a7cb9",
       "break": "body of applyHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHConfiguredPassword",
+      "unit-sha": "5b20c64a9f8c6e03",
+      "claim-sha": "dd773cf6ef970b4f",
+      "route": "revert",
+      "producer": "internal/plugins/isis/ish_auth.go::signISHPDU",
+      "producer-sha": "217c9c751dcf4ab5",
+      "break": "body of signISHPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.4-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHWrongPassword",
+      "unit-sha": "a6b38ca91812f0c9",
+      "claim-sha": "6becbf8d75cefe10",
+      "route": "revert",
+      "producer": "internal/plugins/isis/ish_auth.go::verifyISHFrame",
+      "producer-sha": "d4bbe786eb933dd5",
+      "break": "body of verifyISHFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-4.4-2",

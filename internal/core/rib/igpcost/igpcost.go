@@ -15,12 +15,14 @@ import (
 
 // Distance distinguishes an unknown route from a directly connected zero-cost
 // route. Cost includes each recursive BGP route's received AIGP metric and the
-// terminal IGP/static distance, never a BGP MED. MissingAIGP means a recursive
-// BGP route omitted AIGP, so RFC 7311 Section 3.4.3 forbids carrying the attribute
-// when changing next hop to self.
+// terminal IGP/static distance, never a BGP MED. Recursive identifies the
+// recursive procedure, whose computed increment may legitimately be zero.
+// MissingAIGP means a recursive BGP route omitted AIGP, so RFC 7311 Section 3.4.3
+// forbids carrying the attribute when changing next hop to self.
 type Distance struct {
 	Cost        uint64
 	Resolved    bool
+	Recursive   bool
 	MissingAIGP bool
 }
 
@@ -77,6 +79,7 @@ func Resolve(rib *locrib.RIB, addr netip.Addr) Distance {
 			distance.Resolved = true
 			return distance
 		}
+		distance.Recursive = true
 		if path.IsBGP {
 			if path.AIGPPresent {
 				distance.Cost = Add(distance.Cost, path.AIGP)

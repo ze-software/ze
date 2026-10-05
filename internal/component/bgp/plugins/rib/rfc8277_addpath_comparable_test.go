@@ -56,7 +56,7 @@ func TestRFC8277AddPathRoutesOnOneSessionAreComparable(t *testing.T) {
 	require.Equal(t, 2, r.bgpPeers[peer].Len(), "precondition: two paths stored")
 
 	for _, key := range [][]byte{{0, 0, 0, 7, 8, 10}, {0, 0, 0, 9, 8, 10}} {
-		candidates := gatherCandidatesHeld(r, labeledFamily, key, true)
+		candidates := gatherCandidatesHeld(t, r, labeledFamily, key, true)
 		assert.Len(t, candidates, 2, "both paths of the session are candidates for 10.0.0.0/8 (key %x)", key)
 		best := SelectBest(candidates)
 		require.NotNil(t, best, "one of the two paths is selected (key %x)", key)

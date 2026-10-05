@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7770-2.4-1": {
       "note": "Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(area scope, backbone)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Re-judged 2026-09-30 after the call site gained the (area, iface) scope target; the assertion is unchanged. Single-polarity marker on the row covers the absent negative.",
@@ -16,12 +17,12 @@
       "note": "All three scopes proven both ways. Area: TestRFC7770AreaRICapabilitiesFollowTheArea (backbone RI with TE on eth0 sets TE; area 0.0.0.5 RI with no TE interface clear; records areaHasTE +, deriveRICapabilities -). Link: TestRFC7770LinkRICapabilitiesFollowTheInterface (same area, eth0 TE Type-9 RI sets TE, eth1 Type-9 RI clear; records riScopeHasTE +/-). AS: TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns isolates each source: router-address 9.9.9.9 alone (premise asserted: teOriginateType1 originates no TE LSA) leaves the AS RI TE clear, a TE interface alone sets it (records anyInterfaceHasTE +, riScopeHasTE -). D-8 defect verified at the producer and fixed: the AS case was HasTERouterAddress || anyInterfaceHasTE while teOriginateType1 gates on anyTEActive, so a router address alone claimed TE with no TE LSA anywhere; now anyInterfaceHasTE (TE.active(), the same test as anyTEActive). Older whole-router tags (TestRICapabilityBitsFromState, TestRICapabilityTEBitFromConfig) remain as supplementary AS-scope proof.",
       "requirement_sha": "7df59214bc473f02",
       "tests": {
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns": "24591289f17f3d58",
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns#2": "24591289f17f3d58",
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea": "24591289f17f3d58",
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea#2": "24591289f17f3d58",
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface": "24591289f17f3d58",
-        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface#2": "24591289f17f3d58",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns": "57ef0d8f642d0eb6",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770ASRICapabilitiesClaimTEOnlyWhenTERuns#2": "57ef0d8f642d0eb6",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea": "57ef0d8f642d0eb6",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea#2": "57ef0d8f642d0eb6",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface": "57ef0d8f642d0eb6",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770LinkRICapabilitiesFollowTheInterface#2": "57ef0d8f642d0eb6",
         "internal/plugins/ospf/rfc7770_ri_test.go::TestRICapabilityBitsFromState": "bae5b63e3ddea225",
         "internal/plugins/ospf/rfc7770_ri_test.go::TestRICapabilityBitsFromState#2": "bae5b63e3ddea225",
         "internal/plugins/ospf/rfc7770_ri_test.go::TestRICapabilityTEBitFromConfig": "bae5b63e3ddea225"

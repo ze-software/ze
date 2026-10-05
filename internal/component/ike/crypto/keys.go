@@ -201,6 +201,7 @@ func prfIDToName(id PRFID) string {
 	case PRF_HMAC_SHA2_512:
 		return hashNameSHA512
 	default:
+		// Algorithm IDs accepted by key derivation are an open set.
 		return ""
 	}
 }

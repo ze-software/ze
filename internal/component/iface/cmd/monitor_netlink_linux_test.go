@@ -17,16 +17,14 @@ func TestParseNetlinkRouteMsg(t *testing.T) {
 	_, dst, _ := net.ParseCIDR("10.0.0.0/24")
 	gw := net.ParseIP("192.168.1.1")
 
-	u := netlink.RouteUpdate{ //nolint:modernize // netlink.Route has a Type field of its own that RouteUpdate.Type shadows; keep the two levels visible.
-		Type: unix.RTM_NEWROUTE,
-		Route: netlink.Route{
-			Dst:       dst,
-			Gw:        gw,
-			LinkIndex: 0,
-			Table:     254,
-			Protocol:  2,
-			Priority:  100,
-		},
+	u := netlink.RouteUpdate{
+		Type:      unix.RTM_NEWROUTE,
+		Dst:       dst,
+		Gw:        gw,
+		LinkIndex: 0,
+		Table:     254,
+		Protocol:  2,
+		Priority:  100,
 	}
 
 	ev := routeUpdateToEvent(&u)
@@ -59,11 +57,9 @@ func TestParseNetlinkRouteMsg(t *testing.T) {
 func TestParseNetlinkRouteMsgDelete(t *testing.T) {
 	_, dst, _ := net.ParseCIDR("10.0.0.0/24")
 
-	u := netlink.RouteUpdate{ //nolint:modernize // netlink.Route has a Type field of its own that RouteUpdate.Type shadows; keep the two levels visible.
+	u := netlink.RouteUpdate{
 		Type: unix.RTM_DELROUTE,
-		Route: netlink.Route{
-			Dst: dst,
-		},
+		Dst:  dst,
 	}
 
 	ev := routeUpdateToEvent(&u)
@@ -240,12 +236,10 @@ func TestRouteEventDoesNotRepopulateTheCache(t *testing.T) {
 	ifNameCache.Delete(idx)
 	t.Cleanup(func() { ifNameCache.Delete(idx) })
 
-	u := netlink.RouteUpdate{ //nolint:modernize // netlink.Route has a Type field of its own that RouteUpdate.Type shadows; keep the two levels visible.
-		Type: unix.RTM_NEWROUTE,
-		Route: netlink.Route{
-			Dst:       &net.IPNet{IP: net.IPv4(10, 9, 8, 0), Mask: net.CIDRMask(24, 32)},
-			LinkIndex: idx,
-		},
+	u := netlink.RouteUpdate{
+		Type:      unix.RTM_NEWROUTE,
+		Dst:       &net.IPNet{IP: net.IPv4(10, 9, 8, 0), Mask: net.CIDRMask(24, 32)},
+		LinkIndex: idx,
 	}
 
 	ev := routeUpdateToEvent(&u)

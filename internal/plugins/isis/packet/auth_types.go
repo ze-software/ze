@@ -123,6 +123,8 @@ func fillApad(buf []byte, start, end int) {
 // ISO/IEC 10589: cleartext = 1).
 func authTypeFor(a AuthAlgorithm) (uint8, bool) {
 	switch a {
+	case AuthAlgoNone:
+		return 0, false
 	case AuthAlgoCleartext:
 		return AuthTypeCleartext, true
 	case AuthAlgoHMACMD5:
@@ -130,6 +132,7 @@ func authTypeFor(a AuthAlgorithm) (uint8, bool) {
 	case AuthAlgoHMACSHA1, AuthAlgoHMACSHA224, AuthAlgoHMACSHA256, AuthAlgoHMACSHA384, AuthAlgoHMACSHA512:
 		return AuthTypeGenericCrypto, true
 	default:
+		// Keys are caller-supplied; unknown algorithms have no authentication type.
 		return 0, false
 	}
 }
@@ -150,14 +153,15 @@ func digestLen(a AuthAlgorithm) int {
 		return sha512.Size384 // 48
 	case AuthAlgoHMACSHA512:
 		return sha512.Size // 64
-	default:
+	case AuthAlgoNone, AuthAlgoCleartext:
 		return 0
+	default:
+		panic("BUG: invalid validated authentication algorithm")
 	}
 }
 
-// newHash returns a fresh hash.Hash constructor for an HMAC-SHA family algorithm
-// (RFC 5310 sec 1: algorithm agility over the SHA family), or nil for a
-// non-HMAC-SHA algorithm.
+// newHash returns a hash constructor for a validated HMAC algorithm, or nil
+// for AuthAlgoNone and AuthAlgoCleartext.
 func newHash(a AuthAlgorithm) func() hash.Hash {
 	switch a {
 	case AuthAlgoHMACMD5:
@@ -172,8 +176,10 @@ func newHash(a AuthAlgorithm) func() hash.Hash {
 		return sha512.New384
 	case AuthAlgoHMACSHA512:
 		return sha512.New
-	default:
+	case AuthAlgoNone, AuthAlgoCleartext:
 		return nil
+	default:
+		panic("BUG: invalid validated authentication algorithm")
 	}
 }
 
@@ -253,16 +259,16 @@ const (
 	classSNP                   // CSNP/PSNP: zero only the Authentication Value
 )
 
-// classOf returns the PDU class for a PDU type, or ok=false for an unknown type.
-func classOf(pt PDUType) (pduClass, bool) {
+// classOf returns the authentication class of a codec-validated PDU type.
+func classOf(pt PDUType) pduClass {
 	switch pt {
 	case PDUTypeL1LANHello, PDUTypeL2LANHello, PDUTypeP2PHello:
-		return classHello, true
+		return classHello
 	case PDUTypeL1LSP, PDUTypeL2LSP:
-		return classLSP, true
+		return classLSP
 	case PDUTypeL1CSNP, PDUTypeL2CSNP, PDUTypeL1PSNP, PDUTypeL2PSNP:
-		return classSNP, true
+		return classSNP
 	default:
-		return 0, false
+		panic("BUG: invalid decoded IS-IS PDU type")
 	}
 }

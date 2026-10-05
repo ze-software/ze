@@ -9,7 +9,7 @@
       "claim-sha": "cd8133ae605d55d2",
       "route": "revert",
       "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
-      "producer-sha": "f61bea1db7111f63",
+      "producer-sha": "615d0fe8cbee3900",
       "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "696839d2117046fe",
       "route": "revert",
       "producer": "internal/plugins/ospf/packet/auth_verify.go::Sign",
-      "producer-sha": "244487c1318f9757",
+      "producer-sha": "a00a554bd66638f0",
       "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "160e4aba085200c0",
       "route": "revert",
       "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
-      "producer-sha": "f61bea1db7111f63",
+      "producer-sha": "615d0fe8cbee3900",
       "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "c8fceb0ebdcbb2ae",
       "route": "revert",
       "producer": "internal/plugins/ospf/packet/auth_verify.go::Sign",
-      "producer-sha": "244487c1318f9757",
+      "producer-sha": "a00a554bd66638f0",
       "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

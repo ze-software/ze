@@ -516,6 +516,7 @@ func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter, sea
 
 // toastForEvent returns a ToastEntry for toast-worthy events, or false for non-toast events.
 func toastForEvent(ev peer.Event) (toastEntry, bool) {
+	//exhaustive:ignore // Only noteworthy lifecycle and chaos events produce optional toasts.
 	switch ev.Type {
 	case peer.EventDisconnected:
 		return toastEntry{PeerIndex: ev.PeerIndex, Label: eventLabelDisconnected, CSSClass: "toast-error", Time: ev.Time}, true
@@ -753,8 +754,9 @@ func eventTypeClass(t peer.EventType) string {
 		return "event-type-chaos"
 	case peer.EventDroppedEvents:
 		return "event-type-disconnected"
+	default:
+		panic("BUG: invalid rendered event type")
 	}
-	return ""
 }
 
 // eventTypeLabel returns a short human-readable label for an event type.
@@ -784,8 +786,9 @@ func eventTypeLabel(t peer.EventType) string {
 		return "route-action"
 	case peer.EventDroppedEvents:
 		return "dropped"
+	default:
+		panic("BUG: invalid rendered event type")
 	}
-	return "unknown"
 }
 
 // eventDetail returns extra detail text for an event (prefix, error, count).
@@ -810,6 +813,8 @@ func eventDetail(ev *peer.Event) string {
 	case peer.EventEstablished, peer.EventDisconnected, peer.EventReconnecting,
 		peer.EventDroppedEvents:
 		// No extra detail.
+	default:
+		panic("BUG: invalid rendered event type")
 	}
 	return ""
 }

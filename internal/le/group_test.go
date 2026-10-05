@@ -63,6 +63,7 @@ func TestGateStagesAreNotWorkflowOrReport(t *testing.T) {
 			t.Errorf("stage %q names a command that declared no group", name)
 			continue
 		}
+		//exhaustive:ignore // Gate stages may belong only to the gate, generator, or suite subset.
 		switch group {
 		case leroot.GroupGate, leroot.GroupGenerate, leroot.GroupSuite:
 		default:

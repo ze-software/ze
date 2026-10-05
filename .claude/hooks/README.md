@@ -249,3 +249,11 @@ Run the focused hook proof with:
 ```text
 ./le ai hooks unit
 ```
+
+RFC ownership and weakening probes use isolated Git repositories with the
+original test committed at HEAD before proposing a whole-file Write. `git init`
+alone is insufficient: unreadable committed text must still fail closed.
+A refusal probe must report an unauthorized evidence change, not fixture setup
+or committed-text read failure. The draft-incubator control commits both
+original paths so its outside-draft refusal tests ownership.
+<!-- source: internal/le/ai/hooks/fixtures.go -- committedProbeTree, draftIncubatorTree, probeVerdict -->

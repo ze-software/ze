@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -69,8 +70,8 @@
       "note": "TestRFC6793NewSpeakerAS4AttributesAreDiscarded (ReconcileASPathFamily, fromNew=true) discards both AS4_PATH and AS4_AGGREGATOR and keeps the UPDATE; the .ci proves it end to end for AS4_PATH; the negative keeps an AS4_PATH from an OLD speaker.",
       "requirement_sha": "bb8b86c835097e4e",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793NewSpeakerAS4AttributesAreDiscarded": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793NewSpeakerAS4AttributesAreDiscarded": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "4e9759edcd069569",
         "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "23120258971227f4"
       },
       "units": {
@@ -205,8 +206,8 @@
       "note": "TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath: ReconcileASPathFamily accepts AS_PATH+AS4_PATH from an OLD speaker and uses the AS4_PATH ASNs; the negative shows no 4-octet AS invented without AS4_PATH.",
       "requirement_sha": "ee79e941fc1d5665",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet": "1d6516d3d1fb32af",
@@ -220,8 +221,8 @@
       "tests": {
         "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended": "657c6c5a6a3b6449",
         "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended#2": "657c6c5a6a3b6449",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793UnadjacentConfedSegmentIsNotPrepended": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793UnadjacentConfedSegmentIsNotPrepended": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended": "77b7de545298c421",
@@ -235,7 +236,7 @@
       "note": "TestRFC6793ReceivedAS4AggregatorAccepted: the AGGREGATOR+AS4_AGGREGATOR pair from an OLD speaker is accepted and the 4-octet aggregating AS survives ingest (single-polarity marker).",
       "requirement_sha": "a1df36166b90e99a",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted": "1b39548cc51c585c"
@@ -246,9 +247,9 @@
       "note": "TestRFC6793AggregatorWithRealASIgnoresAS4Attributes: with AGGREGATOR.AS 64500 the AS4_PATH does not reach the path and the AS4_AGGREGATOR is discarded; negatives with AS_TRANS use both.",
       "requirement_sha": "43aa1ed128401062",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead": "0ed609302867d6f5",
@@ -261,8 +262,8 @@
       "note": "Same unit: the AGGREGATOR (64500, 10.0.0.1) is the aggregating node; the AS_TRANS counterpart does not take it.",
       "requirement_sha": "90660af7a2831aad",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
@@ -274,8 +275,8 @@
       "note": "Same unit: the route path is the AS_PATH widened with AS_TRANS intact; the AS_TRANS counterpart reconstructs instead.",
       "requirement_sha": "96172fa13d87b65c",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
@@ -287,8 +288,8 @@
       "note": "TestRFC6793AggregatorWithASTransPromotesAS4Aggregator: with AGGREGATOR.AS AS_TRANS the stored aggregator is the AS4_AGGREGATOR value, not AS_TRANS; negative keeps a real-AS AGGREGATOR.",
       "requirement_sha": "bc66f6811ededc90",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
@@ -300,9 +301,9 @@
       "note": "Same unit: the aggregating node is 4200000001/10.0.0.1 from AS4_AGGREGATOR; negatives: not promoted when AGGREGATOR is real, nor when AS4_AGGREGATOR arrives alone.",
       "requirement_sha": "4c5e8bc1ddb80795",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LoneAS4AggregatorIsDropped": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LoneAS4AggregatorIsDropped": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
@@ -315,8 +316,8 @@
       "note": "TestRFC6793LongerAS4PathIsIgnored: AS_PATH 2 ASNs vs AS4_PATH 3 yields the widened AS_PATH only; negative shows AS4_PATH used when AS_PATH is longer.",
       "requirement_sha": "668e3688ff314697",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "8685310c7b1a2bf6",
@@ -328,10 +329,10 @@
       "note": "TestRFC6793LongerASPathPrependsLeadingHops, EqualCountsPrependNothing, LeadingASSetIsTakenWhole assert exact reconstructed bytes; negative: no prepend when AS4_PATH is longer.",
       "requirement_sha": "c829176eeb670fa9",
       "tests": {
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingASSetIsTakenWhole": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "ef5cdafe1b9e158d",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingASSetIsTakenWhole": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "4e9759edcd069569",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "0e5e2e712d063d75",
@@ -347,7 +348,7 @@
       "tests": {
         "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "fdd3980327455f38",
         "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWellFormedAccepted": "fdd3980327455f38",
-        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "ef5cdafe1b9e158d"
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "4e9759edcd069569"
       },
       "units": {
         "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "6de46a78a99b3e36",

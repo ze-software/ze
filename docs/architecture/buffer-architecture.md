@@ -453,6 +453,7 @@ none of them is a defect until this table names the new trigger.
 | The destination has other capabilities | A `ContextID` mismatch (RFC 6793 ASN4 width) needs a re-encode | `buildFwdBody`, `fwdUpdateForDestination` |
 | The destination negotiated ADD-PATH | RFC 7911 Section 2: the source's Path Identifiers are rewritten, into a copy, even when the contexts match | `fwdRegenerateRawPathIDs` |
 | A per-destination attribute rewrite | Filter output, AS-path intent and ASN4, AS override, or next hop change the attributes. With no free `peerPool` slot, the `sync.Pool` fallback copies twice | `buildModifiedPayload` |
+| Ordinary opaque-attribute treatment changes shared input | RFC 4271 Section 5 drops unknown non-transitive attributes and stamps unknown transitive attributes Partial. Shared bytes copy once into an adopted read buffer; an already-owned materialization compacts in place before dedup | `fwdParseCache.forwardWire`, `forwardOpaquePayload` |
 | An announce becomes a withdrawal | LLGR or a destination withhold gate converts all named routes, retaining existing withdrawals as well as announcements. Legacy NLRI and matching-family MP NLRI move into a new payload; incompatible MP families are refused by this builder | `buildWithdrawalPayload` |
 | The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several | `SplitWireUpdate`, and `fwdSplitParsedUpdate` for the cross-context branch |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
@@ -470,8 +471,8 @@ none of them is a defect until this table names the new trigger.
 
 | Pool | Location | Shape | Purpose |
 |---|---|---|---|
-| `bufMuxStd` | `internal/component/bgp/reactor/session.go` | Block-backed multiplexer, `message.MaxMsgLen` (4096) buffers | Session reads before Extended Message negotiation, and UPDATE attribute building |
-| `bufMuxExt` | `internal/component/bgp/reactor/session.go` | Block-backed multiplexer, `message.ExtMsgLen` (65535) buffers | Session reads after RFC 8654 Extended Message negotiation |
+| `bufMuxStd` | `internal/component/bgp/reactor/session.go` | Block-backed multiplexer, `message.MaxMsgLen` (4096) buffers | Reads without a local Extended Message advertisement; standard-sized UPDATE building and rewrite scratch |
+| `bufMuxExt` | `internal/component/bgp/reactor/session.go` | Block-backed multiplexer, `message.ExtMsgLen` (65535) buffers | Reads after a local Extended Message advertisement; outgoing rewrite scratch exceeding the standard body bound |
 | `peerPool` | `internal/component/bgp/reactor/forward_pool.go` | Ring of `peerPoolSize` (64) slots over one contiguous backing array | Per-peer outgoing buffers for copy-on-modify forwarding |
 | `MixedBufMux` | `internal/component/bgp/reactor/bufmux.go` | Byte-budgeted, mixed 4K and 64K blocks | Forward overflow when a peer pool is exhausted |
 | `modBufPool` | `internal/component/bgp/reactor/forward_build.go` | `sync.Pool` of 4096-byte buffers | Progressive-build scratch when no peer-pool slot is free |
@@ -481,6 +482,8 @@ none of them is a defect until this table names the new trigger.
 The `bufMuxStd` and `bufMuxExt` names are the two read multiplexers
 `Session.getReadBuffer` and `getReadBuf` select between; there is no
 `readBufPool4K`, `readBufPool64K`, or `buildBufPool` in the tree.
+<!-- source: internal/component/bgp/reactor/session_aigp.go -- writeUpdateWithoutAIGP -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody -->
 
 ### Pool shape follows goroutine shape
 

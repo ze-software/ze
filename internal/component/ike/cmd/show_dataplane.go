@@ -398,6 +398,7 @@ func policyDirName(dir dataplane.SADir) string {
 	case dataplane.SADirFwd:
 		return "fwd"
 	default:
+		// Kernel and registered-backend directions are an open set.
 		return unknownValue
 	}
 }
@@ -417,8 +418,10 @@ func policyActionName(a dataplane.SPAction) string {
 		return "bypass"
 	case dataplane.SPActionDiscard:
 		return "discard"
+	default:
+		// Registered-backend policy actions are an open set.
+		return unknownValue
 	}
-	return unknownValue
 }
 
 // policyOwnerName renders the owner join's miss as a word rather than a blank.

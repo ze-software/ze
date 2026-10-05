@@ -29,7 +29,7 @@ func (s BucketState) String() string {
 	case BucketStateDown:
 		return bucketStateDownStr
 	default:
-		return stateUnknown
+		panic("BUG: unknown L2TP bucket state")
 	}
 }
 

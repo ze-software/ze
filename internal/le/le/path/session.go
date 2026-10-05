@@ -457,11 +457,11 @@ func (nativeProcess) Start(pid int) (string, error) {
 	if err != nil {
 		return (nativeProcess{}).ps(pid, "lstart=")
 	}
-	closing := bytes.LastIndexByte(content, ')')
-	if closing < 0 {
+	_, remainder, found := bytes.CutLast(content, []byte{')'})
+	if !found {
 		return "", errors.New("process command has no closing parenthesis")
 	}
-	fields := bytes.Fields(content[closing+1:])
+	fields := bytes.Fields(remainder)
 	if len(fields) <= 19 {
 		return "", errors.New("process stat has no start time")
 	}

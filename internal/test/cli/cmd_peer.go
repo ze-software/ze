@@ -51,6 +51,8 @@ func CmdPeer(args []string) int {
 	case peer.ModeInject:
 		fmt.Fprintf(os.Stdout, "\ninject mode - %d prefixes from %s via %s (AS %d)\n\n", //nolint:errcheck // output
 			config.Inject.Count, config.Inject.Prefix, config.Inject.NextHop, config.Inject.ASN)
+	default:
+		panic("BUG: unknown parsed peer mode")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

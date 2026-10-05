@@ -70,7 +70,8 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 		if len(raw) < 3 || rb >= len(rawBuf) {
 			continue
 		}
-		switch attribute.AttributeCode(raw[1]) { //nolint:exhaustive // only AS_PATH/LOCAL_PREF/ORIGIN need special handling
+		//exhaustive:ignore // Only session-owned attributes need special handling; other plugin bytes pass through.
+		switch attribute.AttributeCode(raw[1]) {
 		case attribute.AttrASPath, attribute.AttrLocalPref:
 			continue
 		case attribute.AttrOrigin:

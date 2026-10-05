@@ -444,6 +444,41 @@ func buildModifiedPayload(
 	return result, 0, modifyFailureNone
 }
 
+// buildForwardPayload completes effective opaque treatment while the rebuilt
+// payload is still exclusively owned, before dedup can publish it.
+// The caller MUST release the returned pool index after dispatch, as with
+// buildModifiedPayload; normalization failure releases it here instead.
+func buildForwardPayload(
+	payload []byte,
+	mods *filterapi.ModAccumulator,
+	handlers map[uint8]filterapi.AttrModHandler,
+	pp *peerPool,
+	preserveOpaque bool,
+) ([]byte, int, modifyFailure) {
+	modified, idx, fail := buildModifiedPayload(payload, mods, handlers, pp, nil)
+	if fail.failed() {
+		return nil, 0, fail
+	}
+	if modified == nil {
+		return nil, 0, modifyFailureNone
+	}
+	if preserveOpaque {
+		return modified, idx, modifyFailureNone
+	}
+	// RFC 4271 Section 5. This payload has not entered dedup or dispatch yet.
+	effective, _, err := forwardOpaquePayload(modified, true)
+	if err != nil {
+		if idx > 0 {
+			pp.Return(idx)
+		}
+		return nil, 0, modifyFailureMalformed
+	}
+	if effective != nil {
+		modified = effective
+	}
+	return modified, idx, modifyFailureNone
+}
+
 // planAttr runs one code's handler under panic recovery and commits its slot.
 //
 // It is the only place a handler is called, so every reason a handler's

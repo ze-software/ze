@@ -68,7 +68,9 @@ type fwdItem struct {
 	aigpOrigin         sendOrigin
 	aigpRevision       uint64
 	aigpReplay         *aigpAdvertisement
-	supersedeKey       uint64 // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
+	// The writer MUST retain a recomputation candidate only for this refusal.
+	aigpCostWithheld bool
+	supersedeKey     uint64 // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
 	// initialUpdate marks an item that belongs to the destination's initial
 	// routing update (a peer-up replay), so it passes the destination's replay
 	// fence where a live change waits (Peer.forwardOrderHold).
@@ -222,6 +224,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		session.sentSourceMessageID = 0
 		session.sentAIGPOrigin = sendOrigin{}
 		session.sentAIGPRevision = 0
+		session.sentAIGPCostWithheld = false
 		session.commitAIGPWrites(false)
 		// Clear write deadline (zero value = no deadline).
 		_ = conn.SetWriteDeadline(time.Time{})
@@ -248,6 +251,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		}
 		session.sentAIGPOrigin = items[i].aigpOrigin
 		session.sentAIGPRevision = items[i].aigpRevision
+		session.sentAIGPCostWithheld = items[i].aigpCostWithheld
 		session.sentMeta = items[i].meta                   // Route metadata for sent event callbacks.
 		session.sentSourcePeerStr = items[i].sourcePeerStr // Source peer for ribOut stale-scoping.
 		session.sentSourceMessageID = items[i].sourceMessageID

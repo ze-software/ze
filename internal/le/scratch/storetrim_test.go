@@ -381,8 +381,10 @@ func budgetsOf(goBytes, lintBytes int64) func(budgetGroup) (int64, error) {
 		case lintCacheBudget:
 			return lintBytes, nil
 		case notTrimmed, unspecifiedBudget:
+			return 0, errors.New("no budget for this group")
+		default:
+			panic("BUG: cache trim requested an unknown budget group")
 		}
-		return 0, errors.New("no budget for this group")
 	}
 }
 
@@ -711,7 +713,6 @@ func TestTrimGoCachesAsOneUnion(t *testing.T) {
 // produce; every other entry, a real -d directory included, is removed by the
 // production remover.
 func TestTrimWriterRace(t *testing.T) {
-	unit := seededUnit(t)
 	_, targets := checkoutOnly(t)
 	cache := targets[0].path
 	raced := filepath.Join(cache, "a0", "a0race-d")
@@ -733,6 +734,16 @@ func TestTrimWriterRace(t *testing.T) {
 		}
 	}
 	kept := seedEntry(t, cache, "d0kept-a", 5*time.Hour)
+	// ENOTEMPTY leaves the directory charged. Budget its actual allocation
+	// together with the newest file, including filesystems with directory blocks.
+	var retainedBytes int64
+	for _, path := range []string{raced, kept} {
+		size, err := treeBytes(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		retainedBytes += size
+	}
 
 	pass := testPass(cacheEntryAgeFloor)
 	// The trim walks the store's real path, which on macOS puts /private in
@@ -746,7 +757,7 @@ func TestTrimWriterRace(t *testing.T) {
 		}
 		return removeCacheEntry(path, directory)
 	}
-	budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(unit, 1<<40), pass)
+	budgets, rows := trimCaches(t.Context(), targets, nil, budgetsOf(retainedBytes, 1<<40), pass)
 	row := rowNamed(t, rows, checkoutCache)
 	if row.Contended == "" || row.Error != "" || row.Refused != "" {
 		t.Errorf("checkout row = %+v, want contention recorded and no error", row)
@@ -756,6 +767,13 @@ func TestTrimWriterRace(t *testing.T) {
 	}
 	if !exists(t, kept) {
 		t.Error("the newest entry went although the budget was met without it")
+	}
+	if !exists(t, raced) {
+		t.Error("the contended directory was removed")
+	}
+	if row.SizeAfter != retainedBytes || row.EntriesRemoved != 1 {
+		t.Errorf("checkout accounting = %+v, want %d retained bytes and one removed entry; ENOENT is freed, not removed",
+			row, retainedBytes)
 	}
 	if code := (trimReport{Budgets: budgets, Stores: rows}).verdict(); code != 0 {
 		t.Errorf("contention exited %d, want 0", code)

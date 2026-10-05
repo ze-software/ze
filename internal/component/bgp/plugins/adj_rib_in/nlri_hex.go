@@ -132,6 +132,8 @@ func prefixToWireHex(fam family.Family, prefix string) string {
 		ipBytes = ipnet.IP.To16()
 	case family.AFIL2VPN, family.AFIBGPLS:
 		// Complex AFIs handled via raw blob path; prefixToWireHex not called.
+	default:
+		// The event AFI set is open; unknown families have no prefix encoding.
 	}
 
 	if ipBytes == nil {

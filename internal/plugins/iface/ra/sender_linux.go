@@ -317,6 +317,7 @@ func (s *Sender) onLinkEvent(ev iface.LinkEvent, state *senderState, rearm func(
 		s.log.Info("iface-ra: link up, advertisements resumed", "iface", s.spec.Interface)
 		rearm(time.Now())
 	default:
+		// Link events are open inputs; an unknown kind must not stop the sender.
 		s.log.Warn("iface-ra: unhandled link event",
 			"iface", s.spec.Interface, "kind", string(ev.Kind))
 	}

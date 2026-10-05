@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -145,9 +146,13 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 			Path:     configDir,
 		}}
 	}
+	return checkDiskSpaceBlocks(configDir, diskspace.UsableBlocks(stat.Blocks), diskspace.UsableBlocks(stat.Bavail))
+}
+
+func checkDiskSpaceBlocks(configDir string, total, available uint64) []diagnostic.Diagnostic {
 	// A filesystem reporting zero total blocks cannot answer the question. Report
 	// it rather than divide by zero OR pass it off as healthy.
-	if stat.Blocks == 0 {
+	if total == 0 {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorDiskSpace,
@@ -156,7 +161,7 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 			Path:     configDir,
 		}}
 	}
-	pctFree := (stat.Bavail * 100) / stat.Blocks
+	pctFree := diskspace.Percent(available, total)
 	if pctFree < 5 {
 		pctStr := textbuf.UintStr(pctFree, "%")
 		return []diagnostic.Diagnostic{{

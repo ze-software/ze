@@ -291,12 +291,9 @@ func verifyFilter(f traffic.TrafficFilter) error {
 		return nil
 	case traffic.FilterMark:
 		return errFilterMarkNotSupportedByBackend
+	default:
+		// Backend models are open inputs. Keep the numeric code because
+		// FilterType.String renders an unrecognized value as "unknown".
+		return fmt.Errorf("filter type code %d: not recognized by backend vpp (traffic package added a new FilterType without updating trafficvpp.verifyFilter)", uint8(f.Type))
 	}
-	// Fallthrough for an enum value outside the known set. Use the
-	// numeric type code directly because FilterType.String() returns
-	// "unknown" for out-of-enum values and the operator's original
-	// name (from YANG) has already been discarded by the parser.
-	// Naming the numeric code helps the maintainer track down which
-	// ze model enum value reached here without a matching case.
-	return fmt.Errorf("filter type code %d: not recognized by backend vpp (traffic package added a new FilterType without updating trafficvpp.verifyFilter)", uint8(f.Type))
 }

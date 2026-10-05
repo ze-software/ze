@@ -76,7 +76,12 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 		t.Errorf("help inventories differ:\nle:\n%s\nze le:\n%s", leHelp.stderr, zeHelp.stderr)
 	}
 
-	assertInvocationPair(t, standalone, tagged, 0, nil, []string{"repo", "working-tree"})
+	// Both real binaries read one stable Git population, never the checkout
+	// another test or session may change between invocations.
+	workingTree := filepath.Join(dir, "working-tree")
+	writePersonalityWorkingTree(t, workingTree)
+	workingTreeEnv := []string{"ZE_REPO_ROOT=" + workingTree}
+	assertInvocationPair(t, standalone, tagged, 0, workingTreeEnv, []string{"repo", "working-tree"})
 	assertInvocationPair(t, standalone, tagged, 1, nil, []string{"no-such-tool"})
 	assertInvocationPair(t, standalone, tagged, 2, nil, []string{"repo", "no-such-action"})
 
@@ -88,7 +93,7 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 
 	for _, format := range []string{"json", "yaml", "table"} {
 		t.Run(format, func(t *testing.T) {
-			assertInvocationPair(t, standalone, tagged, 0, nil,
+			assertInvocationPair(t, standalone, tagged, 0, workingTreeEnv,
 				[]string{"repo", "working-tree", "|", format})
 		})
 	}
@@ -288,6 +293,42 @@ func personalityFeatureTags(t *testing.T, root string) []string {
 		t.Fatal("feature-gates.txt includes non-default ze_le")
 	}
 	return tags
+}
+
+// writePersonalityWorkingTree commits an original file and leaves both a tracked
+// modification and an untracked file for the output formatters to describe.
+func writePersonalityWorkingTree(t *testing.T, root string) {
+	t.Helper()
+	writePersonalityFixture(t, root)
+	// Runtime scratch files follow the real checkout's ignore policy; they are
+	// not source changes for either personality.
+	ignore, err := os.ReadFile(filepath.Join(personalityRepoRoot(t), ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), ignore, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"init", "--quiet"},
+		{"add", "."},
+		{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+			"-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Original fixture"},
+	} {
+		cmd := exec.CommandContext(t.Context(), "git", args...)
+		cmd.Dir = root
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, output)
+		}
+	}
+	for relative, body := range map[string]string{
+		"internal/core/thing/thing.go": "// Package thing changed.\npackage thing\n",
+		"internal/core/thing/new.go":   "package thing\n",
+	} {
+		if err := os.WriteFile(filepath.Join(root, relative), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func writePersonalityFixture(t *testing.T, root string) {

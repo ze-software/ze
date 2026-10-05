@@ -96,8 +96,7 @@ const (
 // String names the position with the word the YANG leaf-list uses, so a log
 // line and the config file say the same thing.
 //
-// The zero value and any value outside the enum both answer "unspecified",
-// because neither is a place and a reader is owed the same word for both.
+// The named zero value answers "unspecified"; an unnamed position is a Ze defect.
 func (p position) String() string {
 	switch p {
 	case positionDirect:
@@ -110,8 +109,9 @@ func (p position) String() string {
 		return positionKeyNth
 	case positionUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: invalid AS path position")
 	}
-	return "unspecified"
 }
 
 // positionSet is the set of primitive positions one leaf-list name covers, and

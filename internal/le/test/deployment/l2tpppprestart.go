@@ -137,11 +137,10 @@ func l2tpPPPRestartDatagram(peer l2tpPPPTransport) []byte {
 // This checks the identifier AND options, including IPCP after a Configure-Nak.
 func l2tpPPPExchange(log, protocol, direction, replyDirection string) bool {
 	prefix := direction + " [" + protocol + " ConfReq "
-	start := strings.LastIndex(log, prefix)
-	if start < 0 {
+	_, request, found := strings.CutLast(log, prefix)
+	if !found {
 		return false
 	}
-	request := log[start+len(prefix):]
 	before, after, ok := strings.Cut(request, "\n")
 	if !ok {
 		return false

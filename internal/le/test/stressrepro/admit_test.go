@@ -7,6 +7,7 @@ package teststressrepro
 
 import (
 	"context"
+	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -57,6 +58,19 @@ func TestStressIterationsEachRunInsideOneSlot(t *testing.T) {
 		t.Fatal("the stress run holds a slot, so it MUST register as admitted")
 	}
 	root := stressTree(t)
+	// Admission measures a real checkout; a directory with no Git history
+	// cannot certify the inputs shared by these child runs.
+	for _, argv := range [][]string{
+		{"init", "--quiet"},
+		{"add", "."},
+		{"-c", "user.name=fixture", "-c", "user.email=fixture@example.com", "commit", "--quiet", "-m", "stress admission fixture"},
+	} {
+		command := exec.CommandContext(t.Context(), "git", argv...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %q: %v: %s", argv, err, output)
+		}
+	}
 	saved := env.Get(job.ParentKey)
 	if err := env.Set(job.ParentKey, ""); err != nil {
 		t.Fatal(err)

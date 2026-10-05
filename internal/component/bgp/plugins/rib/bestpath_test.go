@@ -139,8 +139,7 @@ func TestSelectBestExplain_ThreeCandidates(t *testing.T) {
 // TestBestStep_String verifies every defined step has a stable name.
 //
 // VALIDATES: cmd-9 JSON output uses the String() form directly.
-// PREVENTS: A new BestStep constant added later without a name, leaving
-// "unknown-step" in the reason JSON.
+// PREVENTS: An unnamed internal decision step becoming plausible reason JSON.
 func TestBestStep_String(t *testing.T) {
 	for step, want := range map[BestStep]string{
 		BestStepStale:        "stale-level",
@@ -158,7 +157,17 @@ func TestBestStep_String(t *testing.T) {
 	} {
 		assert.Equal(t, want, step.String())
 	}
-	assert.Equal(t, "unknown-step", BestStep(99).String())
+}
+
+// TestBestStepInvalid asserts that an impossible comparison result cannot be
+// rendered as an ordinary decision explanation.
+func TestBestStepInvalid(t *testing.T) {
+	defer func() {
+		if got := recover(); got != "BUG: invalid best-path decision step" {
+			t.Fatalf("BestStep(99).String() panic = %v", got)
+		}
+	}()
+	_ = BestStep(99).String()
 }
 
 // TestBestPath_SingleCandidate verifies a single candidate always wins.

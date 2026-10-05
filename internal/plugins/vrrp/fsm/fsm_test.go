@@ -802,6 +802,14 @@ func TestStateString(t *testing.T) {
 			t.Errorf("State(%d).String() = %q, want %q", st, st.String(), want)
 		}
 	}
+	t.Run("invalid internal state", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: vrrp: invalid FSM state" {
+				t.Fatalf("panic = %v, want invalid FSM state BUG", got)
+			}
+		}()
+		_ = State(99).String()
+	})
 }
 
 // TestFSMPackagePurity enforces the FSM's purity invariant mechanically: the

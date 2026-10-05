@@ -356,6 +356,8 @@ func formatPolicies(policies []PolicyRoute) any {
 			r := &p.Rules[i]
 			action := "unknown"
 			switch r.Action.Type {
+			case 0:
+				// A rule without a terminal action retains the existing display.
 			case ActionAccept:
 				action = "accept"
 			case ActionDrop:
@@ -365,6 +367,8 @@ func formatPolicies(policies []PolicyRoute) any {
 				action = bAct.Reset().Str("table ").Int(int64(r.Action.Table)).String()
 			case ActionNextHop:
 				action = "next-hop " + r.Action.NextHop.String()
+			default:
+				panic("BUG: invalid policy route action")
 			}
 			sp.Rules = append(sp.Rules, showRule{Name: r.Name, Action: action})
 		}

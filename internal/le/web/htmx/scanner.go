@@ -195,6 +195,8 @@ func parseMarkup(raw []byte) *node {
 			}
 		case xhtml.TextToken, xhtml.CommentToken, xhtml.DoctypeToken:
 			// These tokens cannot change the element tree.
+		default:
+			// The tokenizer's token set is open; unknown tokens do not change the element tree.
 		}
 	}
 }

@@ -14,11 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// codeSoftwareVersion is the Software Version Capability's code. The package has
-// no Code constant for it because parseCapability has no case for it: an OPEN
-// carrying it produces an Unknown, which is the whole point of the tests below.
-const codeSoftwareVersion Code = 75
-
 // softverSessionCaps returns the capability list a peer would advertise, with the
 // Software Version Capability appended when withVersion is set. Everything else
 // is held identical so a comparison of two Negotiated results isolates code 75.
@@ -50,7 +45,8 @@ func TestSoftwareVersionCapabilityDecidesNothing(t *testing.T) {
 	require.NotNil(t, with)
 	assert.Equal(t, without.ASN4, with.ASN4)
 	assert.Equal(t, without.RouteRefresh, with.RouteRefresh)
-	assert.Equal(t, without.ExtendedMessage, with.ExtendedMessage)
+	assert.Equal(t, without.ExtendedMessageRecv, with.ExtendedMessageRecv)
+	assert.Equal(t, without.ExtendedMessageSend, with.ExtendedMessageSend)
 	assert.Equal(t, without.EnhancedRouteRefresh, with.EnhancedRouteRefresh)
 	assert.Equal(t, without.BFDStrictMode, with.BFDStrictMode)
 	assert.Equal(t, without.GracefulRestart, with.GracefulRestart)

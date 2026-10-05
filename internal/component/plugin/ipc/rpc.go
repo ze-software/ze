@@ -256,19 +256,18 @@ func (pc *PluginConn) SendEncodeNLRI(ctx context.Context, family string, args []
 // SendDecodeNLRI requests NLRI decoding from the plugin. Returns JSON result.
 // addPath states whether each NLRI in hex carries a 4-octet Path Identifier
 // ahead of it (RFC 7911 Section 3).
-func (pc *PluginConn) SendDecodeNLRI(ctx context.Context, family, hex string, addPath bool) (string, error) {
-	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex, AddPath: addPath}
+// withdraw selects MP_UNREACH withdrawal semantics; false means announcement.
+func (pc *PluginConn) SendDecodeNLRI(ctx context.Context, family, hex string, addPath, withdraw bool) (string, error) {
+	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex, AddPath: addPath, Withdraw: withdraw}
 	result, err := pc.CallRPC(ctx, "ze-plugin-callback:decode-nlri", input)
 	if err != nil {
 		return "", err
 	}
-	var decoded struct {
-		JSON string `json:"json"`
-	}
+	var decoded rpc.DecodeNLRIOutput
 	if err := json.Unmarshal(result, &decoded); err != nil {
 		return "", fmt.Errorf("unmarshal decode-nlri result: %w", err)
 	}
-	return decoded.JSON, nil
+	return string(decoded.JSON), nil
 }
 
 // sendDecodeCapability requests capability decoding from the plugin. Returns JSON result.

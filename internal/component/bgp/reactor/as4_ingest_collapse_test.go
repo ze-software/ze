@@ -13,7 +13,6 @@ package reactor
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"log/slog"
 	"maps"
@@ -845,7 +844,7 @@ func TestReceiveCollapseRunsAfterRFC7606(t *testing.T) {
 // PREVENTS: a silent drop. An operator whose peer sends a broken AS4_PATH sees
 // a shortened AS path and nothing that says why.
 func TestReceiveCollapseLogsDiscardedMalformedAS4Path(t *testing.T) {
-	var sink bytes.Buffer
+	var sink syncBuffer
 	restore := swapSessionLogger(func() *slog.Logger {
 		return slog.New(slog.NewTextHandler(&sink, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	})
@@ -875,11 +874,12 @@ func TestReceiveCollapseLogsDiscardedMalformedAS4Path(t *testing.T) {
 	assert.Contains(t, line, collapseSourceAddr, "the line must name the peer whose attribute it was")
 	assert.Contains(t, line, "AS4_PATH", "the line must name the attribute that went")
 
-	// The control: a well-formed UPDATE says nothing at all, so the line above
-	// is a signal rather than noise every mixed-width UPDATE carries.
-	sink.Reset()
+	// The control must not emit the discard warning. Other sessions may still
+	// log asynchronously through this package-wide sink.
+	before := len(sink.String())
 	collapseReceive(t, s, makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI))
-	assert.Empty(t, sink.String(), "a reconciliation that dropped nothing writes nothing")
+	assert.NotContains(t, sink.String()[before:], "discarded a received AS4 attribute",
+		"a reconciliation that dropped nothing must not report an AS4 discard")
 }
 
 // TestLoopIngressSeesReconstructedASPath is AC-13, and it is about what the

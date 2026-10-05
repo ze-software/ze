@@ -28,19 +28,29 @@ import (
 // PREVENTS: the off-by-one that made every EAP-Failure discardable by a peer
 // enforcing Section 4.2.
 func TestFailureIdentifierMatchesResponse(t *testing.T) {
-	const responseID = 0x42
-
-	// A non-Response code is refused by Process before any state is consulted,
-	// which is the shortest path to failure() that does not need a live method.
-	s, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "p"})
+	auth, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "expected"})
 	require.NoError(t, err)
+	defer auth.Close()
+	peer := NewPeerSession(TypeMSCHAPv2, "user", "wrong")
+	defer peer.Close()
 
-	out := s.Process(&Packet{Code: CodeRequest, Identifier: responseID})
-
-	require.NotNil(t, out, "a refused code must still produce a Failure")
-	assert.Equal(t, CodeFailure, out.Code)
-	assert.Equal(t, uint8(responseID), out.Identifier,
-		"RFC 3748 Section 4.2: Failure MUST carry the Identifier of the packet it answers")
+	request := auth.Begin()
+	for range 8 {
+		// RFC 3748 Section 4.2: a method refusal answers the actual Response.
+		result := peer.Process(request)
+		require.NoError(t, result.Err)
+		require.NotNil(t, result.Response)
+		reply := auth.Process(result.Response)
+		require.NotNil(t, reply)
+		if reply.Code == CodeFailure {
+			assert.Equal(t, result.Response.Identifier, reply.Identifier,
+				"RFC 3748 Section 4.2: Failure MUST carry the answered Response's Identifier")
+			return
+		}
+		require.Equal(t, CodeRequest, reply.Code, "wrong credentials must not authenticate")
+		request = reply
+	}
+	t.Fatal("wrong credentials did not produce EAP-Failure within eight rounds")
 }
 
 // TestFailureIdentifierMatchesResponseOnNAK covers the second producer: a NAK

@@ -170,6 +170,10 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		// against a pending writer (Go sync.RWMutex docs).
 		candidates := r.gatherCandidatesLocked(rk.fam, []byte(rk.nlriKey), rk.addPath)
 		best, siblings := SelectMultipath(candidates, multipathMax, relaxASPath)
+		// Selection's AS_PATH identity comparisons are the last pooled read.
+		// Items and the reason stash keep extracted values only; Next obtains
+		// its own retained entry when a row is actually pulled.
+		releaseCandidates(candidates)
 		if best == nil {
 			continue
 		}

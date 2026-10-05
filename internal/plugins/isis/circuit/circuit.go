@@ -355,6 +355,8 @@ func (c *Circuit) circuitTypeField() packet.CircuitType {
 			hasL1 = true
 		case adjacency.Level2:
 			hasL2 = true
+		default:
+			// Config.Levels is caller-owned; unknown levels add no advertised bit.
 		}
 	}
 	switch {

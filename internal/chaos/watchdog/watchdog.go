@@ -151,6 +151,8 @@ func (w *Watchdog) ProcessEvent(ev peer.Event) {
 
 	case peer.EventChaosExecuted, peer.EventReconnecting, peer.EventRouteAction:
 		// No watchdog action.
+	default:
+		panic("BUG: invalid watchdog event type")
 	}
 
 	w.checkStateful(ev.Time)

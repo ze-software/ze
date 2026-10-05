@@ -173,8 +173,10 @@ func filterClassifyVectors(fam classifyFamily, f traffic.TrafficFilter) (mask, m
 		// path. Returned not-ok so a verifier bypass fails loudly rather than
 		// programming a bogus table.
 		return nil, nil, false
+	default:
+		// Backend models are open inputs; unknown filters cannot steer traffic.
+		return nil, nil, false
 	}
-	return nil, nil, false
 }
 
 // classSteers reports whether a class carries any filter that steers matching

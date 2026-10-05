@@ -17,6 +17,82 @@ import (
 	"testing"
 )
 
+func fixtureInputHash(t *testing.T, root, label string) string {
+	t.Helper()
+	hash, err := InputHash(root, label)
+	if err != nil {
+		t.Fatalf("InputHash(%q): %v", label, err)
+	}
+	return hash
+}
+
+// TestInputHashRefusesMeasurementErrors distinguishes operational failures
+// from a measured deletion, for both declared and whole-tree input labels.
+func TestInputHashRefusesMeasurementErrors(t *testing.T) {
+	for _, label := range []string{LintLabel, "whole-tree"} {
+		t.Run(label, func(t *testing.T) {
+			if hash, err := InputHash(t.TempDir(), label); err == nil || hash != "" {
+				t.Fatalf("non-repository hash = %q, error %v", hash, err)
+			}
+			t.Run("git-index", func(t *testing.T) {
+				root := fixtureRepo(t)
+				write(t, root, ".git/index", "not a Git index")
+				if hash, err := InputHash(root, label); err == nil || hash != "" {
+					t.Fatalf("failed Git query hash = %q, error %v", hash, err)
+				}
+			})
+			t.Run("unreadable-input", func(t *testing.T) {
+				root := fixtureRepo(t)
+				if err := os.Symlink("loop.go", filepath.Join(root, "loop.go")); err != nil {
+					t.Fatalf("make unreadable input: %v", err)
+				}
+				hash, err := InputHash(root, label)
+				if err == nil || hash != "" {
+					t.Fatalf("unreadable input hash = %q, error %v", hash, err)
+				}
+				if !strings.Contains(err.Error(), "loop.go") {
+					t.Fatalf("input error does not name the path: %v", err)
+				}
+			})
+		})
+	}
+}
+
+// TestInputHashIncludesDeletedInputs proves that an actual ENOENT remains a
+// measured state, not the operational-error refusal above.
+func TestInputHashIncludesDeletedInputs(t *testing.T) {
+	root := fixtureRepo(t)
+	before := fixtureInputHash(t, root, LintLabel)
+	if err := os.Remove(filepath.Join(root, "tracked.txt")); err != nil {
+		t.Fatalf("delete tracked fixture input: %v", err)
+	}
+	after := fixtureInputHash(t, root, LintLabel)
+	if after == before {
+		t.Fatal("a tracked deletion did not change the input fingerprint")
+	}
+	if again := fixtureInputHash(t, root, LintLabel); again != after {
+		t.Fatal("an unchanged deletion did not retain its fingerprint")
+	}
+}
+
+// TestAdmissionRefusesUnmeasuredInputs exercises initial admission and the
+// remeasurement after waiting. Neither can claim or share a successful digest.
+func TestAdmissionRefusesUnmeasuredInputs(t *testing.T) {
+	detach(t)
+	adm := admission(t, t.TempDir())
+	if ticket, err := adm.Admit(LintLabel, []string{"fixture"}); err == nil || ticket != nil {
+		t.Fatalf("unmeasured admission = %#v, error %v", ticket, err)
+	}
+	waited := &pending{label: LintLabel, key: "same-work", mayAttach: true, treeStale: true}
+	held := entry{state: "running", label: LintLabel, key: "same-work", tree: "old-inputs"}
+	if shared, err := adm.shares(waited, held); err == nil || shared {
+		t.Fatalf("unmeasured sharing = %v, error %v", shared, err)
+	}
+	if ticket, err := adm.queue(waited); err == nil || ticket != nil {
+		t.Fatalf("unmeasured queued claim = %#v, error %v", ticket, err)
+	}
+}
+
 // TestTreeHashMatchesTheFixtureTranscript builds the specified byte stream
 // independently from TreeHash and compares the resulting digest.
 func TestTreeHashMatchesTheFixtureTranscript(t *testing.T) {

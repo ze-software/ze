@@ -68,17 +68,8 @@ func runProcessHelper(args []string) error {
 		return errors.New("process wants SCENARIO and PLUGIN-NAME")
 	}
 	scenario, name := args[0], args[1]
-	if scenario == pathsLimitScenario {
-		return runPathsLimitProcess(name)
-	}
-	if scenario == scenarioMEDIBGPPostSelectionRemovalGoBGP {
-		return runRawMEDFilter(name)
-	}
-	if scenario == scenarioRPKIFRR {
-		return runRPKIObserver(name)
-	}
-	if scenario == "lg-graph-lab" {
-		return runLGLab(name)
+	if handler, ok := processHelpers[scenario]; ok {
+		return handler(name)
 	}
 	plan, err := announcementPlan(scenario)
 	if err != nil {

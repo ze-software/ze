@@ -40,6 +40,9 @@ func runScopeSelector(t *testing.T, _, dir string, args ...string) (string, stri
 	t.Helper()
 	t.Setenv("GOFLAGS", "")
 	t.Setenv("GOWORK", "off")
+	// Fixture modules carry language versions, not downloadable toolchain pins.
+	// A real checkout's explicit pin still wins in loadPackageGraphContext.
+	t.Setenv("GOTOOLCHAIN", "local")
 
 	readEnd, writeEnd, err := os.Pipe()
 	if err != nil {

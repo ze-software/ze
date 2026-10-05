@@ -110,7 +110,7 @@ func TestNegotiateWith_HoldTimeFloorAt3(t *testing.T) {
 }
 
 // TestNegotiateWith_ExtendedMessage verifies extended message resizes write buffer.
-// RFC 8654: both sides must support for negotiation.
+// RFC 8654 Sections 4 and 6: each advertisement permits the other speaker to send.
 func TestNegotiateWith_ExtendedMessage(t *testing.T) {
 	s := newNegotiateSession(90*time.Second, 90*time.Second)
 
@@ -125,7 +125,8 @@ func TestNegotiateWith_ExtendedMessage(t *testing.T) {
 
 	neg := s.Negotiated()
 	require.NotNil(t, neg)
-	assert.True(t, neg.ExtendedMessage)
+	assert.True(t, neg.ExtendedMessageRecv)
+	assert.True(t, neg.ExtendedMessageSend)
 	assert.True(t, s.extendedMessage)
 }
 

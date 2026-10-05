@@ -237,6 +237,8 @@ func formatDiffs(diffs []diff) string {
 			exp.Str(white).Str(redBg).Str(d.Text).Str(reset)
 		case diffInsert:
 			act.Str(white).Str(greenBg).Str(d.Text).Str(reset)
+		default:
+			panic("BUG: unknown diff operation")
 		}
 	}
 

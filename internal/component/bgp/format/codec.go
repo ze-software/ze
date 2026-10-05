@@ -86,7 +86,7 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 
 // FormatNLRIsAsJSON formats a slice of NLRIs as a JSON array.
 // Uses appendNLRIJSONValue for consistent formatting of all NLRI types.
-func FormatNLRIsAsJSON(nlris []nlri.NLRI) json.RawMessage {
+func FormatNLRIsAsJSON(nlris []nlri.NLRI, withdraw bool) json.RawMessage {
 	var scratch [512]byte
 	buf := scratch[:0]
 	buf = append(buf, '[')
@@ -98,7 +98,7 @@ func FormatNLRIsAsJSON(nlris []nlri.NLRI) json.RawMessage {
 		if i > 0 {
 			buf = append(buf, ',')
 		}
-		buf = appendNLRIJSONValue(buf, n, fam)
+		buf = appendNLRIJSONValue(buf, n, fam, withdraw)
 	}
 	buf = append(buf, ']')
 	result := make([]byte, len(buf))

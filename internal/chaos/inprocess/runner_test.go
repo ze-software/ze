@@ -189,7 +189,8 @@ func TestInProcessEventLogFormat(t *testing.T) {
 	var hasEstablished, hasRouteSent bool
 	for _, ev := range result.Events {
 		assert.False(t, ev.Time.IsZero(), "events must have non-zero timestamps")
-		switch ev.Type { //nolint:exhaustive // Only checking specific event types
+		//exhaustive:ignore // This test observes only establishment and route-send presence.
+		switch ev.Type {
 		case peer.EventEstablished:
 			hasEstablished = true
 		case peer.EventRouteSent:
@@ -340,7 +341,8 @@ func TestInProcessDisconnectReconnect(t *testing.T) {
 			var established, disconnected int
 			for _, ev := range result.Events {
 				if ev.PeerIndex == 0 {
-					switch ev.Type { //nolint:exhaustive // Only checking specific event types
+					//exhaustive:ignore // This test counts only establishment and disconnection events.
+					switch ev.Type {
 					case peer.EventEstablished:
 						established++
 					case peer.EventDisconnected:
@@ -688,7 +690,8 @@ func TestInProcessChaosReconnect(t *testing.T) {
 	var established, disconnected int
 	for _, ev := range result.Events {
 		if ev.PeerIndex == 0 {
-			switch ev.Type { //nolint:exhaustive // only checking lifecycle events
+			//exhaustive:ignore // This test counts only establishment and disconnection events.
+			switch ev.Type {
 			case peer.EventEstablished:
 				established++
 			case peer.EventDisconnected:

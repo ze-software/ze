@@ -14,8 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"github.com/ze-software/ze/internal/component/bgp/wireu"
-
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -344,7 +342,8 @@ func (s *Session) fsmMessageEvent(event fsm.Event) error {
 // fsmErrorNotifies answers whether RFC 4271 Section 8.2.2 opens the "any other
 // event" list of state with a Finite State Machine Error NOTIFICATION.
 func fsmErrorNotifies(state fsm.State) bool {
-	switch state { //nolint:exhaustive // the three states whose list sends a NOTIFICATION
+	//exhaustive:ignore // Predicate selecting only states whose FSM-error path sends a NOTIFICATION.
+	switch state {
 	case fsm.StateOpenSent, fsm.StateOpenConfirm, fsm.StateEstablished:
 		return true
 	}
@@ -356,41 +355,12 @@ func fsmErrorNotifies(state fsm.State) bool {
 // list of state: OpenSent ("Events 9, 11-13, 20, 25-28") and OpenConfirm
 // ("Events 9, 12-13, 20, 27-28").
 func updateIsUnexpected(state fsm.State) bool {
-	switch state { //nolint:exhaustive // the two states that read a connection before Established
+	//exhaustive:ignore // Predicate selecting pre-established states where a received UPDATE is unexpected.
+	switch state {
 	case fsm.StateOpenSent, fsm.StateOpenConfirm:
 		return true
 	}
 	return false
-}
-
-// handleUpdate processes a received UPDATE message.
-// RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
-// RFC 7606 validation is done earlier in processMessage() via enforceRFC7606().
-// Accepts WireUpdate for zero-copy processing.
-//
-// RFC 4271 §8.2.2 Event 27: the HoldTimer restart ("restarts its HoldTimer,
-// if the negotiated HoldTime value is non-zero") is performed inside the
-// FSM handler when EventUpdateMsg fires, not here. This gives the FSM
-// event a real job and keeps the liveness rule in one place.
-func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
-	// Get raw payload for validation (zero-copy slice)
-	body := wu.Payload()
-
-	// Validate address families in UPDATE.
-	//
-	// The drop answer is deliberately not consulted here. processMessage
-	// (session_read.go) calls the same check BEFORE dispatch and returns without
-	// reaching this handler when it says drop, so a dropped UPDATE never gets
-	// this far on the live path. Only the error half can still fire, and it
-	// carries the same refusal it always did.
-	if _, err := s.validateUpdateFamilies(body); err != nil {
-		return err
-	}
-
-	// Prefix limits are checked in processMessage() BEFORE plugin delivery.
-	// By the time handleUpdate runs, the UPDATE has already passed the prefix check.
-
-	return s.fsm.Event(fsm.EventUpdateMsg)
 }
 
 // handleNotification processes a received NOTIFICATION message.
@@ -515,6 +485,7 @@ func (s *Session) routeRefreshSubtypeUnknown(body []byte) bool {
 	case message.RouteRefreshNormal, message.RouteRefreshBoRR, message.RouteRefreshEoRR:
 		return false
 	default:
+		// Peer-supplied subtype octets form an open set.
 		// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH
 		// message with a 'Message Subtype' field other than 0, 1, or 2, it MUST
 		// ignore the received ROUTE-REFRESH message. It SHOULD log an error for
@@ -608,6 +579,7 @@ func (s *Session) validateRouteRefreshLength(body []byte) (bool, error) {
 		// answers for a malformed one even here.
 		return false, s.refuseRouteRefreshBadLength(body)
 	default:
+		// Peer-supplied subtype octets form an open set.
 		// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH message
 		// with a 'Message Subtype' field other than 0, 1, or 2, it MUST ignore the
 		// received ROUTE-REFRESH message. It SHOULD log an error for further

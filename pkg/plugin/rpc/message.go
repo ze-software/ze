@@ -1403,10 +1403,9 @@ func answerFieldWidth(shape answerFieldShape, field []byte) (uint64, answerLineS
 			return size, answerLineStated
 		}
 		return uint64(header) + size, answerLineStated
+	default:
+		panic("BUG: unknown answer field shape")
 	}
-	// A shape nobody thought of is a line this build cannot frame, so it is
-	// refused rather than measured with a default filled in.
-	return 0, answerLineOther
 }
 
 // countedTextState says whether a counted text this build could not read is

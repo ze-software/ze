@@ -30,6 +30,8 @@ const (
 
 func (t ObserverEventType) String() string {
 	switch t {
+	case 0:
+		return stateUnknown
 	case ObserverEventTunnelUp:
 		return "tunnel-up"
 	case ObserverEventTunnelDown:
@@ -45,7 +47,7 @@ func (t ObserverEventType) String() string {
 	case ObserverEventDisconnectRequested:
 		return "disconnect-requested"
 	default:
-		return stateUnknown
+		panic("BUG: unknown L2TP observer event type")
 	}
 }
 

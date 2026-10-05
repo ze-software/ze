@@ -421,6 +421,15 @@ Steps:
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — cleanup -->
 
+The fatal-length regression drives the real peer run loop and registered RIB,
+Adj-RIB-In, and route-server consumers, not a test-authored DOWN event. It
+requires actual storage deletion and recipient TCP withdrawals as well as
+session, timer, and context release. Its valid-length control waits for changed
+MED in storage and on recipient TCP before checking that resources survive.
+These are final-state and wire observables, not proof of deletion/withdrawal
+temporal ordering.
+<!-- source: internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go -- TestRFC8654FatalLengthReleasesInstalledRoutes, TestRFC8654ValidLengthRetainsInstalledRoutes -->
+
 ## RFC 4271 ConnectRetryTimer replacement
 
 RFC 4271 specifies a `ConnectRetryTimer` (mandatory FSM attribute,

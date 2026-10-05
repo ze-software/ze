@@ -211,7 +211,7 @@ func firewallLegacySeed(ctx context.Context, _ []string) error {
 	commands := [][]string{
 		{argAdd, nftTable, nftFamilyInet, nftTableFlowspec},
 		{argAdd, nftChain, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, nftForwardHookSpec},
-		{argAdd, nftRule, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, "ip", nftMatchDestination, "198.51.100.0/24", nftVerdictDrop},
+		{argAdd, nftRule, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, "ip", nftMatchDestination, prefixTestNet2, nftVerdictDrop},
 		{argAdd, nftTable, "ip", nftTableAnomalyShape},
 		{argAdd, nftChain, "ip", nftTableAnomalyShape, nftChainForward, nftForwardHookSpec},
 		{argAdd, nftRule, "ip", nftTableAnomalyShape, nftChainForward, "ip", nftMatchDestination, "203.0.113.0/24", nftVerdictDrop},
@@ -243,7 +243,7 @@ func firewallLegacySweep(ctx context.Context, _ []string) error {
 	if !ok {
 		return fmt.Errorf("the table an older ze build wrote survived a daemon with no firewall config")
 	}
-	if strings.Contains(final, "198.51.100.0/24") {
+	if strings.Contains(final, prefixTestNet2) {
 		return fmt.Errorf("the rule an older ze build installed is still enforcing")
 	}
 	if !strings.Contains(final, "table ip anomaly-shape {") {
@@ -292,7 +292,7 @@ func firewallSetElementTimeout(ctx context.Context, _ []string) error {
 	var out string
 	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
 		out, err = netfilterCommandOutput(ctx, "nft", "list", "set", "inet", "ze_fw10_009", "transient")
-		return err == nil && strings.Contains(out, "10.0.0.1") && strings.Contains(out, "10.0.0.2")
+		return err == nil && strings.Contains(out, "10.0.0.1") && strings.Contains(out, addrPeerTwo)
 	}) {
 		return fmt.Errorf("set elements were not programmed")
 	}

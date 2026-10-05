@@ -77,12 +77,16 @@ type DirectBridge struct {
 	batchValidate         BatchValidateHandler         // Typed fast path (no string serialization) -- rpki batching
 	hasBatchValidate      atomic.Bool                  // set atomically when batchValidate is written
 	callbackCh            chan BridgeCallback          // Engine->plugin callbacks (replaces pipe after startup)
+	callbacksStopped      chan struct{}                // Wakes queue and result waiters before channel closure.
 	closeOnce             sync.Once                    // Guards callbackCh close (Stop may be called multiple times)
 	sendMu                sync.RWMutex                 // Held for reading by senders, for writing by CloseCallbacks
 	sendClosed            bool                         // Guarded by sendMu: the callback channels are closed
 	dispatchMu            sync.Mutex                   // Serializes dispatch admission with StopDispatch.
 	dispatchClosed        bool
 	dispatchWG            sync.WaitGroup
+	deliveryMu            sync.Mutex // Serializes event admission with StopDelivery.
+	deliveryClosed        bool
+	deliveryWG            sync.WaitGroup
 	failed                atomic.Bool  // Set after callback loop failure; callers fail fast.
 	failureMu             sync.RWMutex // Guards failureErr, read only after failed is set.
 	failureErr            error        // First callback loop failure reported to later callers.
@@ -94,6 +98,7 @@ type DirectBridge struct {
 func NewDirectBridge() *DirectBridge {
 	return &DirectBridge{
 		callbackCh:       make(chan BridgeCallback, 16),
+		callbacksStopped: make(chan struct{}),
 		executeCommandCh: make(chan ExecuteCommandRequest, 16),
 	}
 }
@@ -105,15 +110,13 @@ func (b *DirectBridge) CallbackCh() <-chan BridgeCallback {
 }
 
 // SendCallback sends an engine->plugin callback through the bridge channel.
-// Blocks until the plugin processes it and returns a result, or ctx expires.
+// Blocks until the plugin returns a result, callbacks stop, or ctx expires.
 // Used by PluginConn methods that do not have a typed bridge callback.
 // Returns ErrBridgeClosed if the callback channel was closed during shutdown.
 func (b *DirectBridge) SendCallback(ctx context.Context, method string, params json.RawMessage) (result json.RawMessage, err error) {
 	if failErr := b.callbackFailure(); failErr != nil {
 		return nil, failErr
 	}
-	// Sending on a closed channel panics. CloseCallbacks may race with this
-	// send during shutdown (context canceled but select picks the send arm).
 	defer func() {
 		if r := recover(); r != nil {
 			if failErr := b.callbackFailure(); failErr != nil {
@@ -123,10 +126,10 @@ func (b *DirectBridge) SendCallback(ctx context.Context, method string, params j
 			err = ErrBridgeClosed
 		}
 	}()
-	resultCh := make(chan BridgeCallbackResult, 1)
 	if !b.beginSend() {
 		return nil, ErrBridgeClosed
 	}
+	resultCh := make(chan BridgeCallbackResult, 1)
 	select {
 	case b.callbackCh <- BridgeCallback{
 		Method: method,
@@ -137,12 +140,23 @@ func (b *DirectBridge) SendCallback(ctx context.Context, method string, params j
 	case <-ctx.Done():
 		b.endSend()
 		return nil, ctx.Err()
+	case <-b.callbacksStopped:
+		b.endSend()
+		return nil, b.callbackStopError()
 	}
 	select {
 	case r := <-resultCh:
 		return r.Data, r.Err
 	case <-ctx.Done():
 		return nil, ctx.Err()
+	case <-b.callbacksStopped:
+		// A completed reply remains authoritative when closure races its reader.
+		select {
+		case r := <-resultCh:
+			return r.Data, r.Err
+		default:
+			return nil, b.callbackStopError()
+		}
 	}
 }
 
@@ -179,13 +193,14 @@ func (b *DirectBridge) callbackFailure() error {
 // CloseCallbacks closes the callback channels, signaling the plugin's bridge
 // event loop to exit. Called during shutdown. Safe to call multiple times.
 //
-// It takes sendMu for writing, so it cannot overlap a send. The recover in the
-// senders catches the panic from a send on a closed channel. A panic is not the
-// only cost. A send concurrent with a close is a data race whatever the outcome,
-// and -race fails the test that provoked it.
+// Queue senders hold sendMu for reading. Wake them before taking it for writing,
+// since a full callback queue may no longer have a reader during shutdown.
+// Result waiters wake too, so an admitted event cannot wait on the stopped loop.
 func (b *DirectBridge) CloseCallbacks() {
+	b.StopDelivery()
 	b.StopDispatch()
 	b.closeOnce.Do(func() {
+		close(b.callbacksStopped)
 		b.sendMu.Lock()
 		b.sendClosed = true
 		close(b.callbackCh)
@@ -194,14 +209,22 @@ func (b *DirectBridge) CloseCallbacks() {
 	})
 }
 
+// callbackStopError preserves the failure cause when a callback loop failed,
+// and distinguishes ordinary shutdown from that failure.
+func (b *DirectBridge) callbackStopError() error {
+	if err := b.callbackFailure(); err != nil {
+		return err
+	}
+	return ErrBridgeClosed
+}
+
 // beginSend takes the send side of sendMu and reports whether the caller CAN
 // send. It returns false when the channels are already closed, and the caller
 // must not call endSend in that case.
 //
-// A sender that blocks on a full channel holds the lock and delays a concurrent
-// close. The reader is still draining at that point, because the close it is
-// waiting for has not happened, so the send completes. A caller whose ctx ends
-// first releases the lock and gives up.
+// A sender that blocks on a full channel holds the read lock. CloseCallbacks
+// closes callbacksStopped first, waking the sender so it releases the lock even
+// when the callback loop has already exited.
 func (b *DirectBridge) beginSend() bool {
 	b.sendMu.RLock()
 	if b.sendClosed {
@@ -246,6 +269,34 @@ func (b *DirectBridge) StopDispatch() {
 // Caller MUST call StopDispatch before WaitDispatch.
 func (b *DirectBridge) WaitDispatch() {
 	b.dispatchWG.Wait()
+}
+
+// beginDelivery admits one engine-to-plugin event batch. A successful caller
+// MUST call deliveryWG.Done after the handler returns, including on panic.
+func (b *DirectBridge) beginDelivery() bool {
+	b.deliveryMu.Lock()
+	defer b.deliveryMu.Unlock()
+	if b.deliveryClosed {
+		return false
+	}
+	b.deliveryWG.Add(1)
+	return true
+}
+
+// StopDelivery rejects new event batches without waiting for admitted handlers.
+// Safe for concurrent use and from a handler requesting its own shutdown. The
+// lifecycle owner MUST call WaitDelivery outside all delivery handlers afterward.
+func (b *DirectBridge) StopDelivery() {
+	b.deliveryMu.Lock()
+	b.deliveryClosed = true
+	b.deliveryMu.Unlock()
+}
+
+// WaitDelivery joins every admitted event handler. The lifecycle owner MUST call
+// StopDelivery first and MUST NOT call WaitDelivery from a delivery handler.
+// No admission lock is held while a handler calls back into the engine.
+func (b *DirectBridge) WaitDelivery() {
+	b.deliveryWG.Wait()
 }
 
 // SetDeliverEvents registers the plugin-side event handler (engine→plugin direction).
@@ -296,6 +347,10 @@ func (b *DirectBridge) HasStructuredHandler() bool {
 // Returns error if the handler is not set. The hasStructured atomic load
 // creates a happens-before from SetDeliverStructured's write.
 func (b *DirectBridge) DeliverStructured(events []any) error {
+	if !b.beginDelivery() {
+		return ErrBridgeClosed
+	}
+	defer b.deliveryWG.Done()
 	if !b.hasStructured.Load() {
 		return errors.New("structured handler not set")
 	}
@@ -305,6 +360,10 @@ func (b *DirectBridge) DeliverStructured(events []any) error {
 // DeliverEvents calls the plugin's event handler directly. Returns error if
 // the bridge is not ready or the handler is not set.
 func (b *DirectBridge) DeliverEvents(events []string) error {
+	if !b.beginDelivery() {
+		return ErrBridgeClosed
+	}
+	defer b.deliveryWG.Done()
 	if !b.ready.Load() {
 		return errors.New("bridge not ready")
 	}
@@ -531,8 +590,8 @@ func (b *DirectBridge) SetExecuteCommand(fn ExecuteCommandHandler) {
 }
 
 // ExecuteCommand sends a typed execute-command callback to the plugin event
-// loop and waits for the result. It preserves callback-loop serialization and
-// caller cancellation while avoiding JSON marshaling for the request.
+// loop and waits for the result, shutdown, or caller cancellation. It preserves
+// callback-loop serialization without JSON marshaling for the request.
 func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command string, args []string, peer string) (out *ExecuteCommandOutput, err error) {
 	if failErr := b.callbackFailure(); failErr != nil {
 		return nil, failErr
@@ -571,12 +630,22 @@ func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command strin
 	case <-ctx.Done():
 		b.endSend()
 		return nil, ctx.Err()
+	case <-b.callbacksStopped:
+		b.endSend()
+		return nil, b.callbackStopError()
 	}
 	select {
 	case r := <-resultCh:
 		return r.Output, r.Err
 	case <-ctx.Done():
 		return nil, ctx.Err()
+	case <-b.callbacksStopped:
+		select {
+		case r := <-resultCh:
+			return r.Output, r.Err
+		default:
+			return nil, b.callbackStopError()
+		}
 	}
 }
 

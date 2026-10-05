@@ -22,6 +22,26 @@ reaches `run`, so no `ze` invocation is refused by it: the command that tells
 the operator what is wrong keeps working on a host where the daemon will not
 boot.
 
+## Usable disk capacity
+
+`ze doctor` warns below 5% available space on the config filesystem; exactly
+5% is healthy. A filesystem reporting zero total blocks is an error, not a
+healthy result. Nonpositive available block counts, including FreeBSD's signed
+deficits, mean zero usable space rather than a large unsigned capacity.
+
+Doctor, support-bundle disk accounting and the free-space helper share
+allocation-free block normalization and overflow-safe arithmetic. Percentages
+are rounded down and capped at 100. Support reports available space, excluding
+reserved blocks, as `free-bytes`; it caps that count at the total before
+calculating `used-bytes`. Byte capacities that exceed `uint64`, or a nonpositive
+block size, return an error rather than wrapped capacity. Support retains its
+zero-total record with zero used percentage; doctor's stricter zero-total
+diagnostic remains unchanged.
+<!-- source: internal/core/diskspace/accounting.go -- UsableBlocks, Percent, Bytes -->
+<!-- source: internal/core/diskspace/diskspace.go -- Free -->
+<!-- source: internal/component/doctor/checks_storage.go -- checkDiskSpace, checkDiskSpaceBlocks -->
+<!-- source: internal/component/support/disk_unix.go -- collectDiskInfo, diskUsageFromBlocks -->
+
 ## Kernel capabilities: one enrolment, three callers
 
 A subsystem needs a kernel feature the host can lack. MPLS forwarding needs an

@@ -160,8 +160,10 @@ func (sel *Selector) MatchesPeerKey(peerKey string) bool {
 			return !match
 		}
 		return match
-	default:
+	case 0, KindASN:
 		return false
+	default:
+		panic("BUG: selector: invalid kind")
 	}
 }
 
@@ -301,8 +303,10 @@ func (sel *Selector) Matches(peer netip.Addr) bool {
 		match = matchIPGlob(sel.name, peer.String())
 	case KindName, KindASN:
 		match = false
-	default:
+	case 0:
 		match = false
+	default:
+		panic("BUG: selector: invalid kind")
 	}
 	if sel.exclude {
 		return !match
@@ -354,8 +358,10 @@ func (sel *Selector) String() string {
 		base = tb.Str("as").Uint32(sel.asn).String()
 	case KindGlob:
 		base = sel.name
-	default:
+	case 0:
 		return "<invalid>"
+	default:
+		panic("BUG: selector: invalid kind")
 	}
 	if sel.exclude {
 		var tb textbuf.Buffer

@@ -35,6 +35,14 @@ bug became a negative test.
 The engine is the sole executor of FSM actions and the sole owner of
 `clock.Timer`s. Nothing in core and nothing in iface holds the string "vrrp".
 
+FSM state values come from local transitions, not advertisements. State dispatch,
+string rendering and telemetry treat unnamed states as internal BUGs. Zero
+remains Initialize; stale-event handling and named state output are unchanged.
+
+<!-- source: internal/plugins/vrrp/fsm/fsm.go -- New, setState, Handle, State.String -->
+<!-- source: internal/plugins/vrrp/vrrp.go -- viewState -->
+<!-- source: internal/plugins/vrrp/telemetry.go -- stateValue -->
+
 ## Decisions
 
 ### The v3 IPv4 checksum transmits the RFC 5798 pseudo-header form

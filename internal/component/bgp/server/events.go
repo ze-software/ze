@@ -71,8 +71,9 @@ func rpcDirToDir(d rpc.MessageDirection) events.Direction {
 		return events.DirReceived
 	case rpc.DirectionUnspecified:
 		return events.DirUnspecified
+	default:
+		panic("BUG: invalid raw message direction")
 	}
-	return events.DirUnspecified
 }
 
 // monitorFormatKey is the format+encoding cache key for CLI monitors (always json+parsed).
@@ -381,7 +382,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 // messageTypeToEventKind converts BGP message type to typed EventKind.
 // Returns EventKindUnspecified for unsupported types (caller checks for zero).
 func messageTypeToEventKind(msgType msgtype.MessageType) rpc.EventKind {
-	switch msgType { //nolint:exhaustive // Only supported types; caller checks zero return
+	switch msgType {
 	case msgtype.TypeUPDATE:
 		return rpc.EventKindUpdate
 	case msgtype.TypeOPEN:
@@ -393,6 +394,7 @@ func messageTypeToEventKind(msgType msgtype.MessageType) rpc.EventKind {
 	case msgtype.TypeROUTEREFRESH:
 		return rpc.EventKindRefresh
 	default:
+		// BGP message types are an open wire set; unknown types have no event kind.
 		return rpc.EventKindUnspecified
 	}
 }
@@ -410,7 +412,7 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	// never a sync.Pool. See docs/architecture/api/process-protocol.md,
 	// "Text Event Formatting: the scratch discipline".
 	var scratchArr [512]byte
-	switch msg.Type { //nolint:exhaustive // Only supported types; unsupported are filtered by caller
+	switch msg.Type {
 	case msgtype.TypeUPDATE:
 		content := bgptypes.ContentConfig{
 			Encoding: encoding,
@@ -446,7 +448,8 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 		}
 		return encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
 
-	default: // Unsupported type — filtered by messageTypeToEventKind before reaching here
+	default:
+		// Raw message types are open; unsupported types have no subscription rendering.
 		return ""
 	}
 }

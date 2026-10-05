@@ -62,8 +62,10 @@ func ReadConfigSource(store Storage, path string) ([]byte, error) {
 		return ReadActiveConfig(store, path)
 	case ConfigSourceStdin:
 		return nil, errors.New("stdin configuration has no reload source")
-	default:
+	case ConfigSourceUnspecified:
 		return nil, errors.New("configuration source mode is unspecified")
+	default:
+		panic("BUG: unknown bound configuration source mode")
 	}
 }
 

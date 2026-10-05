@@ -92,8 +92,10 @@ func acceptedSuite(key KeyKind) (suite, bool) {
 	case KeyRSA:
 		return suite{0xc02f, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "recommended"}, true
 	case KeyUnspecified:
+		return suite{}, false
+	default:
+		panic("BUG: unknown TLS probe key kind")
 	}
-	return suite{}, false
 }
 
 func forbiddenFor(key KeyKind) []suite {

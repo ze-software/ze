@@ -189,11 +189,13 @@ func forkDaemon(ctx context.Context, config, binary string, target scenario.Targ
 			"-c", tmpPath,
 			"-s", ctlPath,
 		}
-	default:
+	case scenario.TargetZe:
 		if rmErr := os.Remove(tmpPath); rmErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: removing temp config: %v\n", rmErr)
 		}
 		return nil, fmt.Errorf("ForkDaemon does not support target %q", target)
+	default:
+		panic("BUG: invalid daemon target")
 	}
 
 	cmd := exec.CommandContext(ctx, binary, args...) // #nosec G204 G702 - binary from --binary flag or PATH

@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2181-10.3-1": {
       "note": "Re-judged 2026-09-30. TestRFC2181NSTargetIsNotAnAlias queries each NS target itself: a CNAME query returns no CNAME, an A query returns only A records owned by the target holding the configured addresses (an alias would answer a CNAME chain). Record: appendNS revert observed red. {single-polarity} holds: Ze serves no CNAME and no MX, so there is no alias to refuse.",
@@ -79,14 +80,14 @@
       "note": "Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition's false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.",
       "requirement_sha": "c4c14a1cf07a1756",
       "tests": {
-        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "a285c638f6f3738a",
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "82cd74bc7cef234b",
-        "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "82cd74bc7cef234b"
+        "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "82cd74bc7cef234b",
+        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "a285c638f6f3738a"
       },
       "units": {
-        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "5136742d11beb09c",
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "c10f1be8b1784b6d",
-        "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "c10f1be8b1784b6d"
+        "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "c10f1be8b1784b6d",
+        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "5136742d11beb09c"
       },
       "verdict": "enforced"
     },
@@ -94,14 +95,14 @@
       "note": "Re-judged 2026-09-30. Positive: parseTTL('0') is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value <= 2^31-1, closing the earlier 'when transmitted' gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.",
       "requirement_sha": "0ede5207edff953a",
       "tests": {
-        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "609bb27b7d22e156",
-        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "609bb27b7d22e156",
-        "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "8e2a11ccd7fe5573"
+        "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "8e2a11ccd7fe5573",
+        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "2f3459a10a84a68a",
+        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "2f3459a10a84a68a"
       },
       "units": {
+        "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "896360c00e8310a0",
         "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "41eae64e25f057b8",
-        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8",
-        "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "896360c00e8310a0"
+        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8"
       },
       "verdict": "enforced"
     }

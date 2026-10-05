@@ -41,7 +41,8 @@ func newReflectorHarness(t testing.TB, n, g int) *fanoutHarness {
 	}
 
 	cache := newRecentUpdateCache(16)
-	t.Cleanup(cache.Stop)
+	cache.RegisterConsumer("fanout-fixture")
+	t.Cleanup(func() { cache.UnregisterConsumer("fanout-fixture") })
 	cache.Add(update)
 	cache.Activate(1, 1)
 
@@ -247,11 +248,13 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 	}
 
 	cache := newRecentUpdateCache(16)
-	t.Cleanup(cache.Stop)
+	cache.RegisterConsumer("fanout-fixture")
+	t.Cleanup(func() { cache.UnregisterConsumer("fanout-fixture") })
 	cache.Add(update)
-	// One consumer that never acks, so the entry outlives every retainN/Release
-	// pair the fan-out performs and the fixture measures forwarding rather than
-	// cache eviction.
+	// One consumer that never acks during the test, so the entry outlives every
+	// retainN/Release pair and the fixture measures forwarding rather than cache
+	// eviction. Cleanup unregisters it after pool.Stop, returning adopted buffers;
+	// cache.Stop alone would stop only the scan and leave those buffers borrowed.
 	cache.Activate(1, 1)
 
 	src := makeForwardSourcePeer(t, ctx, ctxID)

@@ -309,8 +309,9 @@ func computeLocalAuth(sa *SA) (*wire.PayloadAUTH, error) {
 		return computeEAPAuth(sa)
 	case ipsec.AuthUnknown:
 		return nil, fmt.Errorf("ike auth: unsupported auth mode %s", sa.PeerCfg.Auth.Mode)
+	default:
+		panic("BUG: unknown local authentication mode")
 	}
-	return nil, fmt.Errorf("ike auth: unsupported auth mode %s", sa.PeerCfg.Auth.Mode)
 }
 
 // computePSKAuth computes AUTH using pre-shared key per RFC 7296 Section 2.15.
@@ -643,6 +644,7 @@ func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messa
 	if err != nil {
 		return nil, err
 	}
+	// #nosec G407 -- crypto/rand.Read fills this exact IV range above; subsequent writes start at dataOff, past the IV.
 	cbc := gocipher.NewCBCEncrypter(block, buf[ivOff:ivOff+blockSize])
 	cbc.CryptBlocks(buf[dataOff:dataOff+paddedLen], buf[dataOff:dataOff+paddedLen])
 

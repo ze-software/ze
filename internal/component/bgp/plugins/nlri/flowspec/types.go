@@ -120,7 +120,7 @@ func (t FlowComponentType) String() string {
 		return kwFragment
 	case FlowFlowLabel:
 		return kwFlowLabel
-	default:
+	default: // Wire and component-interface codes form an open set.
 		var b textbuf.Buffer
 		return b.Reset().Str("type(").Uint8(uint8(t)).Str(")").String()
 	}
@@ -491,7 +491,7 @@ func parseFlowComponent(data []byte, fam Family) (FlowComponent, []byte, error) 
 		FlowDSCP, FlowFragment, FlowFlowLabel:
 		// Type 3-13: Numeric/bitmask components (RFC 8955 Section 4.2.2.3-12)
 		return parseNumericComponent(compType, data[1:], fam.AFI)
-	default:
+	default: // The wire component registry is open; unknown codes remain rejected.
 		// RFC 8955 Section 4.2: unknown component type is malformed NLRI
 		return nil, nil, ErrFlowSpecInvalidType
 	}

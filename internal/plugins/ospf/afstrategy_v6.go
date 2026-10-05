@@ -220,6 +220,7 @@ func v6BuildRoutes(src ospfspf.Source, res *ospfspf.Result, af addressFamily) []
 			continue
 		}
 		var nr *ospfspf.NodeResult
+		//exhaustive:ignore // Only Router and Network references attach prefixes to SPF vertices.
 		switch body.ReferencedLSType {
 		case ospfv3types.LSTypeRouter:
 			nr = res.Nodes[ospfspf.VertexID{Kind: ospfspf.VertexRouter, Router: types.RouterID(body.ReferencedAdvRouter)}]
@@ -324,6 +325,7 @@ func v6SummaryReader(src ospfspf.Source, af addressFamily) ospfspf.SummaryReader
 			if !ok {
 				continue
 			}
+			//exhaustive:ignore // This reader selects only inter-area prefix and router summaries.
 			switch ospfv3types.LSType(h.Type) {
 			case ospfv3types.LSTypeInterAreaPrefix:
 				decoded, err := ospfv3packet.DecodeLSA(lsa.RawBytes)

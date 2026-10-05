@@ -38,6 +38,23 @@ The web dashboard is a `report.Consumer` -- the same interface used by the termi
 **Key constraint:** ProcessEvent() runs synchronously on the main event loop. It must be fast -- update internal state and push to a broadcast channel, never block on HTTP or template rendering.
 <!-- source: internal/chaos/report/reporter.go -- Reporter.Process, Consumer.ProcessEvent -->
 
+Event kinds are assigned by the simulator or a checked log-name lookup, not
+decoded from peer bytes. An unnamed kind reaching an internal dispatcher or
+label renderer is a programming error and triggers a `BUG` assertion rather
+than an unknown label or a silent no-op. Unknown replay and shrink event names
+are still skipped at the file boundary.
+<!-- source: internal/chaos/peer/event_string.go -- EventType.String -->
+<!-- source: internal/chaos/replay/replay.go -- Run -->
+<!-- source: internal/chaos/shrink/parse.go -- ParseLog -->
+
+Dashboard peer statuses and route action kinds follow the same internal
+contract: an invalid value cannot fall back to an idle status or an unknown
+action label. Application names are checked by `ParseTarget` before config
+generation or daemon selection; an unknown CLI name still returns an error.
+<!-- source: internal/chaos/web/state.go -- PeerStatus.String, PeerStatus.CSSClass -->
+<!-- source: internal/chaos/route/action.go -- ActionType.String -->
+<!-- source: internal/chaos/scenario/target.go -- ParseTarget, Target.DefaultBinary -->
+
 ## Layout Architecture
 
 Three-panel layout designed for desktop monitors. Peer table shows an active set (default 40 peers) with auto-promotion on events and adaptive decay — not all 200+ peers at once.

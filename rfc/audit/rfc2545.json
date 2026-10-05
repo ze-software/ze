@@ -1,5 +1,8 @@
 {
-  "audited": "2026-10-01",
+  "audited": "2026-10-05",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2545-3-1": {
@@ -83,8 +86,8 @@
       "note": "(a) forbidden: a second address or a length other than 16 when the inclusion condition does not hold. (b) TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the global-only form with length 0x10 and NotContains the 32-octet form; new-v6.ci pins 01 10 plus one address byte for byte; conf-llnh-update.ci is the negative, asserting the field is not reduced to 16 while the condition holds.",
       "requirement_sha": "f1313c30d8980ada",
       "tests": {
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "02487edfbf589113",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "b23e8edb4b065981",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "83af95f0f2ec37a2",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "d8925fdfafd8a5c2",
         "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
         "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323"
       },
@@ -99,9 +102,9 @@
     "RFC2545-3-6": {
       "code": {
         "internal/component/bgp/reactor/link_scope.go::classify": "47509c161b37778c",
-        "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "a9c45963bae6f389"
+        "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "3e32d577192f48db"
       },
-      "note": "Judged 2026-10-01 (BGP c19 judge). Split from RFC2545-3-3 under R3/R55(a); the quote is the whole Section 3 iff sentence, which coincides with the clause. Gap confirmed at the producer: linkScope.linkLocalNextHop appends the configured Link-Local only for nextHopRouterSpeaker (nextHopOwners.classify: session endpoint, configured local address, held interface address), so a next hop Ze WRITES that names another router on a subnet shared with the speaker and the peer (explicit next hop, static or API route) goes as the 16-octet global alone, where Section 3 asks for 'the link-local IPv6 address of the next hop'. Ze has no source for that router's Link-Local on these rails. Annotation imprecision (reported to main thread, not fixed by the judge): on the relay rail with next hop unchanged/auto (precomputeNextHop nhModeNone) the received field passes verbatim, so a 32-octet field the source sent does carry the third party's own Link-Local; the gap is the rails where Ze writes the next hop, not 'Ze learns no other router's Link-Local'.",
+      "note": "Independently rejudged against rfc/full/rfc2545.txt Section 3: 'The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.' The same section specifies: 'A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop.' Current internal/component/bgp/reactor/link_scope.go::classify returns nextHopRouterSpeaker only for the connected endpoint, configured local address or held local interface address, and returns nextHopRouterThirdParty otherwise. linkLocalNextHop returns an empty address for nextHopRouterThirdParty even with peerOnLink true; the supplied configured Link-Local is the speaker's, not that third party's. applyLinkLocalNextHop therefore leaves the explicit third-party next hop in its single-address form; peer_forward_facts.go::precomputeNextHop and applyFactsNextHop select and emit its 16-byte global field. This remains the annotated include-half gap on rails that write a third party's next hop, not a newly introduced enum regression. The new default panic changes no declared router variant. The annotation correctly excludes preservation of a received pair: NextHopAuto/NextHopUnchanged select nhModeNone, applyFactsNextHop returns without rewriting, and forward_next_hop.go::egressNextHopGlobalHalf preserves an on-link destination's received pair but strips its Link-Local half for an off-link destination. No polarity tests tag this gap row. rfc2545_own_link_local_red_test.go::TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink was also read: its tag is for RFC2545-3-1, and its assertions deliberately require the third-party global alone rather than the wrong speaker-owned Link-Local; it is not proof that the missing include half is implemented. No new execution or discrimination observation is claimed.",
       "requirement_sha": "2b40069283106c59",
       "verdict": "unimplemented"
     }

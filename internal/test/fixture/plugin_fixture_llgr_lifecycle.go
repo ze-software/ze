@@ -129,8 +129,12 @@ func llgrLifecycle(scenario string) Driver {
 				}); err != nil {
 					return err
 				}
-				if err := marker("source"); err != nil {
-					return err
+				// The DOWN-release marker already replayed on this connection.
+				// EOR MUST wait for a distinct phase marker, not a duplicate that
+				// can be suppressed or mistaken for the earlier release.
+				r := command13(ctx, p, "send bgp source update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 198.51.101.0/24")
+				if !done13(r) {
+					return fmt.Errorf("release source EOR: %s", r.text())
 				}
 				if err := wait("EOR purges only the unrefreshed stale route", func() bool {
 					return count("prefix 10.0.2.0/24", 0) && llgrRouteLevel(ctx, p, "10.0.0.0/24", 0)

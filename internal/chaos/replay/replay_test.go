@@ -79,6 +79,25 @@ func TestReplayBasic(t *testing.T) {
 	assert.Contains(t, out.String(), "PASS")
 }
 
+// TestReplaySkipsUnknownEvent proves an unrecognized file event is discarded
+// before internal dispatch by comparing the complete replay result.
+func TestReplaySkipsUnknownEvent(t *testing.T) {
+	events := []map[string]any{
+		makeEvent(1, "established", 0),
+		makeEvent(2, "established", 1),
+		makeEvent(3, "route-sent", 0, withPrefix("10.0.0.0/24")),
+		makeEvent(4, "route-received", 1, withPrefix("10.0.0.0/24")),
+	}
+	var baseline bytes.Buffer
+	require.Equal(t, 0, Run(strings.NewReader(buildNDJSON(makeHeader(42, 2), events...)), &baseline))
+	require.Contains(t, baseline.String(), "PASS")
+
+	events = append(events, makeEvent(5, "future-event", 0, withCount(99)))
+	var unknown bytes.Buffer
+	assert.Equal(t, 0, Run(strings.NewReader(buildNDJSON(makeHeader(42, 2), events...)), &unknown))
+	assert.Equal(t, baseline.String(), unknown.String())
+}
+
 // TestReplayMissingRoute verifies that replay detects missing routes.
 //
 // VALIDATES: Replay reports FAIL when expected route was not received.

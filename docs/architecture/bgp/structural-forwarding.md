@@ -29,10 +29,15 @@ treatment applies. The route-server plugin selects preservation for its clients.
 
 The selector receives the existing peer metadata at forwarding-facts refresh,
 not on each UPDATE, and the resulting boolean lives in the immutable facts
-snapshot. Both rails use one shared cache-key type containing that treatment.
-On a cache miss, the same treatment produces the effective wire passed to the
-shared builder. The builder never decides a peer's policy. Cache hits need no
-attribute scan or copy. There is no second client inventory or per-update plugin lookup.
+snapshot. Both rails key body reuse and edit-set deduplication by that treatment.
+On a materialization miss, ordinary treatment compacts the destination-owned
+payload in place before dedup publishes it; a dedup hit copies those effective
+bytes into the next destination's own buffer. An unmodified shared input stays
+immutable: when treatment changes it, one read-pool buffer is adopted by the
+received-update cache entry and returned at eviction, after the workers finish.
+Preserved and already-normalized inputs keep their original bytes.
+The builder never decides a peer's policy. Body-cache hits need no attribute
+scan or copy. There is no second client inventory or per-update plugin lookup.
 The fast rail retains its four stack slots; the general rail's cache lasts one
 forward call and is bounded by its destination count.
 
@@ -132,6 +137,14 @@ no ADD-PATH names a path by its prefix and frames no identifier, so ze holds one
 identifier for that source's whole session and gives every prefix of it the same
 one. A source that negotiated ADD-PATH names a path by (prefix, identifier), so
 ze holds one entry per pair.
+
+A locally assigned number may equal the received number: RFC 7911 Section 2
+makes assignment a local matter, not a requirement for numerical inequality.
+The split-forwarding ownership test sends identical received identifiers for
+the same prefixes from two sources and checks that each corresponding pair
+leaves under distinct identifiers. This catches relaying received identifiers
+without depending on the allocator's counter or earlier tests.
+<!-- test: internal/component/bgp/reactor/rfc7911_forward_body_test.go TestForwardSplitSameContextKeepsRawSplit -->
 
 Native families are walked with their registered NLRI splitters on both raw and
 cross-context forwarding paths. The framing is preserved while the leading

@@ -9,7 +9,7 @@
       "claim-sha": "e4fff422ba51863d",
       "route": "revert",
       "producer": "internal/plugins/fib/kernel/mplsentry.go::addMPLSEntryLocked",
-      "producer-sha": "a1aaa3c178511d52",
+      "producer-sha": "cd24804060ebfbd8",
       "break": "body of addMPLSEntryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

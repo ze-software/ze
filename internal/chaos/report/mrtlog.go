@@ -71,6 +71,8 @@ func (m *MRTLog) ProcessEvent(ev peer.Event) {
 	case peer.EventRouteWithdrawn, peer.EventEORSent, peer.EventError,
 		peer.EventChaosExecuted, peer.EventReconnecting, peer.EventRouteAction,
 		peer.EventDroppedEvents:
+	default:
+		panic("BUG: invalid MRT event type")
 	}
 }
 

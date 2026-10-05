@@ -18,7 +18,7 @@ func virtualLinkTransitGateway(ctx context.Context, lab interoplab.CheckerLab, v
 	}
 	gateway, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 30 * time.Second, Interval: time.Second, Description: "transit IPv6 link-local gateway"},
 		func(ctx context.Context) (netip.Addr, error) {
-			answer, err := lab.Query(ctx, peerFRRTransit, []string{"ip", "-j", "-6", ipObjectAddress, ipActionShow, "dev", "eth1"}, nil)
+			answer, err := lab.Query(ctx, peerFRRTransit, []string{"ip", "-j", "-6", ipObjectAddress, ipActionShow, ipOptionDevice, "eth1"}, nil)
 			if err != nil {
 				return netip.Addr{}, err
 			}
@@ -35,7 +35,7 @@ func virtualLinkTransitGateway(ctx context.Context, lab interoplab.CheckerLab, v
 			var gateway netip.Addr
 			for _, iface := range interfaces {
 				for _, address := range iface.Addresses {
-					if address.Family != "inet6" || address.Scope != "link" {
+					if address.Family != "inet6" || address.Scope != ipScopeLink {
 						continue
 					}
 					parsed, err := netip.ParseAddr(address.Local)

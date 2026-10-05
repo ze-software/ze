@@ -483,8 +483,9 @@ func (route kernelRoute) String() string {
 		return "forwarded through a gateway"
 	case kernelRouteOther:
 		return "a route in neither the discard nor the forwarded shape"
+	default:
+		panic("BUG: kernel route classifier returned an unknown kind")
 	}
-	return "an unspecified route"
 }
 
 // kernelRouteDestination returns the host address one `ip route show` field

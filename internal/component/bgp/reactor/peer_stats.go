@@ -453,7 +453,7 @@ func (p *Peer) ClearStats() {
 // peerStateNames lists all PeerState.String() values for metric label cleanup.
 var peerStateNames = []string{
 	peerStateNameStopped, peerStateNameConnecting, peerStateNameActive,
-	peerStateNameEstablished, peerStateNameIdleHold, peerStateNameUnknown,
+	peerStateNameEstablished, peerStateNameIdleHold,
 }
 
 // msgTypeNames lists every message-type label value the emitters stamp on

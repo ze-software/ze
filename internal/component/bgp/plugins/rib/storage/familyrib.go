@@ -92,6 +92,7 @@ func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 // would let the two disagree, and the route would then be keyed one way on
 // insert and looked up another.
 func IsCIDRFamily(fam family.Family) bool {
+	//exhaustive:ignore // Only plain or label-stripped prefix SAFIs can use CIDR storage.
 	switch fam.SAFI {
 	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMPLSLabel:
 	default:
@@ -454,25 +455,56 @@ func (r *FamilyRIB) lookupPrefixPath(pathID uint32, pfx netip.Prefix) (RouteEntr
 // the path carries goes through it. It is empty for a CIDR prefix.
 type PrefixPath struct {
 	PathID uint32
+	// Labels belongs to a retained snapshot returned by PeerRIB's append
+	// operations. It is InvalidHandle when the path has no label side-data.
+	Labels attrpool.Handle
 	Entry  RouteEntry
 	Route  string
 }
 
-// appendPrefixPaths appends every path stored for pfx to dst and returns the
-// extended slice. A CIDR family stored without ADD-PATH holds at most one path
+// Release gives back a snapshot returned by AppendPrefixPathsRetained or
+// AppendKeyPathsRetained. The caller MUST release each returned path exactly
+// once, or transfer both Entry and Labels to another owner.
+func (p *PrefixPath) Release() {
+	p.Entry.Release()
+	if p.Labels.IsValid() {
+		_ = pool.Labels.Release(p.Labels)
+		p.Labels = attrpool.InvalidHandle
+	}
+}
+
+// retain pins one snapshot while PeerRIB.mu is held. A failed acquisition
+// rolls back its references, matching LookupRetained's failure contract.
+func (p *PrefixPath) retain() bool {
+	if err := p.Entry.AddRef(); err != nil {
+		return false
+	}
+	if p.Labels.IsValid() {
+		if err := pool.Labels.AddRef(p.Labels); err != nil {
+			p.Entry.Release()
+			return false
+		}
+	}
+	return true
+}
+
+// appendPrefixPathsRetained appends retained paths stored for pfx to dst.
+// A CIDR family stored without ADD-PATH holds at most one path
 // per prefix; under ADD-PATH it holds one per path identifier (RFC 7911
 // Section 2). A non-CIDR family appends nothing: its routes have no prefix.
 //
-// The entries are copies whose pool handles are NOT retained, the same contract
-// as lookupEntry. The caller owns dst, so a caller that passes a reused or
-// stack-backed slice selects without allocating.
-func (r *FamilyRIB) appendPrefixPaths(pfx netip.Prefix, dst []PrefixPath) []PrefixPath {
+// Caller MUST hold PeerRIB.mu. Each appended path owns its handles until
+// Release; a reused or stack-backed dst avoids allocating the slice.
+func (r *FamilyRIB) appendPrefixPathsRetained(pfx netip.Prefix, dst []PrefixPath) []PrefixPath {
 	if !r.cidr {
 		return dst
 	}
 	if !r.addPath {
 		if entry, ok := r.direct.Lookup(pfx); ok {
-			dst = append(dst, PrefixPath{Entry: entry})
+			path := PrefixPath{Entry: entry, Labels: r.LookupLabels(0, pfx)}
+			if path.retain() {
+				dst = append(dst, path)
+			}
 		}
 		return dst
 	}
@@ -481,7 +513,11 @@ func (r *FamilyRIB) appendPrefixPaths(pfx netip.Prefix, dst []PrefixPath) []Pref
 		return dst
 	}
 	for i := range ps.entries {
-		dst = append(dst, PrefixPath{PathID: ps.entries[i].pathID, Entry: ps.entries[i].entry})
+		entry := &ps.entries[i]
+		path := PrefixPath{PathID: entry.pathID, Entry: entry.entry, Labels: entry.labels}
+		if path.retain() {
+			dst = append(dst, path)
+		}
 	}
 	return dst
 }
@@ -907,6 +943,12 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 		return nil, err
 	}
 	if err := writeAttr(attribute.AttrClusterList, 0x80, pool.ClusterList, b.ClusterList); err != nil {
+		return nil, err
+	}
+	// RFC 8955 Section 7: "All Traffic Filtering Actions are specified as
+	// transitive BGP Extended Communities." Retained replay must not lose
+	// those actions merely because they have their own pooled field.
+	if err := writeAttr(attribute.AttrExtCommunity, 0xC0, pool.ExtCommunities, b.ExtCommunities); err != nil {
 		return nil, err
 	}
 

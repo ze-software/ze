@@ -243,6 +243,7 @@ func testPeerEveryMember(t testing.TB) ipsec.SiteToSitePeer {
 // The recursion is over a Go struct type fixed at compile time, so the depth is bounded by
 // the nesting of ipsec.SiteToSitePeer and no peer-controlled input reaches it.
 func mutateForTest(v reflect.Value) bool {
+	//exhaustive:ignore // Mutates only kinds supported by this config-change fixture; other kinds report no mutation.
 	switch v.Kind() {
 	case reflect.String:
 		v.SetString(v.String() + "-mutated")

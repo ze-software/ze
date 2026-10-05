@@ -39,10 +39,7 @@ func VerifyPDU(pdu []byte, keys []Key) error {
 		return ErrAuthMalformed
 	}
 	defer dec.Release()
-	class, ok := classOf(dec.Header.PDUType)
-	if !ok {
-		return ErrAuthMalformed
-	}
+	class := classOf(dec.Header.PDUType)
 	tlvs := pduTLVs(dec)
 
 	idx := AuthTLVIndex(tlvs)
@@ -144,9 +141,11 @@ func authLayoutForReceived(pdu []byte, dec PDU, class pduClass) authLayout {
 	switch class {
 	case classLSP:
 		return lspAuthLayout(pdu)
-	default:
+	case classHello, classSNP:
 		_ = dec
 		return firstAuthValueLayout(pdu)
+	default:
+		panic("BUG: invalid IS-IS authentication PDU class")
 	}
 }
 

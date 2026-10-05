@@ -39,9 +39,9 @@ as flakiness. `./le setup install` checks this as `kvm-access` and applies
 `sg kvm -c '<command>'` in an existing shell. A host with no `/dev/kvm` reports
 `n/a` and runs under TCG.
 
-First run takes ~1 min to download Alpine ISO and Go toolchain. Both are
-cached in `tmp/qemu/` and reused on subsequent runs. A typical run boots
-the VM in ~15s and runs tests in ~30-60s.
+The first run fetches the Alpine ISO and Go toolchain. Alpine is cached under
+`${XDG_CACHE_HOME:-$HOME/.cache}/ze/alpine-iso/`; Go archives remain under
+`tmp/qemu/go-dl/`. Later runs reuse those downloads.
 
 ### The two entry points
 
@@ -95,19 +95,24 @@ tests on 2026-09-05, with no BusyBox usage text anywhere in its log.
 
 ### Running ONE `.ci` test in a throwaway guest
 
-The tight loop for a single Linux-only test, about 30 seconds of test after the
-boot. It does by hand what `all-tests` does for each suite, because this path
-skips `all-tests`: the binary shim, and the two variables that make the runner
-use the binary you built:
+For a single Linux-only test, reproduce the shim and admission parent that
+`all-tests` normally creates. Build the target binaries first; the QEMU action
+builds the guest `le` itself. Keep the parent marker in the guest, not in the
+shared checkout:
 
 ```bash
-./le test qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2" \
-  command "mkdir -p /tmp/zb \
-    && ln -sf /workspace/bin/ze-linux-arm64 /tmp/zb/ze \
-    && ln -sf /workspace/tmp/qemu/linux-arm64/le /tmp/zb/le \
-    && ln -sf /workspace/bin/ze-stripped-linux-arm64 /tmp/zb/ze-stripped \
-    && cd /workspace && PATH=/tmp/zb:\$PATH LE_TEST_NO_BUILD=1 \
-       ZE_BIN=/workspace/bin/ze-linux-arm64 le test bgp plugin <test-name>"
+./le job run label qemu-one quiet command ./le test qemu run \
+  kernel tmp/kernel/build/vmlinuz packages "iproute2" command '
+    set -e
+    shim=$(mktemp -d /tmp/ze-bgp.XXXXXX)
+    ln -s /workspace/bin/ze-linux-arm64 "$shim/ze"
+    ln -s /workspace/tmp/qemu/linux-arm64/le "$shim/le"
+    ln -s /workspace/bin/ze-stripped-linux-arm64 "$shim/ze-stripped"
+    printf "%s\n" "LABEL=qemu (held by the host)" > "$shim/host-job"
+    cd /workspace
+    PATH="$shim:$PATH" ZE_RUN_JOB="$shim/host-job" LE_TEST_NO_BUILD=1 \
+      ZE_BIN=/workspace/bin/ze-linux-arm64 "$shim/le" test bgp plugin <test-name>
+  '
 ```
 
 `LE_TEST_NO_BUILD=1` and `ZE_BIN` are not optional. Without them the runner
@@ -118,12 +123,15 @@ cross-building a broken ze, or by an overlay, never reaches the test, and the
 green it reports proves nothing. `all-tests` sets both for every suite
 (`environment`, `internal/le/test/qemu/alltests.go`).
 
-Wrap it in `./le job run label <name> quiet command ...` so it takes its turn
-with the other sessions on the machine.
+The outer `job run` holds the host's admission slot. `ZE_RUN_JOB` tells the
+guest runner to use that parent instead of touching the host's PID registry:
+neither machine can judge whether a process on the other is alive.
 
 <!-- source: internal/le/test/qemu/actions.go -- all-tests is registered as a guest action -->
 <!-- source: internal/le/test/qemu/alltests.go -- suiteCommand, shim, the ZE_*_BIN knobs -->
 <!-- source: internal/le/test/qemu/run.go -- runBootstrapCommand and the package list -->
+<!-- source: internal/le/test/qemu/guestle.go -- buildGuestLe, guestJobParent -->
+<!-- source: internal/le/test/qemu/run_iso.go -- durableCacheDir, ensureISO -->
 
 ### Four suites do not run in the guest root namespace
 

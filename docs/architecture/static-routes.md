@@ -12,6 +12,22 @@ hops, and redistribution into BGP.
 <!-- source: internal/plugins/static/backend.go -- backend abstraction -->
 <!-- source: internal/plugins/static/register.go -- registration and lifecycle -->
 
+The config parser selects each internal route action before the route reaches
+the backend or Loc-RIB. Reload, rollback and BFD preserve that action.
+An unnamed internal action is a BUG, not a skipped-route error; interface,
+metric and backend failures retain their operational error paths.
+The VPP translator also selects a named backend action before insertion.
+Deletion supplies no action and bypasses path construction, so its zero value
+remains valid.
+
+<!-- source: internal/plugins/static/config.go -- parseRoute -->
+<!-- source: internal/plugins/static/inject.go -- programRouteLocked -->
+<!-- source: internal/plugins/static/model.go -- actionType.String -->
+<!-- source: internal/plugins/static/locrib.go -- staticPath -->
+<!-- source: internal/plugins/static/backend_linux.go -- buildRoute -->
+<!-- source: internal/plugins/static/backend_vpp_linux.go -- toVPPRoute -->
+<!-- source: internal/plugins/static/vpp/backend.go -- ApplyRoute, RemoveRoute, routeAddDel, buildFibPaths -->
+
 ## A main-table route reaches the FIB through the Loc-RIB
 
 `applyProgrammed` sends a main-table route to `insertPathLocked`, which builds one

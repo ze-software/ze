@@ -20,7 +20,7 @@
       "claim-sha": "603461873b2df643",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "4613bde9e111d786",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "931da7b17516573b",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::processMessages",
-      "producer-sha": "ba31adc407e2ad7d",
+      "producer-sha": "8931a291b7d506b3",
       "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "552990edd79ec87c",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "768ae9128695f6e8",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::processMessages",
-      "producer-sha": "ba31adc407e2ad7d",
+      "producer-sha": "8931a291b7d506b3",
       "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "728948b78ab64cb4",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "0d2d20c73a029f6e",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::processMessages",
-      "producer-sha": "ba31adc407e2ad7d",
+      "producer-sha": "8931a291b7d506b3",
       "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -328,7 +328,7 @@
       "claim-sha": "45c365e3dada5f5d",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::processMessages",
-      "producer-sha": "ba31adc407e2ad7d",
+      "producer-sha": "8931a291b7d506b3",
       "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -361,7 +361,7 @@
       "claim-sha": "704847a54d9ddd79",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::processMessages",
-      "producer-sha": "ba31adc407e2ad7d",
+      "producer-sha": "8931a291b7d506b3",
       "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +383,7 @@
       "claim-sha": "ddaf98ade5b1b481",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,7 +405,7 @@
       "claim-sha": "4272c366b4a52ef4",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -427,7 +427,7 @@
       "claim-sha": "aed65b1ebafb8936",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -482,7 +482,7 @@
       "claim-sha": "7a83ad7e90a58fe4",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -493,7 +493,7 @@
       "claim-sha": "893fe9bb90be676b",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -504,7 +504,7 @@
       "claim-sha": "83085fcdc240be70",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -515,7 +515,7 @@
       "claim-sha": "d6c970190e0c95df",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -537,7 +537,7 @@
       "claim-sha": "2eab89342737230a",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "9bb4e7110e073d7a",
+      "producer-sha": "fe0430e7e4400ff8",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

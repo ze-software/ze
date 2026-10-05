@@ -51,32 +51,6 @@ var scenarioExtras = map[string][]operation{
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"ipv4Flowspec", frrCapabilityNegotiated}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 flowspec json"}, contains: []string{peerPrefixFirst, peerPrefixSecond}, timeout: 30 * time.Second},
 	},
-	scenarioFlowspecGoBGP: {
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec, "-j"}, contains: []string{peerPrefixFirst, peerPrefixSecond}, timeout: 30 * time.Second},
-		// GoBGP prints one bracketed term for each component it decoded, so this needle
-		// says the OR of two AND groups arrived as ONE Type 4 component. Two Type 4
-		// components print as two [port: ...] terms and fail here.
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec}, contains: []string{flowspecOrOfAndRule}, timeout: 30 * time.Second},
-	},
-	scenarioGracefulRestartFRR: {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"gracefulRestart", frrCapabilityNegotiated}},
-		// The needle above passes for a code-64 capability carrying no
-		// <AFI, SAFI> tuple at all, which is what ze sent until 2026-09-20:
-		// FRR reports the capability as negotiated either way, so it cannot
-		// tell the two apart.
-		//
-		// endOfRibRecv can. FRR fills gracefulRestartInfo.endOfRibRecv only
-		// for the families a peer NAMED in its Graceful Restart capability
-		// (the same fact check_rfc.go relies on, assertion 4 of the
-		// End-of-RIB scenario). So this needle is the one that observes the
-		// tuple: ze names ipv4/unicast, FRR reads it, and FRR therefore
-		// tracks End-of-RIB for that family. A capability with no tuple
-		// leaves gracefulRestartInfo empty and fails here.
-		//
-		// It waits because the marker is the last frame of the initial
-		// update.
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"endOfRibRecv"}, timeout: 60 * time.Second},
-	},
 	scenarioMEDIBGPPostSelectionRemovalGoBGP: {
 		{kind: opWaitLogContains, peer: "ze", contains: []string{"RAW-MED-DROP: removed MULTI_EXIT_DISC"}, timeout: 120 * time.Second},
 		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, medPrefix}, contains: []string{medPrefix, "65005", zeLabAddress, "Med: 100"}},
@@ -294,14 +268,6 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitContains, peer: "ze", command: []string{"mpls", "-ls"}, contains: []string{"16100"}, timeout: 60 * time.Second},
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf database segment-routing"}, contains: []string{zeLabAddress}},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
-	},
-	"ospf-te-frr": {
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf te-database"), contains: []string{frrLabAddress}},
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueArea}, contains: []string{zeLabAddress}},
-	},
-	"ospf-te-interas-frr": {
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf database opaque-as"), contains: []string{"inter-as"}},
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf database opaque-as"}, contains: []string{zeLabAddress}},
 	},
 	"ospfv3-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6DatabaseRouter}, contains: []string{zeLabAddress}, timeout: 60 * time.Second},

@@ -123,10 +123,15 @@ func TestToVPPRouteInterfaceNexthopRejectedNoBackend(t *testing.T) {
 	}
 }
 
+// TestToVPPRouteUnknownActionRejected checks that parser-impossible actions are
+// internal bugs, not operational route failures.
 func TestToVPPRouteUnknownActionRejected(t *testing.T) {
-	if _, err := toVPPRoute(staticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), Action: actionType(99)}); err == nil {
-		t.Fatal("unknown action must be rejected")
-	}
+	defer func() {
+		if got := recover(); got != "BUG: static: invalid route action" {
+			t.Fatalf("panic = %v, want invalid route action BUG", got)
+		}
+	}()
+	_, _ = toVPPRoute(staticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), Action: actionType(99)})
 }
 
 func TestVPPStaticBackendApplyAndRemove(t *testing.T) {

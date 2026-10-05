@@ -288,6 +288,8 @@ func (s *pppSession) setNCPState(family AddressFamily, st LCPState) {
 		s.ipcpState = st
 	case AddressFamilyIPv6:
 		s.ipv6cpState = st
+	default:
+		panic("BUG: unknown NCP address family")
 	}
 }
 
@@ -298,8 +300,9 @@ func (s *pppSession) ncpState(family AddressFamily) LCPState {
 		return s.ipcpState
 	case AddressFamilyIPv6:
 		return s.ipv6cpState
+	default:
+		panic("BUG: unknown NCP address family")
 	}
-	return LCPStateInitial
 }
 
 // nextNCPIdentifier bumps the per-family identifier counter and
@@ -313,8 +316,9 @@ func (s *pppSession) nextNCPIdentifier(family AddressFamily) uint8 {
 	case AddressFamilyIPv6:
 		s.ipv6cpIdentifier++
 		return s.ipv6cpIdentifier
+	default:
+		panic("BUG: unknown NCP address family")
 	}
-	return 0
 }
 
 // ncpProto returns the PPP protocol value for a family.
@@ -324,8 +328,9 @@ func ncpProto(family AddressFamily) uint16 {
 		return ProtoIPCP
 	case AddressFamilyIPv6:
 		return ProtoIPv6CP
+	default:
+		panic("BUG: unknown NCP address family")
 	}
-	return 0
 }
 
 // handleIPCPPacket advances the IPCP FSM for one received packet.
@@ -406,7 +411,7 @@ func (s *pppSession) validNCPReply(family AddressFamily, pkt LCPPacket) bool {
 		requestID = s.lastIPv6CPRequestID
 		requestData = s.lastIPv6CPRequest[:s.lastIPv6CPRequestLen]
 	default:
-		return false
+		panic("BUG: unknown NCP address family")
 	}
 	// RFC 1661 Section 5.3: "On reception of a Configure-Nak, the
 	// Identifier field MUST match that of the last transmitted
@@ -483,6 +488,8 @@ func (s *pppSession) handleNCPPacket(
 		case ncpRequestUnacceptable:
 			optsBad = true
 		case ncpRequestAcceptable:
+		default:
+			panic("BUG: unknown NCP request verdict")
 		}
 	}
 
@@ -516,6 +523,8 @@ func (s *pppSession) handleNCPPacket(
 			s.fail(tb.Str(family.String()).Str(": peer Configure-Reject of mandatory option").String())
 			return true
 		case ncpReplyAbsorbed:
+		default:
+			panic("BUG: unknown NCP reply verdict")
 		}
 	}
 
@@ -567,6 +576,8 @@ func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 	case ncpOptionsUnknownType, ncpOptionsBadLength:
 		return ncpRequestUnacceptable
 	case ncpOptionsOK:
+	default:
+		panic("BUG: unknown NCP option scan result")
 	}
 	opts, err := ParseIPCPOptions(pkt.Data)
 	if err != nil {
@@ -657,6 +668,8 @@ func (s *pppSession) evalIPv6CPRequest(pkt LCPPacket) ncpRequestVerdict {
 	case ncpOptionsUnknownType, ncpOptionsBadLength:
 		return ncpRequestUnacceptable
 	case ncpOptionsOK:
+	default:
+		panic("BUG: unknown NCP option scan result")
 	}
 	opts, err := parseIPv6CPOptions(pkt.Data)
 	if err != nil {
@@ -770,8 +783,9 @@ func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, curre
 		return true
 	case LCPActIRC, LCPActZRC, LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
 		return true
+	default:
+		panic("BUG: unknown NCP action")
 	}
-	return true
 }
 
 // sendNCPConfigureRequest encodes a CONFREQ for the given family using
@@ -801,6 +815,8 @@ func (s *pppSession) sendNCPConfigureRequest(family AddressFamily) bool {
 		s.lastIPv6CPRequestLen = dataLen
 		s.lastIPv6CPRequestID = id
 		s.lastIPv6CPRequestSent = true
+	default:
+		panic("BUG: unknown NCP address family")
 	}
 	return true
 }
@@ -823,8 +839,9 @@ func (s *pppSession) writeNCPOptions(family AddressFamily, buf []byte, off int) 
 			HasInterfaceID: true,
 		}
 		return writeIPv6CPOptions(buf, off, opts)
+	default:
+		panic("BUG: unknown NCP address family")
 	}
-	return 0
 }
 
 // sendNCPConfigureAck echoes the peer's Configure-Request option Data
@@ -962,8 +979,9 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 			HasInterfaceID: true,
 		}
 		return LCPConfigureNak, writeIPv6CPOptions(buf, off, nak)
+	default:
+		panic("BUG: unknown NCP address family")
 	}
-	return LCPConfigureReject, 0
 }
 
 // ncpOptionScan is the verdict of one walk over the option list of a
@@ -1179,8 +1197,9 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			Family:      AddressFamilyIPv6,
 			InterfaceID: s.peerInterfaceID,
 		})
+	default:
+		panic("BUG: unknown NCP address family")
 	}
-	return true
 }
 
 // sendIPAssigned waits for the transport to publish the assignment and capture

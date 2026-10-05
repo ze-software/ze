@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -95,8 +96,8 @@
       "note": "(a) forbidden: a new key whose KeyStartGenerate is after the old key's KeyStopGenerate; (b) TestKeyRolloverGapRejected asserts validateConfig returns ErrKeyRolloverGap for start 2026-03-01 after end 2026-02-01, and TestKeyRolloverOverlapAccepted asserts an overlapping rollover validates. The equal-time boundary is not exercised",
       "requirement_sha": "0dd7a741bc6040c8",
       "tests": {
-        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverGapRejected": "d69bebe15746b9eb",
-        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverOverlapAccepted": "d69bebe15746b9eb"
+        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverGapRejected": "7c9b4e68d0846e33",
+        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverOverlapAccepted": "7c9b4e68d0846e33"
       },
       "units": {
         "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverGapRejected": "96adb5a544b6f23d",
@@ -198,22 +199,22 @@
       "note": "(a) forbidden: verifying without the section 3.3 computation, overwriting the received digest before comparing, not placing Apad in the trailer, or not selecting by KeyID; (b) TestRFC5709ReceiveRejectsWrongHashConstruction asserts zero-Apad, underived-key and inner-only digests are rejected while the valid control is accepted; TestOSPFAuthSignVerifyCrypto rejects a flipped digest byte; TestRFC5709ReceiveIndependentDigest accepts an independent digest and asserts Verify left the wire bytes unchanged; TestEngineReceiveSelectsSecurityAssociation rejects packets outside the KeyID's association and counts them",
       "requirement_sha": "56709b3868f4210d",
       "tests": {
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoChecksumOctetAuthenticated": "8f829bce13807b16",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveIndependentDigest": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de"
       },
       "units": {
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoChecksumOctetAuthenticated": "63d214550eb8b9db",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveIndependentDigest": "82472af373207a60",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "1e1026882f382257"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "1e1026882f382257",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2"
       },
       "verdict": "enforced"
     },
@@ -221,16 +222,16 @@
       "note": "(a) forbidden: choosing the algorithm or key other than by the received KeyID (trying other associations); (b) TestEngineReceiveSelectsSecurityAssociation asserts a KeyID 8 (SHA-512) packet signed with SHA-256 and a KeyID 9 packet signed with KeyID 7's secret are rejected even though another configured association verifies them, and unknown KeyID 99 is rejected; TestOSPFAuthCryptoRejectsKeyIDMismatch rejects a non-matching KeyID with the same secret; positives accept each KeyID under its own algorithm",
       "requirement_sha": "c7ec6bba8578baec",
       "tests": {
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "8f829bce13807b16",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de"
       },
       "units": {
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
-        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "c6b3afbbb3714510",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "c6b3afbbb3714510"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "c6b3afbbb3714510",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2"
       },
       "verdict": "enforced"
     }

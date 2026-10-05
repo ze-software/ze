@@ -491,15 +491,12 @@ func TestRadiusAdminChapProfileMapping(t *testing.T) {
 	assert.Equal(t, "radius", res.Source)
 }
 
-// TestRadiusAdminUnknownAuthMethodSendsNothing states the guard on the switch
-// that selects the credential. A method neither constant names cannot be built
-// by ExtractConfig, so this covers the one remaining producer: a future caller
-// of newRadiusAuthenticator that sets the field itself.
+// TestRadiusAdminUnknownAuthMethodSendsNothing injects an internal method that
+// ExtractConfig cannot produce and checks its BUG assertion before any packet
+// leaves. Unknown configuration words are refused by parseAuthMethod instead.
 //
-// VALIDATES: an unknown method aborts the login and sends no packet.
-// PREVENTS: an Access-Request with no credential attribute at all, which RFC
-// 2865 Section 4.1 forbids and a server answers with a reject that reads to the
-// operator like a wrong password.
+// VALIDATES: internal misuse sends no credential-free Access-Request.
+// PREVENTS: an impossible method silently selecting an authentication policy.
 func TestRadiusAdminUnknownAuthMethodSendsNothing(t *testing.T) {
 	key := []byte("testing123")
 	srv := newRequestCaptureServer(t, key, nil)
@@ -508,8 +505,13 @@ func TestRadiusAdminUnknownAuthMethodSendsNothing(t *testing.T) {
 	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{
 		ProfileAttr: AttrFilterID, AuthMethod: AuthMethod(9),
 	})
-	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
-	require.Error(t, err)
-	assert.False(t, res.Authenticated)
+	func() {
+		defer func() {
+			if got := recover(); got != "BUG: unknown RADIUS authentication method" {
+				t.Fatalf("unexpected panic for an unnamed authentication method: %v", got)
+			}
+		}()
+		_, _ = a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "Hello"})
+	}()
 	srv.noRequest(t)
 }

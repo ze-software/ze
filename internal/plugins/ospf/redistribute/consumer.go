@@ -166,7 +166,10 @@ func (c *Consumer) injectorFor(fam family.Family) (ExternalInjector, bool) {
 		return c.inj, false
 	case family.AFIIPv6:
 		return c.injV6, true
+	case family.AFIL2VPN, family.AFIBGPLS:
+		return nil, false
 	default:
+		// Redistribution families are an open input set; unsupported AFIs have no injector.
 		return nil, false
 	}
 }

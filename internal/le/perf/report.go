@@ -83,6 +83,9 @@ func (r Report) originPhrase() string {
 		return tb.Str("branch merge-base ").Str(short).Str(" (perf never recorded here)").String()
 	case OriginWorkingTree:
 		return "working tree (perf never recorded here)"
+	case "":
+		return ""
+	default:
+		panic("BUG: performance report has an unknown baseline origin")
 	}
-	return string(r.Origin)
 }

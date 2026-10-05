@@ -56,6 +56,7 @@ func TestOSPFv3PrefixSIDInstallsPush(t *testing.T) {
 	inst.installRoutes(routes, sids, caps, algos, mySRGB)
 	var push, swap *mplsfibevents.Entry
 	for i := range bus.entries {
+		//exhaustive:ignore // This assertion selects only push and swap forwarding entries.
 		switch bus.entries[i].Op {
 		case mplsfibevents.OpPush:
 			push = &bus.entries[i]

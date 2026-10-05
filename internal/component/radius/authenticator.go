@@ -279,18 +279,19 @@ func (a *radiusAuthenticator) result(resp *Packet, username string) (aaa.AuthRes
 // per-server (Section 5.2) inside Exchange, so it never reaches the wire in the
 // clear. CHAP hashes it here and the password never leaves this process.
 //
-// A method the two constants do not name is refused rather than defaulted: an
-// Access-Request carrying no credential violates Section 4.1, and one carrying
-// a credential the operator did not choose is worse than a failed login, which
-// the chain answers by trying the next backend.
+// EAP credentials belong to authenticateEAP and remain unsupported here.
+// ExtractConfig normalizes the method before construction, so an unnamed
+// method is an internal defect, never a reason to invent a credential.
 func (a *radiusAuthenticator) credential(password string) ([]Attr, error) {
 	switch a.method {
 	case AuthMethodPAP:
 		return []Attr{{Type: AttrUserPassword, Value: []byte(password)}}, nil
 	case AuthMethodCHAP:
 		return chapCredential(a.random, password)
-	default:
+	case AuthMethodEAPMD5, AuthMethodEAPMSCHAPv2:
 		return nil, fmt.Errorf("radius: unknown auth method %d", uint8(a.method))
+	default:
+		panic("BUG: unknown RADIUS authentication method")
 	}
 }
 

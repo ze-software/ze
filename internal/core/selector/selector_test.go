@@ -647,6 +647,13 @@ func TestKindZeroIsInvalid(t *testing.T) {
 	if zero == KindAddr {
 		t.Error("Kind(0) must not equal KindAddr")
 	}
+	var sel Selector
+	if sel.Matches(netip.MustParseAddr("192.0.2.1")) {
+		t.Error("zero Selector must not match a peer address")
+	}
+	if sel.MatchesPeerKey("192.0.2.1") {
+		t.Error("zero Selector must not match a peer key")
+	}
 }
 
 // TestKindString verifies Kind.String() for valid and out-of-range kinds.
@@ -810,16 +817,20 @@ func TestParseDefaultExclude(t *testing.T) {
 	}
 }
 
-// TestStringDefaultCase verifies String() for an invalid/zero selector kind.
-//
-// VALIDATES: Unknown kind returns "<invalid>", not empty or panic.
-// PREVENTS: Empty string in logs for malformed selectors.
+// TestStringDefaultCase preserves zero-selector rendering and checks that a
+// corrupted private discriminant cannot masquerade as an ordinary selector.
 func TestStringDefaultCase(t *testing.T) {
-	sel := &Selector{kind: Kind(255)}
-	got := sel.String()
-	if got != "<invalid>" {
-		t.Errorf("String() for invalid kind = %q, want %q", got, "<invalid>")
+	sel := &Selector{}
+	if got := sel.String(); got != "<invalid>" {
+		t.Errorf("String() for zero kind = %q, want %q", got, "<invalid>")
 	}
+	defer func() {
+		if got := recover(); got != "BUG: selector: invalid kind" {
+			t.Errorf("String() panic = %v, want invalid-kind assertion", got)
+		}
+	}()
+	sel.kind = Kind(255)
+	_ = sel.String()
 }
 
 // TestParseMultiIPEmptyPart verifies empty parts in comma-separated lists are rejected.

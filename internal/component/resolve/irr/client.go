@@ -215,6 +215,8 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 		// A member list the server could not give us is unknown, not empty.
 		return fmt.Errorf("irr: resolve AS-SET %s: %s", asSet, detail)
 	case replyOK:
+	default:
+		panic("BUG: invalid IRR reply status")
 	}
 
 	for line := range strings.SplitSeq(strings.TrimSpace(payload), "\n") {
@@ -327,6 +329,8 @@ func (c *IRR) lookupFamilyPrefixes(ctx context.Context, asSet string, family int
 	case replyFailed:
 		return nil, fmt.Errorf("irr: lookup prefixes %s (IPv%d): %s", asSet, family, detail)
 	case replyOK:
+	default:
+		panic("BUG: invalid IRR reply status")
 	}
 
 	var prefixes []netip.Prefix

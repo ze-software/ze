@@ -405,7 +405,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 				cfg.Consumer.ProcessEvent(ev)
 			}
 			if es != nil {
-				switch ev.Type { //nolint:exhaustive // only tracking lifecycle transitions
+				switch ev.Type {
 				case peer.EventEstablished:
 					es.Set(ev.PeerIndex, true)
 					peerGuard.OnEstablished(ev.PeerIndex)
@@ -416,6 +416,12 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 					chaosProg.WentDown(ev.PeerIndex)
 				case peer.EventChaosExecuted:
 					chaosProg.Executed(ev.PeerIndex)
+				case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
+					peer.EventEORSent, peer.EventError, peer.EventReconnecting,
+					peer.EventWithdrawalSent, peer.EventRouteAction, peer.EventDroppedEvents:
+					// These events do not change session progress.
+				default:
+					panic("BUG: invalid in-process chaos event type")
 				}
 			}
 			eventsMu.Lock()

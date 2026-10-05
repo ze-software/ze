@@ -62,9 +62,12 @@ the kind, the level set, and the address families. Each is read once by
 flaps every adjacency on the link. Keeping that set at three is the point of the
 split.
 
-The circuit is still built once from the NODE-level config (system ID, area
-addresses), and the reconcile diffs interfaces only, so a committed `net` or
-`system-id` change does not reach a running circuit.
+The circuit is built from the node's system ID, NET and area addresses.
+Reconcile rebuilds existing circuits when the node's system ID, NET list or
+level changes, so the new identity reaches the running circuits.
+
+<!-- source: internal/plugins/isis/server.go -- reconcile, identityChanged -->
+<!-- source: internal/plugins/isis/circuits.go -- buildCircuit -->
 
 <!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild, circuitParamsEqual -->
 <!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams, launchCircuitGoroutine -->
@@ -133,6 +136,16 @@ that builds a fresh engine re-wires instead of failing with a consumer conflict.
 The `level` default token is `l1-l2` in kebab case, and the parser falls through
 to the dual-level value for any unrecognized string, so an omitted or empty level
 is the dual-level default.
+
+The Go zero value of `Level` remains `LevelL1`; `DefaultLevel` is an alias for
+`LevelL1L2`, not zero. Internal level converters handle all three values and
+assert `BUG` for an unknown numeric level. External tokens still pass through
+`parseLevel`, including its dual-level fallback.
+
+<!-- source: internal/plugins/isis/config.go -- Level, DefaultLevel, parseLevel, Level.String, Level.TransportLevel -->
+<!-- source: internal/plugins/isis/circuits.go -- circuitLevels -->
+<!-- source: internal/plugins/isis/lsdb_wiring.go -- originationLevels -->
+<!-- source: internal/plugins/isis/server.go -- spfLevelsFor -->
 
 A per-level interface override container uses **zero as "inherit"**, with no
 defaults applied. That is distinct from the circuit-wide leaves, which do get

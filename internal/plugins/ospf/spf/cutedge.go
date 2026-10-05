@@ -124,6 +124,8 @@ func graphNeighbors(g *Graph, v VertexID, root types.RouterID, target types.Link
 		for _, r := range nv.AttachedRouters {
 			out = append(out, routerVertex(r))
 		}
+	default:
+		panic("BUG: graphNeighbors: invalid vertex kind")
 	}
 	return out
 }

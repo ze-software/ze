@@ -135,6 +135,27 @@ func TestNotificationErrorCodeString(t *testing.T) {
 	}
 }
 
+// TestNotificationNumericSubcodes decodes timer and unknown codes to check that
+// generic subcode rendering survives the named-code dispatch.
+func TestNotificationNumericSubcodes(t *testing.T) {
+	for _, tc := range []struct {
+		code    uint8
+		subcode uint8
+		want    string
+	}{
+		{uint8(NotifyHoldTimerExpired), 0, "Hold Timer Expired/Unspecific"},
+		{uint8(NotifyHoldTimerExpired), 99, "Hold Timer Expired/Subcode(99)"},
+		{uint8(NotifySendHoldTimerExpired), 0, "Send Hold Timer Expired/Unspecific"},
+		{uint8(NotifySendHoldTimerExpired), 99, "Send Hold Timer Expired/Subcode(99)"},
+		{99, 0, "Unknown(99)/Unspecific"},
+		{99, 99, "Unknown(99)/Subcode(99)"},
+	} {
+		n, err := UnpackNotification([]byte{tc.code, tc.subcode})
+		require.NoError(t, err)
+		require.Equal(t, tc.want, n.String())
+	}
+}
+
 // TestNotificationCeaseSubcodes verifies Cease subcodes.
 func TestNotificationCeaseSubcodes(t *testing.T) {
 	tests := []struct {

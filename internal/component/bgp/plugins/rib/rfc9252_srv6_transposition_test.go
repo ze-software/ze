@@ -98,7 +98,7 @@ func vpnv4SRv6Update(label uint32, transposLen byte) (body, nlriKey []byte) {
 // storedSRv6SID answers the SRv6 SID the election reads for the one path peer
 // stored under nlri, a VPN NLRI framed without ADD-PATH: it names the path the
 // way checkRouteBestChange names a winner (candidatePath, from the route the
-// session stored) and asks storedPathSRv6SID, the producer the election calls.
+// session stored) and asks entrySRv6SID, the producer the election calls.
 // It reads the stored path rather than an elected candidate, so a path the
 // election would refuse (isSRv6Ineligible) still has its SID asked.
 func storedSRv6SID(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, peer netip.Addr) netip.Addr {
@@ -109,17 +109,22 @@ func storedSRv6SID(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, 
 		t.Fatalf("no route key for NLRI %x", nlri)
 	}
 	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
 	peerRIB := r.bgpPeers[peer]
-	r.peerMu.RUnlock()
 	if peerRIB == nil {
 		t.Fatalf("peer %s holds no RIB", peer)
 	}
-	paths, addPath := peerRIB.AppendKeyPaths(fam, routeKey, nil)
+	paths, addPath := peerRIB.AppendKeyPathsRetained(fam, routeKey, nil)
+	defer func() {
+		for i := range paths {
+			paths[i].Release()
+		}
+	}()
 	if len(paths) != 1 {
 		t.Fatalf("peer %s stores %d paths for NLRI %x, want 1", peer, len(paths), nlri)
 	}
 	c := &Candidate{Route: paths[0].Route, PathID: paths[0].PathID, AddPath: addPath}
-	return r.storedPathSRv6SID(fam, candidatePath(c, false, netip.Prefix{}), peer)
+	return entrySRv6SID(fam, candidatePath(c, false, netip.Prefix{}), paths[0].Entry)
 }
 
 // TestSRv6TranspositionRestoresFunctionBitsFromNLRILabel drives a real VPNv4

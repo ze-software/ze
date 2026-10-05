@@ -1082,11 +1082,11 @@ func (h *histogramTerminal) Meta() PipelineMeta {
 
 // extractPrefixLength returns the "/N" suffix from a prefix string like "10.0.0.0/24".
 func extractPrefixLength(prefix string) string {
-	idx := strings.LastIndexByte(prefix, '/')
-	if idx < 0 {
+	_, length, found := strings.CutLast(prefix, "/")
+	if !found {
 		return "unknown"
 	}
-	return prefix[idx+1:]
+	return length
 }
 
 // jsonTerminal drains the upstream, serializes all items to JSON, and records metadata.

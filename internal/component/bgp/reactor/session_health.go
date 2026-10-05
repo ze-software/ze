@@ -84,6 +84,8 @@ func (sh *sessionHealth) onStateChange(from, to PeerState) {
 		sh.clearEORLocked()
 		report.ClearWarning(reportSourceBGP, reportCodeEORTimeout, sh.peerAddr)
 		sh.startStuckTimerLocked()
+	default:
+		panic("BUG: invalid peer state")
 	}
 }
 

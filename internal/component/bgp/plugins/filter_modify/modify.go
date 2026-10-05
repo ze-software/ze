@@ -225,8 +225,9 @@ func currentForArithmetic(updateText, attrName string) (uint32, bool) {
 		logger().Warn("filter-modify: attribute value did not parse, arithmetic skipped",
 			"attribute", attrName)
 		return 0, false
+	default:
+		panic("BUG: invalid attribute reading")
 	}
-	return 0, false
 }
 
 // readBool coerces a config presence value to a boolean. Config delivery uses

@@ -53,7 +53,7 @@ not add generic text/API BGP-LS encoding or SAFI 72 origination.
 | Route Refresh | 2 | RFC 2918 | Request full route re-advertisement |
 | Enhanced Route Refresh | 70 | RFC 7313 | Bounded clear and re-send |
 | ADD-PATH | 69 | RFC 7911 | Multiple paths per prefix |
-| Extended Message | 6 | RFC 8654 | 65535-byte messages |
+| Extended Message | 6 | RFC 8654 | Up to 65535 bytes: local advertisement permits receive, peer advertisement permits send; OPEN and KEEPALIVE are unchanged |
 | Extended Next Hop | 5 | RFC 8950 | IPv6 next-hop for IPv4 NLRI |
 | Graceful Restart | 64 | RFC 4724 | Session preservation across restarts (Restarting Speaker: R-bit via zefs marker on `ze signal restart`) |
 | Long-Lived GR | 71 | RFC 9494 | Extended stale route retention with LLGR_STALE community and depreference |
@@ -64,7 +64,7 @@ not add generic text/API BGP-LS encoding or SAFI 72 origination.
 | PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Per-family path count limit for ADD-PATH |
 
 <!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->
-<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps fields ASN4, ExtendedMessage, AddPathMode, ExtendedNextHop, PathsLimitSend, PathsLimitRecv -->
+<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps fields ASN4, ExtendedMessageRecv, ExtendedMessageSend, AddPathMode, ExtendedNextHop, PathsLimitSend, PathsLimitRecv -->
 <!-- source: internal/core/bgp/capability/session.go -- SessionCaps fields RouteRefresh, EnhancedRouteRefresh, GracefulRestart -->
 <!-- source: internal/component/bgp/plugins/role/register.go -- BGP Role capability plugin -->
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->

@@ -1,0 +1,4 @@
+--relay-peer 172.30.0.3:179
+--relay-extended=true
+--duration 180
+--result /tmp/extended

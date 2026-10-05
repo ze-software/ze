@@ -821,7 +821,11 @@ func TestAWaiterMeasuresItsTreeAgainBeforeItDeclinesToShare(t *testing.T) {
 		tree: "the-hash-this-job-took-before-it-waited", treeStale: true,
 	}
 
-	if !admission.shares(waited, held) {
+	shared, err := admission.shares(waited, held)
+	if err != nil {
+		t.Fatalf("measure sharing inputs: %v", err)
+	}
+	if !shared {
 		t.Fatal("a waiter did not share a running job doing its own work on its own tree")
 	}
 	if waited.tree != held.tree {
@@ -844,7 +848,11 @@ func TestADifferentWorkKeyDeclinesWithoutMeasuringTheTree(t *testing.T) {
 		tree: "the-hash-this-job-took-before-it-waited", treeStale: true,
 	}
 
-	if admission.shares(waited, held) {
+	shared, err := admission.shares(waited, held)
+	if err != nil {
+		t.Fatalf("compare work keys: %v", err)
+	}
+	if shared {
 		t.Fatal("a job shared a run of different work")
 	}
 	if !waited.treeStale {
@@ -863,7 +871,11 @@ func TestAJobThatDidNotWaitStillDeclinesAHolderOnAnotherTree(t *testing.T) {
 	held := entry{state: "running", label: "shared", key: "same-work", tree: "another-tree"}
 	fresh := &pending{label: "shared", key: "same-work", mayAttach: true, tree: TreeHash(root)}
 
-	if admission.shares(fresh, held) {
+	shared, err := admission.shares(fresh, held)
+	if err != nil {
+		t.Fatalf("compare measured inputs: %v", err)
+	}
+	if shared {
 		t.Fatal("a job shared a run judging a different tree")
 	}
 }
@@ -1113,10 +1125,10 @@ func TestEveryInputTheLintLabelReadsVoidsItsShare(t *testing.T) {
 		}},
 	}
 
-	seen := map[string]bool{InputHash(root, LintLabel): true}
+	seen := map[string]bool{fixtureInputHash(t, root, LintLabel): true}
 	for _, step := range steps {
 		step.do()
-		got := InputHash(root, LintLabel)
+		got := fixtureInputHash(t, root, LintLabel)
 		if seen[got] {
 			t.Errorf("%s: the lint fingerprint did not move, so a second lint would take a verdict reached before it", step.name)
 		}
@@ -1132,17 +1144,17 @@ func TestEveryInputTheLintLabelReadsVoidsItsShare(t *testing.T) {
 // that answered a constant would pass every line above it.
 func TestTheTreesTheLintLabelIgnoresDoNotVoidItsShare(t *testing.T) {
 	root := lintRepo(t)
-	before := InputHash(root, LintLabel)
+	before := fixtureInputHash(t, root, LintLabel)
 
 	for _, tree := range lintIgnores {
 		write(t, root, filepath.Join(tree, "a-session-wrote-this.md"), "a row\n")
-		if got := InputHash(root, LintLabel); got != before {
+		if got := fixtureInputHash(t, root, LintLabel); got != before {
 			t.Errorf("a file under %s voided the lint share, and a lint reads nothing there", tree)
 		}
 	}
 
 	write(t, root, filepath.Join("core", "a-session-wrote-this.md"), "a row\n")
-	if InputHash(root, LintLabel) == before {
+	if fixtureInputHash(t, root, LintLabel) == before {
 		t.Error("a file beside a Go package left the fingerprint alone, so the trees above prove nothing")
 	}
 }
@@ -1189,13 +1201,13 @@ func TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout(t *testin
 	root := lintRepo(t)
 	const undeclared = "some-other-job"
 
-	before := InputHash(root, undeclared)
+	before := fixtureInputHash(t, root, undeclared)
 	if want := TreeHash(root); before != want {
 		t.Fatalf("InputHash for an undeclared label = %s, want the whole-checkout hash %s", before, want)
 	}
 
 	write(t, root, filepath.Join("plan", "journal", "a-row.md"), "a row\n")
-	if InputHash(root, undeclared) == before {
+	if fixtureInputHash(t, root, undeclared) == before {
 		t.Error("an undeclared label held its fingerprint across a change, so it is not measuring the whole checkout")
 	}
 }

@@ -823,6 +823,7 @@ func parseBracketValue(tokens []string) string {
 // every caller's path already, and a value invented here would hide which
 // spelling was rejected.
 func NormalizeLeafValue(typ ValueType, value string) string {
+	//exhaustive:ignore // Only boolean and ASN leaves need canonical spelling conversion.
 	switch typ {
 	case TypeBool:
 		return NormalizeBool(value)

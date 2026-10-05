@@ -750,8 +750,10 @@ func (s SetType) String() string {
 		return "mark"
 	case SetTypeIfname:
 		return "ifname"
+	default:
+		// Validation can report nonzero unknown set types; keep them diagnostic.
+		return textbuf.StrIntStr("unknown(", int64(s), ")")
 	}
-	return textbuf.StrIntStr("unknown(", int64(s), ")")
 }
 
 // SetFlags are bitmask flags for set behavior.

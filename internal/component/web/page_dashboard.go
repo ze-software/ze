@@ -123,7 +123,7 @@ func handleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *htt
 }
 
 // componentHealthRow resolves one component's status, flag color, and summary:
-// a live probe wins, then AlwaysUp (web is serving), then config presence.
+// a known live probe status wins, then AlwaysUp, then config presence.
 func componentHealthRow(comp componentDef, viewTree *config.Tree, probes map[string]health.ComponentHealth) (status, flagClass, summary string) {
 	if comp.HealthName != "" {
 		if probe, ok := probes[comp.HealthName]; ok {
@@ -134,6 +134,8 @@ func componentHealthRow(comp componentDef, viewTree *config.Tree, probes map[str
 				return "Degraded", flagClassYellow, healthSummary(probe.Reason, "Degraded")
 			case health.StatusDown:
 				return "Down", flagClassRed, healthSummary(probe.Reason, "Not running")
+			default:
+				// Health callbacks are open; unknown statuses keep the fallback below.
 			}
 		}
 	}

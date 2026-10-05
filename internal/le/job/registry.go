@@ -90,6 +90,8 @@ type pending struct {
 // outcome is what one scan decided.
 type outcome struct {
 	state state
+	// err refuses a scan whose inputs could not be measured.
+	err error
 	// entry is the registry entry, relative to the root: this job's when the
 	// state is claimed, the holder's when it is attach.
 	entry string
@@ -194,8 +196,14 @@ func (a *Admission) scanAndClaim(job *pending) outcome {
 			}
 		}
 
-		if share == nil && a.shares(job, held) {
-			share = &held
+		if share == nil {
+			shared, err := a.shares(job, held)
+			if err != nil {
+				return outcome{err: err}
+			}
+			if shared {
+				share = &held
+			}
 		}
 
 		occupied++
@@ -243,21 +251,25 @@ func (a *Admission) scanAndClaim(job *pending) outcome {
 // The measurement costs three git calls, so the key is compared FIRST. A job
 // waiting behind unrelated work cannot share whatever its inputs say, and it
 // pays nothing.
-func (a *Admission) shares(job *pending, held entry) bool {
+func (a *Admission) shares(job *pending, held entry) (bool, error) {
 	if !job.mayAttach || held.state != "running" || held.label != job.label {
-		return false
+		return false, nil
 	}
 	if job.key == "" || job.key == Unknown || held.key != job.key {
-		return false
+		return false, nil
 	}
 	if job.treeStale {
-		job.tree = InputHash(a.Root, job.label)
+		tree, err := InputHash(a.Root, job.label)
+		if err != nil {
+			return false, err
+		}
+		job.tree = tree
 		job.treeStale = false
 	}
 	if job.tree == "" || job.tree == Unknown || held.tree != job.tree {
-		return false
+		return false, nil
 	}
-	return true
+	return true, nil
 }
 
 // take writes this job's entry, which IS its claim on a slot.
@@ -266,7 +278,11 @@ func (a *Admission) take(job *pending, now time.Time) outcome {
 	// this job will judge. A job can wait behind a twenty minute holder. During
 	// that wait, the inputs the job originally requested can change.
 	if job.treeStale {
-		job.tree = InputHash(a.Root, job.label)
+		tree, err := InputHash(a.Root, job.label)
+		if err != nil {
+			return outcome{err: err}
+		}
+		job.tree = tree
 	}
 
 	pid := os.Getpid()

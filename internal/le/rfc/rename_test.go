@@ -99,18 +99,18 @@ func treeDigest(t *testing.T, root string) map[string]renameEntrySnapshot {
 			return nil
 		}
 		var digest [sha256.Size]byte
-		if entry.Type()&os.ModeSymlink != 0 {
-			target, err := os.Readlink(path)
-			if err != nil {
-				return err
-			}
-			digest = sha256.Sum256([]byte(target))
-		} else {
+		if entry.Type()&os.ModeSymlink == 0 {
 			raw, err := os.ReadFile(path) // #nosec G304 -- this test's own fixture tree
 			if err != nil {
 				return err
 			}
 			digest = sha256.Sum256(raw)
+		} else {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			digest = sha256.Sum256([]byte(target))
 		}
 		out[path] = renameEntrySnapshot{kind: entry.Type(), digest: digest}
 		return nil

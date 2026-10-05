@@ -90,7 +90,7 @@ func (b *govppMPLSBackend) addMPLSRoute(prefix netip.Prefix, nextHop netip.Addr,
 	}
 	reply := &ip.IPRouteAddDelReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("mpls IPRouteAddDel: %w", err)
+		return fmt.Errorf("mpls IPRouteAddDel: %w: %w", errVPPMutationUncertain, err)
 	}
 	if reply.Retval != 0 {
 		return fmt.Errorf("mpls IPRouteAddDel retval=%d", reply.Retval)
@@ -109,7 +109,7 @@ func (b *govppMPLSBackend) delMPLSRoute(prefix netip.Prefix, _ []uint32) error {
 	}
 	reply := &ip.IPRouteAddDelReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("mpls del IPRouteAddDel: %w", err)
+		return fmt.Errorf("mpls del IPRouteAddDel: %w: %w", errVPPMutationUncertain, err)
 	}
 	if reply.Retval != 0 {
 		return fmt.Errorf("mpls del IPRouteAddDel retval=%d", reply.Retval)

@@ -131,6 +131,7 @@ func (rd RouteDistinguisher) String() string {
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
 		return b.Str("2:").Uint32(administrator).Byte(':').Uint16(assigned).String()
 	default:
+		// RD types are an open wire field; retain the unknown type and raw value.
 		return b.Str("rd-type").Uint16(uint16(rd.Type)).Byte(':').Hex(rd.Value[:]).String()
 	}
 }

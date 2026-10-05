@@ -260,6 +260,65 @@ func TestEngineStepsFileRoundTrip(t *testing.T) {
 	}
 }
 
+// TestEngineStepsJSONRejectsUnknownKinds checks the external numeric domain,
+// including an omitted kind, before any decoded list can reach dispatch.
+func TestEngineStepsJSONRejectsUnknownKinds(t *testing.T) {
+	for _, data := range []string{`[{}]`, `[{"kind":0}]`, `[{"kind":255}]`,
+		`[{"kind":1,"text":"show version"},{"kind":255}]`} {
+		steps, err := UnmarshalEngineSteps([]byte(data))
+		if err == nil || steps != nil {
+			t.Fatalf("UnmarshalEngineSteps(%s) = %v, %v; want no steps and an error", data, steps, err)
+		}
+		if !strings.Contains(err.Error(), "unknown kind") {
+			t.Fatalf("wrong refusal for %s: %v", data, err)
+		}
+	}
+}
+
+// TestEngineStepsJSONAcceptsNamedKinds retains every existing numeric kind.
+func TestEngineStepsJSONAcceptsNamedKinds(t *testing.T) {
+	want := []EngineStep{
+		{Kind: EngineStepCommand}, {Kind: EngineStepStream},
+		{Kind: EngineStepExpectOutput}, {Kind: EngineStepExpectEvent},
+		{Kind: EngineStepExpectStream}, {Kind: EngineStepExpectCommandError},
+	}
+	data, err := marshalEngineSteps(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := UnmarshalEngineSteps(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("decoded %d steps, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("step %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+// TestRunEngineStepsRejectsUnknownKind checks direct callers cannot turn an
+// unknown step into success or dispatch its text as a command.
+func TestRunEngineStepsRejectsUnknownKind(t *testing.T) {
+	for _, kind := range []EngineStepKind{0, 255} {
+		calls := 0
+		dispatch := func(context.Context, string) (string, string, error) {
+			calls++
+			return "", "", nil
+		}
+		err := RunEngineSteps(t.Context(), dispatch, NewEngineEventBuffer(), []EngineStep{{Kind: kind}})
+		if err == nil || !strings.Contains(err.Error(), "unknown kind") {
+			t.Fatalf("kind %d returned %v, want unknown-kind error", kind, err)
+		}
+		if calls != 0 {
+			t.Fatalf("kind %d dispatched %d commands", kind, calls)
+		}
+	}
+}
+
 func TestParseEngineCommandKeepsColons(t *testing.T) {
 	r := parseCIRecord(t, "command=request l2tp outgoing-call remote lns1 called 555:1234\n")
 	if len(r.EngineSteps) != 1 {

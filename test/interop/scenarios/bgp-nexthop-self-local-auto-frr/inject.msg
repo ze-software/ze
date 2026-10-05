@@ -1,9 +1,10 @@
 # Raw BGP injector for the next-hop self + `local ip auto` scenario.
 #
-# One announcement, 10.10.0.0/24 with NEXT_HOP 172.30.0.9 (this container). Ze
+# The original announcement, 10.10.0.0/24, uses NEXT_HOP 172.30.0.9. Ze
 # forwards it to FRR, whose peer carries `next-hop self` and no configured local
 # address, and the checker requires FRR to hold it with NEXT_HOP 172.30.0.2
 # (Ze's connected endpoint), never 172.30.0.9.
+# Two additional AIGP routes and a later FIFO sentinel extend that proof below.
 #
 # ASN is pinned via inject-args (--asn 65004).
 option=tcp_connections:value=1
@@ -21,6 +22,15 @@ expect=bgp:conn=1:seq=1:contains=180A1400
 # The forwarded route. ORIGIN=IGP, AS_PATH=[65004], NEXT_HOP=172.30.0.9
 # (AC1E0009), NLRI=10.10.0.0/24.
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC400304AC1E0009180A0A00
+#
+# RFC 7311 Section 3.4.3: source-link7 plus received100 must become107.
+# These are the only source announcements; metric recovery sends no new UPDATE.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDEC400304AC1E0009801A0B01000B0000000000000064180A0A02
+# A third-party next hop has no initial distance, so only the unchanged control
+# may receive this route until the checker installs a real Loc-RIB metric.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDEC400304AC1E004D801A0B01000B0000000000000064180A0A03
+# A later non-AIGP route fences the initially withheld UPDATE on FRR's FIFO.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC400304AC1E0009180A0A04
 
 # End-of-RIB.
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

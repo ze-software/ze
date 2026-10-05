@@ -336,7 +336,7 @@ type kernelEvent struct {
 
 func (e kernelEvent) String() string {
 	var tb textbuf.Buffer
-	verb := "add"
+	verb := argAdd
 	if e.deleted {
 		verb = "del"
 	}
@@ -391,7 +391,7 @@ func (m *netlinkMonitor) stop() {
 // notification of its own on a device the test owns and waits to see it come
 // back, then takes it away again.
 func awaitMonitorListening(ctx context.Context, monitor *netlinkMonitor, device string) error {
-	if out, err := runIP(ctx, "addr", "add", monitorProbeAddress, "dev", device); err != nil {
+	if out, err := runIP(ctx, "addr", argAdd, monitorProbeAddress, "dev", device); err != nil {
 		return fmt.Errorf("add monitor probe address: %w: %s", err, out)
 	}
 	seen := func() bool { return strings.Contains(monitor.text(), monitorProbeAddress) }

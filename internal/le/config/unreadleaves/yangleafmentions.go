@@ -223,6 +223,8 @@ func parseLeaves(text string) []yangLeaf {
 			}
 			continue
 		case markerLeaf:
+		default:
+			panic("BUG: YANG leaf scan has an unknown marker kind")
 		}
 		if len(stack) > 0 && stack[len(stack)-1].keys[marker.name] {
 			continue // list key leaf: its value is the entry name, never a literal

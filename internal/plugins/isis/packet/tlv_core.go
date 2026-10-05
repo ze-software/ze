@@ -263,8 +263,8 @@ const (
 )
 
 // DecodeP2PThreeWayTLV parses a TLV 240 value (length 1, 5, or 15). Any other
-// length is rejected (ErrLength) per RFC 5303 sec 3.1; the codec does not
-// validate the state value here (isis-5 discards an invalid state).
+// length is rejected (ErrLength) per RFC 5303 sec 3.1. The state octet is
+// preserved without validation; the adjacency layer decides its effect.
 func DecodeP2PThreeWayTLV(value []byte) (P2PThreeWayTLV, error) {
 	var out P2PThreeWayTLV
 	switch len(value) {

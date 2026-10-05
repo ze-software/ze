@@ -57,7 +57,7 @@ func TestSocketMetricFeedReselectsRetainedRoutes(t *testing.T) {
 						break
 					}
 					distance := igpcost.Resolve(engineRIB, addr)
-					out.Distances = append(out.Distances, rpc.RouteMetric{Cost: distance.Cost, Resolved: distance.Resolved, MissingAIGP: distance.MissingAIGP})
+					out.Distances = append(out.Distances, rpc.RouteMetric{Cost: distance.Cost, Resolved: distance.Resolved, Recursive: distance.Recursive, MissingAIGP: distance.MissingAIGP})
 				}
 				result = out
 			case rpc.MethodRouteInstall:

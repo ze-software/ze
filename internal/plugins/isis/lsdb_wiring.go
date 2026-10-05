@@ -904,8 +904,10 @@ func originationLevels(l Level) []lsdb.Level {
 		return []lsdb.Level{lsdb.Level1}
 	case LevelL2:
 		return []lsdb.Level{lsdb.Level2}
-	default:
+	case LevelL1L2:
 		return []lsdb.Level{lsdb.Level1, lsdb.Level2}
+	default:
+		panic("BUG: invalid configured IS-IS level")
 	}
 }
 
@@ -939,7 +941,7 @@ func configFormsLevel(cfgLevel Level, level lsdb.Level) bool {
 	case lsdb.Level2:
 		return cfgLevel.HasL2()
 	default:
-		return false
+		panic("BUG: invalid LSDB level in configured-level dispatch")
 	}
 }
 

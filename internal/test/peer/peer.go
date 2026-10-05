@@ -60,11 +60,10 @@ const (
 
 // Mode name constants.
 const (
-	modeNameCheck   = "check"
-	modeNameSink    = "sink"
-	modeNameEcho    = "echo"
-	modeNameInject  = "inject"
-	modeNameUnknown = "unknown"
+	modeNameCheck  = "check"
+	modeNameSink   = "sink"
+	modeNameEcho   = "echo"
+	modeNameInject = "inject"
 )
 
 // String returns the mode name.
@@ -79,7 +78,7 @@ func (m Mode) String() string {
 	case ModeInject:
 		return modeNameInject
 	default:
-		return modeNameUnknown
+		panic("BUG: unknown peer mode")
 	}
 }
 

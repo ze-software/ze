@@ -210,8 +210,11 @@ func (state *vppStubState) reply(name string, context uint32, body []byte) ([]by
 		offset = 10
 	case api.ReplyMessage, api.EventMessage:
 		offset = 6
+	case api.OtherMessage:
+		// The 2-octet message ID is the whole header.
+		offset = 2
 	default:
-		// api.OtherMessage: the 2-octet message id is the whole header.
+		// The registry's message-kind set is open; retain the minimal header for unknown kinds.
 		offset = 2
 	}
 	payload := make([]byte, offset+len(body))

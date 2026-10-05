@@ -113,6 +113,8 @@ func (g *Guard) AllowChaos(idx int, action engine.ActionType) (bool, string) {
 		engine.ActionIfaceLinkFlap,
 		engine.ActionIfaceAddrRemove:
 		// No additional guards — these are always valid on an established peer.
+	default:
+		panic("BUG: invalid guarded chaos action")
 	}
 
 	return true, ""
@@ -138,6 +140,8 @@ func (g *Guard) AllowRoute(idx int, action route.ActionType) (bool, string) {
 		if !s.routesLive {
 			return false, "no routes to churn"
 		}
+	default:
+		panic("BUG: invalid guarded route action")
 	}
 
 	return true, ""

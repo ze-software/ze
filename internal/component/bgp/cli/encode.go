@@ -136,8 +136,9 @@ func cmdEncode(args []string) int {
 	var updateBytes []byte
 	var nlriBytes []byte
 
-	switch { //nolint:staticcheck // QF1002: untagged switch avoids exhaustive check; default handles all non-unicast via registry
-	case safi == family.SAFIUnicast:
+	//exhaustive:ignore // Unicast is local; all other families dispatch through the plugin registry.
+	switch safi {
+	case family.SAFIUnicast:
 		// Unicast is handled locally (not a plugin family)
 		// #nosec G115 - localAS is from uint flag, bounded by flag validation
 		ub := message.GetUpdateBuilder(uint32(*localAS), isIBGP, *asn4, *pathInfo)

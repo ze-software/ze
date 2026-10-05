@@ -20,8 +20,10 @@ func (t Target) DefaultBinary() string {
 		return "bgpd"
 	case TargetBIRD:
 		return "bird"
-	default:
+	case TargetZe:
 		return "ze"
+	default:
+		panic("BUG: invalid daemon target")
 	}
 }
 
@@ -38,6 +40,7 @@ func ParseTarget(s string) (Target, error) {
 	case TargetZe, TargetFRR, TargetBIRD:
 		return Target(s), nil
 	default:
+		// Application names come from CLI input; the set is open.
 		return "", fmt.Errorf("unknown target %q (valid: ze, frr, bird)", s)
 	}
 }

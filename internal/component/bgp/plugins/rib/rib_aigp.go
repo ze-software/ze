@@ -22,7 +22,7 @@ func (r *RIBManager) runAIGPSelection(ctx context.Context) {
 		r.runRemoteMetrics(ctx)
 		return
 	}
-	loc := r.locRIB
+	loc := r.locRIB.Load()
 	if loc == nil {
 		return
 	}

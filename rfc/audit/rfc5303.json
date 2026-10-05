@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5303-3.1-1": {
@@ -49,8 +52,8 @@
       "note": "Re-judged 2026-09-30 after the D-8 (R39) fix: ReceiveHello now applies the section 3.2 table to a P2P adjacency that has seen TLV 240, and a new adjacency is created in StateDown so its first Hello reads the Down row. adjacency TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp: a fresh adjacency receiving Initializing comes Up with SessionUp (positive, the Down row's Up cell); a fresh adjacency receiving Up with our System ID echoed stays Down with no session event and deleteAt=now (negative: the old code went straight Up), while an Initializing adjacency given the same Hello comes Up, so the refusal is the Down row's. Recorded +/- on fsm.go threeWayTableAction. circuit TestISISThreeWayNewAdjacencyStateDown stays tagged and proves only the neighbouring reporting rule (a Down record is reported Down); it carries no weight here.",
       "requirement_sha": "68765c448c0420e5",
       "tests": {
-        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp": "9c8d8a819fd5d2e9",
-        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp#2": "9c8d8a819fd5d2e9",
+        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp": "138d0f89ea4cda2f",
+        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp#2": "138d0f89ea4cda2f",
         "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown": "d32edc6561822cd6",
         "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown#2": "d32edc6561822cd6"
       },
@@ -67,8 +70,8 @@
       "requirement_sha": "8cf2b558704893b3",
       "tests": {
         "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "9dbfe0180a8a24cd",
-        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "9c8d8a819fd5d2e9",
-        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "9c8d8a819fd5d2e9"
+        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "138d0f89ea4cda2f",
+        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "138d0f89ea4cda2f"
       },
       "units": {
         "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "f925dc509cd1e837",
@@ -83,8 +86,8 @@
       "tests": {
         "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction": "9dbfe0180a8a24cd",
         "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction#2": "9dbfe0180a8a24cd",
-        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow": "9c8d8a819fd5d2e9",
-        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow#2": "9c8d8a819fd5d2e9"
+        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow": "138d0f89ea4cda2f",
+        "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow#2": "138d0f89ea4cda2f"
       },
       "units": {
         "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction": "61ff66b3c619aae8",

@@ -150,13 +150,20 @@ func TestLCPStateString(t *testing.T) {
 	}{
 		{LCPStateInitial, "initial"},
 		{LCPStateOpened, "opened"},
-		{LCPState(99), "unknown"},
 	}
 	for _, tc := range cases {
 		if tc.s.String() != tc.want {
 			t.Errorf("LCPState(%d).String() = %q, want %q", tc.s, tc.s.String(), tc.want)
 		}
 	}
+	t.Run("unnamed state", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: unknown LCP state" {
+				t.Fatalf("panic = %v, want BUG: unknown LCP state", got)
+			}
+		}()
+		_ = LCPState(99).String()
+	})
 }
 
 func TestLCPActionString(t *testing.T) {
@@ -167,11 +174,39 @@ func TestLCPActionString(t *testing.T) {
 		{LCPActTLU, "tlu"},
 		{LCPActSCR, "scr"},
 		{LCPActSER, "ser"},
-		{LCPAction(99), "?"},
 	}
 	for _, tc := range cases {
 		if tc.a.String() != tc.want {
 			t.Errorf("LCPAction(%d).String() = %q, want %q", tc.a, tc.a.String(), tc.want)
 		}
 	}
+	t.Run("unnamed action", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: unknown LCP action" {
+				t.Fatalf("panic = %v, want BUG: unknown LCP action", got)
+			}
+		}()
+		_ = LCPAction(99).String()
+	})
+}
+
+// TestLCPFSMInvalidValues distinguishes an impossible internal value from a
+// named event that is merely unexpected in the current state.
+func TestLCPFSMInvalidValues(t *testing.T) {
+	t.Run("unnamed state", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: unknown LCP state" {
+				t.Fatalf("panic = %v, want BUG: unknown LCP state", got)
+			}
+		}()
+		LCPDoTransition(LCPState(99), LCPEventUp)
+	})
+	t.Run("unnamed event", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: unknown LCP event" {
+				t.Fatalf("panic = %v, want BUG: unknown LCP event", got)
+			}
+		}()
+		LCPDoTransition(LCPStateInitial, lCPEvent(99))
+	})
 }

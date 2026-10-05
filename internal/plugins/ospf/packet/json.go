@@ -297,7 +297,10 @@ func lsaToJSON(lsa LSA) lsaJSON {
 		out.Opaque = &opaqueLSAJSON{Data: hex.EncodeToString(lsa.Body)}
 		// RFC 7684 (spec-ospf-ext-4): decode Extended Prefix (7) / Extended Link (8) bodies.
 		opaqueBodyToJSON(lsa, out.Opaque)
+	case types.LSTypeLink, types.LSTypeGraceV6:
+		return out
 	default:
+		// LS types are an open wire set; unknown bodies keep header-only output.
 		return out
 	}
 	return out

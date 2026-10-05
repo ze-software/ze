@@ -99,7 +99,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 	tok := p.tok.peek()
 
-	switch tok.kind { //nolint:exhaustive // Only specific tokens valid here, others handled in final return
+	switch tok.kind {
 	case tokenSemicolon:
 		// Flag mode: just the name with semicolon = true
 		p.tok.next()
@@ -176,9 +176,11 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 
 	case tokenWord, tokenString:
 		return p.parseFlexValue(tree, name, node, tok)
+	case tokenEOF, tokenRBrace, tokenRBracket, tokenRParen:
+		return p.errorf(tok, "expected ';', value, or '{' for %s, got %s", name, tok.kind)
+	default:
+		panic("BUG: invalid config token kind")
 	}
-
-	return p.errorf(tok, "expected ';', value, or '{' for %s, got %s", name, tok.kind)
 }
 
 // parseFlexValue handles the word/string case for parseFlex.
@@ -186,7 +188,8 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok tok
 	// Value mode: parse multiple words until semicolon or block delimiter
 	var values []string
 	for tok.kind == tokenWord || tok.kind == tokenString || tok.kind == tokenLBracket || tok.kind == tokenLParen {
-		switch tok.kind { //nolint:exhaustive // Only handling specific types in loop condition
+		//exhaustive:ignore // The loop admits only scalar, array and parenthesized values.
+		switch tok.kind {
 		case tokenLBracket:
 			// Array: collect [ ... ]
 			arrayVals, err := p.collectArray()
@@ -340,7 +343,7 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 			// Get value - can be word, string, array [ ... ], parenthesized ( ... ), or flag
 			tok = p.tok.peek()
 			var attrValue string
-			switch tok.kind { //nolint:exhaustive // Other types handled in final error return
+			switch tok.kind {
 			case tokenLBracket:
 				// Array value: [ item item ... ]
 				arrayVals, err := p.collectArray()
@@ -379,8 +382,10 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 			case tokenSemicolon:
 				// Flag without value - the attribute itself is the value (like "withdraw;")
 				attrValue = configTrue
-			default:
+			case tokenEOF, tokenLBrace, tokenRBrace, tokenRBracket, tokenRParen:
 				return p.errorf(tok, "expected value for %s.%s, got %s", name, attrName, tok.kind)
+			default:
+				panic("BUG: invalid config token kind")
 			}
 
 			// Validate if we know this attribute (skip for arrays since values are joined)
@@ -446,7 +451,8 @@ func (p *Parser) skipBlock() error {
 	depth := 1
 	for depth > 0 {
 		tok = p.tok.next()
-		switch tok.kind { //nolint:exhaustive // Only tracking braces and EOF
+		//exhaustive:ignore // Skips block contents by tracking only brace depth and EOF.
+		switch tok.kind {
 		case tokenLBrace:
 			depth++
 		case tokenRBrace:
@@ -473,7 +479,7 @@ func (p *Parser) collectArray() ([]string, error) {
 
 	for depth > 0 {
 		tok = p.tok.peek()
-		switch tok.kind { //nolint:exhaustive // Only specific tokens handled, others pass through
+		switch tok.kind {
 		case tokenRBracket:
 			depth--
 			if depth > 0 {
@@ -500,12 +506,14 @@ func (p *Parser) collectArray() ([]string, error) {
 			p.tok.next()
 		case tokenEOF:
 			return nil, p.errorf(tok, "unexpected EOF in array")
-		default:
-			// Include other tokens (parens, commas) in nested content
+		case tokenLBrace, tokenRBrace, tokenLParen, tokenRParen, tokenSemicolon:
+			// Include other delimiters in nested content.
 			if depth > 1 {
 				nested += tok.value
 			}
 			p.tok.next()
+		default:
+			panic("BUG: invalid config token kind")
 		}
 	}
 
@@ -531,7 +539,7 @@ func (p *Parser) collectParenthesized() ([]string, error) {
 
 	for depth > 0 {
 		tok = p.tok.peek()
-		switch tok.kind { //nolint:exhaustive // Only specific tokens handled
+		switch tok.kind {
 		case tokenRParen:
 			depth--
 			if depth > 0 {
@@ -556,9 +564,11 @@ func (p *Parser) collectParenthesized() ([]string, error) {
 			p.tok.next()
 		case tokenEOF:
 			return nil, p.errorf(tok, "unexpected EOF in parenthesized expression")
-		default:
+		case tokenLBrace, tokenRBrace, tokenSemicolon:
 			current += tok.value
 			p.tok.next()
+		default:
+			panic("BUG: invalid config token kind")
 		}
 	}
 

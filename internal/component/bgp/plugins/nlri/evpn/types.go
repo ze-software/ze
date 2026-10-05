@@ -117,8 +117,10 @@ func (t EVPNRouteType) String() string {
 		return RouteNameEthernetSegment
 	case EVPNRouteType5:
 		return RouteNameIPPrefix
+	default:
+		// The wire route-type registry is open; retain unknown numeric names.
+		return textbuf.StrInt("evpn-type-", int64(t))
 	}
-	return textbuf.StrInt("evpn-type-", int64(t))
 }
 
 // ESI represents a 10-byte Ethernet Segment Identifier.
@@ -265,12 +267,7 @@ func ParseEVPN(data []byte, addpath bool) (EVPN, []byte, error) {
 		evpn, err = parseEVPNType4(nlriData, pathID, addpath)
 	case EVPNRouteType5:
 		evpn, err = parseEVPNType5(nlriData, pathID, addpath)
-	case 0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15: // Reserved/unknown route types
-		evpn = &eVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
-	}
-
-	// Handle any other route type as generic
-	if evpn == nil && err == nil {
+	default: // The wire route-type registry is open; preserve unknown bodies.
 		evpn = &eVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
 	}
 

@@ -51,6 +51,7 @@ OPEN from parsed capabilities.
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
+| `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | administrative start if delivered after startup; normal startup uses a fresh Idle FSM | ignored; ConnectRetryCounter untouched | none | `OpenSent` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventBGPOpen` | `handleOpen` after version + hold-time validation + capability negotiation, through `advanceAfterOpen` | log transition | KEEPALIVE sent immediately after transition, hold timer reset to negotiated value. Not fired at all while BFD strict mode holds the session (see below) | `OpenConfirm` |

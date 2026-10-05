@@ -455,11 +455,11 @@ func procFact(pid int) (Process, bool) {
 	if err != nil {
 		return Process{}, false
 	}
-	closing := bytes.LastIndexByte(stat, ')')
-	if closing < 0 {
+	_, remainder, found := bytes.CutLast(stat, []byte{')'})
+	if !found {
 		return Process{}, false
 	}
-	fields := bytes.Fields(stat[closing+1:])
+	fields := bytes.Fields(remainder)
 	if len(fields) <= 19 {
 		return Process{}, false
 	}

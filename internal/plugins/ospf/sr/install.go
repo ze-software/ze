@@ -72,7 +72,9 @@ func OutgoingLabel(label uint32, action OutgoingAction, explicitNull uint32) (ui
 		return explicitNull, true
 	case ActionPHP:
 		return 0, false
-	default: // ActionKeep
+	case ActionKeep:
 		return label, true
+	default:
+		panic("BUG: OutgoingLabel: invalid outgoing action")
 	}
 }

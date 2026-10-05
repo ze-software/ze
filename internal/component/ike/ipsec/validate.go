@@ -60,10 +60,8 @@ func IsEAPMode(mode AuthMode) bool {
 // EAP-TLS is not one of these: it authenticates with a certificate.
 // Pre-shared-secret is not one either. parseAuthConfig reads the same leaf for
 // it, but no EAP exchange runs there, so nothing else asks this question of it.
-//
-// The switch names every mode, so the exhaustive linter refuses a mode added to
-// the enum and not answered here.
 func IsEAPPasswordMode(mode AuthMode) bool {
+	//exhaustive:ignore // Only password-based EAP methods use this credential; other modes do not.
 	switch mode {
 	case AuthEAPMSCHAPv2, AuthEAPMD5:
 		return true

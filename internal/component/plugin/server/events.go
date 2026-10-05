@@ -59,7 +59,8 @@ func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 // Returns error if no plugin registered or plugin not running.
 // addPath states whether each NLRI in hexData carries a 4-octet Path Identifier
 // ahead of it (RFC 7911 Section 3).
-func (s *Server) DecodeNLRI(family, hexData string, addPath bool) (string, error) {
+// withdraw selects MP_UNREACH withdrawal semantics; false means announcement.
+func (s *Server) DecodeNLRI(family, hexData string, addPath, withdraw bool) (string, error) {
 	pm := s.procManager.Load()
 	if s.registry == nil || pm == nil {
 		return "", errServerNotConfiguredForPlugins
@@ -83,7 +84,7 @@ func (s *Server) DecodeNLRI(family, hexData string, addPath bool) (string, error
 	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
-	jsonResult, err := conn.SendDecodeNLRI(ctx, family, hexData, addPath)
+	jsonResult, err := conn.SendDecodeNLRI(ctx, family, hexData, addPath, withdraw)
 	if err != nil {
 		return "", fmt.Errorf("plugin request failed: %w", err)
 	}

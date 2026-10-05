@@ -91,6 +91,17 @@
     },
     {
       "rid": "RFC2205-2-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205PathWithoutSenderTSpecDropped",
+      "unit-sha": "040b64989223f7f9",
+      "claim-sha": "e48a4a38a2305aa8",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handlePath",
+      "producer-sha": "52911746ab4a84d3",
+      "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-2-4",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathCarriesSenderTSpec",
       "unit-sha": "d7fe1f2cbc8bfa39",
@@ -112,17 +123,6 @@
       "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC2205-2-4",
-      "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205PathWithoutSenderTSpecDropped",
-      "unit-sha": "040b64989223f7f9",
-      "claim-sha": "e48a4a38a2305aa8",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "52911746ab4a84d3",
-      "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
       "rid": "RFC2205-2-7",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearWithoutStateNotRelayed",
@@ -130,7 +130,7 @@
       "claim-sha": "9c476a3f4793e164",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
-      "producer-sha": "a2b9c7ab9423c2ec",
+      "producer-sha": "59b3b08faf6f7d2b",
       "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,8 +141,30 @@
       "claim-sha": "34ec5e01b6bba024",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
-      "producer-sha": "a2b9c7ab9423c2ec",
+      "producer-sha": "59b3b08faf6f7d2b",
       "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-2.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB",
+      "unit-sha": "3f6c62b571d655d1",
+      "claim-sha": "eb1f2ccdee807c29",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/fsm.go::expiredPSBs",
+      "producer-sha": "54b5441a363226eb",
+      "break": "body of expiredPSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-2.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv",
+      "unit-sha": "c34f561a1aa2dffe",
+      "claim-sha": "f8063d341d05959a",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
+      "producer-sha": "16323bbbb2f31d7a",
+      "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2205-2.3-1",
@@ -198,28 +220,6 @@
       "producer": "internal/plugins/rsvpte/fsm.go::expiredRSBs",
       "producer-sha": "c66dd20d835ca538",
       "break": "body of expiredRSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC2205-2.3-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB",
-      "unit-sha": "3f6c62b571d655d1",
-      "claim-sha": "eb1f2ccdee807c29",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/fsm.go::expiredPSBs",
-      "producer-sha": "54b5441a363226eb",
-      "break": "body of expiredPSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC2205-2.3-1",
-      "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv",
-      "unit-sha": "c34f561a1aa2dffe",
-      "claim-sha": "f8063d341d05959a",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
-      "producer-sha": "16323bbbb2f31d7a",
-      "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2205-3-1",
@@ -284,7 +284,7 @@
       "claim-sha": "4c2c2d6e471f1ac1",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
-      "producer-sha": "a2b9c7ab9423c2ec",
+      "producer-sha": "59b3b08faf6f7d2b",
       "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,7 @@
       "claim-sha": "377cc00a0546200c",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
-      "producer-sha": "a2b9c7ab9423c2ec",
+      "producer-sha": "59b3b08faf6f7d2b",
       "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -315,10 +315,10 @@
       "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation",
       "unit-sha": "0d7bbb0da6e4f7e1",
       "claim-sha": "a01ca6eb62bd586b",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
-      "producer-sha": "a2b9c7ab9423c2ec",
-      "break": "line 873: \"keyFromMessage(msg)\" -\u003e \"func() lspKey { key := keyFromMessage(msg); key.LSPID = 1; return key }()\""
+      "producer-sha": "59b3b08faf6f7d2b",
+      "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2205-3-14",
@@ -339,7 +339,7 @@
       "claim-sha": "75bfa5463ad27d73",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::tearLSPLocal",
-      "producer-sha": "b3abf6ca6f23cd4e",
+      "producer-sha": "5122cd5a73d15fab",
       "break": "body of tearLSPLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

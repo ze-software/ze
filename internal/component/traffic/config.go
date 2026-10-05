@@ -198,7 +198,7 @@ func parseFilterValue(ft FilterType, v string) (uint32, error) {
 	if v == "" {
 		return 0, errEmptyFilterValue
 	}
-	switch ft { //nolint:exhaustive // filterUnknown rejected by ParseFilterType before reaching here
+	switch ft {
 	case FilterMark:
 		return parseHexOrDec(v)
 	case FilterDSCP:
@@ -218,8 +218,9 @@ func parseFilterValue(ft FilterType, v string) (uint32, error) {
 		return uint32(n), nil
 	case filterUnknown:
 		return 0, fmt.Errorf("unsupported filter type %v", ft)
+	default:
+		panic("BUG: invalid traffic filter type")
 	}
-	return 0, fmt.Errorf("unsupported filter type %v", ft)
 }
 
 func parseHexOrDec(s string) (uint32, error) {

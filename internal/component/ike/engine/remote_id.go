@@ -279,6 +279,8 @@ func classMismatchHint(want string, p *wire.PayloadID) string {
 		b.Str("a distinguished name, which accepts ID_DER_ASN1_DN alone.")
 	case classText:
 		b.Str("text, which accepts ID_FQDN, ID_RFC822_ADDR, and ID_KEY_ID alone.")
+	default:
+		panic("BUG: unknown configured IKE identity class")
 	}
 	return b.String()
 }

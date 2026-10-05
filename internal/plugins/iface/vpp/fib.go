@@ -274,8 +274,10 @@ func prefixToString(p ip_types.Prefix) (string, string) {
 		addr := netip.AddrFrom16(ip6)
 		prefix := netip.PrefixFrom(addr, int(p.Len))
 		return prefix.String(), familyIPv6
+	default:
+		// VPP reply families are open; an unknown prefix remains unusable.
+		return "", ""
 	}
-	return "", ""
 }
 
 // fibNhString renders the next-hop address stored in a FibPathNh's union
@@ -306,8 +308,10 @@ func fibNhString(nh *fib_types.FibPathNh, proto fib_types.FibPathNhProto) string
 		// as an IP string; surface as empty so the caller shows only the
 		// device and protocol columns.
 		return ""
+	default:
+		// VPP next-hop protocols are open; unknown protocols have no IP rendering.
+		return ""
 	}
-	return ""
 }
 
 // fibSourceName maps a VPP fib_api_source value (the ip_route_v2 Src byte)

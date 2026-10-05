@@ -412,8 +412,10 @@ func TestSubscribersHandOffRatherThanApply(t *testing.T) {
 		case linkEventCarrier:
 			require.Equal(t, "eth1", applied[i].key.ifaceName)
 			carrier = &applied[i].value
-		default:
+		case linkEventResync:
 			t.Fatalf("unexpected event class %d", applied[i].key.class)
+		default:
+			panic("BUG: unknown queued link event class")
 		}
 	}
 	require.NotNil(t, router, "the router subscriber must push, so the worker applies it")

@@ -104,8 +104,9 @@ func buildFibPaths(r Route) []fib_types.FibPath {
 			paths[i] = toFibPath(p, r.Prefix)
 		}
 		return paths
+	default:
+		panic("BUG: static vpp: invalid route action")
 	}
-	return nil
 }
 
 // toFibPath encodes one ECMP path. The path proto (address family) comes from

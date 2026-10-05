@@ -153,7 +153,7 @@ func RunPersistServer(conn net.Conn) int {
 			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			switch se.EventType { //nolint:exhaustive // only state+update+open handled on structured path
+			switch se.EventType {
 			case rpc.EventKindState:
 				ps.handleStructuredState(se)
 			case rpc.EventKindUpdate:
@@ -161,6 +161,12 @@ func RunPersistServer(conn net.Conn) int {
 				ps.updateStoredRoutesMetric()
 			case rpc.EventKindOpen:
 				ps.handleOpenStructured(se)
+			case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
+				rpc.EventKindRefresh, rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
+				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+				// These events do not change persisted routes.
+			default:
+				// The plugin event set is open; unknown events leave persisted routes unchanged.
 			}
 		}
 		return nil

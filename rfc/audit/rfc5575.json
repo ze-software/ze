@@ -1,12 +1,15 @@
 {
   "audited": "2026-10-04",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5575-4-1": {
       "note": "RFC 5575 Section 4: \"Implementations wishing to exchange flow specification rules MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760].\" RFC 8955 Section 4 restates this obligation; the existing superseded disposition is retained. TestIPv4FlowSpecNegotiatesMultiprotocolCapability is only registration/constructed-capability evidence. The current reactor/rfc5575_capability_wire_test.go TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily additionally decodes buildOpen OptionalParams produced from real parsed configuration, verifies Code-1 families, and sends through AnnounceNLRIBatch. Matching SAFI sends exactly the required MP_REACH bytes; advertising only the other FlowSpec SAFI returns ErrNoPeersAcceptedFamily and writes zero bytes. Producers session_negotiate.go buildOpen, capability.Negotiate and reactor_api_batch.go AnnounceNLRIBatch/buildBatchAnnounceUpdate were read. Distinct matched/mismatched negotiation arms are a genuine positive/negative pair. Removed only the now-false single-polarity annotation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "6e0283b093f53403",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "d1ac0adabd9cefbe",
+        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "29fbd4158f5362a7",
         "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "44aafccadd4f630f",
         "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "44aafccadd4f630f"
       },

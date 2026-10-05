@@ -56,6 +56,7 @@ func visibleText(fragment string) string {
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(fragment))
 	skip := 0
 	for {
+		//exhaustive:ignore // Projects visible text and script/style nesting; other tokens carry no visible text.
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			return strings.Join(strings.Fields(text.String()), " ")

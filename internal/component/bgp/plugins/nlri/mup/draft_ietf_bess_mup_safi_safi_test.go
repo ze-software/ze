@@ -94,7 +94,7 @@ func TestRFCMUPFamiliesCoverBothAFIs(t *testing.T) {
 	// The same ISD NLRI must decode under either MUP family.
 	const isdHex = "0100010c0000fde900000064180a0000"
 	for _, fam := range []string{"ipv4/mup", "ipv6/mup"} {
-		got, err := DecodeNLRIHex(fam, isdHex, false)
+		got, err := DecodeNLRIHex(fam, isdHex, false, false)
 		if err != nil {
 			t.Fatalf("DecodeNLRIHex(%s) returned error: %v", fam, err)
 		}
@@ -130,7 +130,7 @@ func TestRFCMUPRejectsNonMUPFamily(t *testing.T) {
 	t.Parallel()
 
 	for _, fam := range []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn", "ipv4/flow", "mup", ""} {
-		if _, err := DecodeNLRIHex(fam, "0100010c0000fde900000064180a0000", false); err == nil {
+		if _, err := DecodeNLRIHex(fam, "0100010c0000fde900000064180a0000", false, false); err == nil {
 			t.Errorf("DecodeNLRIHex(%q) accepted a non-MUP family", fam)
 		}
 	}

@@ -116,10 +116,9 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 		return
 	}
 
-	// RFC 5881 Section 5 / RFC 5883 Section 5: discard packets that
-	// fail the per-mode TTL gate BEFORE feeding them to the FSM. The
-	// check runs after the session lookup because multi-hop MinTTL is
-	// per-session.
+	// Apply RFC 5881 Section 5's single-hop gate and the local multi-hop
+	// MinTTL policy before feeding packets to the FSM. The check runs after
+	// the session lookup because multi-hop MinTTL is per-session.
 	if !passesTTLGate(in, entry.machine.MinTTL()) {
 		engineLog().Debug("ttl gate drop",
 			"mode", in.Mode.String(),
@@ -162,7 +161,7 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 }
 
 // passesTTLGate enforces the RFC 5881 Section 5 single-hop GTSM rule and
-// the RFC 5883 Section 5 multi-hop minimum-TTL rule.
+// the session's local multi-hop minimum-TTL policy.
 //
 // Single-hop BFD requires the received IP TTL / IPv6 Hop Limit to be
 // exactly 255. Any other value means the packet traversed at least one
@@ -171,9 +170,9 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 // fails this check -- fail-closed is the intended behavior when the
 // kernel does not expose the cmsg.
 //
-// Multi-hop BFD (RFC 5883) has no GTSM equivalent. Operators express a
-// weak approximation via the session's MinTTL (default 254) and packets
-// with TTL below that floor are discarded.
+// For multi-hop BFD, operators set a local acceptance floor with MinTTL
+// (default 254). Packets below that floor are discarded. RFC 5883 Section 5
+// specifies UDP destination port 4784, not this local minimum-TTL policy.
 func passesTTLGate(in transport.Inbound, minTTL uint8) bool {
 	switch in.Mode {
 	case api.SingleHop:
@@ -181,11 +180,12 @@ func passesTTLGate(in transport.Inbound, minTTL uint8) bool {
 		// packet MUST be 255."
 		return in.TTL == 255
 	case api.MultiHop:
-		// RFC 5883 Section 5: MinTTL is inclusive, so TTL == MinTTL
-		// passes.
+		// Local policy is inclusive: TTL == MinTTL passes.
 		return in.TTL >= minTTL
+	default:
+		// Transport modes are open input; an unknown mode fails the gate.
+		return false
 	}
-	return false
 }
 
 // tick runs the timer-driven half of the express loop. For every active

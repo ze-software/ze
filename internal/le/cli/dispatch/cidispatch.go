@@ -198,6 +198,8 @@ func ScanFile(surface Surface, path, src string, emitters []*regexp.Regexp) (fin
 			case verdictFinding:
 				findings = append(findings, finding)
 			case verdictResolved:
+			default:
+				panic("BUG: command emitter judge returned an unknown verdict")
 			}
 		}
 	}

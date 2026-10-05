@@ -170,7 +170,7 @@ func TestAIGPOriginationControlsReachWire(t *testing.T) {
 // RFC requirement: RFC7311-3.4.3-4 positive -- next-hop-self adds the resolved interior distance.
 // RFC requirement: RFC7311-3.4.3-4 negative -- transparent forwarding never adds that distance.
 // RFC requirement: RFC7311-3.4.3-5 positive -- a non-zero increment is required for next-hop-self.
-// RFC requirement: RFC7311-3.4.3-5 negative -- zero with no configured link cost removes AIGP.
+// RFC requirement: RFC7311-3.4.3-5 negative -- zero with no configured link cost withdraws the route instead of announcing an unqualified next hop.
 // RFC requirement: RFC7311-3.4.3-6 positive -- a direct link's non-zero configured cost is accumulated without an IGP.
 // RFC requirement: RFC7311-3.4.3-6 negative -- no configured link cost cannot silently advertise an unchanged metric after next-hop-self.
 func TestAIGPForwardedMetricsReachFinalWire(t *testing.T) {
@@ -206,6 +206,13 @@ func TestAIGPForwardedMetricsReachFinalWire(t *testing.T) {
 			rebuilt, _, failure := buildModifiedPayload(body, &mods, attrModHandlersWithDefaults(), nil, nil)
 			require.Equal(t, modifyFailureNone, failure)
 			require.NotNil(t, rebuilt)
+			require.Equal(t, tc.name == "zero-refused", mods.IsWithdraw())
+			if mods.IsWithdraw() {
+				rebuilt = make([]byte, len(body))
+				n := buildWithdrawalPayload(body, rebuilt)
+				require.NotZero(t, n)
+				rebuilt = rebuilt[:n]
+			}
 			peer, conn := newAnnouncePeer(t, "192.0.2.2")
 			enabled := true
 			peer.session.settings.AIGPSession = &enabled
@@ -216,6 +223,15 @@ func TestAIGPForwardedMetricsReachFinalWire(t *testing.T) {
 			require.Equal(t, tc.present, present)
 			if present {
 				require.Equal(t, tc.want, metric)
+			}
+			sections, err := wire.ParseUpdateSections(conn.written()[message.HeaderLen:])
+			require.NoError(t, err)
+			if mods.IsWithdraw() {
+				require.Equal(t, []byte{24, 10, 20, 0}, sections.Withdrawn(conn.written()[message.HeaderLen:]))
+				require.Empty(t, sections.NLRI(conn.written()[message.HeaderLen:]))
+			} else {
+				require.Equal(t, []byte{24, 10, 20, 0}, sections.NLRI(conn.written()[message.HeaderLen:]))
+				require.Empty(t, sections.Withdrawn(conn.written()[message.HeaderLen:]))
 			}
 			require.Equal(t, original, body, "one destination must not modify another destination's source")
 		})

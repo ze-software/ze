@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
@@ -169,20 +170,25 @@ func doRegisterBuiltinCommands() {
 				}
 				return statusDone, r.outboundResend(args[0], family), nil
 			}},
-		{[]string{"request bgp rib retain-routes"}, "Retain peer routes, optionally only the supplied families: <selector> [family ...]",
+		{[]string{"request bgp rib retain-routes"}, "Retain peer routes: <selector> [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibRetainRoutesRequiresA
 				}
+				familyArgs := args[1:]
+				onDown := len(familyArgs) != 0 && familyArgs[0] == "on-down"
+				if onDown {
+					familyArgs = familyArgs[1:]
+				}
 				var families []family.Family
-				for _, name := range args[1:] {
+				for _, name := range familyArgs {
 					fam, ok := parseFamily(name)
 					if !ok {
 						return statusError, "", fmt.Errorf("retain-routes: unknown family %q", name)
 					}
 					families = append(families, fam)
 				}
-				return statusDone, r.retainRoutes(args[0], families), nil
+				return statusDone, r.retainRoutes(args[0], families, onDown), nil
 			}},
 		{[]string{"request bgp rib release-routes"}, "Release retained peer RIB",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -496,9 +502,7 @@ func (r *RIBManager) rpfLookup(args []string) (string, any, error) {
 		return statusError, "", fmt.Errorf("invalid source address: %s", addrStr)
 	}
 
-	r.peerMu.RLock()
-	loc := r.locRIB
-	r.peerMu.RUnlock()
+	loc := r.locRIB.Load()
 
 	if loc == nil {
 		return statusError, "", fmt.Errorf("loc-rib not available")
@@ -815,7 +819,9 @@ func (r *RIBManager) status(famFilter string) any {
 // RFC 4724: Receiving speaker retains routes from restarting peer.
 // An empty families argument preserves the operator's peer-wide retention.
 // A supplied allowlist prunes other families now, without storing another set.
-func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family) any {
+// onDown is the explicit GR handoff to the ordinary forwarding DOWN owner;
+// standalone commands instead dispatch their own pruned-family withdrawals.
+func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, onDown bool) any {
 	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.Lock()
 
@@ -829,7 +835,11 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family) 
 		r.retainedPeers[peer] = true
 		if len(families) != 0 {
 			r.bgpPeers[peer].RetainFamilies(families)
-			writes = append(writes, r.reconcileSentSourceLocked(peer, family.Family{}, nil)...)
+			if onDown {
+				r.retainSentSourceFamiliesLocked(peer, families)
+			} else {
+				writes = append(writes, r.reconcileSentSourceLocked(peer, family.Family{}, nil)...)
+			}
 			affected = append(affected, peer)
 		}
 		retained++
@@ -1103,37 +1113,15 @@ func (r *RIBManager) bestPathStatus() any {
 	}
 }
 
-// gatherPrefixCandidates is gatherPrefixCandidatesLocked taking r.peerMu.RLock
-// itself. Go's sync.RWMutex forbids recursive read-locking when a writer is
-// pending (sync/rwmutex.go), so a caller that ALREADY holds r.peerMu.RLock
-// MUST call gatherPrefixCandidatesLocked instead. The hot-path caller
-// is checkRouteBestChange, which runs with no outer lock held and has already
-// parsed the prefix.
-func (r *RIBManager) gatherPrefixCandidates(fam family.Family, pfx netip.Prefix) []*Candidate {
-	r.peerMu.RLock()
-	defer r.peerMu.RUnlock()
-	return r.gatherPrefixCandidatesLocked(fam, pfx)
-}
-
-// gatherKeyCandidates is gatherKeyCandidatesLocked taking r.peerMu.RLock
-// itself, with the recursion ban gatherPrefixCandidates states. The caller passes the
-// route key it already computed, so the key that gathers the candidates is the
-// key that stores the best: checkRouteBestChange computes it with the framing
-// the NLRI arrived in, which for a withdrawal reads the label field as a
-// Compatibility field (RFC 8277 Section 2.4).
-func (r *RIBManager) gatherKeyCandidates(fam family.Family, routeKey []byte) []*Candidate {
-	r.peerMu.RLock()
-	defer r.peerMu.RUnlock()
-	return r.gatherKeyCandidatesLocked(fam, routeKey)
-}
-
 // gatherCandidatesLocked collects best-path candidates for the route nlriBytes
 // names, across all peers, where nlriBytes leads with the sender's 4-byte path
 // identifier under addPath (RFC 7911 Section 3). The NLRI is read as an
 // announcement: a caller holding a withdrawal's NLRI keys it itself
-// (routeIdentity) and calls gatherKeyCandidates. Caller MUST hold r.peerMu.RLock for the duration of the call, including
-// across the returned candidates' lifetime if they reference peer state.
-// PeerRIB content reads use PeerRIB's own lock.
+// (routeIdentity) and calls gatherKeyCandidatesLocked. Caller MUST hold
+// peerMu.RLock while gathering peer metadata. The returned snapshots remain
+// readable after that lock is released; the caller MUST releaseCandidates
+// after its last borrowed-handle read. Elections take their bestPrev shard
+// before this peer read admission.
 //
 // A CIDR family is gathered by PREFIX, and every other family by its route
 // key, the NLRI without its path identifier, over every path of every peer in
@@ -1155,7 +1143,7 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte,
 }
 
 // gatherPrefixCandidatesLocked collects every stored path of pfx from every
-// peer. Caller MUST hold r.peerMu.RLock.
+// peer. Caller MUST hold r.peerMu.RLock and later call releaseCandidates.
 //
 // RFC 7911 Section 2: "a particular path for an address prefix can be
 // identified by the combination of the address prefix and the Path
@@ -1181,20 +1169,23 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 	var pathsArray [4]storage.PrefixPath
 	validate := ribevents.ValidationEnabled()
 	for peer, peerRIB := range r.bgpPeers {
-		paths, peerAddPath := peerRIB.AppendPrefixPaths(fam, pfx, pathsArray[:0])
+		paths, peerAddPath := peerRIB.AppendPrefixPathsRetained(fam, pfx, pathsArray[:0])
 		for i := range paths {
 			path := &paths[i]
 			if validate && !ribevents.RouteEligible(ribevents.ValidationRoute{
 				Peer: peer, Family: fam, Prefix: pfx, PathID: path.PathID,
 			}, path.Entry.MsgID) {
+				path.Release()
 				continue
 			}
 			if !r.candidateAdmitted(fam, peerRIB, path.Entry, selfNextHops) {
+				path.Release()
 				continue
 			}
 			c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), path.Entry)
 			c.PathID = path.PathID
 			c.AddPath = peerAddPath
+			c.entry, c.labelHandle = path.Entry, path.Labels
 			candidates = append(candidates, c)
 		}
 	}
@@ -1204,7 +1195,7 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 // gatherKeyCandidatesLocked collects every stored path of the route routeKey
 // names from every peer, for a family whose NLRI is no CIDR prefix. routeKey
 // is a routeIdentity result: no path identifier and no label. Caller MUST hold
-// r.peerMu.RLock.
+// r.peerMu.RLock and later call releaseCandidates.
 //
 // RFC 8277 Section 3.1 compares routes "even if they specify different
 // labels": two PEs announcing one RD and prefix under different labels are
@@ -1222,15 +1213,17 @@ func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byt
 	var pathsArray [4]storage.PrefixPath
 	var nlriBuf [opaqueKeyOctetsInline]byte
 	for peer, peerRIB := range r.bgpPeers {
-		paths, peerAddPath := peerRIB.AppendKeyPaths(fam, routeKey, pathsArray[:0])
+		paths, peerAddPath := peerRIB.AppendKeyPathsRetained(fam, routeKey, pathsArray[:0])
 		for i := range paths {
 			path := &paths[i]
 			// Validation keys a route by the NLRI its own session sent.
 			nlri := framedRouteNLRI(nlriBuf[:0], path.Route, path.PathID, peerAddPath)
 			if !r.validationEligible(peer, peerRIB, fam, nlri, path.Entry.MsgID) {
+				path.Release()
 				continue
 			}
 			if !r.candidateAdmitted(fam, peerRIB, path.Entry, selfNextHops) {
+				path.Release()
 				continue
 			}
 			// The map key gives the typed address; PeerRIB caches the canonical
@@ -1239,10 +1232,24 @@ func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byt
 			c.PathID = path.PathID
 			c.AddPath = peerAddPath
 			c.Route = path.Route
+			c.entry, c.labelHandle = path.Entry, path.Labels
 			candidates = append(candidates, c)
 		}
 	}
 	return candidates
+}
+
+// releaseCandidates returns snapshots acquired by the gather functions. The
+// extracted scalar values remain available for the show-best reason terminal,
+// but no caller may compare or dereference ASPathHandle after this release.
+func releaseCandidates(candidates []*Candidate) {
+	for _, c := range candidates {
+		c.entry.Release()
+		if c.labelHandle.IsValid() {
+			_ = pool.Labels.Release(c.labelHandle)
+			c.labelHandle = attrpool.InvalidHandle
+		}
+	}
 }
 
 // candidateAdmitted reports whether a stored path may enter the decision

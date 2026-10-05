@@ -18,6 +18,7 @@ const (
 func transportProtocols(fs *flowspec.FlowSpec, current []firewall.MatchProtocol) ([]firewall.MatchProtocol, error) {
 	ports, tcp, icmp := false, false, false
 	for _, c := range fs.Components() {
+		//exhaustive:ignore // Only transport components constrain protocol alternatives in this projection.
 		switch c.Type() {
 		case flowspec.FlowPort, flowspec.FlowDestPort, flowspec.FlowSourcePort:
 			ports = true
@@ -80,6 +81,7 @@ func tcpFlagsMatch(comp flowspec.FlowComponent) (firewall.MatchTCPFlags, error) 
 		return firewall.MatchTCPFlags{}, fmt.Errorf("%w: tcp-flags exceeds the firewall flag field", errUnsupportedComponent)
 	}
 	flags := firewall.TCPFlags(match.Value)
+	//exhaustive:ignore // Only TCP bitmask operators representable as one masked equality are projected here.
 	switch match.Op {
 	case flowspec.FlowOpMatch:
 		return firewall.MatchTCPFlags{Flags: flags, Mask: flags}, nil

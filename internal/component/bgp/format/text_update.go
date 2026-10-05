@@ -208,7 +208,7 @@ func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, content bgptypes.Conte
 func appendNonUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction rpc.MessageDirection) []byte {
 	// For parsed format, use dedicated text formatters.
 	if content.Format != plugin.FormatRaw {
-		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
+		switch msg.Type {
 		case msgtype.TypeOPEN:
 			decoded := DecodeOpen(msg.RawBytes)
 			return AppendOpen(buf, peer, decoded, direction, msg.MessageID)
@@ -217,10 +217,14 @@ func appendNonUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage,
 			return AppendNotification(buf, peer, decoded, direction, msg.MessageID)
 		case msgtype.TypeKEEPALIVE:
 			return AppendKeepalive(buf, peer, direction, msg.MessageID)
+		case msgtype.TypeUPDATE, msgtype.TypeROUTEREFRESH:
+			// These named types use the raw representation below.
+		default:
+			// Message types are an open wire set; preserve unknown bytes below.
 		}
 	}
 
-	// Raw format or unknown type
+	// Raw format or a type without a dedicated formatter.
 	if content.Encoding == plugin.EncodingJSON {
 		// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"..."},...}}
 		msgType := strings.ToLower(msg.Type.String())
@@ -398,7 +402,7 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 					if j > 0 {
 						buf = append(buf, ',')
 					}
-					buf = appendNLRIJSONValue(buf, n, family.IPv4Unicast)
+					buf = appendNLRIJSONValue(buf, n, family.IPv4Unicast, false)
 				}
 			}
 			buf = append(buf, `]}`...)
@@ -440,7 +444,7 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 				if j > 0 {
 					buf = append(buf, ',')
 				}
-				buf = appendNLRIJSONValue(buf, n, fam)
+				buf = appendNLRIJSONValue(buf, n, fam, false)
 			}
 		}
 		buf = append(buf, `]}]`...)
@@ -466,7 +470,7 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 				if j > 0 {
 					buf = append(buf, ',')
 				}
-				buf = appendNLRIJSONValue(buf, n, fam)
+				buf = appendNLRIJSONValue(buf, n, fam, true)
 			}
 			buf = append(buf, `]}]`...)
 		}

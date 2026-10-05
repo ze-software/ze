@@ -239,6 +239,8 @@ func (p *Peer) sendInitialRoutes() {
 				connError = true
 			}
 			continue
+		default:
+			panic("BUG: invalid queued peer operation")
 		}
 
 		// If we get here, it was a teardown - break out of loop
@@ -555,6 +557,8 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			// drain loop, which returns early.
 			routesLogger().Error("unexpected teardown in the closing drain queue", "peer", addr)
 			finalProcessed++
+		default:
+			panic("BUG: invalid queued peer operation")
 		}
 	}
 	if finalProcessed > 0 {

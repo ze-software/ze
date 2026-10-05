@@ -33,6 +33,16 @@ func TestValidationError(t *testing.T) {
 	assert.Contains(t, err.Error(), "42")
 }
 
+// TestValidationErrorTypeContract distinguishes the named unknown sentinel from an invalid internal code.
+func TestValidationErrorTypeContract(t *testing.T) {
+	err := &ValidationError{Path: "test/value", Type: ErrTypeUnknown, Message: "unspecified"}
+	assert.Equal(t, "unknown error at test/value: unspecified", err.Error())
+	err.Type = ErrorType(999)
+	assert.PanicsWithValue(t, "BUG: unknown YANG validation error type", func() {
+		_ = err.Error()
+	})
+}
+
 func TestCheckCardinality(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -40,7 +40,7 @@ func (a RFC7606Action) String() string {
 	case RFC7606ActionSessionReset:
 		return "session-reset"
 	default:
-		return "unknown"
+		panic("BUG: invalid RFC 7606 action")
 	}
 }
 
@@ -83,6 +83,10 @@ type RFC7606ValidationResult struct {
 	// action. The one early return that carries RFC7606ActionNone is the empty section,
 	// which holds no attribute of any code.
 	PrefixSIDPresent bool
+	// TunnelEncapPresent gates carrier-aware tunnel validation without another
+	// attribute walk on UPDATEs lacking code 23. It is published only after a
+	// completed walk; earlier returns already require withdrawal or reset.
+	TunnelEncapPresent bool
 	// MPReachNLRI and MPUnreachNLRI locate the NLRI portion of the MP_REACH_NLRI
 	// and MP_UNREACH_NLRI attributes, observed on this walk so the RFC 7606
 	// Section 5.4 typed-NLRI check (reactor.enforceRFC7606) does not repeat it.
@@ -523,23 +527,25 @@ func ValidateUpdateRFC7606AddPath(
 
 	if strongest == RFC7606ActionNone {
 		return &RFC7606ValidationResult{
-			Action:           RFC7606ActionNone,
-			DuplicateRanges:  duplicateRanges,
-			PrefixSIDPresent: sawPrefixSID,
-			MPReachNLRI:      mpReachNLRI,
-			MPUnreachNLRI:    mpUnreachNLRI,
+			Action:             RFC7606ActionNone,
+			DuplicateRanges:    duplicateRanges,
+			PrefixSIDPresent:   sawPrefixSID,
+			TunnelEncapPresent: seenCodes[attribute.AttrTunnelEncap],
+			MPReachNLRI:        mpReachNLRI,
+			MPUnreachNLRI:      mpUnreachNLRI,
 		}
 	}
 
 	return &RFC7606ValidationResult{
-		Action:           strongest,
-		AttrCode:         strongestCode,
-		Description:      strongestDesc,
-		DiscardEntries:   discardEntries,
-		DuplicateRanges:  duplicateRanges,
-		PrefixSIDPresent: sawPrefixSID,
-		MPReachNLRI:      mpReachNLRI,
-		MPUnreachNLRI:    mpUnreachNLRI,
+		Action:             strongest,
+		AttrCode:           strongestCode,
+		Description:        strongestDesc,
+		DiscardEntries:     discardEntries,
+		DuplicateRanges:    duplicateRanges,
+		PrefixSIDPresent:   sawPrefixSID,
+		TunnelEncapPresent: seenCodes[attribute.AttrTunnelEncap],
+		MPReachNLRI:        mpReachNLRI,
+		MPUnreachNLRI:      mpUnreachNLRI,
 	}
 }
 

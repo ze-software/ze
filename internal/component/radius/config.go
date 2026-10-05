@@ -195,6 +195,7 @@ func (m AuthMethod) String() string {
 // EAP at all. The Type is what internal/core/eap builds a peer session for, and
 // the peer NAKs toward it rather than accepting whatever the server offers.
 func (m AuthMethod) EAPType() (uint8, bool) {
+	//exhaustive:ignore // Only EAP authentication methods have an EAP type.
 	switch m {
 	case AuthMethodEAPMD5:
 		return eap.TypeMD5Challenge, true

@@ -82,6 +82,8 @@ func riTEClaims(t *testing.T, eng *engine, router types.RouterID, scope OpaqueSc
 		case OpaqueScopeArea:
 			target = o.Area.String()
 		case OpaqueScopeAS:
+		default:
+			panic("BUG: riTEClaims: invalid scope")
 		}
 		claims[target] = binary.BigEndian.Uint32(o.Body[4:8])&te != 0
 	}

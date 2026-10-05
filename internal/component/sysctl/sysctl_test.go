@@ -58,6 +58,22 @@ func newTestStoreWithLog() (*store, *fakeBackend, *strings.Builder) {
 	return newStore(fb, log), fb, &buf
 }
 
+// TestEmptyEntryLayer checks that an unset entry retains its no-value rendering.
+func TestEmptyEntryLayer(t *testing.T) {
+	t.Parallel()
+	var e entry
+	value, source := e.effective()
+	if value != "" {
+		t.Fatalf("empty entry value = %q, want empty", value)
+	}
+	if source != -1 {
+		t.Fatalf("empty entry layer = %d, want -1", source)
+	}
+	if got := source.String(); got != "unknown" {
+		t.Fatalf("empty entry layer name = %q, want unknown", got)
+	}
+}
+
 func TestValuePrecedence(t *testing.T) {
 	// VALIDATES: AC-4 -- Config > transient > default ordering.
 	// PREVENTS: Lower-priority layer overwriting higher.

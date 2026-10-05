@@ -98,7 +98,7 @@ func TestAddPathOpaqueOneElectionPerRoute(t *testing.T) {
 			assert.False(t, ok, "path 9 (MED 20) does not displace path 7 (MED 10)")
 
 			for _, key := range [][]byte{framedKey(7, tc.key), framedKey(9, tc.key)} {
-				assert.Len(t, gatherCandidatesHeld(r, tc.fam, key, true), 2, "both paths are candidates (key %x)", key)
+				assert.Len(t, gatherCandidatesHeld(t, r, tc.fam, key, true), 2, "both paths are candidates (key %x)", key)
 			}
 			assert.Equal(t, 1, bestRecordCount(r, tc.fam), "one best record for the route")
 		})
@@ -125,8 +125,8 @@ func TestAddPathOpaqueMixedModeMeetInOneElection(t *testing.T) {
 			r.bgpPeers[plainPeer] = storage.NewPeerRIB(plainPeer.String())
 			r.bgpPeers[plainPeer].Insert(tc.fam, unicastAttrs([4]byte{10, 0, 0, 9}, 10, 500), tc.key)
 
-			assert.Len(t, gatherCandidatesHeld(r, tc.fam, framedKey(7, tc.key), true), 2, "framed trigger")
-			assert.Len(t, gatherCandidatesHeld(r, tc.fam, tc.key, false), 2, "plain trigger")
+			assert.Len(t, gatherCandidatesHeld(t, r, tc.fam, framedKey(7, tc.key), true), 2, "framed trigger")
+			assert.Len(t, gatherCandidatesHeld(t, r, tc.fam, tc.key, false), 2, "plain trigger")
 
 			best, ok := r.checkBestPathChange(tc.fam, framedKey(7, tc.key), true, nil)
 			require.True(t, ok)

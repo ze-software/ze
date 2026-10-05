@@ -492,8 +492,8 @@ func (v *ConfigValidator) mergeGroupDefaults(peerTree, groupTree *config.Tree) *
 
 // yangLeafName extracts the leaf name from a YANG path (last segment).
 func yangLeafName(path string) string {
-	if idx := strings.LastIndex(path, config.PathSep); idx >= 0 {
-		return path[idx+1:]
+	if _, leaf, found := strings.CutLast(path, config.PathSep); found {
+		return leaf
 	}
 	return path
 }

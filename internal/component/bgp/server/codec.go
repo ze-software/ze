@@ -37,7 +37,7 @@ func handleDecodeNLRI(params json.RawMessage) (any, error) {
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, fmt.Errorf("invalid decode-nlri params: %w", err)
 	}
-	raw, err := registry.DecodeNLRIByFamily(input.Family, input.Hex, input.AddPath)
+	raw, err := registry.DecodeNLRIByFamily(input.Family, input.Hex, input.AddPath, input.Withdraw)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func handleDecodeMPReach(params json.RawMessage) (any, error) {
 		nhStr = nhAddr.String()
 	}
 
-	nlriJSON, err := decodeMPNLRIs(mpw.NLRIBytes(), mpw.Family(), input.AddPath)
+	nlriJSON, err := decodeMPNLRIs(mpw.NLRIBytes(), mpw.Family(), input.AddPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func handleDecodeMPUnreach(params json.RawMessage) (any, error) {
 	mpw := wireu.MPUnreachWire(data)
 	familyStr := mpw.Family().String()
 
-	nlriJSON, err := decodeMPNLRIs(mpw.WithdrawnBytes(), mpw.Family(), input.AddPath)
+	nlriJSON, err := decodeMPNLRIs(mpw.WithdrawnBytes(), mpw.Family(), input.AddPath, true)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func handleDecodeUpdate(params json.RawMessage) (any, error) {
 
 // decodeMPNLRIs decodes raw NLRI bytes for the given family, returning a JSON array.
 // Plugin families route through the compile-time registry; core families parse via nlri package.
-func decodeMPNLRIs(nlriBytes []byte, fam family.Family, addPath bool) (json.RawMessage, error) {
+func decodeMPNLRIs(nlriBytes []byte, fam family.Family, addPath, withdraw bool) (json.RawMessage, error) {
 	if len(nlriBytes) == 0 {
 		return json.RawMessage("[]"), nil
 	}
@@ -189,7 +189,7 @@ func decodeMPNLRIs(nlriBytes []byte, fam family.Family, addPath bool) (json.RawM
 	familyStr := fam.String()
 	if registry.PluginForFamily(familyStr) != "" {
 		nlriHex := hex.EncodeToString(nlriBytes)
-		return registry.DecodeNLRIByFamily(familyStr, nlriHex, addPath)
+		return registry.DecodeNLRIByFamily(familyStr, nlriHex, addPath, withdraw)
 	}
 
 	// Core families: parse via nlri package (IPv4/IPv6 unicast/multicast)
@@ -198,5 +198,5 @@ func decodeMPNLRIs(nlriBytes []byte, fam family.Family, addPath bool) (json.RawM
 		return nil, err
 	}
 
-	return format.FormatNLRIsAsJSON(nlris), nil
+	return format.FormatNLRIsAsJSON(nlris, withdraw), nil
 }

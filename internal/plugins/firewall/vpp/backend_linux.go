@@ -265,6 +265,7 @@ func (b *backend) applyAll(
 // hookIsInput returns true for hooks where ACLs apply as input (ingress)
 // filtering, false for output (egress).
 func hookIsInput(h firewall.ChainHook) bool {
+	//exhaustive:ignore // Only input-direction hooks belong to this ACL membership predicate.
 	switch h {
 	case firewall.HookInput, firewall.HookForward, firewall.HookPrerouting, firewall.HookIngress:
 		return true

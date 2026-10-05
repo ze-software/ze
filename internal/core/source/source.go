@@ -178,7 +178,7 @@ func (t SourceType) String() string {
 	case SourceConfig:
 		return config
 	default:
-		return unknown
+		panic("BUG: source: invalid source type")
 	}
 }
 
@@ -215,6 +215,6 @@ func (s Source) String() string {
 	case SourceConfig:
 		return "config:1"
 	default:
-		return unknown
+		panic("BUG: source: invalid source type")
 	}
 }

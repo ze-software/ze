@@ -1,13 +1,10 @@
 package fixture
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -195,29 +192,6 @@ func runLEConsistencyAnswers(parent context.Context) error {
 
 	fmt.Println("OK")
 	return nil
-}
-
-func runProcess(ctx context.Context, dir, name string, args ...string) (processResult, error) {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
-	cmd.Dir = dir
-	cmd.Env = os.Environ()
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	result := processResult{stdout: stdout.String(), stderr: stderr.String()}
-	if err == nil {
-		return result, nil
-	}
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		return processResult{}, ctxErr
-	}
-	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-		result.code = exitErr.ExitCode()
-		return result, nil
-	}
-	return processResult{}, err
 }
 
 func lineBag(text string) map[string]int {

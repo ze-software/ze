@@ -10,10 +10,6 @@ import (
 	"testing"
 )
 
-// encrNull is ENCR_NULL, Transform ID 11 of Transform Type 1 (RFC 7296 Section 3.3.2).
-// Ze names no constant for it because it never negotiates it.
-const encrNull EncryptionID = 11
-
 // nullIKEProposals answers the two forbidden forms of an otherwise complete IKE proposal:
 // AES-CBC with integrity NONE, and ENCR_NULL with HMAC-SHA2-256-128. Each one is used as
 // both the peer's offer and local policy, so that nothing but the forbidden value can

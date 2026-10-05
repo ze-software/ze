@@ -122,7 +122,10 @@ func (t PDUType) Level() (level uint8, ok bool) {
 		return 1, true
 	case PDUTypeL2LANHello, PDUTypeL2LSP, PDUTypeL2CSNP, PDUTypeL2PSNP:
 		return 2, true
+	case PDUTypeP2PHello:
+		return 0, false
 	default:
+		// The wire type domain is open; unknown codes have no implied level.
 		return 0, false
 	}
 }
@@ -136,6 +139,7 @@ func (t PDUType) known() bool {
 		PDUTypeL1PSNP, PDUTypeL2PSNP:
 		return true
 	default:
+		// The wire type domain is open; reject codes outside the supported set.
 		return false
 	}
 }
@@ -163,6 +167,7 @@ func (t PDUType) String() string {
 	case PDUTypeL2PSNP:
 		return "l2-psnp"
 	default:
+		// The wire type domain is open; preserve diagnostic output for unknown codes.
 		return "unknown"
 	}
 }

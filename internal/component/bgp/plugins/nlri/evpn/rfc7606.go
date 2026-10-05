@@ -19,6 +19,7 @@ package evpn
 // it: RecognizeNLRI reads it, and TestImplementedMatchesParseEVPN holds it
 // against ParseEVPN's own dispatch so the two cannot drift.
 func (t EVPNRouteType) Implemented() bool {
+	//exhaustive:ignore // Recognizes only EVPN route types implemented by this codec.
 	switch t {
 	case EVPNRouteType1, EVPNRouteType2, EVPNRouteType3, EVPNRouteType4, EVPNRouteType5:
 		return true

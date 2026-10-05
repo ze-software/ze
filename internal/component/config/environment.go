@@ -199,12 +199,12 @@ func parseOneEndpoint(s string) (ListenEndpoint, error) {
 		portStr = rest[1:]
 	} else {
 		// IPv4 or hostname: last colon separates host from port
-		lastColon := strings.LastIndex(s, ":")
-		if lastColon < 0 {
+		host, port, found := strings.CutLast(s, ":")
+		if !found {
 			return ListenEndpoint{}, fmt.Errorf("invalid endpoint %q: missing port (expected ip:port)", s)
 		}
-		ip = s[:lastColon]
-		portStr = s[lastColon+1:]
+		ip = host
+		portStr = port
 	}
 
 	if ip != "" {

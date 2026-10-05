@@ -30,8 +30,8 @@ import (
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
-// selftestDeadline bounds the whole selftest. It compiles a one-package module
-// twice and creates a throwaway git repository, all of which are seconds.
+// selftestDeadline bounds fixture setup and each case independently. A build
+// cannot spend the deadline of a later HEAD query.
 const selftestDeadline = time.Minute
 
 // fixtureFiles is the module every build case is pointed at: one package, one
@@ -50,8 +50,8 @@ var okFlavor = Flavor{
 	Why: "the coherent case, which is what tells a working guard from one that always fails",
 }
 
-// selftestEnv is what every case is handed: the fixture module, a throwaway git
-// repository, and the deadline they all run under.
+// selftestEnv holds the fixture trees and the context owned by the current case.
+// Fixture setup never lends its deadline to a case.
 type selftestEnv struct {
 	ctx context.Context
 	// dir is the fixture module. It holds go.mod and no vendor/, which is what
@@ -107,8 +107,13 @@ var selftestCases = []selftestCase{
 	{
 		name: "package-floor-refuses",
 		check: func(env selftestEnv) string {
-			if Build(env.ctx, env.dir, okFlavor, nil, 99).OK {
+			result := Build(env.ctx, env.dir, okFlavor, nil, 99)
+			if result.OK {
 				return "build accepted a tree below the package floor"
+			}
+			if !strings.Contains(result.Output, "below the floor") {
+				var detail textbuf.Buffer
+				return detail.Str("the package floor was not judged: ").Str(result.Output).String()
 			}
 			return ""
 		},
@@ -193,10 +198,10 @@ var selftestCases = []selftestCase{
 }
 
 // WriteFixture writes the fixture module, the empty tree and the probe git
-// repository under root, and answers the environment the cases run in.
+// repository under root. The caller MUST supply a bounded setup context and
+// assign a separate bounded context before running a case.
 func WriteFixture(ctx context.Context, root string) (selftestEnv, error) {
 	env := selftestEnv{
-		ctx:   ctx,
 		dir:   filepath.Join(root, "module"),
 		bare:  filepath.Join(root, "bare"),
 		probe: filepath.Join(root, "probe-repo"),
@@ -217,21 +222,14 @@ func WriteFixture(ctx context.Context, root string) (selftestEnv, error) {
 		return selftestEnv{}, err
 	}
 
+	var hooks textbuf.Buffer
 	for _, args := range [][]string{
 		{"init", "--quiet"},
 		{"add", "--", "go.mod", "vendor/modules.txt"},
-		{"commit", "--quiet", "-m", "probe"},
+		{"-c", hooks.Str("core.hooksPath=").Str(os.DevNull).String(), "commit", "--quiet", "-m", "probe"},
 	} {
 		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", env.probe}, args...)...) //nolint:gosec // fixed argument list
-		// No global or system git config, so the probe inherits no commit
-		// signing, which would fail in a throwaway repository.
-		// textbuf rather than `+`: Ze builds strings with textbuf by house style.
-		var gk, sk textbuf.Buffer
-		cmd.Env = append(os.Environ(),
-			gk.Str("GIT_CONFIG_GLOBAL=").Str(os.DevNull).String(),
-			sk.Str("GIT_CONFIG_SYSTEM=").Str(os.DevNull).String(),
-			"GIT_AUTHOR_NAME=selftest", "GIT_AUTHOR_EMAIL=selftest@example.invalid",
-			"GIT_COMMITTER_NAME=selftest", "GIT_COMMITTER_EMAIL=selftest@example.invalid")
+		cmd.Env = selftestGitEnv()
 		if out, err := cmd.CombinedOutput(); err != nil {
 			var tb textbuf.Buffer
 			return selftestEnv{}, errors.New(tb.Str("probe repo git ").Join(args, " ").Str(": ").
@@ -239,6 +237,45 @@ func WriteFixture(ctx context.Context, root string) (selftestEnv, error) {
 		}
 	}
 	return env, nil
+}
+
+// selftestGitEnv excludes inherited repository paths, indexes and injected
+// configuration. The probe must commit its own files, never the caller's index.
+func selftestGitEnv() []string {
+	inherited := os.Environ()
+	environ := make([]string, 0, len(inherited)+6)
+	for _, entry := range inherited {
+		if !strings.HasPrefix(entry, "GIT_") {
+			environ = append(environ, entry)
+		}
+	}
+	var global, system textbuf.Buffer
+	return append(environ,
+		global.Str("GIT_CONFIG_GLOBAL=").Str(os.DevNull).String(),
+		system.Str("GIT_CONFIG_SYSTEM=").Str(os.DevNull).String(),
+		"GIT_AUTHOR_NAME=selftest", "GIT_AUTHOR_EMAIL=selftest@example.invalid",
+		"GIT_COMMITTER_NAME=selftest", "GIT_COMMITTER_EMAIL=selftest@example.invalid")
+}
+
+// runSelftestCase owns and releases one case's deadline. It also rejects a
+// timeout when a negative probe would otherwise mistake it for its expected error.
+func runSelftestCase(parent context.Context, fixture selftestEnv, testCase selftestCase) leroot.SelftestResult {
+	ctx, cancel := context.WithTimeout(parent, selftestDeadline)
+	defer cancel()
+	fixture.ctx = ctx
+	detail := testCase.check(fixture)
+	if err := ctx.Err(); err != nil {
+		var message textbuf.Buffer
+		message.Str("case deadline or cancellation: ").Err(err)
+		if detail != "" {
+			message.Str(": ").Str(detail)
+		}
+		return leroot.Fail(testCase.name, message.String())
+	}
+	if detail != "" {
+		return leroot.Fail(testCase.name, detail)
+	}
+	return leroot.Pass(testCase.name)
 }
 
 // writeFile writes one fixture file, creating its directory.
@@ -255,9 +292,6 @@ func writeFile(path, body string) error {
 // from a guard that stopped firing, so it is answered apart from the rows
 // rather than as one more failing case.
 func Selftest(root string) (leroot.SelftestReport, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), selftestDeadline)
-	defer cancel()
-
 	// Under the checkout's own scratch, never the system temp directory: this
 	// repository keeps its scratch inside the tree so it is visible to the
 	// operator.
@@ -271,18 +305,17 @@ func Selftest(root string) (leroot.SelftestReport, error) {
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck // temp fixture
 
+	// Setup is bounded separately; no case inherits time spent creating HEAD.
+	ctx, cancel := context.WithTimeout(context.Background(), selftestDeadline)
 	fixture, err := WriteFixture(ctx, dir)
+	cancel()
 	if err != nil {
 		return leroot.SelftestReport{}, err
 	}
 
 	results := make([]leroot.SelftestResult, 0, len(selftestCases))
 	for _, testCase := range selftestCases {
-		if detail := testCase.check(fixture); detail != "" {
-			results = append(results, leroot.Fail(testCase.name, detail))
-			continue
-		}
-		results = append(results, leroot.Pass(testCase.name))
+		results = append(results, runSelftestCase(context.Background(), fixture, testCase))
 	}
 
 	return leroot.NewSelftestReport(

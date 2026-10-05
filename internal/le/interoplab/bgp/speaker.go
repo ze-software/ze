@@ -213,19 +213,22 @@ func speakerEOR() []byte       { return speakerMessage(bgpUpdate, []byte{0, 0, 0
 func speakerKeepalive() []byte { return speakerMessage(bgpKeepalive, nil) }
 
 type speakerOptions struct {
-	connect      string
-	asn          uint
-	routerID     string
-	test         string
-	result       string
-	holdTime     uint
-	duration     time.Duration
-	stopAfter    int
-	connectDelay time.Duration
-	families     familyFlags
-	addPath      bool
-	bfdStrict    bool
-	bfdDelay     time.Duration
+	connect         string
+	asn             uint
+	routerID        string
+	test            string
+	result          string
+	holdTime        uint
+	duration        time.Duration
+	stopAfter       int
+	connectDelay    time.Duration
+	families        familyFlags
+	addPath         bool
+	bfdStrict       bool
+	bfdDelay        time.Duration
+	relayPeer       string
+	relayExtended   bool
+	sourceNextHopV6 string
 }
 
 // peerAddress is the host half of --connect. A single-hop BFD session goes to
@@ -258,8 +261,27 @@ func parseSpeakerOptions(args []string) (speakerOptions, error) {
 		"advertise BGP capability 74 and answer BFD (draft-ietf-idr-bgp-bfd-strict-mode)")
 	bfdDelay := flags.Float64("bfd-delay", 0,
 		"seconds to stay silent before answering BFD, which is the window ze must hold its BGP session for")
+	flags.StringVar(&options.relayPeer, "relay-peer", "", "FRR address for OPEN-only capability relay")
+	flags.BoolVar(&options.relayExtended, "relay-extended", false, "deliver capability 6 to Ze")
+	flags.StringVar(&options.sourceNextHopV6, "source-next-hop-v6", "", "native source IPv6 next hop")
 	if err := flags.Parse(args); err != nil {
 		return options, err
+	}
+	if options.relayPeer != "" {
+		options.duration = time.Duration(*duration * float64(time.Second))
+		if options.connect == "" {
+			return options, errors.New("relay requires --connect")
+		}
+		if options.result == "" {
+			return options, errors.New("relay requires --result capture path")
+		}
+		if options.duration <= 0 {
+			return options, errors.New("relay duration must be positive")
+		}
+		if options.duration > 300*time.Second {
+			return options, errors.New("relay duration must not exceed 300 seconds")
+		}
+		return options, nil
 	}
 	if options.connect == "" || options.asn == 0 || options.routerID == "" || options.test == "" {
 		return options, errors.New("speaker requires --connect, --asn, --router-id, and --test")
@@ -275,22 +297,23 @@ func runSpeakerHelper(args []string, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	plugin := filepath.Base(options.test)
-	switch plugin {
-	case speakerOracleNoDuplicateAttribute:
-		plugin = speakerOracleNoDuplicateAttribute
-	case speakerOracleNoUnrecognizedEVPNType:
-		plugin = speakerOracleNoUnrecognizedEVPNType
-	case speakerOracleBFDStrictHold:
-		plugin = speakerOracleBFDStrictHold
-	default:
+	if options.relayPeer != "" {
+		// RFC 8654 Sections 3 and 4: change only the remote OPEN capability.
+		return runExtendedRelay(options)
+	}
+	runner, ok := speakerRunners[filepath.Base(options.test)]
+	if !ok {
 		return fmt.Errorf("unknown native speaker oracle %q", options.test)
 	}
-	verdict := &speakerVerdict{plugin: plugin}
+	return runner(options, output)
+}
+
+func runOracleSpeaker(options speakerOptions, output io.Writer) error {
+	verdict := &speakerVerdict{plugin: filepath.Base(options.test)}
 	if err := runSpeakerSession(options, verdict); err != nil {
 		verdict.fail("engine crashed: " + err.Error())
 	}
-	status := "PASS"
+	status := speakerResultPass
 	if len(verdict.failures) > 0 {
 		status = "FAIL"
 	}
@@ -356,18 +379,24 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 		return err
 	}
 	deadline := time.Now().Add(options.duration)
+	captureDeadline := deadline
 	nextKeepalive := time.Now().Add(time.Duration(options.holdTime) * time.Second / 3)
 	established, routes := false, 0
 	sawOpen := false
 	var firstKeepalive time.Time
-	for time.Now().Before(deadline) {
+	captureComplete := false
+	for {
+		if !time.Now().Before(deadline) {
+			captureComplete = deadline.Equal(captureDeadline)
+			break
+		}
 		if !time.Now().Before(nextKeepalive) {
 			if _, err := connection.Write(speakerKeepalive()); err != nil {
 				break
 			}
 			nextKeepalive = time.Now().Add(time.Duration(options.holdTime) * time.Second / 3)
 		}
-		messageType, body, idle, err := readSpeakerMessage(connection)
+		messageType, body, idle, err := readSpeakerMessage(connection, captureDeadline)
 		if idle {
 			continue
 		}
@@ -430,6 +459,13 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 			break
 		}
 	}
+	// A consumer that reconstructs a final inventory must distinguish the full
+	// requested capture from an early EOF, notification, or update-count stop.
+	if captureComplete {
+		verdict.notes = append(verdict.notes, "capture-complete: yes")
+	} else {
+		verdict.notes = append(verdict.notes, "capture-complete: no")
+	}
 	verdict.notes = append(verdict.notes, fmt.Sprintf("route-bearing-updates: %d", routes))
 	if established {
 		verdict.notes = append(verdict.notes, "established: yes")
@@ -450,8 +486,8 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	return nil
 }
 
-func readSpeakerMessage(connection net.Conn) (byte, []byte, bool, error) {
-	header, idle, err := readSpeakerExact(connection, bgpHeaderLength)
+func readSpeakerMessage(connection net.Conn, deadline time.Time) (byte, []byte, bool, error) {
+	header, idle, err := readSpeakerExact(connection, bgpHeaderLength, deadline, true)
 	if idle || err != nil {
 		return 0, nil, idle, err
 	}
@@ -459,23 +495,32 @@ func readSpeakerMessage(connection net.Conn) (byte, []byte, bool, error) {
 	if length <= bgpHeaderLength {
 		return header[18], nil, false, nil
 	}
-	body, _, err := readSpeakerExact(connection, length-bgpHeaderLength)
+	body, _, err := readSpeakerExact(connection, length-bgpHeaderLength, deadline, false)
 	return header[18], body, false, err
 }
 
-func readSpeakerExact(connection net.Conn, size int) ([]byte, bool, error) {
+func readSpeakerExact(connection net.Conn, size int, deadline time.Time, allowIdle bool) ([]byte, bool, error) {
 	buffer := make([]byte, size)
 	position := 0
 	for position < size {
-		_ = connection.SetReadDeadline(time.Now().Add(time.Second))
+		readDeadline := time.Now().Add(time.Second)
+		if deadline.Before(readDeadline) {
+			readDeadline = deadline
+		}
+		if err := connection.SetReadDeadline(readDeadline); err != nil {
+			return nil, false, err
+		}
 		count, err := connection.Read(buffer[position:])
 		position += count
 		if err == nil {
 			continue
 		}
 		if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
-			if position == 0 {
+			if position == 0 && allowIdle {
 				return nil, true, nil
+			}
+			if !time.Now().Before(deadline) {
+				return nil, false, err
 			}
 			continue
 		}

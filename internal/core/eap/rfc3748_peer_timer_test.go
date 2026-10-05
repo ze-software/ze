@@ -83,7 +83,8 @@ func timerField(typ reflect.Type, path string, depth int) string {
 	case reflect.TypeFor[time.Timer](), reflect.TypeFor[time.Ticker]():
 		return path
 	}
-	switch typ.Kind() { //nolint:exhaustive // only the kinds that can hold a nested type are walked
+	//exhaustive:ignore // Walk only kinds that can contain a nested timer.
+	switch typ.Kind() {
 	case reflect.Pointer, reflect.Slice, reflect.Array:
 		return timerField(typ.Elem(), path, depth+1)
 	case reflect.Chan:

@@ -173,7 +173,7 @@ func TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry(t *testing.T) {
 //
 // RFC requirement: RFC4271-8.2.2-9 negative -- the Event 26, 27 and 19 arms
 // carry no counter mutation because their §8.2.2 action lists carry no
-// ConnectRetryCounter line, and handleIdle's default arm is a deliberate
+// ConnectRetryCounter line, and handleIdle's named ignore arm is a deliberate
 // RFC-mandated ignore rather than a teardown
 // (internal/component/bgp/fsm/fsm.go, handleEstablished, handleOpenConfirm,
 // handleOpenSent, handleIdle).
@@ -210,7 +210,7 @@ func TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic(t *testing.T
 // RFC requirement: RFC4271-8.2.2-10 positive -- Events 21 and 22 reach an
 // incrementing arm in every non-Idle state: an explicit shared arm in
 // handleConnect, handleActive, handleOpenSent and handleOpenConfirm, and in
-// handleEstablished the explicit EventBGPHeaderErr arm plus the default arm
+// handleEstablished the explicit EventBGPHeaderErr arm plus the error arm
 // that Event 22 lands in (internal/component/bgp/fsm/fsm.go).
 func TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors(t *testing.T) {
 	for _, st := range allNonIdleStates {
@@ -233,7 +233,7 @@ func TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors(t *testing.T)
 // PREVENTS: Late events on a torn-down session inflating a count that is
 // supposed to record connection attempts.
 //
-// RFC requirement: RFC4271-8.2.2-10 negative -- handleIdle's default arm
+// RFC requirement: RFC4271-8.2.2-10 negative -- handleIdle's named ignore arm
 // returns without touching the counter, matching §8.2.2's "Any other event
 // (Events 9-12, 15-28) received in the Idle state does not cause change in the
 // state of the local system" (internal/component/bgp/fsm/fsm.go, handleIdle).
@@ -261,7 +261,7 @@ func TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors(t *testing.T) {
 //
 // RFC requirement: RFC4271-8.2.2-11 positive -- Event 25 reaches an
 // incrementing arm in every non-Idle state: the shared error arm in
-// handleConnect and handleActive, the default (FSM Error) arm in
+// handleConnect and handleActive, the named FSM Error arm in
 // handleOpenSent, its own arm in handleOpenConfirm, and the grouped Event
 // 24/25 arm in handleEstablished (internal/component/bgp/fsm/fsm.go); each
 // moves the counter from 0 to 1 and the state to Idle.

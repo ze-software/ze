@@ -70,7 +70,7 @@ func runFlowSpecPlugin(conn net.Conn) int {
 //
 // addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
 // (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
-func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
+func DecodeNLRIHex(family, hexStr string, addPath, _ bool) (any, error) {
 	if !isValidFlowSpecFamily(family) {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}

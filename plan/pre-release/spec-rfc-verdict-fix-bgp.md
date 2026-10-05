@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BGP group before any row edit, parent R-11) |
-| Phase | - |
+| Phase | 2/48 |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-10-05 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -28,6 +28,8 @@ Measured 2026-09-28 over `rfc/audit/*.json` with the filter below: **346 weak an
 ### Packages it owns
 
 Test packages: `internal/component/bgp/...`, `internal/core/bgp/...`, BGP interop (`internal/le/interoplab/bgp`) and MRT (`internal/mrt`, `internal/plugins/mrt`), plus the refined moves: `test/plugin`, `test/reload`, `internal/core/network`, `internal/plugins/flowspec-firewall`, `internal/component/sysrib`, the SRv6 nexthop test file `internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go`, and the IS-IS BGP-LS export test file `internal/plugins/isis/bgpls_export_rfc9552_test.go`.
+
+The refinement paths above record the original assignment. Ownership follows those carriers through renames. The derived query below uses their current paths and includes the new OSPF router-ID proof.
 
 | Package | Weak + wrong (2026-09-28) | Of which wrong |
 |---------|--------------|----------------|
@@ -83,7 +85,7 @@ The verdict inventory is DERIVED. No id list is committed here, because the audi
 
 | Question | Derived by |
 |----------|-----------|
-| Every weak or wrong verdict in this child's scope (stem, id, verdict) | `jq -r --arg pk '^(internal/component/bgp/\|internal/core/bgp/\|internal/le/interoplab/bgp/\|internal/mrt/\|internal/plugins/mrt/\|test/plugin/\|test/reload/\|internal/core/network/\|internal/plugins/flowspec-firewall/\|internal/component/sysrib/\|internal/plugins/fib/kernel/nexthop_srv6\|internal/plugins/isis/bgpls_export_rfc9552)' --arg own '^$' --arg fo '^(rfc5882)$' 'input_filename as $f \| ($f\|ltrimstr("rfc/audit/")\|rtrimstr(".json")) as $s \| .requirements \| to_entries[] \| select(.value.verdict=="weak" or .value.verdict=="wrong") \| select(.key\|IN("RFC1071-1-4","RFC4303-2.1-1","RFC5882-4.4-1","RFC905-x-3","RFC905-x-4")\|not) \| select((($s\|test($own)) or ([(.value.tests // {})\|keys[]\|test($pk)]\|any)) and ($s\|test($fo)\|not)) \| "\($s)\t\(.key)\t\(.value.verdict)"' rfc/audit/*.json` |
+| Every weak or wrong verdict in this child's scope (stem, id, verdict) | `jq -r --arg pk '^(internal/component/bgp/\|internal/core/bgp/\|internal/le/interoplab/bgp/\|internal/mrt/\|internal/plugins/mrt/\|test/plugin/\|test/reload/\|internal/core/network/\|internal/plugins/flowspec-firewall/\|internal/component/sysrib/\|internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go\|internal/plugins/isis/rfc9552_router_id_test.go\|internal/plugins/ospf/rfc9552_router_id_test.go)' --arg own '^$' --arg fo '^(rfc5882)$' 'input_filename as $f \| ($f\|ltrimstr("rfc/audit/")\|rtrimstr(".json")) as $s \| .requirements \| to_entries[] \| select(.value.verdict=="weak" or .value.verdict=="wrong") \| select(.key\|IN("RFC1071-1-4","RFC4303-2.1-1","RFC5882-4.4-1","RFC905-x-3","RFC905-x-4")\|not) \| select((($s\|test($own)) or ([(.value.tests // {})\|keys[]\|test($pk)]\|any)) and ($s\|test($fo)\|not)) \| "\($s)\t\(.key)\t\(.value.verdict)"' rfc/audit/*.json` |
 | What the arguments mean | `pk` matches a tagged test path in this child's packages; `own` adds this child's owned stems tagged from another child's packages; `fo` drops stems another child owns (`^$` matches none); the five ids are the parent's cross-group verdicts |
 
 **Wiring, 2026-09-28, at `cb4801b4cc`:** the filter returns 346 weak and 14 wrong, 360 in all, over 60 stems. This equals the Task figure, so `fefe38b68c` (it re-judged only the five cross-group verdicts, which the filter drops) and `cb4801b4cc` changed no count here. `./le rfc audit-stamp` accepts `mode rejudge` (A-1). The "Blocked by" verdicts are now acceptance criteria of their blocking specs: `spec-bgp-prefix-sid-rfc-defects` AC-6, `spec-bgp-graceful-restart-rfc-defects` AC-4, `spec-bgp-open-session-rfc-defects` AC-4, `spec-bgp-update-propagation-rfc-defects` AC-5, `spec-bgp-sr-policy-rfc-defects` AC-4.
@@ -298,6 +300,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | RFC9494-4.2-8 | weak | `spec-bgp-graceful-restart-rfc-defects` |
 | RFC9494-4.3-1 | weak | `spec-bgp-graceful-restart-rfc-defects` |
 | RFC6286-2.1-1 | weak | `spec-bgp-open-session-rfc-defects` |
+| RFC9494-4.3-3 | weak | `spec-bgp-graceful-restart-rfc-defects` (the current audit retains this finding; the prior prose below incorrectly called it enforced) |
 | RFC9072-2-1 | weak | `spec-bgp-open-session-rfc-defects` |
 | RFC4271-4.3-3 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC4271-4.3-4 | weak | `spec-bgp-update-propagation-rfc-defects` |
@@ -307,11 +310,8 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC9234-3.1-1 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC7999-3.1-2 | weak | `spec-bgp-update-propagation-rfc-defects` |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (2026-10-02: received link-local-only next hop leaks across multihop egress; existing-generation withdrawal also owed) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (same red probe, internal multihop case; global-address control passes) |
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (same red probe, external multihop case; global-address control passes) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (2026-10-02: distinct directly attached external-peer probe proves loss of usable next hops sends no withdrawal for an already advertised route) |
 | RFC9830-4.2.1-2 | weak | `spec-bgp-sr-policy-rfc-defects` |
 | RFC9830-2.4.2-6 | weak | `spec-bgp-sr-policy-rfc-defects` (D1: its quote is the row text verbatim, though the spec says "no row names it") |
 | RFC9830-4.2.1-7 | weak | `spec-bgp-sr-policy-rfc-defects` AC-5 (§4.2.1 receive validation: attribute 23 has no validator) |
@@ -324,9 +324,9 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 
 - RFC9494-5-2 is a `{gap}` with no verdict in `rfc/audit/rfc9494.json`, so it is not in the derived listing and not a blocked verdict; owner ruling 8 (e) homes it in `spec-bgp-llgr-per-family-config` AC-6.
 - RFC8277-2.5-3 is a `{gap}` with no weak or wrong verdict; `spec-bgp-addpath-best-path-per-prefix` AC-6 owns it.
-- RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json` and RFC9494-4.3-3 is `enforced`, so neither is a blocked verdict; the graceful-restart spec still owns both defects.
+- RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json`. RFC9494-4.3-3 remains `weak` and is listed above. The graceful-restart spec owns both producer defects.
 - RFC9252-5-2 is `unimplemented`, not weak or wrong.
-- RFC 2545 Section 3 (update-propagation D6) and RFC 7854 Section 4.9 reason 4 (bmp-sflow D1) have no row. RFC7854-4.9-1 quotes reasons 1 and 2 only, so it is not blocked, but the D1 producer change stales its records: the committing spec re-records them (R-6 of the parent).
+- RFC 2545 Section 3 (update-propagation D6) and RFC 7854 Section 4.9 reason 4 (bmp-sflow D1) have no row. RFC7854-4.9-1 is explicitly blocked by the BMP spec's AC-5 for its reason 2 FSM event code. The committing spec also renews records changed by the shared `peerDownFor` repair (R-6 of the parent).
 - RFC 9830 Section 2.4.2 D2 (the BSID label width) has no row; its producer change stales the srpolicy records the same way.
 
 ## Required Reading
@@ -457,7 +457,7 @@ The parent's Method table governs every phase and is not copied here. The rules 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | `./le rfc audit-stamp` help names `mode` | unvalidated |
+| A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | native `audit-stamp mode rejudge` stamped both RFC8050 findings in `14698ed9c4` | confirmed 2026-10-05 |
 | A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | unvalidated |
 
 ### Risks

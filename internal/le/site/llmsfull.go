@@ -60,7 +60,7 @@ func (kind readingKind) String() string {
 	case readingUnspecified:
 		return "unspecified"
 	default:
-		return "unspecified"
+		panic("BUG: invalid reading kind")
 	}
 }
 

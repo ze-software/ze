@@ -185,6 +185,8 @@ func appendIndented(output *bytes.Buffer, value jsonValue, depth int) {
 		appendArray(output, value.values, depth)
 	case jsonObject:
 		appendObject(output, value.members, depth)
+	default:
+		panic("BUG: invalid mutation JSON kind")
 	}
 }
 

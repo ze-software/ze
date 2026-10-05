@@ -553,6 +553,8 @@ func namePattern(retired Retirement) retiredPattern {
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old)).Str(edgeAfterIdent)
 	case RetiredKindUnspecified:
 		panic("BUG: doccheck.namePattern: a retired name declares no kind; see retirements")
+	default:
+		panic("BUG: retired name has an unknown kind")
 	}
 	return retiredPattern{
 		kind:        retired.Kind.String(),

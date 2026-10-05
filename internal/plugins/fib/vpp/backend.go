@@ -4,6 +4,7 @@
 package fibvpp
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -15,6 +16,9 @@ import (
 	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/ip_types"
 )
+
+// A missing API reply cannot prove that VPP rejected an ordinary mutation.
+var errVPPMutationUncertain = errors.New("VPP mutation result is uncertain")
 
 // vppRichRoute carries all attributes needed for full VPP FIB programming.
 type vppRichRoute struct {
@@ -66,7 +70,11 @@ func (b *govppBackend) replaceRoute(prefix netip.Prefix, nextHop netip.Addr) err
 }
 
 func (b *govppBackend) addRichRoute(r vppRichRoute) error {
-	return b.richRouteAddDel(true, r)
+	tableID := r.TableID
+	if tableID == 0 {
+		tableID = b.tableID
+	}
+	return b.addRichRouteInTable(r, tableID)
 }
 
 func (b *govppBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
@@ -74,17 +82,23 @@ func (b *govppBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
 	if tableID != 0 {
 		tbl = tableID
 	}
+	return b.delRouteInTable(prefix, tbl)
+}
+
+// Owned identities keep their exact table, including table zero after a
+// configured-table change. The public route methods still apply defaults.
+func (b *govppBackend) delRouteInTable(prefix netip.Prefix, tableID uint32) error {
 	req := &ip.IPRouteAddDel{
 		IsAdd: false,
 		Route: ip.IPRoute{
-			TableID: tbl,
+			TableID: tableID,
 			Prefix:  toVPPPrefix(prefix),
 			NPaths:  0,
 		},
 	}
 	reply := &ip.IPRouteAddDelReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("IPRouteAddDel rich del: %w", err)
+		return fmt.Errorf("IPRouteAddDel rich del: %w: %w", errVPPMutationUncertain, err)
 	}
 	if reply.Retval != 0 {
 		return fmt.Errorf("IPRouteAddDel rich del retval=%d", reply.Retval)
@@ -93,15 +107,11 @@ func (b *govppBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
 }
 
 func (b *govppBackend) replaceRichRoute(r vppRichRoute) error {
-	return b.richRouteAddDel(true, r)
+	return b.addRichRoute(r)
 }
 
-func (b *govppBackend) richRouteAddDel(isAdd bool, r vppRichRoute) error {
+func (b *govppBackend) addRichRouteInTable(r vppRichRoute, tableID uint32) error {
 	pathType := routeTypeToVPP(r.RouteType)
-	tbl := b.tableID
-	if r.TableID != 0 {
-		tbl = r.TableID
-	}
 
 	var paths []fib_types.FibPath
 	switch {
@@ -147,9 +157,9 @@ func (b *govppBackend) richRouteAddDel(isAdd bool, r vppRichRoute) error {
 	}
 
 	req := &ip.IPRouteAddDel{
-		IsAdd: isAdd,
+		IsAdd: true,
 		Route: ip.IPRoute{
-			TableID: tbl,
+			TableID: tableID,
 			Prefix:  toVPPPrefix(r.Prefix),
 			NPaths:  uint8(len(paths)),
 			Paths:   paths,
@@ -157,7 +167,7 @@ func (b *govppBackend) richRouteAddDel(isAdd bool, r vppRichRoute) error {
 	}
 	reply := &ip.IPRouteAddDelReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("IPRouteAddDel rich: %w", err)
+		return fmt.Errorf("IPRouteAddDel rich: %w: %w", errVPPMutationUncertain, err)
 	}
 	if reply.Retval != 0 {
 		return fmt.Errorf("IPRouteAddDel rich retval=%d", reply.Retval)
@@ -173,7 +183,10 @@ func routeTypeToVPP(rt sysribevents.RouteType) fib_types.FibPathType {
 		return fib_types.FIB_API_PATH_TYPE_ICMP_UNREACH
 	case sysribevents.RouteTypeProhibit:
 		return fib_types.FIB_API_PATH_TYPE_ICMP_PROHIBIT
+	case 0, sysribevents.RouteTypeUnicast:
+		return fib_types.FIB_API_PATH_TYPE_NORMAL
 	default:
+		// Route types are open event inputs; preserve the normal-path fallback.
 		return fib_types.FIB_API_PATH_TYPE_NORMAL
 	}
 }
@@ -208,7 +221,7 @@ func (b *govppBackend) routeAddDel(isAdd bool, prefix netip.Prefix, nextHop neti
 
 	reply := &ip.IPRouteAddDelReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("IPRouteAddDel: %w", err)
+		return fmt.Errorf("IPRouteAddDel: %w: %w", errVPPMutationUncertain, err)
 	}
 	if reply.Retval != 0 {
 		return fmt.Errorf("IPRouteAddDel retval=%d", reply.Retval)

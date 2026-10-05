@@ -218,7 +218,7 @@ const subcodeUnspecific = "Unspecific"
 // notificationSubcodeString returns human-readable subcode name.
 // Unmapped error codes fall through to the Subcode(N) fallback.
 func notificationSubcodeString(code message.NotifyErrorCode, subcode uint8) string {
-	switch code { //nolint:exhaustive // Only some codes have specific subcode strings
+	switch code {
 	case message.NotifyCease:
 		return message.CeaseSubcodeString(subcode)
 	case message.NotifyOpenMessage:
@@ -229,6 +229,10 @@ func notificationSubcodeString(code message.NotifyErrorCode, subcode uint8) stri
 		return headerSubcodeString(subcode)
 	case message.NotifyFSMError:
 		return fsmSubcodeString(subcode)
+	case message.NotifyHoldTimerExpired, message.NotifyRouteRefresh, message.NotifySendHoldTimerExpired:
+		// These named errors use the generic subcode representation below.
+	default:
+		// Notification codes are an open wire set; preserve unknown subcodes below.
 	}
 	if subcode == 0 {
 		return subcodeUnspecific
@@ -362,6 +366,8 @@ func refreshSubtypeName(subtype uint8) string {
 		return "borr"
 	case message.RouteRefreshEoRR:
 		return "eorr"
+	default:
+		// Refresh subtypes are an open wire set; preserve the numeric fallback below.
 	}
 	var sb [16]byte
 	out := append(sb[:0], "unknown("...)
@@ -373,7 +379,7 @@ func refreshSubtypeName(subtype uint8) string {
 // DecodedNegotiated holds negotiated capabilities for API formatting.
 // Sent after OPEN exchange to inform plugins of negotiated capabilities.
 type DecodedNegotiated struct {
-	// MessageSize is max message size (4096 or 65535 if ExtendedMessage).
+	// MessageSize is the send limit (4096 or 65535 if the peer advertised support).
 	MessageSize int
 	// HoldTime is negotiated hold time in seconds.
 	HoldTime uint16
@@ -401,9 +407,10 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		return DecodedNegotiated{}
 	}
 
-	// Determine message size
+	// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a peer
+	// only if the BGP Extended Message Capability was received from that peer."
 	msgSize := 4096
-	if neg.ExtendedMessage {
+	if neg.ExtendedMessageSend {
 		msgSize = 65535
 	}
 

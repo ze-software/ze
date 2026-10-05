@@ -49,6 +49,7 @@ const (
 // vtysh commands. FRR takes one after each -c flag.
 const (
 	frrConfigureTerminal          = "configure terminal"
+	frrAddressFamilyIPv4Unicast   = "address-family ipv4 unicast"
 	frrShowBFDPeers               = "show bfd peers"
 	frrShowISISDatabase           = "show isis database"
 	frrShowISISNeighbor           = "show isis neighbor"
@@ -89,6 +90,7 @@ const (
 	gobgpAdd      = "add"
 	gobgpNeighbor = "neighbor"
 	gobgpNextHop  = "nexthop"
+	gobgpOrigin   = "origin"
 )
 
 // ip(8) words. The scenarios break and restore a link, read an address, and
@@ -103,6 +105,8 @@ const (
 	ipObjectLink       = "link"
 	ipObjectRoute      = "route"
 	ipObjectXfrm       = "xfrm"
+	ipOptionDevice     = "dev"
+	ipScopeLink        = "link"
 	linkDown           = "down"
 )
 

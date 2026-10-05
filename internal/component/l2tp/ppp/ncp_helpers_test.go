@@ -199,6 +199,8 @@ func autoAcceptIP(d *Driver) {
 			args.DNSSecondary = ipcpTestDNS2
 		case AddressFamilyIPv6:
 			// Accept peer's chosen identifier.
+		default:
+			panic("BUG: unknown NCP request address family")
 		}
 		_ = d.IPResponse(req.TunnelID, req.SessionID, args) //nolint:errcheck // ignore teardown race
 	}
@@ -225,6 +227,8 @@ func autoAcceptIPv4RejectIPv6(d *Driver) {
 		case AddressFamilyIPv6:
 			args.Accept = false
 			args.Reason = "IPv6 not supported by static pool"
+		default:
+			panic("BUG: unknown NCP request address family")
 		}
 		_ = d.IPResponse(req.TunnelID, req.SessionID, args) //nolint:errcheck // ignore teardown race
 	}

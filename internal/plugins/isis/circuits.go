@@ -420,8 +420,10 @@ func circuitLevels(l Level) []adjacency.Level {
 		return []adjacency.Level{adjacency.Level1}
 	case LevelL2:
 		return []adjacency.Level{adjacency.Level2}
-	default:
+	case LevelL1L2:
 		return []adjacency.Level{adjacency.Level1, adjacency.Level2}
+	default:
+		panic("BUG: invalid configured IS-IS level")
 	}
 }
 

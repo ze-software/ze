@@ -35,7 +35,7 @@ func (s State) String() string {
 	case StateDR:
 		return "dr"
 	default:
-		return "unknown"
+		panic("BUG: invalid OSPF interface state")
 	}
 }
 

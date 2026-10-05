@@ -180,8 +180,9 @@ func invokePluginNLRIDecode(pluginName, family, hexData string) any {
 			return invokePluginPath(path, args, request)
 		}
 		return invokePluginNLRIDecodeRequest(name, request)
+	default:
+		panic("BUG: invalid plugin invocation mode")
 	}
-	return nil
 }
 
 // invokePluginNLRIDecodeRequest spawns a built-in plugin subprocess.

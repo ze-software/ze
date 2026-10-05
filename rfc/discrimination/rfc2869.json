@@ -53,7 +53,7 @@
       "claim-sha": "d56d504fb2928e23",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
-      "producer-sha": "b301ad24ed559272",
+      "producer-sha": "e642f001446972f0",
       "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "41e2c67beeba93d2",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
-      "producer-sha": "b301ad24ed559272",
+      "producer-sha": "e642f001446972f0",
       "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

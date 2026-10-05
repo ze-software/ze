@@ -80,7 +80,7 @@ func runEVPNPlugin(conn net.Conn) int {
 // Same logic as the OnDecodeNLRI SDK callback but callable without RPC.
 // addPath states whether each NLRI in the section carries a 4-octet Path
 // Identifier ahead of it (RFC 7911 Section 3). The hex alone cannot say.
-func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
+func DecodeNLRIHex(family, hexStr string, addPath, _ bool) (any, error) {
 	if !isValidEVPNFamily(family) {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
@@ -627,8 +627,10 @@ func evpnRouteName(t EVPNRouteType) string {
 		return "Ethernet Segment"
 	case EVPNRouteType5:
 		return "IP Prefix"
+	default:
+		// The wire route-type registry is open; retain unknown numeric names.
+		return textbuf.StrInt("EVPN Type ", int64(t))
 	}
-	return textbuf.StrInt("EVPN Type ", int64(t))
 }
 
 // formatESIForJSON formats ESI for JSON output ("-" if zero).

@@ -436,7 +436,8 @@ func isComponentKeyword(token string) bool {
 
 // componentMaxValue returns max valid value for component type.
 func componentMaxValue(compType FlowComponentType) uint64 {
-	switch compType { //nolint:exhaustive // Only numeric types
+	//exhaustive:ignore // This numeric-width projection specializes bounded criteria; others keep the 32-bit limit.
+	switch compType {
 	case FlowIPProtocol, FlowICMPType, FlowICMPCode:
 		return 255
 	case FlowPort, FlowDestPort, FlowSourcePort, FlowPacketLength:

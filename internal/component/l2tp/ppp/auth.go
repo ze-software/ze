@@ -186,6 +186,7 @@ func selectAuthFallback(peerSuggestion AuthMethod, order []AuthMethod) AuthMetho
 // bytes to populate in LCPOptions when building a local CONFREQ.
 // Returns (0, nil) for AuthMethodNone -- the caller omits the
 // Auth-Protocol option entirely.
+// An unnamed method is an internal programming error.
 //
 // The returned AuthData slice is freshly allocated so callers may
 // retain the LCPOptions struct across requests without aliasing a
@@ -200,8 +201,9 @@ func authMethodToLCPOptions(m AuthMethod) (uint16, []byte) {
 		return authProtoCHAP, []byte{chapAlgorithmMD5}
 	case AuthMethodMSCHAPv2:
 		return authProtoCHAP, []byte{chapAlgorithmMSv2}
+	default:
+		panic("BUG: unknown authentication method")
 	}
-	return 0, nil
 }
 
 // awaitAuthDecision emits req on the auth events channel, waits for

@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,8 +12,8 @@
       "note": "Sender half: TestGracefulRestartEncodeReservedBits (WriteTo masks to R bit and 12-bit time). Receiver half: TestRFC4724ReceiverIgnoresReservedRestartFlags parses the nibble with reserved 0x3 set, R clear and set, and requires the result equal to the clean parse. Judge breaks: R bit read with mask 0x9000, and Restart Time read with mask 0x3FFF, each turned the test red. Only 0x3 used because RFC 8538 assigned the N bit.",
       "requirement_sha": "82503bdc2d2d8e2e",
       "tests": {
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "3b6ab22b8c99761b",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "3b6ab22b8c99761b",
         "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags": "dad25bb523dfbd36",
         "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags#2": "dad25bb523dfbd36"
       },
@@ -28,8 +29,8 @@
       "note": "Sender half: TestGracefulRestartEncodeReservedBits (only F bit 0x80 per family). Receiver half: TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags sets all seven reserved bits (0x7F) with F clear and set and requires the parse equal to the clean one. Judge break: ForwardingState read as flags != 0 turned it red.",
       "requirement_sha": "82503bdc2d2d8e2e",
       "tests": {
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "3b6ab22b8c99761b",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "3b6ab22b8c99761b",
         "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags": "dad25bb523dfbd36",
         "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags#2": "dad25bb523dfbd36"
       },
@@ -45,8 +46,8 @@
       "note": "two GR instances with distinct restart time and family; Negotiate must keep the second; fails on first-wins or merge. The negative tag is the complement of the positive's assertion on the same input (two hats), not an independent case",
       "requirement_sha": "ba1419c2df9e18e2",
       "tests": {
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "79de3d0b159f3a42",
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance#2": "79de3d0b159f3a42"
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "ffd23015bd4db995",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance#2": "ffd23015bd4db995"
       },
       "units": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "2d73d79b2835b798",
@@ -60,11 +61,11 @@
       "tests": {
         "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
         "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "02487edfbf589113",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "02487edfbf589113",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "02487edfbf589113",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "83af95f0f2ec37a2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "83af95f0f2ec37a2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "83af95f0f2ec37a2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "83af95f0f2ec37a2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "83af95f0f2ec37a2",
         "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "f04334a58fd00e7c"
       },
@@ -181,9 +182,9 @@
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNoGRCapability": "cf2845d2e52807df",
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "cf2845d2e52807df",
-        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724RetentionCoversEveryAdvertisedFamily": "b30d8061cbaf579c",
-        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownRetainsAndMarksRoutesStale": "b30d8061cbaf579c",
-        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownWithoutCapabilityRetainsNothing": "b30d8061cbaf579c"
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724RetentionCoversEveryAdvertisedFamily": "b7a5f9e69090ca7b",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownRetainsAndMarksRoutesStale": "b7a5f9e69090ca7b",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownWithoutCapabilityRetainsNothing": "b7a5f9e69090ca7b"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNoGRCapability": "56954c1037a96328",
@@ -215,7 +216,7 @@
       "note": "Re-judged 2026-10-02 (BGP c25 judge). Positive TestComparePair_GRStaleCompetesNormally: a level-1 stale route with the higher LOCAL_PREF wins. New genuine negative (R1(b)) TestRFC4724GRStaleRouteIsDecidedByItsAttributesAlone drives SelectBest toward both violations in both argument orders: a fresh route with the higher LOCAL_PREF beats the stale one (staleness does not favour) and with all attributes equal the stale route from the lower address wins the tie-break (staleness costs nothing). Overlay probes: favouring level 1 reds only the negative; lowering the depreference threshold to 1 reds the positive and the tie subtest. Record: comparePair revert (-). The old negative tag on TestComparePair_LLGRStale proved RFC 9494 depreference and was removed (D-15). Proof is at the RIB best path the forwarding plane is handed; sysrib and fib-kernel hold no GR-stale distinction.",
       "requirement_sha": "65b93110faa09f2e",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "dbcc36d32357abae",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "71ac3f83dbbffc05",
         "internal/component/bgp/plugins/rib/rfc4724_stale_forwarding_test.go::TestRFC4724GRStaleRouteIsDecidedByItsAttributesAlone": "32733bae231652dd"
       },
       "units": {
@@ -289,7 +290,7 @@
       "tests": {
         "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
         "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "83af95f0f2ec37a2",
         "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48"
       },
       "units": {

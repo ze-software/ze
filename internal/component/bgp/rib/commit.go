@@ -245,7 +245,8 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 	var otherAttrs []attribute.Attribute
 
 	for _, attr := range attrs {
-		switch attr.Code() { //nolint:exhaustive // default handles all other attributes
+		//exhaustive:ignore // Select attributes needing ordering or replacement; preserve the others generically.
+		switch attr.Code() {
 		case attribute.AttrOrigin:
 			origin = attr
 		case attribute.AttrLocalPref:

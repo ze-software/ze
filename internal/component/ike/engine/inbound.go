@@ -173,6 +173,8 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		// Section 2.4). A replay can therefore never mask a dead peer.
 		return ownedOutcome{}
 	case inboundNewRequest, inboundResponse:
+	default:
+		panic("BUG: unknown inbound IKE message classification")
 	}
 
 	inner, err := decryptAndParse(sa, &msg, pkt.Data)
@@ -405,8 +407,9 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			p.clear()
 			ps.pendingRekey = nil
 			return ownedOutcome{newSA: newSA}
+		default:
+			panic("BUG: unknown pending IKE rekey kind")
 		}
-		return ownedOutcome{}
 	}
 
 	// Peer-initiated request.

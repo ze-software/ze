@@ -36,15 +36,13 @@ func keyToPath(key string) string {
 			continue
 		}
 		rest := key[len(prefix):] // e.g., "eth0.100.forwarding"
-		lastDot := strings.LastIndex(rest, ".")
-		if lastDot < 0 {
+		ifaceName, leaf, found := strings.CutLast(rest, ".")
+		if !found {
 			break // malformed, fall through to naive conversion
 		}
-		ifaceName := rest[:lastDot] // "eth0.100"
 		if ifaceName == "" {
 			break // malformed: empty interface name, fall through
 		}
-		leaf := rest[lastDot+1:]                                           // "forwarding"
 		pathPrefix := strings.ReplaceAll(prefix[:len(prefix)-1], ".", "/") // "net/ipv4/conf"
 		return pathPrefix + "/" + ifaceName + "/" + leaf
 	}

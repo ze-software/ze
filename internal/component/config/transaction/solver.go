@@ -123,6 +123,7 @@ func sectionNodePosition(ops []ConfigOperation) int {
 // (ifaceConfigureOperation, internal/component/iface/operation.go). A coarse
 // node placed before it would be applied before the address it binds exists.
 func addsAddressing(op *ConfigOperation) bool {
+	//exhaustive:ignore // Only create and modify can add addressing in phase 4.
 	switch op.Verb {
 	case VerbCreate, VerbModify:
 		return providesAddressing(op)
@@ -138,6 +139,7 @@ func addsAddressing(op *ConfigOperation) bool {
 // A destroy is never one. The stops are phases 1 and 2, and they run before the
 // removals whatever they touch.
 func startsABinder(op *ConfigOperation) bool {
+	//exhaustive:ignore // Only create and modify can start a binder in phase 5.
 	switch op.Verb {
 	case VerbCreate, VerbModify:
 		return !providesAddressing(op)
@@ -184,6 +186,7 @@ func providesAddressing(op *ConfigOperation) bool {
 
 // addressingKind reports whether one resource kind names addressing.
 func addressingKind(kind ResourceKind) bool {
+	//exhaustive:ignore // Membership predicate for the addressing layer only.
 	switch kind {
 	case ResourceAddress, ResourceInterface:
 		return true

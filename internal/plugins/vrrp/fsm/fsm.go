@@ -43,7 +43,7 @@ func (s State) String() string {
 	case StateMaster:
 		return "Master"
 	default:
-		return "unknown"
+		panic("BUG: vrrp: invalid FSM state")
 	}
 }
 
@@ -107,7 +107,7 @@ func (i *Instance) Handle(ev Event) []Action {
 	case StateMaster:
 		return i.handleMaster(ev)
 	default:
-		return nil
+		panic("BUG: vrrp: invalid FSM state")
 	}
 }
 

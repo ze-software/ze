@@ -77,8 +77,10 @@ func (s actionSource) String() string {
 		return subjectPeer
 	case sourceGroup:
 		return "group"
-	default:
+	case sourceGlobal:
 		return "global"
+	default:
+		panic("BUG: invalid RPKI action source")
 	}
 }
 

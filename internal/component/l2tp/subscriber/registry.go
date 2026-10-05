@@ -67,6 +67,8 @@ func (r *Registry) Count() SessionCounts {
 			c.PPPoE++
 		case AccessL2TP:
 			c.L2TP++
+		default:
+			// Access types are open registry inputs; unknown types count only toward Total.
 		}
 	}
 	r.mu.RUnlock()

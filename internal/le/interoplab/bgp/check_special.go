@@ -68,6 +68,8 @@ var specialCheckers = map[string]interoplab.Checker{
 	"ospf-lfa-frr":                             checkOSPFLFA,
 	"ospf-stub-nssa-frr":                       checkNSSADefault,
 	"ospf-ti-lfa-frr":                          checkOSPFTILFA,
+	"ospf-te-frr":                              checkOSPFTEBGPLS,
+	"ospf-te-interas-frr":                      checkOSPFInterASBGPLS,
 	"bgp-max-prefix-per-family-frr":            checkMaxPrefixPerFamily,
 	"gtsm-related-icmp-ttl":                    checkGTSMRelatedICMPTTL,
 }
@@ -318,7 +320,7 @@ func checkReflectorWithdrawal(ctx context.Context, check *interoplab.CheckContex
 	}
 	if _, err := check.Lab.Exec(ctx, peerFRR, []string{
 		cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65000",
-		"-c", "address-family ipv4 unicast", "-c", "no network 10.20.0.0/24",
+		"-c", frrAddressFamilyIPv4Unicast, "-c", "no network 10.20.0.0/24",
 	}, nil); err != nil {
 		return err
 	}
@@ -1194,7 +1196,7 @@ func setFRRRedistribution(ctx context.Context, lab interoplab.CheckerLab, enable
 	}
 	_, err := lab.Exec(ctx, peerFRR, []string{
 		cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65002",
-		"-c", "address-family ipv4 unicast", "-c", verb,
+		"-c", frrAddressFamilyIPv4Unicast, "-c", verb,
 	}, nil)
 	return err
 }

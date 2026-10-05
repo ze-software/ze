@@ -1905,6 +1905,13 @@ external plugin (`run "le test engine-steps ./engine-steps.json"`), which runs
 the steps from `OnAllPluginsReady` and reports failures via the
 `ZE-OBSERVER-FAIL` sentinel the runner gates on.
 
+The executor reads JSON from a file, or stdin when the path is `-`. Every
+numeric `kind` must name an `EngineStepKind` before any steps are published or
+TLS is attempted. Missing, zero, and unknown values fail with
+`ZE-OBSERVER-FAIL` and an indexed unknown-kind parse error; they are not skipped.
+<!-- source: internal/test/runner/engine_steps.go -- UnmarshalEngineSteps -->
+<!-- source: internal/test/cli/cmd_engine_steps.go -- CmdEngineSteps -->
+
 ```
 command=<cli command text>
 stream=<monitor command text>

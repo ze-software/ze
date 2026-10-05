@@ -53,6 +53,7 @@ func TestSRFIBInstallPrefixSIDPush(t *testing.T) {
 	f.installPrefixSID(fec, sr.ActionKeep, 16509, true, 16009, sr.ExplicitNullV4, nh)
 	var push, swap *mplsfibevents.Entry
 	for i := range bus.entries {
+		//exhaustive:ignore // This test extracts only push and swap entries for ActionKeep.
 		switch bus.entries[i].Op {
 		case mplsfibevents.OpPush:
 			push = &bus.entries[i]

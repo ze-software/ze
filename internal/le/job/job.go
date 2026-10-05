@@ -418,8 +418,10 @@ func (k Kind) String() string {
 		return "inside"
 	case KindUnadmitted:
 		return "unadmitted"
-	default:
+	case KindUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: unknown job admission kind")
 	}
 }
 
@@ -531,10 +533,14 @@ func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 		return nil, err
 	}
 
+	tree, err := InputHash(a.Root, label)
+	if err != nil {
+		return nil, err
+	}
 	job := pending{
 		label:     label,
 		argv:      argv,
-		tree:      InputHash(a.Root, label),
+		tree:      tree,
 		key:       jobKey(argv),
 		mayAttach: a.MayAttach,
 	}
@@ -554,6 +560,9 @@ func (a *Admission) queue(job *pending) (*Ticket, error) {
 
 	for {
 		result := a.claim(job)
+		if result.err != nil {
+			return nil, result.err
+		}
 
 		switch result.state {
 		case stateClaimed:
@@ -585,6 +594,8 @@ func (a *Admission) queue(job *pending) (*Ticket, error) {
 				lastBanner = time.Now()
 			}
 			time.Sleep(a.Poll)
+		default:
+			panic("BUG: job registry returned an unknown admission state")
 		}
 	}
 }
@@ -658,7 +669,9 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 		report.Code = a.stream(argv, a.runDir(dir), environ, nil)
 		return report, report.Code
 	case KindUnspecified, KindUnadmitted, KindClaimed:
-		// A claimed slot is the rest of this function.
+		// RunClaimed runs a claimed slot and refuses either nonclaimed sentinel.
+	default:
+		panic("BUG: job admission returned an unknown ticket kind")
 	}
 
 	report.Code = a.RunClaimed(ticket, argv, dir, environ)

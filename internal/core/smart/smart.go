@@ -54,11 +54,10 @@ func ParseNVMeBuf(buf *[512]byte) *Info {
 // NvmeNamespace strips the partition suffix (e.g. "p1") from an NVMe
 // device name so the admin ioctl targets the namespace, not a partition.
 func NvmeNamespace(name string) string {
-	idx := strings.LastIndex(name, "p")
-	if idx < 0 {
+	namespace, suffix, found := strings.CutLast(name, "p")
+	if !found {
 		return name
 	}
-	suffix := name[idx+1:]
 	for _, c := range suffix {
 		if c < '0' || c > '9' {
 			return name
@@ -67,5 +66,5 @@ func NvmeNamespace(name string) string {
 	if suffix == "" {
 		return name
 	}
-	return name[:idx]
+	return namespace
 }

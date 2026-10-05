@@ -1098,6 +1098,20 @@ func TestResolveNextHop_Unset(t *testing.T) {
 	require.ErrorIs(t, err, ErrNextHopUnset)
 }
 
+// TestResolveNextHop_Unknown refuses an API policy outside the named set without resolving its address.
+func TestResolveNextHop_Unknown(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+	nh := bgptypes.RouteNextHop{
+		Policy: bgptypes.NextHopPolicy(255),
+		Addr:   mustParseAddr("192.0.2.2"),
+	}
+
+	got, err := peer.resolveNextHop(peer.session, nh, family.IPv4Unicast)
+	require.ErrorIs(t, err, ErrNextHopUnset)
+	require.False(t, got.IsValid(), "an unknown policy must not use its supplied address")
+}
+
 // TestResolveNextHop_ExplicitInvalid verifies explicit with invalid addr.
 //
 // VALIDATES: Explicit with invalid addr returns that addr (no error).

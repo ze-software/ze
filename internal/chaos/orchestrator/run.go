@@ -233,6 +233,8 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 		case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 			peer.EventEORSent, peer.EventError,
 			peer.EventReconnecting, peer.EventWithdrawalSent, peer.EventDroppedEvents:
+		default:
+			panic("BUG: invalid orchestrator event type")
 		}
 
 		if ev.Type == peer.EventEORSent && ev.PeerIndex < len(eorSeen) && !eorSeen[ev.PeerIndex] {

@@ -1516,6 +1516,9 @@ func (a *reactorAPIAdapter) getMatchingPeersSel(sel *selector.Selector, origin s
 // Caller must hold a.r.mu (read or write).
 func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
 	switch sel.SelectorKind() {
+	case 0:
+		// A zero Selector matches no peers.
+		return nil
 	case selector.KindAll:
 		peers := make([]*Peer, 0, len(a.r.peers))
 		for _, peer := range a.r.peers {
@@ -1585,9 +1588,9 @@ func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
 			}
 		}
 		return peers
+	default:
+		panic("BUG: invalid peer selector kind")
 	}
-
-	return nil
 }
 
 // addrToKey converts a netip.Addr to the AddrPort key format used by the reactor.

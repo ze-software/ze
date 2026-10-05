@@ -387,6 +387,8 @@ func collectFirewallInfo() (any, error) {
 				entry["policy"] = "accept"
 			case nftables.ChainPolicyDrop:
 				entry["policy"] = "drop"
+			default:
+				// Kernel policy codes are open; omit a policy name we do not know.
 			}
 		}
 		if c.Table != nil {
@@ -431,7 +433,10 @@ func tableFamilyName(f nftables.TableFamily) string {
 		return "netdev"
 	case nftables.TableFamilyBridge:
 		return "bridge"
+	case nftables.TableFamilyUnspecified:
+		return "unknown"
 	default:
+		// Kernel table families are an open set.
 		return "unknown"
 	}
 }

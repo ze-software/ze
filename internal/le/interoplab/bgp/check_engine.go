@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"regexp"
 	"slices"
@@ -71,16 +72,31 @@ func checkScenario(ctx context.Context, check *interoplab.CheckContext, name str
 	operations = append(append([]operation(nil), operations...), scenarioExtras[name]...)
 	for index := range operations {
 		if err := runOperation(ctx, check.Network, check.Lab, &operations[index]); err != nil {
-			return checkerFailure(ctx, check.Lab, name, index+1, err)
+			return checkerFailure(ctx, check.Lab, name, index+1, fmt.Errorf("selected networks IPv4=%s IPv6=%s: %w", check.Network.IPv4, check.Network.IPv6, err))
 		}
 	}
 	return nil
 }
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
 	var diagnostics textbuf.Buffer
-	for _, peer := range []string{"ze", peerFRR, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2} {
+	for _, peer := range []string{"ze", peerFRR, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2, peerPMACCT} {
 		logs, err := lab.Logs(ctx, peer, 80)
-		if err != nil || !logs.Available || strings.TrimSpace(logs.Text) == "" {
+		if err != nil {
+			continue
+		}
+		if !logs.Available {
+			continue
+		}
+		if peer == peerPMACCT {
+			output, queryErr := lab.Query(ctx, peer, []string{"tail", "-n", "80", pmacctMsgLogPath}, nil)
+			diagnostics.Str("\n--- pmacct msglog (last 80 rows) ---\n")
+			if queryErr == nil {
+				diagnostics.Str(output)
+			} else {
+				diagnostics.Str(queryErr.Error())
+			}
+		}
+		if strings.TrimSpace(logs.Text) == "" {
 			continue
 		}
 		if peer == "ze" {
@@ -237,8 +253,9 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		return waitContainsAny(ctx, lab, current.peer, current.command, current.timeout, current.contains...)
 	case opDelayRequireContains:
 		return delayRequireContains(ctx, lab, current.peer, current.command, current.delay, current.contains...)
+	default:
+		panic("BUG: checker has an unknown operation kind")
 	}
-	return errors.New("checker operation is unspecified")
 }
 
 func rewriteOperation(network interoplab.Network, current *operation) {
@@ -246,6 +263,8 @@ func rewriteOperation(network interoplab.Network, current *operation) {
 	current.contains = append([]string(nil), current.contains...)
 	current.absent = append([]string(nil), current.absent...)
 	current.proof = append([]string(nil), current.proof...)
+	// Registry maps are shared across runs, so rendering MUST own this copy.
+	current.fields = maps.Clone(current.fields)
 	var rendered textbuf.Buffer
 	ipv4Prefix := ""
 	if network.IPv4.IsValid() {
@@ -280,6 +299,9 @@ func rewriteOperation(network interoplab.Network, current *operation) {
 	}
 	for index := range current.proof {
 		current.proof[index] = rewrite(current.proof[index])
+	}
+	for key, value := range current.fields {
+		current.fields[key] = rewrite(value)
 	}
 }
 
@@ -404,7 +426,7 @@ func waitJSONFields(ctx context.Context, lab interoplab.CheckerLab, peer string,
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" JSON state").String(),
@@ -413,7 +435,7 @@ func waitJSONFields(ctx context.Context, lab interoplab.CheckerLab, peer string,
 	}, func(output string) bool {
 		return requireJSONFields(output, fields, minimum) == nil
 	})
-	return err
+	return withLastOutput(err, last)
 }
 
 func waitFRRRoute(ctx context.Context, lab interoplab.CheckerLab, prefix, family string, timeout time.Duration, present bool) error {

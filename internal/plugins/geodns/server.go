@@ -129,7 +129,7 @@ func typeMatches(qtype uint16, kind recordKind) bool {
 	case kindSRV:
 		return qtype == dns.TypeSRV
 	default:
-		return false
+		panic("BUG: invalid geodns record kind")
 	}
 }
 
@@ -152,8 +152,10 @@ func recordRR(name string, rec dnsRecord) dns.RR {
 		return &dns.AAAA{Hdr: hdr(name, dns.TypeAAAA, rec.TTL), AAAA: rec.Addr.AsSlice()}
 	case kindSRV:
 		return &dns.SRV{Hdr: hdr(name, dns.TypeSRV, rec.TTL), Priority: rec.Priority, Weight: rec.Weight, Port: rec.Port, Target: rec.Target}
-	default:
+	case kindA:
 		return &dns.A{Hdr: hdr(name, dns.TypeA, rec.TTL), A: rec.Addr.AsSlice()}
+	default:
+		panic("BUG: invalid geodns record kind")
 	}
 }
 

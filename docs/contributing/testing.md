@@ -101,6 +101,15 @@ developer's checkout or linked worktrees as mutation fixtures.
 <!-- source: cmd/ze/root_launcher_test.go -- launcherEnv -->
 <!-- source: cmd/ze/ze_le_personality_test.go -- invokePersonality -->
 
+CLI personality parity runs both real binaries against one isolated Git
+repository with a committed original, a tracked modification, and an untracked
+file. The fixture copies the checkout's real `.gitignore` before committing, so
+runtime scratch files follow the same ignore policy. Both binaries receive the
+same explicit fixture root. Stdout equality remains exact; stderr keeps only
+the existing program-name normalization. Concurrent developer edits are not
+fixture inputs.
+<!-- source: cmd/ze/ze_le_personality_test.go -- writePersonalityWorkingTree, assertInvocationPair -->
+
 ### Functional tests (`.ci` files)
 
 These spin up real Ze processes and test behavior end-to-end: does the config

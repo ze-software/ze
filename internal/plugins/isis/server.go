@@ -531,8 +531,10 @@ func spfLevelsFor(l Level) []spf.Level {
 		return []spf.Level{spf.Level1}
 	case LevelL2:
 		return []spf.Level{spf.Level2}
-	default:
+	case LevelL1L2:
 		return []spf.Level{spf.Level1, spf.Level2}
+	default:
+		panic("BUG: invalid configured IS-IS level")
 	}
 }
 

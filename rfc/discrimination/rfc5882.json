@@ -152,7 +152,7 @@
       "claim-sha": "d778aea04312eda0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_bfd.go::bfdEventFor",
-      "producer-sha": "1c81c052b4e98b29",
+      "producer-sha": "32c0b6e1b0b88a57",
       "break": "body of bfdEventFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -268,6 +268,17 @@
     {
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
+      "unit": "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey",
+      "unit-sha": "ff84028dc5c46e2b",
+      "claim-sha": "8a326ef203433f79",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::toSessionRequest",
+      "producer-sha": "d4c5cdd8de6ff796",
+      "break": "body of toSessionRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5882-4.4-1",
+      "polarity": "positive",
       "unit": "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession",
       "unit-sha": "b364b49bdf9804bc",
       "claim-sha": "9e7c7d41a6d40134",
@@ -286,17 +297,6 @@
       "producer": "internal/component/bfd/engine/engine.go::sharesSession",
       "producer-sha": "bf035fdad178f792",
       "break": "body of sharesSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5882-4.4-1",
-      "polarity": "positive",
-      "unit": "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey",
-      "unit-sha": "ff84028dc5c46e2b",
-      "claim-sha": "8a326ef203433f79",
-      "route": "revert",
-      "producer": "internal/component/bfd/config.go::toSessionRequest",
-      "producer-sha": "d4c5cdd8de6ff796",
-      "break": "body of toSessionRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5882-4.4-1",

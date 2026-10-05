@@ -260,8 +260,10 @@ func p12FilterImportDriver(name, filterName string, attributes []string, action 
 			verb = "MODIFY"
 		case sdk.FilterReject:
 			verb = "REJECT"
-		default:
+		case sdk.FilterAccept, sdk.FilterUnspecified:
 			verb = "ACCEPT"
+		default:
+			panic("BUG: unknown import-filter fixture action")
 		}
 		fmt.Fprintf(os.Stderr, "filter-update %s: filter=%s peer=%s\n", verb, input.Filter, input.Peer)
 		output := &sdk.FilterUpdateOutput{Action: action}

@@ -56,6 +56,66 @@ func parseAS4PathFromPayload(t *testing.T, payload []byte) *attribute.AS4Path {
 	return nil
 }
 
+// TestTranscodeASPathAttributeSectionBounds rejects an AS_PATH value that exists
+// only in NLRI bytes beyond the declared attribute section.
+func TestTranscodeASPathAttributeSectionBounds(t *testing.T) {
+	payload := []byte{0, 0, 0, 3, 0x40, 2, 6, 2, 1, 0, 0, 0, 1}
+	var dst [128]byte
+
+	// RFC 4271 Section 4.3; RFC 6793 Section 4.2.2.
+	n, err := TranscodeASPath(dst[:], payload, true, false)
+	require.ErrorIs(t, err, ErrUpdateMalformed)
+	assert.Zero(t, n, "NLRI bytes must not complete an attribute value")
+}
+
+// TestTranscodeASPathSectionBoundaryCases checks every attribute read boundary,
+// both at the payload end and with NLRI bytes that could complete the read.
+func TestTranscodeASPathSectionBoundaryCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+	}{
+		{"short_header_one_byte", []byte{0, 0, 0, 1, 0x40, 2, 0}},
+		{"short_header_two_bytes", []byte{0, 0, 0, 2, 0x40, 2, 0}},
+		{"extended_header", []byte{0, 0, 0, 3, 0x50, 2, 0, 0}},
+		{"short_value", []byte{0, 0, 0, 8, 0x40, 2, 6, 2, 1, 0, 0, 0, 1}},
+		{"extended_value", []byte{0, 0, 0, 9, 0x50, 2, 0, 6, 2, 1, 0, 0, 0, 1}},
+		{"unrelated_value", []byte{0, 0, 0, 3, 0x40, 1, 1, 0}},
+		{"after_valid_attribute", []byte{0, 0, 0, 5, 0x40, 1, 1, 0, 0x40, 2, 0}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrsEnd := 4 + int(binary.BigEndian.Uint16(tt.payload[2:4]))
+			for _, payload := range [][]byte{tt.payload[:attrsEnd], tt.payload} {
+				dst := make([]byte, 128)
+				// RFC 4271 Section 4.3; RFC 6793 Section 4.2.2.
+				n, err := TranscodeASPath(dst, payload, true, false)
+				require.ErrorIs(t, err, ErrUpdateMalformed)
+				assert.Zero(t, n)
+				assert.Equal(t, make([]byte, len(dst)), dst, "reject before writing")
+			}
+		})
+	}
+}
+
+// TestTranscodeASPathSectionBoundaryPreservesNLRI pins complete narrowed bodies
+// for both header forms, including withdrawn routes and trailing NLRI.
+func TestTranscodeASPathSectionBoundaryPreservesNLRI(t *testing.T) {
+	for _, extended := range []bool{false, true} {
+		attrs := []byte{0x40, 2, 6, 2, 1, 0, 0, 0, 1}
+		if extended {
+			attrs = []byte{0x50, 2, 0, 6, 2, 1, 0, 0, 0, 1}
+		}
+		payload := buildPayload([]byte{24, 192, 0, 2}, attrs, []byte{24, 198, 51, 100})
+		var dst [128]byte
+		// RFC 4271 Section 4.3; RFC 6793 Section 4.2.2.
+		n, err := TranscodeASPath(dst[:], payload, true, false)
+		require.NoError(t, err)
+		want := []byte{0, 4, 24, 192, 0, 2, 0, 7, 0x40, 2, 4, 2, 1, 0, 1, 24, 198, 51, 100}
+		assert.Equal(t, want, dst[:n])
+	}
+}
+
 // TestTranscodeASPathRefusesATwoOctetSource pins the guard that replaced the 2 to
 // 4 widening arm.
 //

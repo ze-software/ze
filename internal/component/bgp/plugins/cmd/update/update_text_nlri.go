@@ -249,7 +249,7 @@ func parseINETNLRI(token string, fam family.Family, pathID uint32) (nlri.NLRI, i
 // Returns NLRI, extra args consumed, and any error.
 // For FlowSpec families, this function is not used - see parseFlowSpecSection.
 func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int, error) {
-	switch fam.SAFI { //nolint:exhaustive // Other SAFIs use INET parser via default
+	switch fam.SAFI {
 	case family.SAFIVPN: // SAFI 128 - MPLS VPN
 		return parseVPNNLRI(token, fam, accum)
 	case family.SAFIMPLSLabel: // SAFI 4 - Labeled Unicast
@@ -257,7 +257,12 @@ func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int
 	case family.SAFIFlowSpec, family.SAFIFlowSpecVPN:
 		// FlowSpec uses special parsing - should not reach here
 		return nil, 0, errFlowspecParsingRequiresParseflowspecsection
-	default: // INET unicast/multicast families
+	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMVPN,
+		family.SAFIVPLS, family.SAFIEVPN, family.SAFIBGPLinkState,
+		family.SAFIBGPLinkStateVPN, family.SAFISRPolicy, family.SAFIMUP, family.SAFIRTC:
+		return parseINETNLRI(token, fam, accum.PathID)
+	default:
+		// The supplied SAFI set is open; retain the generic INET parser fallback.
 		return parseINETNLRI(token, fam, accum.PathID)
 	}
 }

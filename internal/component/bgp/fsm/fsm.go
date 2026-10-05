@@ -37,7 +37,7 @@
 //     callback and handled explicitly in OpenConfirm and Established (remain
 //     in current state per RFC). The actual KEEPALIVE sending is done by the
 //     session timer callback after firing the FSM event. In other states,
-//     Event 11 hits the default→Idle handler as a safety net.
+//     Event 11 reaches the error→Idle handler as a safety net.
 package fsm
 
 import (
@@ -47,9 +47,8 @@ import (
 )
 
 // ErrFSMError is returned by Event when an event lands in a state handler's
-// error default arm — i.e. an event that RFC 4271 Section 8.2.2 treats as a
-// Finite State Machine Error (Error Code 5) in that state, forcing a transition
-// to Idle. Callers use errors.Is(err, ErrFSMError) to distinguish a rejected,
+// error arm, forcing a transition to Idle. This includes unknown numeric events.
+// Callers use errors.Is(err, ErrFSMError) to distinguish a rejected,
 // error-causing event from a handled one (which returns nil). Events that are
 // deliberately ignored without a state change (RFC 4271's "does not cause change
 // in the state", e.g. any other event in Idle) return nil, not this sentinel.
@@ -355,9 +354,9 @@ func (f *FSM) Event(event Event) error {
 		return f.handleOpenConfirm(event)
 	case StateEstablished:
 		return f.handleEstablished(event)
+	default:
+		panic("BUG: invalid BGP FSM state")
 	}
-
-	return nil
 }
 
 // handleIdle processes events in IDLE state.
@@ -367,7 +366,7 @@ func (f *FSM) Event(event Event) error {
 // No resources are allocated to the peer."
 // Handles ManualStart event to transition to Connect state.
 func (f *FSM) handleIdle(event Event) {
-	switch event { //nolint:exhaustive // Only specific events are handled in IDLE state per RFC 4271.
+	switch event {
 	case EventManualStart:
 		// RFC 4271 Section 8.2.2: Event 1 (ManualStart)
 		// "In response to a ManualStart event (Event 1) or an AutomaticStart
@@ -429,12 +428,18 @@ func (f *FSM) handleIdle(event Event) {
 		// BFD session of a strict peer outlives the connection (Section 7), so
 		// these arrive here routinely rather than by accident.
 
-	default:
+	case EventConnectRetryTimerExpires, EventHoldTimerExpires, EventKeepaliveTimerExpires,
+		EventTCPConnectionConfirmed, EventTCPConnectionFails, EventBGPOpen,
+		EventBGPHeaderErr, EventBGPOpenMsgErr, EventNotifMsgVerErr, EventNotifMsg,
+		EventKeepaliveMsg, EventUpdateMsg, EventUpdateMsgErr, EventOpenCollisionDump:
 		// RFC 4271 Section 8.2.2: "Any other event (Events 9-12, 15-28) received
 		// in the Idle state does not cause change in the state of the local system."
 		// This is a deliberate, RFC-mandated ignore (no state change), NOT a
-		// Finite State Machine Error, so Event returns nil for the Idle default
-		// arm — unlike the error default arms in the post-connection states below.
+		// Finite State Machine Error, so Event returns nil for this arm,
+		// unlike the error arms in the post-connection states below.
+		return
+	default:
+		// Event accepts an open numeric set; unknown events leave Idle unchanged.
 		return
 	}
 }
@@ -445,7 +450,7 @@ func (f *FSM) handleIdle(event Event) {
 // "In this state, BGP FSM is waiting for the TCP connection to be completed."
 // Handles connection events to transition to OpenSent or Idle state.
 func (f *FSM) handleConnect(event Event) error {
-	switch event { //nolint:exhaustive // Only specific events are handled in CONNECT state per RFC 4271.
+	switch event {
 	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
 		// ignored in the Connect state." Ignored means the counter is not
@@ -559,12 +564,18 @@ func (f *FSM) handleConnect(event Event) error {
 		f.crc.Increment()
 		f.change(StateIdle)
 
-	default:
+	case EventHoldTimerExpires, EventKeepaliveTimerExpires, EventBGPOpen,
+		EventKeepaliveMsg, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other events (Events 8,
 		// 10-11, 13, 19, 23, 25-28), the local system: ... increments the
 		// ConnectRetryCounter by 1 ... and changes its state to Idle."
 		//
 		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
+		f.change(StateIdle)
+		return ErrFSMError
+	default:
+		// Event accepts an open numeric set; unknown events retain error teardown.
 		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
@@ -579,7 +590,7 @@ func (f *FSM) handleConnect(event Event) error {
 // and accepting, a TCP connection."
 // Handles connection events for passive mode peers.
 func (f *FSM) handleActive(event Event) error {
-	switch event { //nolint:exhaustive // Only specific events are handled in ACTIVE state per RFC 4271.
+	switch event {
 	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
 		// ignored in the Active state." Ignored means the counter is not
@@ -678,12 +689,18 @@ func (f *FSM) handleActive(event Event) error {
 		f.crc.Reset()
 		f.change(StateIdle)
 
-	default:
+	case EventHoldTimerExpires, EventKeepaliveTimerExpires, EventBGPOpen,
+		EventKeepaliveMsg, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 8,
 		// 10-11, 13, 19, 23, 25-28), the local system: ... increments the
 		// ConnectRetryCounter by one ... and changes its state to Idle."
 		//
 		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by one".
+		f.crc.Increment()
+		f.change(StateIdle)
+		return ErrFSMError
+	default:
+		// Event accepts an open numeric set; unknown events retain error teardown.
 		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
@@ -697,7 +714,7 @@ func (f *FSM) handleActive(event Event) error {
 // "In this state, BGP FSM waits for an OPEN message from its peer."
 // Handles OPEN message reception to transition to OpenConfirm or errors to Idle.
 func (f *FSM) handleOpenSent(event Event) error {
-	switch event { //nolint:exhaustive // Only specific events are handled in OPENSENT state per RFC 4271.
+	switch event {
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
 		// "sends the NOTIFICATION with a Cease, sets the ConnectRetryTimer
@@ -906,7 +923,12 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// paragraph, so none here.
 		f.change(StateActive)
 
-	default:
+	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
+		// ignored in the OpenSent state." No state or counter action is due.
+
+	case EventConnectRetryTimerExpires, EventKeepaliveTimerExpires,
+		EventTCPConnectionConfirmed, EventNotifMsg, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
 		// 11-13, 20, 25-28), the local system: sends the NOTIFICATION with the
 		// Error Code Finite State Machine Error, ... increments the
@@ -920,6 +942,11 @@ func (f *FSM) handleOpenSent(event Event) error {
 		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
+	default:
+		// Event accepts an open numeric set; unknown events retain error teardown.
+		f.crc.Increment()
+		f.change(StateIdle)
+		return ErrFSMError
 	}
 	return nil
 }
@@ -930,7 +957,7 @@ func (f *FSM) handleOpenSent(event Event) error {
 // "In this state, BGP waits for a KEEPALIVE or NOTIFICATION message."
 // Handles KEEPALIVE to transition to Established or errors to Idle.
 func (f *FSM) handleOpenConfirm(event Event) error {
-	switch event { //nolint:exhaustive // Only specific events are handled in OPENCONFIRM state per RFC 4271.
+	switch event {
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
 		// "sends the NOTIFICATION message with a Cease, releases all BGP
@@ -1076,7 +1103,12 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 		// name it. Ignoring it beats the default arm, which would answer a
 		// local bookkeeping slip by dropping a nearly established session.
 
-	default:
+	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+		// RFC 4271 Section 8.2.2: "Any start event (Events 1, 3-7) is
+		// ignored in the OpenConfirm state." No state or counter action is due.
+
+	case EventConnectRetryTimerExpires, EventTCPConnectionConfirmed,
+		EventBGPOpen, EventUpdateMsg, EventUpdateMsgErr:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
 		// 12-13, 20, 27-28), the local system: sends a NOTIFICATION with a
 		// code of Finite State Machine Error, ... increments the
@@ -1085,6 +1117,11 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
 		// Event 19 (BGPOpen) also lands here, and the RFC agrees on the
 		// counter: its OpenConfirm collision-drop clause increments too.
+		f.crc.Increment()
+		f.change(StateIdle)
+		return ErrFSMError
+	default:
+		// Event accepts an open numeric set; unknown events retain error teardown.
 		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
@@ -1099,7 +1136,7 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 // and KEEPALIVE messages with its peer."
 // Handles ongoing session events and transitions to Idle on errors.
 func (f *FSM) handleEstablished(event Event) error {
-	switch event { //nolint:exhaustive // Only specific events are handled in ESTABLISHED state per RFC 4271.
+	switch event {
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
 		// "sends the NOTIFICATION message with a Cease, sets the
@@ -1254,11 +1291,12 @@ func (f *FSM) handleEstablished(event Event) error {
 		// strict-mode are irrelevant since the work of this feature has been
 		// completed."
 
-	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
-		// Note: RFC specifies Event 11 (KeepaliveTimer_Expires) should send
-		// KEEPALIVE and restart the timer; not implemented here as timer
-		// management is handled externally.
-		//
+	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
+		// RFC 4271 Section 8.2.2: "Any Start event (Events 1, 3-7) is
+		// ignored in the Established state." No state or counter action is due.
+
+	case EventConnectRetryTimerExpires, EventTCPConnectionConfirmed,
+		EventBGPOpen, EventBGPOpenMsgErr:
 		// A second OPEN received on an established connection (EventBGPOpen) also
 		// lands here, and the reactor DOES rely on that: handleOpen's state gate
 		// (reactor/session_handlers.go) fires this event so the session leaves
@@ -1271,7 +1309,7 @@ func (f *FSM) handleEstablished(event Event) error {
 		// states that can see it -- Established scopes that branch to "Events 9,
 		// 12-13, 20-22", OpenConfirm to "Events 9, 12-13, 20, 27-28" -- and
 		// routes it through collision detection, whose termination action is
-		// "sends a NOTIFICATION with a Cease". Landing in this default arm is
+		// "sends a NOTIFICATION with a Cease". Landing in this error arm is
 		// how the state reaches Idle; it is not a claim that the wire code is 5.
 		//
 		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by
@@ -1288,6 +1326,11 @@ func (f *FSM) handleEstablished(event Event) error {
 		// Session drives one connection, and connectionEstablished
 		// (reactor/session_connection.go) fires Event 17 once, out of Connect
 		// or Active.
+		f.crc.Increment()
+		f.change(StateIdle)
+		return ErrFSMError
+	default:
+		// Event accepts an open numeric set; unknown events retain error teardown.
 		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError

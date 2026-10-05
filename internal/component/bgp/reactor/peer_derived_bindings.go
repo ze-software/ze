@@ -134,8 +134,9 @@ func derivedFeedsDeliverable(current, next []ProcessBinding, catchUp feedCatchUp
 		return true
 	case feedCatchUpUnspecified, feedCatchUpImpossible:
 		return false
+	default:
+		panic("BUG: invalid derived-feed catch-up outcome")
 	}
-	return false
 }
 
 // noteReceivedRoute records, once for each connection, that the peer announced
@@ -226,6 +227,8 @@ func (p *Peer) catchUpDerivedFeeds(gained, lost []string) {
 		p.requestRouteRefreshAll(gained)
 		return
 	case feedCatchUpUnspecified, feedCatchUpImpossible:
+	default:
+		panic("BUG: invalid derived-feed catch-up outcome")
 	}
 	// The session re-established, or announced its first route, between the swap
 	// plan and this apply, and the peer cannot re-send. A new session is the one

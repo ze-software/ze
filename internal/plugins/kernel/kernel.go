@@ -55,6 +55,8 @@ func (o *routeObserver) handleRouteEvent(ev routewatch.RouteEvent) {
 		delete(o.announced, ev.Prefix)
 		o.mu.Unlock()
 		o.emit(redistevents.ActionRemove, ev.Prefix, ev.NextHop, ev.Metric)
+	default:
+		panic("BUG: invalid normalized kernel route action")
 	}
 }
 

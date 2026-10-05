@@ -137,17 +137,18 @@ func (r bestPathRecord) isBlackhole() bool { return r&flagBlackhole != 0 }
 // avoids the per-UPDATE log flood a saturated deployment would otherwise
 // produce while still surfacing the event once.
 //
-// Concurrency: safe for concurrent use. Each reverse table (peers, nextHops,
-// metrics) is guarded by its own sync.RWMutex. Read paths (dedup-hit lookup,
-// reverse lookup) take RLock; mutation paths (first sighting of a value)
-// promote to Lock. The three locks are independent so unrelated tables do
-// not serialize against each other.
+// Concurrency: safe for concurrent use. Each reverse table has its own
+// sync.RWMutex. A changed election reserves its peer slot before releasing
+// peerMu, then transfers that reference to its stored bestPrev record. Purge
+// scans also pin their peer slot. No slot can be reused while an admitted
+// publication, stored record or scan still names it.
 type bestPrevInterner struct {
 	peersMu         sync.RWMutex
 	peers           []string
+	peerRefs        []uint64
 	peerIdx         map[string]uint16
 	peersOverflowed bool
-	// peersFree holds reverse-table indices freed by forgetPeer so a later
+	// peersFree holds indices whose last owner called releasePeer, so a later
 	// internPeer can reuse the slot without growing the reverse table.
 	// Prevents unbounded peers[] growth across the cap under long
 	// deployments with high peer churn (ISP-scale route-servers may see
@@ -186,27 +187,18 @@ func (b *bestPrevInterner) peerIdxOf(v string) (uint16, bool) {
 	return idx, ok
 }
 
-// internPeer returns the uint16 index for v. On a first sighting, v is
-// stored in a reclaimed slot when peersFree has one available, otherwise
-// appended to the reverse table with a fresh index. Returns (0, false)
-// only when the reverse table is saturated at 65536 entries AND the
-// free-list is empty -- the caller must treat that as a degraded record
-// and not store it. The first saturation logs an slog.Error; subsequent
-// ones are silent.
+// internPeer acquires one reference to v's peer slot. The caller MUST transfer
+// it to a stored bestPrev record or call releasePeer. Returns (0, false) when
+// the bounded table has no free slot; no reference is acquired in that case.
 func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
-	b.peersMu.RLock()
-	idx, ok := b.peerIdx[v]
-	b.peersMu.RUnlock()
-	if ok {
-		return idx, true
-	}
 	b.peersMu.Lock()
 	defer b.peersMu.Unlock()
 	if idx, ok := b.peerIdx[v]; ok {
+		b.peerRefs[idx]++
 		return idx, true
 	}
 	if n := len(b.peersFree); n > 0 {
-		idx = b.peersFree[n-1]
+		idx := b.peersFree[n-1]
 		// Defensive: peers[] never shrinks in any code path today, so
 		// every free-list entry remains in bounds. The guard is here
 		// so a future refactor that adds shrinking/compaction cannot
@@ -214,6 +206,7 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 		if int(idx) < len(b.peers) {
 			b.peersFree = b.peersFree[:n-1]
 			b.peers[idx] = v
+			b.peerRefs[idx] = 1
 			b.peerIdx[v] = idx
 			return idx, true
 		}
@@ -229,45 +222,43 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 		}
 		return 0, false
 	}
-	idx = uint16(len(b.peers))
+	idx := uint16(len(b.peers))
 	b.peers = append(b.peers, v)
+	b.peerRefs = append(b.peerRefs, 1)
 	b.peerIdx[v] = idx
 	return idx, true
 }
 
-// forgetPeer releases v's reverse-table slot so a future internPeer can
-// reuse it. Idempotent: called unconditionally at the end of
-// purgeBestPrevForPeer whether or not any bestPrev records referenced
-// the slot. A peer that was interned but never appeared in a best-path
-// (connected, sent OPEN, went down without contributing a winning
-// route) is still reclaimed here.
-//
-// Edge case: if an in-flight UPDATE Phase 3 for v completes after this
-// forgetPeer call, it re-interns v (likely back into the same slot,
-// because the slot just hit the free-list). Phase 3 then writes a new
-// bestPrev record that will be the only record referencing that slot.
-// A later forgetPeer(v) will reclaim it again. The only way two peers
-// can end up sharing a reclaimed slot is if v's slot is popped by a
-// different peer's internPeer between v's forgetPeer and v's Phase 3
-// re-intern, which requires N back-to-back peer flaps colliding with
-// Phase 3 pipelining -- rare, and at worst produces a spurious "no
-// change" suppression on one prefix that self-corrects on the next
-// UPDATE. Reference-counting would eliminate the window at the cost of
-// per-insert/delete refcount maintenance; that is an intentional
-// deferral (see handoff: rib-sharding, Option D a).
-func (b *bestPrevInterner) forgetPeer(v string) {
+// retainPeer pins an existing peer slot without creating an absent one. A
+// successful caller MUST call releasePeer after its scan or borrowed use ends.
+func (b *bestPrevInterner) retainPeer(v string) (uint16, bool) {
 	b.peersMu.Lock()
 	defer b.peersMu.Unlock()
 	idx, ok := b.peerIdx[v]
-	if !ok {
+	if ok {
+		b.peerRefs[idx]++
+	}
+	return idx, ok
+}
+
+// releasePeer releases exactly one reference acquired by internPeer or
+// retainPeer. A record owner MUST resolve any needed peer value before releasing
+// its reference. The last release makes the slot available for reuse.
+func (b *bestPrevInterner) releasePeer(idx uint16) {
+	b.peersMu.Lock()
+	defer b.peersMu.Unlock()
+	if int(idx) >= len(b.peerRefs) {
+		panic("BUG: releasing an unknown best-path peer slot")
+	}
+	if b.peerRefs[idx] == 0 {
+		panic("BUG: releasing an unowned best-path peer slot")
+	}
+	b.peerRefs[idx]--
+	if b.peerRefs[idx] != 0 {
 		return
 	}
-	delete(b.peerIdx, v)
-	// Defensive: idx was assigned by internPeer and peers[] never shrinks
-	// today, so the write is always in bounds. Guard future refactors.
-	if int(idx) < len(b.peers) {
-		b.peers[idx] = ""
-	}
+	delete(b.peerIdx, b.peers[idx])
+	b.peers[idx] = ""
 	b.peersFree = append(b.peersFree, idx)
 }
 
@@ -427,14 +418,15 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action routeaction.A
 // change was ever recorded or published for it
 // (plan/journal/silent-fall-through.md).
 //
-// The record holds no pointer, so the map's string keys are the only
-// GC-traceable memory here. That is why a CIDR family keeps BART rather than
-// sharing the map: the packed record exists to keep a million-prefix fringe
-// opaque to the GC mark phase.
+// The CIDR record holds no pointer, keeping the million-prefix fringe opaque
+// to the GC mark phase. Labeled families alone retain an owned snapshot of the
+// last published label values beside those records; pool handles can be reused
+// after a withdrawal and therefore cannot identify the previous publication.
 type bestPrevStore struct {
 	cidr   bool
 	direct *store.Store[bestPrevRecord] // cidr: one record per prefix
 	opaque map[string]opaqueBestPrev    // !cidr: one record per route key (routeIdentity)
+	labels map[netip.Prefix][]uint32    // CIDR labels only; bounded by direct's live records
 }
 
 // bestPrevRecord is the stored best path of one route: the packed winner and
@@ -522,6 +514,7 @@ func (s *bestPrevStore) delete(pfx netip.Prefix, nlriBytes []byte) bool {
 		delete(s.opaque, key)
 		return true
 	}
+	delete(s.labels, pfx)
 	return s.direct.Delete(pfx)
 }
 
@@ -532,38 +525,29 @@ func (s *bestPrevStore) delete(pfx netip.Prefix, nlriBytes []byte) bool {
 // runs, so the Loc-RIB and the consumers hear about each route once, with
 // its outcome, rather than a withdrawal followed by the survivor.
 //
-// Returns per-family batches of bestChangeEntry Withdraws, one per purged
-// route. The CALLER MUST hand them to emitPurgedWithdraws AFTER releasing
-// r.peerMu. Emitting under the outer write lock would
-// serialize every in-process subscriber that touches peer-keyed state
-// behind that lock, risking deadlock against any subscriber that
-// re-enters RIBManager methods.
+// Returns per-family batches of Withdraws. The caller MUST remove or mutate the
+// peer under peerMu first, then release peerMu BEFORE calling this method and
+// emitPurgedWithdraws. Shard acquisition MUST NOT happen while holding peerMu:
+// elections and synchronous Loc-RIB subscribers take shard.mu before peerMu.
 //
-// Caller MUST hold r.peerMu.Lock so no concurrent UPDATE processing for
-// the departing peer can re-insert records while purge is walking. Purge
-// does NOT acquire r.peerMu itself.
-//
-// Lock order: r.peerMu (outer, caller) -> bgp-rib shard.mu. Matches
-// checkBestPathChange's ordering after the 2026-04-20 fix that moved
-// bestCandidateNextHopAddr outside sh.mu so sh.mu never sits above
-// r.peerMu. The Loc-RIB removal of a route left with no candidate happens
-// later, in withdrawIfUnheld, under shard.mu -> locrib shard.mu, the order
-// checkRouteBestChange takes.
+// A replacement session can publish during this scan. Every removed record
+// releases its own peer-slot reference; the scan pins the slot so an unrelated
+// peer cannot reuse its index before the final shard. A replacement that lands
+// after its shard was scanned keeps its record and slot. One scanned afterward
+// is re-elected by emitPurgedWithdraws before any Loc-RIB removal.
 //
 // Cost: one shard.mu.Lock per (family, shard) pair, held across each
 // shard's Iterate. For a 1M-prefix table this is O(1M)
 // serial reads across all shards -- call site expects a cold-path
 // peer-down event, not the hot UPDATE path.
 func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]bestChangeEntry {
-	peerIdx, ok := r.bestPathInterner.peerIdxOf(peerAddr)
+	peerIdx, ok := r.bestPathInterner.retainPeer(peerAddr)
 	if !ok {
-		// Peer was never interned, so no bestPrev record can reference it.
+		// No stored record or admitted publication can reference this peer:
+		// changed elections reserve their slot before releasing peerMu.
 		return nil
 	}
-	// Reclaim the interner slot on the way out so peers[] stays bounded
-	// by concurrent-peer count, not by total-peers-ever-seen. Runs even
-	// when bestPrev is nil or no records reference the slot.
-	defer r.bestPathInterner.forgetPeer(peerAddr)
+	defer r.bestPathInterner.releasePeer(peerIdx)
 	if r.bestPrev == nil {
 		return nil
 	}
@@ -588,6 +572,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 						continue
 					}
 					delete(sh.store.opaque, key)
+					r.bestPathInterner.releasePeer(peerIdx)
 					changes = append(changes, bestChangeEntry{
 						Action:  ribevents.BestChangeWithdraw,
 						NLRI:    framedRouteNLRI(nil, best.route, rec.pathID, rec.addPath),
@@ -611,7 +596,8 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 				return true
 			})
 			for _, v := range victims {
-				sh.store.direct.Delete(v.prefix)
+				sh.store.delete(v.prefix, nil)
+				r.bestPathInterner.releasePeer(peerIdx)
 				changes = append(changes, bestChangeEntry{
 					Action:  ribevents.BestChangeWithdraw,
 					Prefix:  v.prefix,
@@ -791,6 +777,8 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 // checkRouteBestChange is checkBestPathChange for an NLRI whose framing the
 // caller states: withdraw says nlriBytes was split from a received withdrawal,
 // whose label field is a Compatibility field (RFC 8277 Section 2.4).
+// Caller MUST NOT hold peerMu. Election order is shard.mu -> peerMu.RLock;
+// peer writers MUST release peerMu before waiting for any bestPrev shard.
 func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, addPath, withdraw bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
 	if ribevents.IsFlowSpec(fam) {
 		r.reconcileFlowSpecs()
@@ -832,7 +820,6 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		if !prefixOK {
 			return bestChangeEntry{}, false
 		}
-		candidates = r.gatherPrefixCandidates(fam, pfx)
 	}
 	if !cidr {
 		var keyScratch [nlrisplit.PrefixKeyScratchSize]byte
@@ -841,7 +828,47 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		if !keyOK {
 			return bestChangeEntry{}, false
 		}
-		candidates = r.gatherKeyCandidates(fam, routeKey)
+	}
+	// The shard serializes extraction with prior and later publication. There
+	// can be no first candidate without a peer; avoid allocating a family table
+	// for an empty-RIB withdrawal. A later insertion runs its own election.
+	fs := r.bestPrev.familyShards(fam, false)
+	if fs == nil {
+		r.peerMu.RLock()
+		havePeers := len(r.bgpPeers) != 0
+		r.peerMu.RUnlock()
+		if !havePeers {
+			return bestChangeEntry{}, false
+		}
+		fs = r.bestPrev.familyShards(fam, true)
+	}
+	var sh *bestPrevShard
+	if cidr {
+		sh = fs.shardFor(pfx)
+	} else {
+		sh = fs.shardForNLRI(routeKey)
+	}
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	prev, prevRoute, havePrev := sh.store.lookup(pfx, routeKey)
+	var prevPeer string
+	var prevNextHop netip.Addr
+	var prevMetrics bestPathMetrics
+	if havePrev {
+		prevPeer = r.bestPathInterner.peerAt(prev.rec.peerIdx())
+		prevNextHop = r.bestPathInterner.nextHopAt(prev.rec.nextHopIdx())
+		prevMetrics = r.bestPathInterner.metricAt(prev.rec.metricIdx())
+	}
+
+	// Keep peer metadata intact against DOWN. Each gathered path independently
+	// retains its storage revision against UPDATE replacement or deletion.
+	// Reserve changed-winner publication before releasing peerMu; release all
+	// candidate handles and peerMu before synchronous Loc-RIB callbacks.
+	r.peerMu.RLock()
+	if cidr {
+		candidates = r.gatherPrefixCandidatesLocked(fam, pfx)
+	} else {
+		candidates = r.gatherKeyCandidatesLocked(fam, routeKey)
 	}
 	// SelectMultipath returns the same primary winner as SelectBest plus any
 	// equal-cost siblings (rib-arch-4). When multipath is off (maximum-paths<=1,
@@ -849,23 +876,15 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	// path is unchanged.
 	newBest, siblings := SelectMultipath(candidates, r.maximumPaths.Load(), r.relaxASPath.Load())
 
-	// Resolve the nextHop and protocol class for the winner BEFORE we take
-	// the shard lock. bestCandidateNextHopAddr acquires r.peerMu.RLock
-	// internally; holding sh.mu across that call would put us on the
-	// wrong side of a peerMu writer (e.g. purgeBestPrevForPeer running
-	// under peerMu.Lock) and deadlock against it. Lock order contract:
-	// r.peerMu -> shard.mu, never shard.mu -> r.peerMu.
+	// Winner metadata belongs to the same retained revision as its candidacy.
 	var (
 		nextHop      netip.Addr
 		isEBGP       bool
 		bestLabels   []uint32
 		srv6SID      netip.Addr
 		ecmpNextHops []nexthop.NextHop
-		// The winner's own path: every read of what the winner carries goes
-		// back to the path that won, under the key its session stored it
-		// with, and never to the UPDATE that triggered this election, which
-		// may be another path or another peer. The same holds for a CIDR
-		// prefix and a non-CIDR route key.
+		// The winner's own path names publication; metadata comes from its
+		// retained entry and label handles, never a second PeerRIB lookup.
 		winnerPathID  uint32
 		winnerAddPath bool
 		winnerPath    storedPath
@@ -873,33 +892,30 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	if newBest != nil {
 		winnerPathID, winnerAddPath = newBest.PathID, newBest.AddPath
 		winnerPath = candidatePath(newBest, cidr, pfx)
-		nextHop = r.bestCandidateNextHopAddr(fam, winnerPath, newBest)
+		nextHop = entryNextHopAddr(fam, newBest.entry)
 		isEBGP = r.protocolType(newBest) == routeaction.ProtocolEBGP
 		if fam.SAFI == family.SAFIMPLSLabel {
-			bestLabels = r.lookupLabelsForBest(fam, winnerPath, newBest.PeerIP)
+			bestLabels = pool.ResolveLabels(newBest.labelHandle)
 		}
 		if fam.SAFI != family.SAFIMPLSLabel {
-			srv6SID = r.storedPathSRv6SID(fam, winnerPath, newBest.PeerIP)
+			srv6SID = entrySRv6SID(fam, winnerPath, newBest.entry)
 		}
 		// Resolve the equal-cost multipath sibling next-hops so the Loc-RIB
 		// carries the full ECMP set to the FIB (rib-arch-4). Each sibling
-		// resolves via the same accessor as the primary; dedup against the
-		// primary and each other. Resolved before the shard lock (the accessor
-		// takes r.peerMu.RLock), preserving the r.peerMu -> shard.mu lock order.
+		// resolves from its retained revision, like the primary; dedup
+		// against the primary and each other.
 		for _, s := range siblings {
 			// A BGP sibling names a gateway address and never a device or a
 			// weight, so the group is unweighted: nexthop.NextHop's zero Weight
 			// is what "share equally" is spelled as.
-			nh := nexthop.NextHop{Addr: r.bestCandidateNextHopAddr(fam, candidatePath(s, cidr, pfx), s)}
+			nh := nexthop.NextHop{Addr: entryNextHopAddr(fam, s.entry)}
 			if nh.Addr.IsValid() && nh.Addr != nextHop && !slices.Contains(ecmpNextHops, nh) {
 				ecmpNextHops = append(ecmpNextHops, nh)
 			}
 		}
 	}
 
-	// RFC 7999 Section 3.3: does this winner become a discard route? Resolved
-	// here, before the shard lock, for the same reason the next-hop is: the
-	// lookup takes r.peerMu.RLock, and the lock order is r.peerMu -> shard.mu.
+	// RFC 7999 Section 3.3: resolve the forwarding action in the peer snapshot.
 	// Zero for every peer that stated no rule, which is every peer by default.
 	//
 	// Asked for CIDR families only. Section 3.3 authorizes a BLACKHOLE by the
@@ -908,37 +924,18 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	// answer "not a discard".
 	var blackholeType routetype.Type
 	if newBest != nil && cidr {
-		blackholeType = r.blackholeRouteTypeForBest(fam, winnerPath, newBest.PeerIP)
+		blackholeType = r.blackholeRouteTypeForBest(pfx, newBest)
 	}
-
-	// Skip family creation if there is nothing to record AND no previous
-	// state could exist for this family.
-	fs := r.bestPrev.familyShards(fam, false)
-	if fs == nil && newBest == nil {
-		return bestChangeEntry{}, false
-	}
-	if fs == nil {
-		fs = r.bestPrev.familyShards(fam, true)
-	}
-	var sh *bestPrevShard
-	if cidr {
-		sh = fs.shardFor(pfx)
-	}
-	if !cidr {
-		sh = fs.shardForNLRI(routeKey)
-	}
-
-	sh.mu.Lock()
-	defer sh.mu.Unlock()
-
-	prev, prevRoute, havePrev := sh.store.lookup(pfx, routeKey)
 
 	if newBest == nil {
+		releaseCandidates(candidates)
+		r.peerMu.RUnlock()
 		// No candidates remain -- withdraw if we had a previous best.
 		if !havePrev {
 			return bestChangeEntry{}, false
 		}
 		sh.store.delete(pfx, routeKey)
+		r.bestPathInterner.releasePeer(prev.rec.peerIdx())
 		// The Loc-RIB is prefix-keyed and feeds the kernel FIB, so it takes
 		// CIDR families only. See mirrorToLocRIB below for why.
 		if cidr {
@@ -960,25 +957,46 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		}, true
 	}
 
-	// Same-best short-circuit: compare raw winner values against the
-	// previous record's unpacked reverse-table entries. Three slice
-	// lookups + three value compares; no interner mutation; no prefix
-	// allocation. If the bounds-safe accessors report a miss (stale
-	// index from a reset interner), the comparison falls through and
-	// the record is re-interned below.
-	// Skip same-best suppression for labeled routes: the label stack is not
-	// part of the interned prev record, so a relabel (same peer/next-hop/metric,
-	// new label) would be wrongly suppressed and never reach the kernel. The cost
-	// is a redundant event-bus entry when a labeled best is unchanged, but the
-	// authoritative Loc-RIB path (the default consumer) still dedups via
-	// Path.Equal, so there is no FIB churn.
+	// All prior interner values were resolved before taking peerMu. An unchanged
+	// route performs no interning, peer-slot reference changes or AS_PATH formatting.
+	sameBest := havePrev && slices.Equal(sh.store.labels[pfx], bestLabels) &&
+		prevPeer == newBest.PeerAddr &&
+		prev.pathID == winnerPathID && prev.addPath == winnerAddPath &&
+		prevRoute == winnerRoute(newBest, cidr) &&
+		prevNextHop == nextHop &&
+		prevMetrics == (bestPathMetrics{MED: newBest.MED, AIGP: newBest.AIGP, HasAIGP: newBest.HasAIGP}) &&
+		prev.rec.IsEBGP() == isEBGP &&
+		prev.rec.isBlackhole() == (blackholeType == routetype.Blackhole) &&
+		!srv6SID.IsValid() && prev.rec.Flags()&flagHadSRv6SID == 0
+	var peerIdx uint16
+	if !sameBest {
+		// DOWN acquires peerMu before looking up this slot. Reserve it before
+		// releasing admission, so even a peer with no prior winning record
+		// forces DOWN to wait for this publication's shard.
+		var admitted bool
+		peerIdx, admitted = r.bestPathInterner.internPeer(newBest.PeerAddr)
+		if !admitted {
+			releaseCandidates(candidates)
+			r.peerMu.RUnlock()
+			return bestChangeEntry{}, false
+		}
+	}
+	var asPath []uint32
+	if !sameBest && newBest.ASPathHandle.IsValid() {
+		if data, err := pool.ASPath.Get(newBest.ASPathHandle); err == nil {
+			asPath = formatASPath(data)
+		}
+	}
+	releaseCandidates(candidates)
+	r.peerMu.RUnlock()
+
 	// mirrorToLocRIB writes the winning best path (plus its equal-cost multipath
 	// set) into the shared Loc-RIB. Called on BOTH the same-best short-circuit and
 	// the full best-change path so an ECMP-membership change is never lost when
 	// the best next-hop itself is unchanged (the same-best test below compares the
 	// best, not the sibling set); the Loc-RIB dedups a true no-op via Path.Equal.
 	mirrorToLocRIB := func() {
-		if r.locRIB == nil && r.forkRIB == nil {
+		if r.locRIB.Load() == nil && r.forkRIB == nil {
 			return
 		}
 		// NOT MIRRORED for a non-CIDR family, and this is a deliberate limit
@@ -1037,38 +1055,21 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		}, forward)
 	}
 
-	if havePrev && len(bestLabels) == 0 {
-		ir := r.bestPathInterner
-		// A move to another path of the same peer is a change even with every
-		// value equal: the best-change names the winning path by its path id.
-		if ir.peerAt(prev.rec.peerIdx()) == newBest.PeerAddr &&
-			prev.pathID == winnerPathID && prev.addPath == winnerAddPath &&
-			prevRoute == winnerRoute(newBest, cidr) &&
-			ir.nextHopAt(prev.rec.nextHopIdx()) == nextHop &&
-			ir.metricAt(prev.rec.metricIdx()) == (bestPathMetrics{MED: newBest.MED, AIGP: newBest.AIGP, HasAIGP: newBest.HasAIGP}) &&
-			prev.rec.IsEBGP() == isEBGP &&
-			prev.rec.isBlackhole() == (blackholeType == routetype.Blackhole) &&
-			!srv6SID.IsValid() && prev.rec.Flags()&flagHadSRv6SID == 0 {
-			// The best is unchanged, but the equal-cost multipath membership may
-			// have changed (a sibling appeared or went away with the best next-hop
-			// stable). Refresh the Loc-RIB Path so its Change.ECMP tracks the
-			// current set; the Loc-RIB dedups a true no-op. Skip the expensive
-			// re-intern + event-bus entry -- the best route itself did not change.
-			mirrorToLocRIB()
-			return bestChangeEntry{}, false
-		}
-	}
-
-	peerIdx, ok := r.bestPathInterner.internPeer(newBest.PeerAddr)
-	if !ok {
+	if sameBest {
+		// A changed multipath set still reaches the Loc-RIB, which deduplicates
+		// true no-ops, but the best itself needs no new record or event.
+		mirrorToLocRIB()
 		return bestChangeEntry{}, false
 	}
+
 	nhIdx, ok := r.bestPathInterner.internNextHop(nextHop)
 	if !ok {
+		r.bestPathInterner.releasePeer(peerIdx)
 		return bestChangeEntry{}, false
 	}
 	metricIdx, ok := r.bestPathInterner.internMetric(bestPathMetrics{MED: newBest.MED, AIGP: newBest.AIGP, HasAIGP: newBest.HasAIGP})
 	if !ok {
+		r.bestPathInterner.releasePeer(peerIdx)
 		return bestChangeEntry{}, false
 	}
 	var flags uint16
@@ -1083,7 +1084,23 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	}
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
+	// Transfer the admission reference to the new record before publication.
 	sh.store.insert(pfx, routeKey, bestPrevRecord{rec: newRec, pathID: winnerPathID, addPath: winnerAddPath}, winnerRoute(newBest, cidr))
+	if havePrev {
+		r.bestPathInterner.releasePeer(prev.rec.peerIdx())
+	}
+	if len(bestLabels) > 0 {
+		if sh.store.labels == nil {
+			sh.store.labels = make(map[netip.Prefix][]uint32)
+		}
+		if !slices.Equal(sh.store.labels[pfx], bestLabels) {
+			// Own the snapshot independently of both pool storage and the
+			// publication payload retained by subscribers.
+			sh.store.labels[pfx] = slices.Clone(bestLabels)
+		}
+	} else {
+		delete(sh.store.labels, pfx)
+	}
 	// Mirror the best path (and its equal-cost multipath set) into the shared
 	// Loc-RIB via the same closure the same-best short-circuit uses.
 	mirrorToLocRIB()
@@ -1105,17 +1122,11 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	// RFC 7999 Section 3.3. Zero for every route that is not a honored
 	// blackhole, which leaves the FIB installing an ordinary route.
 	entry.RouteType = blackholeType
-	// Attach the winner's AS_PATH and origin AS for downstream consumers
-	// (e.g. flow-export BGP enrichment). Cold path: once per best-path change,
-	// not per packet. The AS_PATH bytes are already interned in the pool;
-	// formatASPath turns them into a flat ASN slice.
-	if newBest.ASPathHandle.IsValid() {
-		if data, err := pool.ASPath.Get(newBest.ASPathHandle); err == nil {
-			if asPath := formatASPath(data); len(asPath) > 0 {
-				entry.ASPath = asPath
-				entry.OriginAS = asPath[len(asPath)-1]
-			}
-		}
+	// The owned AS_PATH snapshot was made before releasing the peer admission;
+	// DOWN may already have released the original pool handle.
+	entry.ASPath = asPath
+	if len(asPath) > 0 {
+		entry.OriginAS = asPath[len(asPath)-1]
 	}
 	return entry, true
 }
@@ -1245,54 +1256,17 @@ func candidatePath(c *Candidate, cidr bool, pfx netip.Prefix) storedPath {
 	return storedPath{nlri: framedRouteNLRI(nil, c.Route, c.PathID, c.AddPath), pathID: c.PathID, addPath: c.AddPath}
 }
 
-// lookupStoredPath returns a copy of the entry peerAddr's RIB holds for p, with
-// PeerRIB.Lookup's contract: the handles are not retained. Acquires
-// r.peerMu.RLock internally for the bgpPeers read, so the caller MUST NOT hold
-// r.peerMu.
-func (r *RIBManager) lookupStoredPath(fam family.Family, p storedPath, peerAddr netip.Addr) (storage.RouteEntry, bool) {
-	r.peerMu.RLock()
-	peerRIB := r.bgpPeers[peerAddr]
-	r.peerMu.RUnlock()
-	if peerRIB == nil {
-		return storage.RouteEntry{}, false
-	}
-	if p.byPrefix {
-		return peerRIB.LookupPath(fam, p.pathID, p.pfx)
-	}
-	return peerRIB.Lookup(fam, p.nlri)
-}
-
-// lookupLabelsForBest retrieves MPLS labels from the winning peer's PeerRIB
-// for a labeled unicast prefix. Caller must not hold r.peerMu.
-func (r *RIBManager) lookupLabelsForBest(fam family.Family, p storedPath, peerAddr netip.Addr) []uint32 {
-	r.peerMu.RLock()
-	peerRIB := r.bgpPeers[peerAddr]
-	r.peerMu.RUnlock()
-	if peerRIB == nil {
-		return nil
-	}
-	if p.byPrefix {
-		return pool.ResolveLabels(peerRIB.LookupPathLabels(fam, p.pathID, p.pfx))
-	}
-	return pool.ResolveLabels(peerRIB.LookupLabels(fam, p.nlri))
-}
-
-// storedPathSRv6SID extracts the SRv6 SID from the PrefixSID attribute
-// (code 40) stored in OtherAttrs of the winning peer's route entry, and
-// reconstructs it when the sender transposed part of it into a label field.
+// entrySRv6SID extracts the SRv6 SID from the PrefixSID attribute (code 40)
+// in the winning snapshot's OtherAttrs, reconstructing any transposed label bits.
 // Returns an invalid Addr when the attribute is absent, is not SRv6, or
 // names a transposition ze cannot undo -- reporting no SID rather than a
 // partial one, because the partial one is not what the peer signaled.
-// Caller must not hold r.peerMu.
+// The caller MUST keep entry retained until this function returns.
 //
 // A path asked by prefix hands srv6SIDFromResult no NLRI. That is not a
 // missing answer: only a VPN NLRI carries a label field a SID is transposed
 // into (nlrisplit.TranspositionLabel), and a VPN route is never CIDR.
-func (r *RIBManager) storedPathSRv6SID(fam family.Family, p storedPath, peerAddr netip.Addr) netip.Addr {
-	entry, ok := r.lookupStoredPath(fam, p, peerAddr)
-	if !ok {
-		return netip.Addr{}
-	}
+func entrySRv6SID(fam family.Family, p storedPath, entry storage.RouteEntry) netip.Addr {
 	b := entry.GetBundle()
 	if !b.HasOtherAttrs() {
 		return netip.Addr{}
@@ -1443,30 +1417,11 @@ func (r *RIBManager) protocolType(c *Candidate) routeaction.ProtocolType {
 	return routeaction.ProtocolIBGP
 }
 
-// bestCandidateNextHopAddr extracts the next-hop for the winning candidate's
-// route entry as a netip.Addr. Returns the zero Addr when missing. This is
-// the zero-alloc equivalent of the former string-returning helper: the hot
-// comparison in checkBestPathChange is a value compare against the stored
-// bestPathRecord.NextHop, with string materialization deferred until the
-// emission path.
-// For IPv4, reads from the NEXT_HOP attribute (code 3).
-// For IPv6 and other MP families, extracts from MP_REACH_NLRI (code 14) in OtherAttrs.
-// Acquires r.peerMu.RLock internally for the brief bgpPeers read; PeerRIB
-// content reads (peerRIB.Lookup) use PeerRIB's own lock. Safe to call
-// without any outer lock held.
-func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, p storedPath, best *Candidate) netip.Addr {
-	entry, ok := r.lookupStoredPath(fam, p, best.PeerIP)
-	if !ok {
-		return netip.Addr{}
-	}
-	return entryNextHopAddr(fam, entry)
-}
-
 // entryNextHopAddr reads the next-hop a stored route entry advertises. Returns
 // the zero Addr when the entry carries none.
 //
 // This is the ONE producer of that answer, so the winner's installed next hop
-// (bestCandidateNextHopAddr) and the Section 5.1.3 eligibility test
+// (checkRouteBestChange) and the Section 5.1.3 eligibility test
 // (gatherCandidatesLocked, rib_commands.go) cannot disagree about which address
 // a route names. Reads pool handles only; no lock, no allocation.
 func entryNextHopAddr(fam family.Family, entry storage.RouteEntry) netip.Addr {
@@ -1721,9 +1676,8 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 // directly; external plugin processes receive the JSON marshaling that the
 // bus produces lazily (only when at least one external subscriber exists).
 // reconcileBestPath runs best-path selection for a single prefix after a
-// command-driven mutation (inject, withdraw). Must be called AFTER releasing
-// peerMu so the internal peerMu.RLock in gatherPrefixCandidates and
-// gatherKeyCandidates does not deadlock.
+// command-driven mutation (inject, withdraw). Caller MUST release peerMu first:
+// checkRouteBestChange takes the owning shard before its peer read admission.
 // addPath=false because inject/withdraw build NLRI with pathID=0 and no
 // ADD-PATH prefix; if those commands gain --path-id, this must change.
 func (r *RIBManager) reconcileBestPath(fam family.Family, nlriBytes []byte) {
@@ -1733,18 +1687,13 @@ func (r *RIBManager) reconcileBestPath(fam family.Family, nlriBytes []byte) {
 	}
 }
 
-// reconcileBestPathBulk runs purgeBestPrevForPeer + emitPurgedWithdraws for
-// each peer in the list. Used by bulk command mutations (empty, release)
-// that clear an entire peer's RIB. Must be called AFTER releasing peerMu.
-// Locks peerMu per peer (not once for all) so concurrent UPDATE processing
-// is not blocked for the full sweep; re-insertion between iterations is safe
-// because purgeBestPrevForPeer is idempotent.
+// reconcileBestPathBulk purges and re-elects after bulk peer mutations. The
+// caller MUST release peerMu first: purge takes shard locks, and an election
+// holding a shard may be reading peer state or publishing a Loc-RIB callback.
 func (r *RIBManager) reconcileBestPathBulk(peers []netip.Addr) {
 	for _, peer := range peers {
-		r.peerMu.Lock()
 		// The interner is keyed by the canonical address string.
 		pending := r.purgeBestPrevForPeer(peer.String())
-		r.peerMu.Unlock()
 		r.emitPurgedWithdraws(pending)
 	}
 }

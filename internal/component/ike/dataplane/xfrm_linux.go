@@ -542,10 +542,9 @@ func xfrmPolicyAction(a SPAction) (netlink.PolicyAction, error) {
 		return 0, fmt.Errorf(
 			"%w: xfrm: a protect policy carries a template, so it is not built through the template-free path",
 			ErrNotSupported)
+	default:
+		panic("BUG: template-free policy has an unknown action")
 	}
-	return 0, fmt.Errorf(
-		"%w: xfrm: policy action %d is not a template-free SPD disposition this backend can express",
-		ErrNotSupported, a)
 }
 
 // xfrmSelectorPort converts a PortMatch to the port number netlink writes into the XFRM

@@ -734,7 +734,16 @@ func (d *LSDB) publishSizeMetricLocked(area types.AreaID, typ types.LSType) {
 				count++
 			}
 		}
+	case types.LSTypeRouter, types.LSTypeNetwork, types.LSTypeSummaryNetwork,
+		types.LSTypeSummaryASBR, types.LSTypeNSSA, types.LSTypeLink,
+		types.LSTypeOpaqueLink, types.LSTypeOpaqueArea, types.LSTypeGraceV6:
+		for key := range d.areaForLocked(area).entries {
+			if key.Type == typ {
+				count++
+			}
+		}
 	default:
+		// The shared wire type set is open; other types retain the area metric path.
 		for key := range d.areaForLocked(area).entries {
 			if key.Type == typ {
 				count++

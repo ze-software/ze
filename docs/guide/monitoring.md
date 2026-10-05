@@ -395,9 +395,9 @@ does not measure the untouched wire attribute set.
 A non-zero value means a configured modification (a next-hop rewrite, a community
 strip, a private-ASN removal) did not fit the route it applied to. The `reason`
 label set is closed: `malformed`, `overflow`, `attr-length-range`,
-`withdrawn-size`. Two further values exist and both indicate a defect rather than
-peer input: `no-failure` must never be emitted, and `unclassified` means a reason
-reached the counter that no constant produced.
+`withdrawn-size`, `no-handler`, `handler-fault`, and `truncated`.
+The `no-failure` sentinel must never be emitted as a failure. An unnamed internal
+reason raises a `BUG` assertion instead of producing an `unclassified` label.
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
 
 Treat any increment as a policy that did not take effect. Ze counts the failure

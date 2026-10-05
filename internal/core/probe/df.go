@@ -38,8 +38,10 @@ func (m DFMode) String() string {
 		return "honor-cache"
 	case DFBypassCache:
 		return "bypass-cache"
-	default:
+	case DFUnspecified:
 		return nameUnspecified
+	default:
+		panic("BUG: probe: invalid DF mode")
 	}
 }
 

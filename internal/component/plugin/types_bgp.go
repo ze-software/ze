@@ -19,7 +19,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -52,8 +51,9 @@ func (s PeerState) String() string {
 		return "established"
 	case PeerStateIdleHold:
 		return "idle-hold"
+	default:
+		panic("BUG: unknown BGP peer state")
 	}
-	return textbuf.StrIntStr("unknown(", int64(s), ")")
 }
 
 // NotifDirection says how the last NOTIFICATION reached, or failed to reach,
@@ -90,8 +90,9 @@ func (d NotifDirection) String() string {
 		return "sent"
 	case NotifSendFailed:
 		return "send-failed"
+	default:
+		panic("BUG: unknown BGP notification direction")
 	}
-	return textbuf.StrIntStr("unknown(", int64(d), ")")
 }
 
 // PeerInfo is a snapshot of BGP peer state for API output.

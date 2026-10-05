@@ -126,6 +126,21 @@ callback never waits for an RPC into that same store. Replayed routes pass the
 reactor's ordinary reflection rules and egress policy.
 <!-- source: internal/component/bgp/plugins/rr/validation.go -- startValidation, replayValidation -->
 
+For VPNv4 and VPNv6, a received withdrawal removes only the route with the
+matching RD, prefix and negotiated Path Identifier. The Compatibility field
+does not affect the match. A source-peer departure withdraws the remaining
+inventory with its native VPN encoding, including ADD-PATH identifier zero.
+The route server does not choose a replacement from another source.
+<!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendOpaqueRecords, recordKey -->
+<!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkVPNNLRIs -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
+
+The VPN daemon fixtures wait for the owning server or reflector to report both
+peers UP before releasing the source's first route. They then fence each marker
+on the destination's sent UPDATE count; the receiving peer checks the actual
+VPN bytes, not those counters.
+<!-- source: internal/test/fixture/register_vpn_withdrawal.go -- vpnWithdrawalInventory, vpnWithdrawalWaitSent -->
+
 ### Zero-Copy Forwarding
 
 When two peers negotiate identical capabilities (same ADD-PATH mode, same ASN format, same extended message support), they share the same encoding context. If no destination-specific rewrite is needed, their routes are forwarded as raw wire bytes without decoding attribute values, rebuilding the UPDATE, or allocating a new payload.

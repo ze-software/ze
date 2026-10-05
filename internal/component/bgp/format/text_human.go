@@ -115,12 +115,12 @@ func appendAttributesText(buf []byte, result bgpfilter.FilterResult) []byte {
 // this function. This is the text form of the plugin process protocol
 // (docs/architecture/api/process-protocol.md), which a plugin parses. Its
 // spelling of an AS number is a contract rather than a preference.
-// Known attribute types are formatted with named keys (short aliases for API output);
-// unknown types use "attr-N" with hex value.
+// Attributes with short forms use named keys; the remaining named and unknown
+// codes use "attr-N" with a hex value.
 // Short forms: next (next-hop), path (as-path), pref (local-preference),
 // s-com (community), l-com (large-community), x-com (extended-community).
 func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribute.Attribute) []byte {
-	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
+	switch code {
 	case attribute.AttrOrigin:
 		switch o := attr.(type) {
 		case *attribute.Origin:
@@ -221,8 +221,16 @@ func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribut
 			}
 		}
 		return buf
+	case attribute.AttrAtomicAggregate, attribute.AttrAggregator, attribute.AttrOriginatorID,
+		attribute.AttrClusterList, attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI,
+		attribute.AttrAS4Path, attribute.AttrAS4Aggregator, attribute.AttrTunnelEncap,
+		attribute.AttrIPv6ExtCommunity, attribute.AttrAIGP, attribute.AttrPrefixSID,
+		attribute.AttrTombstone:
+		// These named attributes use the generic representation below.
+	default:
+		// Attribute codes are an open wire set; retain unknown attributes below.
 	}
-	// Unknown attribute code — format as "attr-N hex".
+	// Generic attribute representation: "attr-N hex".
 	// attr.Len() bounds hex output to RFC 4271 extended max (65535 bytes of
 	// attribute value, 131070 hex chars). Stack scratch sized for the common
 	// case; pathological inputs spill via append growth.

@@ -39,11 +39,15 @@ func newTestRIBManager(t testing.TB) *RIBManager {
 
 // gatherCandidatesHeld runs gatherCandidatesLocked, the candidate gather the
 // show pipeline calls (rib_pipeline_best.go), under the r.peerMu.RLock its
-// contract requires. addPath says nlri leads with a 4-byte path identifier.
-func gatherCandidatesHeld(r *RIBManager, fam family.Family, nlri []byte, addPath bool) []*Candidate {
+// contract requires and retains its candidates until the test ends.
+// addPath says nlri leads with a 4-byte path identifier.
+func gatherCandidatesHeld(t testing.TB, r *RIBManager, fam family.Family, nlri []byte, addPath bool) []*Candidate {
+	t.Helper()
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
-	return r.gatherCandidatesLocked(fam, nlri, addPath)
+	candidates := r.gatherCandidatesLocked(fam, nlri, addPath)
+	t.Cleanup(func() { releaseCandidates(candidates) })
+	return candidates
 }
 
 // TestParseEvent_SentFormat verifies parsing of sent UPDATE events.
@@ -2816,6 +2820,7 @@ func TestGatherCandidatesOnlyBGP(t *testing.T) {
 	r.peerMu.RLock()
 	candidates := r.gatherCandidatesLocked(ipv4Uni, nlri, false)
 	r.peerMu.RUnlock()
+	defer releaseCandidates(candidates)
 
 	require.Len(t, candidates, 1)
 	assert.Equal(t, "10.0.0.1", candidates[0].PeerAddr)

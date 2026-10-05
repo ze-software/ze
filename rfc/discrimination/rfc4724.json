@@ -196,7 +196,7 @@
       "claim-sha": "f1ee712f89116f4a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::retainPeerFamilies",
-      "producer-sha": "740db32a519db963",
+      "producer-sha": "6b7c9fbc1fbb2181",
       "break": "body of retainPeerFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "7fdd301c390b6a6a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-      "producer-sha": "c62e0d8e99dbe47a",
+      "producer-sha": "616c4eefc2bacdab",
       "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -218,7 +218,7 @@
       "claim-sha": "a1e534ed89d0149c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "19e0c4e4119ffdad",
+      "producer-sha": "340f775e69516d6f",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "c9f832ee1e2df9e3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "19e0c4e4119ffdad",
+      "producer-sha": "340f775e69516d6f",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -239,9 +239,9 @@
       "unit-sha": "d075cd2c56bbdd38",
       "claim-sha": "60cec9dee84474d5",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
-      "producer-sha": "a25995d8706e455b",
-      "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::selectBestCandidates",
+      "producer-sha": "2f1d07c11c858e50",
+      "break": "body of selectBestCandidates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4724-4.2-6",
@@ -295,7 +295,7 @@
       "claim-sha": "db55055a27606844",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
-      "producer-sha": "2fc84132078eb41d",
+      "producer-sha": "1cfd1d46318b5141",
       "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "d18aff580e25dc34",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
-      "producer-sha": "2fc84132078eb41d",
+      "producer-sha": "1cfd1d46318b5141",
       "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -317,7 +317,7 @@
       "claim-sha": "06139191e407f386",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
-      "producer-sha": "2fc84132078eb41d",
+      "producer-sha": "1cfd1d46318b5141",
       "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -346,11 +346,11 @@
       "rid": "RFC4724-4.2-7",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking",
-      "unit-sha": "0aff4523f33ff0f3",
+      "unit-sha": "196f6f330fa86346",
       "claim-sha": "c5537451d7826a11",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
-      "producer-sha": "2fc84132078eb41d",
+      "producer-sha": "1cfd1d46318b5141",
       "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

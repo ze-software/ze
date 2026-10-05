@@ -65,7 +65,7 @@ func TestAppendNLRIJSONValueCarriesAddPathToTheDecoder(t *testing.T) {
 		Families:    []string{claimable},
 		RunEngine:   func(net.Conn) int { return 0 },
 		CLIHandler:  func([]string) int { return 0 },
-		InProcessNLRIDecoder: func(_, hex string, addPath bool) (any, error) {
+		InProcessNLRIDecoder: func(_, hex string, addPath, _ bool) (any, error) {
 			return map[string]any{"add-path": addPath, "hex": hex}, nil
 		},
 	})
@@ -99,7 +99,7 @@ func TestAppendNLRIJSONValueCarriesAddPathToTheDecoder(t *testing.T) {
 				t.Fatalf("wrap NLRI: %v", wireErr)
 			}
 
-			got := string(appendNLRIJSONValue(nil, wire, fam))
+			got := string(appendNLRIJSONValue(nil, wire, fam, false))
 			if !strings.Contains(got, tc.want) {
 				t.Errorf("want the decoder to be told %s, got %s", tc.want, got)
 			}
@@ -160,7 +160,7 @@ func TestNLRIJSONKeepsAZeroPathIdentifier(t *testing.T) {
 				t.Fatalf("want the whole section consumed, %d octets left", len(rest))
 			}
 
-			got := string(appendNLRIJSONValue(nil, parsed, family.IPv4Unicast))
+			got := string(appendNLRIJSONValue(nil, parsed, family.IPv4Unicast, false))
 			if got != tc.want {
 				t.Errorf("appendNLRIJSONValue wrote %s, want %s", got, tc.want)
 			}

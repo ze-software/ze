@@ -40,8 +40,11 @@ func (l layer) String() string {
 		return "transient"
 	case layerConfig:
 		return "config"
+	case -1:
+		return "unknown"
+	default:
+		panic("BUG: invalid sysctl layer")
 	}
-	return "unknown"
 }
 
 // entry tracks a single sysctl key's state across all layers.
@@ -520,8 +523,9 @@ func valueTypeName(t sysctlreg.ValueType) string {
 		return "int"
 	case sysctlreg.TypeIntRange:
 		return "int-range"
+	default:
+		panic("BUG: invalid sysctl value type")
 	}
-	return "unknown"
 }
 
 // clearSourceDefaults removes all default-layer entries whose source

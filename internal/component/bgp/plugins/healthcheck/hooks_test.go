@@ -220,7 +220,6 @@ func TestStateNameAllStates(t *testing.T) {
 		{StateDisabled, "DISABLED"},
 		{StateExit, "EXIT"},
 		{StateEnd, "END"},
-		{State(99), "UNKNOWN"},
 	}
 	for _, tt := range tests {
 		got := stateName(tt.state)
@@ -228,6 +227,17 @@ func TestStateNameAllStates(t *testing.T) {
 			t.Errorf("stateName(%d) = %q, want %q", tt.state, got, tt.want)
 		}
 	}
+}
+
+// TestStateNameInvalid treats an unnamed internal state as a programming error,
+// rather than publishing a plausible health status to hooks and command readers.
+func TestStateNameInvalid(t *testing.T) {
+	defer func() {
+		if got := recover(); got != "BUG: invalid healthcheck state name" {
+			t.Fatalf("stateName(99) panic = %v", got)
+		}
+	}()
+	stateName(State(99))
 }
 
 func TestHookStateEnvDown(t *testing.T) {

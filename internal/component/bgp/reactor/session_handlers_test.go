@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
@@ -795,9 +794,9 @@ func TestSecondOpenInOpenConfirmIsRefused(t *testing.T) {
 		"RFC 4271 Section 8.2.2 terminates Event 19 with a Cease in OpenConfirm too")
 }
 
-// TestHandleUpdate_FamilyMismatchIgnoreMode verifies IgnoreFamilyMismatch mode.
+// TestEstablishedSessionFamilyMismatchIgnoreMode verifies IgnoreFamilyMismatch mode.
 // RFC 4760 Section 6: lenient mode logs but doesn't reject.
-func TestHandleUpdate_FamilyMismatchIgnoreMode(t *testing.T) {
+func TestEstablishedSessionFamilyMismatchIgnoreMode(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
 	settings.ReceiveHoldTime = 90 * time.Second
@@ -876,9 +875,9 @@ func TestHandleUpdate_FamilyMismatchIgnoreMode(t *testing.T) {
 	updateBody[3] = byte(len(pathAttrs))
 	copy(updateBody[4:], pathAttrs)
 
-	wu := wireu.NewWireUpdate(updateBody, 0)
-	err = session.handleUpdate(wu)
-	assert.NoError(t, err, "IgnoreFamilyMismatch should accept non-negotiated family")
+	drop, err := session.validateUpdateFamilies(updateBody)
+	assert.NoError(t, err, "IgnoreFamilyMismatch should preserve the session")
+	assert.True(t, drop, "the unnegotiated family must be dropped before publication")
 }
 
 // TestShouldIgnoreFamily verifies per-family ignore configuration.

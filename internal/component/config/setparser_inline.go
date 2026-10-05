@@ -120,9 +120,10 @@ func consumeOneField(tree *Tree, parent Node, tokens []string) (int, error) {
 
 	case NodeFreeform, NodeInlineList:
 		return 0, fmt.Errorf("unsupported schema type for inline arg: %s", name)
+	default:
+		// Caller-supplied schema nodes form an open set of kinds.
+		return 0, fmt.Errorf("unsupported schema type for inline arg: %s (%d)", name, child.Kind())
 	}
-
-	return 0, fmt.Errorf("unsupported schema type for inline arg: %s (%d)", name, child.Kind())
 }
 
 // validateLeafValue validates a value against any leaf-like schema node type.

@@ -22,7 +22,7 @@ func (s detectorState) String() string {
 	case stateClearing:
 		return "clearing"
 	default:
-		return "unknown"
+		panic("BUG: invalid detector state")
 	}
 }
 
@@ -93,6 +93,8 @@ func (sm *stateMachine) Tick(aboveThreshold bool) {
 				}
 			}
 		}
+	default:
+		panic("BUG: invalid detector state")
 	}
 }
 

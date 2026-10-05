@@ -32,7 +32,7 @@ const (
 // publishes it as "path-id", and decodes the NLRI that follows it.
 // PREVENTS: an ADD-PATH mpls-vpn route rendering as {"parsed":false,"raw":...}.
 func TestDecodeNLRIHexReadsTheAddPathLayout(t *testing.T) {
-	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnAddPathHex, true)
+	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnAddPathHex, true, false)
 	if err != nil {
 		t.Fatalf("decode ADD-PATH mpls-vpn NLRI: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestDecodeNLRIHexReadsTheAddPathLayout(t *testing.T) {
 // same NLRI with no Path Identifier in front of it decodes to the same route and
 // names no identifier, so the flag is read rather than assumed either way.
 func TestDecodeNLRIHexWithoutAddPathPublishesNoPathID(t *testing.T) {
-	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnPlainHex, false)
+	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnPlainHex, false, false)
 	if err != nil {
 		t.Fatalf("decode mpls-vpn NLRI: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestDecodeNLRIHexWithoutAddPathPublishesNoPathID(t *testing.T) {
 // fewer than four octets is malformed. The decoder says so, and it does not
 // answer with a zero identifier a caller cannot tell from a real one.
 func TestDecodeNLRIHexRefusesATruncatedPathIdentifier(t *testing.T) {
-	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", "000000", true)
+	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", "000000", true, false)
 	if err != nil {
 		return
 	}
@@ -121,7 +121,7 @@ const vpnZeroPathHex = "00000000" + "70" + "04E301" + "0000006400000064" + "0A00
 // VALIDATES: an ADD-PATH VPN route with identifier zero carries "path-id": 0.
 // PREVENTS: the zero identifier disappearing from the JSON a script reads.
 func TestDecodeNLRIHexPublishesAPathIdentifierOfZero(t *testing.T) {
-	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnZeroPathHex, true)
+	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnZeroPathHex, true, false)
 	if err != nil {
 		t.Fatalf("decode ADD-PATH mpls-vpn NLRI: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestDecodeNLRIHexPublishesAPathIdentifierOfZero(t *testing.T) {
 // PREVENTS: a route with no Path Identifier publishing "path-id": 0, which
 // would be indistinguishable from a real identifier of zero.
 func TestDecodeNLRIHexWithoutAddPathOmitsTheZeroIdentifier(t *testing.T) {
-	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnPlainHex, false)
+	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnPlainHex, false, false)
 	if err != nil {
 		t.Fatalf("decode mpls-vpn NLRI: %v", err)
 	}

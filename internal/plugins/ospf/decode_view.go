@@ -191,7 +191,9 @@ func opaqueScopeCommand(scope OpaqueScope) string {
 		return cmdShowDatabaseOpaqueLink
 	case OpaqueScopeAS:
 		return cmdShowDatabaseOpaqueAS
-	default:
+	case OpaqueScopeArea:
 		return cmdShowDatabaseOpaqueArea
+	default:
+		panic("BUG: invalid OSPF opaque detail scope")
 	}
 }

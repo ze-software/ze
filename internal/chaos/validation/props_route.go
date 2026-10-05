@@ -30,7 +30,8 @@ func (p *RouteConsistency) Description() string {
 func (p *RouteConsistency) RFC() string { return "RFC 4271 Section 9" }
 
 func (p *RouteConsistency) ProcessEvent(ev peer.Event) {
-	switch ev.Type { //nolint:exhaustive // only session and route events are relevant
+	//exhaustive:ignore // This independent property observes route consistency inputs.
+	switch ev.Type {
 	case peer.EventEstablished:
 		p.model.SetEstablished(ev.PeerIndex, true)
 	case peer.EventRouteSent:

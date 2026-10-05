@@ -188,9 +188,9 @@ func toolOverlayClass(state ToolOverlayState) string {
 		return "tool-overlay tool-overlay--confirm"
 	case ToolOverlayResult:
 		return "tool-overlay tool-overlay--result"
+	default:
+		panic("BUG: unknown tool overlay state")
 	}
-
-	return "tool-overlay tool-overlay--result"
 }
 
 // listRowClass is one list-table row's class list. A pending row holds an edit

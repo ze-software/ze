@@ -32,9 +32,9 @@ func rfc8654RequireBadLength(t *testing.T, err error, length uint16, what string
 // PREVENTS: the raised limit leaking to OPEN, a missing lower bound, and a
 // refusal that does not follow RFC 4271 Section 6.1.
 //
-// RFC requirement: RFC8654-6-1 positive -- Length 19 for every type, 4096 for OPEN, UPDATE,
-// NOTIFICATION and ROUTE-REFRESH without the capability, and 65535 for UPDATE, NOTIFICATION
-// and ROUTE-REFRESH with it, are accepted.
+// RFC requirement: RFC8654-6-1 positive -- each tested message type's minimum Length,
+// 4096 for OPEN, UPDATE, NOTIFICATION and ROUTE-REFRESH without the capability, and
+// 65535 for UPDATE, NOTIFICATION and ROUTE-REFRESH with it, are accepted.
 // RFC requirement: RFC8654-6-1 negative -- Length 0 and 18 for every type in both states,
 // 4097 for every type without the capability, and 4097 or 65535 for OPEN with it, are refused
 // as Bad Message Length carrying the erroneous Length.

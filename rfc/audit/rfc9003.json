@@ -1,12 +1,13 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9003-2-3": {
       "note": "Same unit and proof as RFC8203-2-1: BuildCeaseData carries the Shutdown Communication only under subcodes 2 and 4, none under 0,1,3,5..10; the teardown sends its Cease data only through it. Judge break: red.",
       "requirement_sha": "d55d8e1d9e80fc91",
       "tests": {
-        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "8a17b6f2d17e6117",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "9710bf0872e82b0b",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "9710bf0872e82b0b",
         "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4": "908f887506cc5456",
         "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4#2": "908f887506cc5456"
       },
@@ -22,8 +23,8 @@
       "note": "Re-read 2026-09-27. Forbidden: a receiver interpreting an invalid UTF-8 Shutdown Communication. TestRFC8203UTF8Invalid fails unless ShutdownMessage errors and returns empty for 0xff 0xfe 0xfd; TestRFC8203UTF8Valid shows valid multibyte text is interpreted.",
       "requirement_sha": "5cab220eae8c9d30",
       "tests": {
-        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "8a17b6f2d17e6117",
-        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "8a17b6f2d17e6117"
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "9710bf0872e82b0b",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "9710bf0872e82b0b"
       },
       "units": {
         "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "2e939366e427c751",

@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -15,7 +16,7 @@ import (
 // RFC 7311 Section 3.4.3: "Then, when R1 changes the next hop of a route from R2
 // to R1, the AIGP TLV value MUST be increased by a non-zero amount."
 // RFC requirement: RFC7311-3.4.3-6 positive -- an unresolved direct link with configured cost 7 advertises received metric 100 as 107 after next-hop-self.
-// RFC requirement: RFC7311-3.4.3-6 negative -- an unresolved direct link with cost zero removes AIGP instead of advertising its unchanged value.
+// RFC requirement: RFC7311-3.4.3-6 negative -- an unresolved direct link with no configured cost withdraws the route instead of announcing next-hop-self without its required increment.
 // RFC requirement: RFC7311-3.4.3-2 positive -- adding a direct-link cost above the available metric range saturates at the uint64 maximum.
 // RFC requirement: RFC7311-3.4.3-2 negative -- adding a direct-link cost within range emits its exact sum.
 func TestRFC7311DirectLinkCostNeverWrapsOrDisappears(t *testing.T) {
@@ -35,12 +36,29 @@ func TestRFC7311DirectLinkCostNeverWrapsOrDisappears(t *testing.T) {
 		if failure != modifyFailureNone || rebuilt == nil {
 			t.Fatalf("rebuild failed: %v", failure)
 		}
+		if mods.IsWithdraw() != (tc.link == 0) {
+			t.Fatalf("link %d: withdrawal=%v", tc.link, mods.IsWithdraw())
+		}
+		if mods.IsWithdraw() {
+			rebuilt = make([]byte, len(body))
+			n := buildWithdrawalPayload(body, rebuilt)
+			if n == 0 {
+				t.Fatal("cost-withheld withdrawal could not be built")
+			}
+			rebuilt = rebuilt[:n]
+		}
 		peer, conn := newAnnouncePeer(t, "192.0.2.2")
 		peer.session.settings.AIGPSession = new(true)
 		fwdBatchHandler(fwdKey{}, []fwdItem{{peer: peer, rawBodies: [][]byte{rebuilt}, sourceMessageID: 1}})
 		metric, present := aigpReceivedMetric(t, conn.written()[message.HeaderLen:])
 		if present != tc.present || metric != tc.want {
 			t.Fatalf("metric %d link %d: wire %d present=%v, want %d present=%v", tc.metric, tc.link, metric, present, tc.want, tc.present)
+		}
+		wireBody := conn.written()[message.HeaderLen:]
+		if tc.link == 0 {
+			if !bytes.Equal(wireBody, []byte{0, 4, 24, 10, 20, 0, 0, 0}) {
+				t.Fatalf("cost-withheld route did not reach the recipient as an exact withdrawal: %x", wireBody)
+			}
 		}
 	}
 }

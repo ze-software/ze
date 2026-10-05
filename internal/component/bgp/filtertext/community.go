@@ -11,7 +11,6 @@
 package filtertext
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -38,8 +37,9 @@ func (k CommunityKind) String() string {
 		return "large"
 	case CommunityExtended:
 		return "extended"
+	default:
+		panic("BUG: invalid community kind")
 	}
-	return "unknown"
 }
 
 // CanonicalCommunity parses one configured value into the attribute formatter's
@@ -72,12 +72,13 @@ func CanonicalCommunity(text string, kind CommunityKind) (string, error) {
 		}
 		var buf [16]byte
 		return string(value.AppendText(buf[:0])), nil
+	default:
+		panic("BUG: invalid community kind")
 	}
-	return "", fmt.Errorf("unsupported community type %d", kind)
 }
 
 // FieldName returns the attribute keyword this kind carries in the filter text
-// format. An unrecognized kind returns the empty string.
+// format. A kind outside the internal selector set is a programming error.
 func (k CommunityKind) FieldName() string {
 	switch k {
 	case CommunityStandard:
@@ -86,8 +87,9 @@ func (k CommunityKind) FieldName() string {
 		return "large-community"
 	case CommunityExtended:
 		return "extended-community"
+	default:
+		panic("BUG: invalid community kind")
 	}
-	return ""
 }
 
 // needles returns the two forms the field keyword is searched for: at the start
@@ -101,8 +103,9 @@ func (k CommunityKind) needles() (atStart, afterSpace string) {
 		return "large-community ", " large-community "
 	case CommunityExtended:
 		return "extended-community ", " extended-community "
+	default:
+		panic("BUG: invalid community kind")
 	}
-	return "", ""
 }
 
 // CommunityValues returns the individual community values of one attribute,
@@ -145,15 +148,9 @@ func HasCommunity(updateText string, kind CommunityKind, value string) bool {
 }
 
 // cutOnWordBoundary returns the text after the kind's keyword, which must sit at
-// the start of the text or after a space. An unrecognized kind matches nothing:
-// without that guard an empty needle would cut at position zero and return the
-// first token of the update as a community value.
+// the start of the text or after a space.
 func cutOnWordBoundary(text string, kind CommunityKind) (string, bool) {
 	atStart, afterSpace := kind.needles()
-	if atStart == "" {
-		return "", false
-	}
-
 	if strings.HasPrefix(text, atStart) {
 		return text[len(atStart):], true
 	}

@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/attributes.md -- carrier-aware tunnel attribute validation.
+// Related: session_tunnel_encap.go -- receive-side framing and carrier enforcement.
 // RFC 9012 and RFC 9830 receive-and-propagate obligations for the Tunnel
 // Encapsulation attribute, driven through the path a peer's UPDATE takes: the
 // receive validator (enforceRFC7606), then the forwarding rail to the socket.
@@ -5,10 +7,9 @@
 // Related: ../../../core/bgp/attribute/rfc9012_test.go -- the codec half
 // Related: ../../../core/bgp/attribute/rfc9830_test.go -- the codec half
 //
-// Ze reads no sub-TLV of a received Tunnel Encapsulation attribute: it is a
-// carrier. What it does with the attribute is decide whether it is malformed and
-// pass it along, so "ignored", "not malformed" and "propagated unchanged" are all
-// observed here, at the receive verdict and on the wire.
+// Ze carries received tunnel descriptions without acting as an SR Policy
+// headend. These tests observe BGP receive decisions and propagation, not SRPM
+// candidate-path selection or tunnel dataplane installation.
 //
 // VALIDATES: a received Tunnel Encapsulation attribute, clean or full of
 // fields to ignore and sub-TLVs to tolerate, gets no RFC 7606 action and
@@ -52,13 +53,12 @@ func teTLV(tunnelType uint16, subs ...[]byte) []byte {
 
 var teSRv6SID = []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
-// teCarryValue builds a Tunnel Encapsulation attribute value. `x` fills every
-// Flags, RESERVED and reserved-bit field an SR Policy receiver must ignore
-// (0x00 clean, 0xFF dirty). `odd` adds everything RFC 9012 Section 13 tells a
-// speaker to tolerate: an unrecognized sub-TLV, a malformed sub-TLV, a sub-TLV
-// meaningless for the tunnel type, a duplicated Tunnel Egress Endpoint, and a
-// TLV of an unrecognized tunnel type.
-func teCarryValue(x byte, odd bool) []byte {
+// teSRPolicyValue builds one SR Policy TLV for SAFI 73. x changes ignored
+// reserved fields; ignored adds sub-TLVs without SR Policy applicability.
+// RFC 9830 Section 2.2: "The content of the SR Policy CP is encoded in the Tunnel
+// Encapsulation Attribute defined in [RFC9012] using a Tunnel Type called the
+// "SR Policy" type with code point 15."
+func teSRPolicyValue(x byte, ignored bool) []byte {
 	typeA := teSub(1, 0x7F&x, x, 0x05, 0xDC, 0x0F&x, x)
 	typeB := teSub(13, append(append([]byte{0x10, x}, teSRv6SID...), 0xFF, 0xFF, x, x, 32, 16, 16, 64)...)
 	segmentList := teLongSub(128, append(append([]byte{x}, teSub(9, x, x, 0, 0, 0, 7)...), append(typeA, typeB...)...)...)
@@ -74,27 +74,44 @@ func teCarryValue(x byte, odd bool) []byte {
 		teLongSub(129, append([]byte{x}, "primary"...)...),
 		teLongSub(130, append([]byte{x}, "alpha"...)...),
 		segmentList,
-		// Tunnel Egress Endpoint with Reserved octets (RFC 9012 Section 3.1),
-		// Color sub-TLV (RFC 9830 Section 2.3 says ignore), Embedded Label
-		// Handling (RFC 9012 Section 3.5), and a VXLAN sub-TLV, meaningless in
-		// an SR Policy TLV.
-		teSub(6, x, x, x, x, 0, 1, 192, 0, 2, 77),
-		teSub(4, 0x03, 0x0b, 0, 0, 0, 0, 0, 5),
-		teSub(9, 1),
-		teSub(1, 0xC0|(0x3F&x), 0, 0, 10, 0, 0, 0, 0, 0, 0, x, x),
 	}
-	if odd {
+	if ignored {
+		// RFC 9830 Section 2.3: "If these sub-TLVs are present, a BGP speaker
+		// MUST ignore them and MAY remove them from the Tunnel Encapsulation
+		// Attribute during propagation."
 		srPolicy = append(srPolicy,
-			teSub(6, 0, 0, 0, 0, 0, 1, 198, 51, 100, 7), // second Tunnel Egress Endpoint
-			teSub(8, 0x12, 0x34, 0x56),                  // UDP Destination Port of Length 3: malformed
-			teLongSub(200, 0xde, 0xad),                  // unrecognized sub-TLV
+			teSub(6, x, x, x, x, 0, 1, 10, 0, 0, 77),
+			teSub(6, 0, 0, 0, 0, 0, 1, 10, 0, 0, 78),
+			teSub(4, 0x03, 0x0b, 0, 0, 0, 0, 0, 5),
+			teSub(9, 1),
+			teSub(8, 0x12, 0x34, 0x56),
+			teSub(1, 0xC0|(0x3F&x), 0, 0, 10, 0, 0, 0, 0, 0, 0, x, x),
 		)
 	}
-	value := teTLV(15, srPolicy...)
-	vxlan := teSub(1, 0xC0|(0x3F&x), 0, 0, 10, 0, 0, 0, 0, 0, 0, x, x) // VXLAN R bits (RFC 9012 Section 3.2.1)
-	value = append(value, teTLV(8, vxlan)...)
+	return teTLV(15, srPolicy...)
+}
+
+// teCarryValue supplies RFC 9012 tunnels with exactly one endpoint each.
+// RFC 9012 Section 13: "Within a Tunnel Encapsulation attribute that is carried
+// by a BGP UPDATE whose AFI/SAFI is one of those explicitly listed in the first
+// paragraph of Section 6, a TLV that does not contain exactly one Tunnel Egress
+// Endpoint sub-TLV MUST be treated as if it contained a malformed Tunnel Egress
+// Endpoint sub-TLV."
+func teCarryValue(x byte, odd bool) []byte {
+	endpoint := teSub(6, x, x, x, x, 0, 1, 10, 0, 0, 77)
+	gre := [][]byte{endpoint, teSub(9, 1)}
 	if odd {
-		value = append(value, teTLV(0xFFFE, teSub(99, 1, 2, 3))...)
+		gre = append(gre,
+			teSub(9, 2),                // Duplicate Embedded Label Handling.
+			teSub(8, 0x12, 0x34, 0x56), // Malformed and meaningless for GRE.
+			teLongSub(200, 0xde, 0xad), // Unrecognized sub-TLV.
+		)
+	}
+	value := teTLV(2, gre...)
+	vxlan := teSub(1, 0xC0|(0x3F&x), 0, 0, 10, 0, 0, 0, 0, 0, 0, x, x)
+	value = append(value, teTLV(8, endpoint, vxlan)...)
+	if odd {
+		value = append(value, teTLV(0xFFFE, endpoint, teSub(99, 1, 2, 3))...)
 	}
 	return value
 }
@@ -140,24 +157,20 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool) []byte {
 // Tunnel Encapsulation attribute through enforceRFC7606 and then to a peer's
 // socket, both forwarded as received and rebuilt for next-hop-self with a new
 // MED, and compares the attribute octets at every step.
-// Method: two variants. "clean" zeroes every field an SR Policy receiver must
-// ignore and carries nothing RFC 9012 Section 13 has to tolerate; "dirty" sets
-// every such field to ones and adds an unrecognized sub-TLV, a malformed
-// sub-TLV, a meaningless sub-TLV, a duplicated Tunnel Egress Endpoint and a TLV
-// of an unrecognized tunnel type. Ze must reach the same verdict (no RFC 7606
-// action, no error) for both, keep the route, and put each attribute on the
-// wire octet for octet as it arrived. A receiver that read, refused or
-// normalized any of those fields makes the dirty run differ from the clean one.
-// The route is IPv4 unicast: Ze's handling of attribute 23 does not depend on
-// the family.
+// Method: both IPv4-unicast variants have exactly one endpoint in every TLV.
+// The dirty variant sets ignored reserved bits and adds unknown and malformed
+// sub-TLVs, a UDP port meaningless for GRE, a duplicate Embedded Label Handling
+// sub-TLV, and an unknown tunnel type. Each verdict must be no action, and both
+// forwarding rails must preserve every octet. Endpoint-invalid TLVs are tested
+// separately because Section 13 requires their removal on this carrier.
 //
 // RFC requirement: RFC9012-13-3 positive -- an attribute holding a TLV of unrecognized tunnel type 0xFFFE gets no RFC 7606 action and is kept.
 // RFC requirement: RFC9012-13-3 negative -- the same attribute re-encoded for next-hop-self is still carried whole, the unrecognized TLV included, never dropped as malformed.
 // RFC requirement: RFC9012-13-5 positive -- the unrecognized-type TLV reaches the peer's wire unchanged when the route is forwarded as received.
 // RFC requirement: RFC9012-13-5 negative -- rebuilding the UPDATE for next-hop-self and a new MED does not drop or alter it.
-// RFC requirement: RFC9012-13-8 positive -- a Tunnel TLV holding two Tunnel Egress Endpoint sub-TLVs gets no RFC 7606 action and is kept.
+// RFC requirement: RFC9012-13-8 positive -- a GRE TLV holding duplicate Embedded Label Handling sub-TLVs gets no RFC 7606 action and is kept.
 // RFC requirement: RFC9012-13-8 negative -- the rebuilt UPDATE still carries that TLV whole.
-// RFC requirement: RFC9012-13-9 positive -- both Tunnel Egress Endpoint sub-TLVs reach the wire unchanged.
+// RFC requirement: RFC9012-13-9 positive -- both Embedded Label Handling occurrences reach the wire unchanged.
 // RFC requirement: RFC9012-13-9 negative -- the rebuilt UPDATE still carries both occurrences.
 // RFC requirement: RFC9012-13-10 positive -- a TLV with an unrecognized sub-TLV gets the same verdict and handling as the clean TLV without it.
 // RFC requirement: RFC9012-13-10 negative -- the dirty and clean runs differ only in the octets of the attribute itself.
@@ -165,7 +178,7 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool) []byte {
 // RFC requirement: RFC9012-13-11 negative -- the rebuilt UPDATE still carries it.
 // RFC requirement: RFC9012-13-12 positive -- a UDP Destination Port sub-TLV of Length 3 is handled as an unrecognized one: no action, carried.
 // RFC requirement: RFC9012-13-12 negative -- the dirty and clean runs reach the same verdict.
-// RFC requirement: RFC9012-13-16 positive -- a VXLAN sub-TLV inside an SR Policy TLV changes neither verdict nor handling.
+// RFC requirement: RFC9012-13-16 positive -- a UDP Destination Port sub-TLV inside a GRE TLV changes neither verdict nor handling.
 // RFC requirement: RFC9012-13-16 negative -- the dirty and clean runs reach the same verdict.
 // RFC requirement: RFC9012-13-18 positive -- the TLV holding the meaningless sub-TLV gets no RFC 7606 action.
 // RFC requirement: RFC9012-13-18 negative -- the rebuilt UPDATE still carries it.
@@ -179,10 +192,6 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool) []byte {
 // RFC requirement: RFC9012-3.5-3 negative -- the rebuilt UPDATE does not strip it.
 // RFC requirement: RFC9012-4.3-2 positive -- the Color Extended Community value reaches the wire unchanged.
 // RFC requirement: RFC9012-4.3-2 negative -- the rebuilt UPDATE does not change it.
-// RFC requirement: RFC9830-2.3-1 positive -- Color and Tunnel Egress Endpoint sub-TLVs in an SR Policy TLV change neither verdict nor handling.
-// RFC requirement: RFC9830-2.3-1 negative -- the dirty and clean runs reach the same verdict.
-// RFC requirement: RFC9830-2.3-3 positive -- RFC 9012 sub-TLVs with no SR Policy applicability (VXLAN, Embedded Label Handling, UDP port) change neither verdict nor handling.
-// RFC requirement: RFC9830-2.3-3 negative -- the dirty and clean runs reach the same verdict.
 func TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong(t *testing.T) {
 	var verdicts []message.RFC7606Action
 	for _, tc := range []struct {
@@ -194,8 +203,10 @@ func TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong(t *testing.T) {
 		{"dirty", 0xFF, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// RFC 9012 Sections 6 and 13.
 			value := teCarryValue(tc.x, tc.odd)
 			s := rfc7311EBGPSession()
+			// RFC 9012 Section 13.
 			wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(teCarryBody(value), 0))
 			require.NoError(t, err, "the attribute must not reset the session")
 			require.Equal(t, message.RFC7606ActionNone, action, "the attribute must not be treated as malformed")
@@ -225,8 +236,9 @@ func TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong(t *testing.T) {
 // one where they are zero, and passes the ones along untouched rather than
 // zeroing them. The transmission half of each row is proven in
 // internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go.
-// Method: the clean and dirty values of teCarryValue without the RFC 9012
-// Section 13 extras, through enforceRFC7606 and the forwarding rail.
+// Method: AFI 1/SAFI 73 and AFI 2/SAFI 73 UPDATEs, through enforceRFC7606 and
+// the forwarding rail, with exact MP_REACH and Preference readback. A malformed
+// carrier control is covered by TestRFC9830TunnelTypeReceiveVerdicts.
 //
 // RFC requirement: RFC9830-2.4.1-5 positive -- Preference Flags 0xFF: no RFC 7606 action, forwarded unchanged.
 // RFC requirement: RFC9830-2.4.1-5 negative -- the verdict equals the zero-Flags run, so the field is not acted on.
@@ -265,18 +277,33 @@ func TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong(t *testing.T) {
 // RFC requirement: RFC9830-2.4.8-7 positive -- Policy Name RESERVED 0xFF: no action, forwarded unchanged.
 // RFC requirement: RFC9830-2.4.8-7 negative -- the verdict equals the zero run.
 func TestRFC9830ReservedFieldsIgnoredOnReceipt(t *testing.T) {
-	var verdicts []message.RFC7606Action
-	for _, x := range []byte{0x00, 0xFF} {
-		value := teCarryValue(x, false)
-		s := rfc7311EBGPSession()
-		wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(teCarryBody(value), 0))
-		require.NoError(t, err)
-		require.Equal(t, message.RFC7606ActionNone, action, "x=%#x: reserved fields must not make the attribute malformed", x)
-		verdicts = append(verdicts, action)
-		attrs := teForwardedAttrs(t, wu.Payload(), true)
-		count, sent := countAttrCode(attrs, uint8(attribute.AttrTunnelEncap))
-		require.Equal(t, 1, count)
-		require.True(t, bytes.Equal(value, sent), "x=%#x: got %x want %x", x, sent, value)
+	for _, afi := range []byte{1, 2} {
+		var verdicts []message.RFC7606Action
+		for _, x := range []byte{0x00, 0xFF} {
+			// RFC 9830 Sections 2.2 and 2.4.
+			value := teSRPolicyValue(x, false)
+			// RFC 9830 Section 2.1.
+			body := teSRPolicyBody(value, afi)
+			s := rfc7311EBGPSession()
+			// RFC 9830 Sections 2.2 and 2.4.
+			wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+			require.NoError(t, err)
+			require.Equal(t, message.RFC7606ActionNone, action)
+			verdicts = append(verdicts, action)
+			// RFC 9830 Sections 2.1, 2.2 and 2.4.1.
+			teRequireSRPolicyReceipt(t, body, wu.Payload(), value)
+			for _, rebuild := range []bool{false, true} {
+				attrs := teForwardedAttrs(t, wu.Payload(), rebuild)
+				count, sent := countAttrCode(attrs, uint8(attribute.AttrTunnelEncap))
+				require.Equal(t, 1, count)
+				require.Equal(t, value, sent)
+				_, _, expectedMP, found := attribute.AttrFind(rfc8669PathAttrs(t, body), attribute.AttrMPReachNLRI)
+				require.True(t, found)
+				_, _, sentMP, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
+				require.True(t, found)
+				require.Equal(t, expectedMP, sentMP, "forwarding must preserve the SAFI 73 carrier")
+			}
+		}
+		require.Equal(t, verdicts[0], verdicts[1])
 	}
-	require.Equal(t, verdicts[0], verdicts[1])
 }

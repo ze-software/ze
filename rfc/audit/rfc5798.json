@@ -11,6 +11,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -196,8 +197,8 @@
       "note": "Preempt True and lower priority emits no actions; same advert with Preempt False adopts",
       "requirement_sha": "772a0fd3c9bc8b35",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -265,8 +266,8 @@
       "note": "matrix row backup/shutdown asserts exactly StopTimers + EmitStateChange to Initialize; a non-Shutdown event leaves Backup",
       "requirement_sha": "f94501bf15d47185",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -278,8 +279,8 @@
       "note": "vrrp final judge 2026-09-29 (independent): earlier proof stands (promotion action list, StartAdvertTimer at the own interval, GARP per IPv4 VIP with the virtual router MAC, NA per IPv6 VIP R=1 S=0 O=1 TLL 00-00-5e-00-02-0a, stale-generation negative). The Solicited-Node clause is now asserted at Ze's boundary: TestPromotionInstallsIPv6AddressesOnVirtualMACDevice requires nothing installed in Backup and, on the Master_Down_Timer, exactly fe80::1 and 2001:db8::1 installed on the virtual-MAC device, never the parent -- the address add from which Linux addrconf joins each Solicited-Node group (record: doInstallVIPs). Kernel membership itself is not read.",
       "requirement_sha": "0ae4d61330ab50c9",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "52489f84876bdb6f",
         "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval": "529420a351d8b685",
         "internal/plugins/vrrp/promote_install_v6_test.go::TestPromotionInstallsIPv6AddressesOnVirtualMACDevice": "a3f984b19213ee87",
         "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress": "ae6af29a2a8c28fc"
@@ -297,8 +298,8 @@
       "note": "Priority 0 advert arms StartMasterDownTimer(skewDur); non-zero arms mdDur",
       "requirement_sha": "c0b7e8f3c10a138e",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -310,8 +311,8 @@
       "note": "vrrp judge 2026-09-29 (independent): TestV3BackupAdoptsIntervalOrDiscards: equal, greater and Preempt-off lower adverts carrying 4 s each set Master_Adver_Interval to 4000 and arm the literal 14.4375 s; Preempt-on lower yields nothing and keeps 1000.",
       "requirement_sha": "c9a81326776e66d0",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
         "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards": "529420a351d8b685",
         "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards#2": "529420a351d8b685"
       },
@@ -346,8 +347,8 @@
       "note": "Priority 0 advert sends an advert and re-arms the Adver_Timer; a losing non-zero advert does not re-arm",
       "requirement_sha": "f7321230aff82187",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -364,8 +365,8 @@
       "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestInstanceIPv6ElectionUsesUnsignedOrder closes the missing IPv6 operand: an IPv6 Master whose advertisement source is link-local yields to a higher-priority advert and to an equal-priority sender greater in the high octet (fe80::80 vs fe80::7f), asserting advert timer cancelled, the advert's 3000ms interval adopted, Skew_Time and Master_Down_Interval recomputed from it, down timer armed, Backup; the reverse pair, which a signed compare would rank greater, keeps Master, timer armed, 1000ms interval. With TestInstanceTieBreakComparesTheAdvertisementSource (IPv4 operand) and TestFSMTransitionMatrix (timer value). Records: senderWinsTieBreak, observed red.",
       "requirement_sha": "a089b2f5a90d9a09",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "a878e0cdb3eac07e",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "a878e0cdb3eac07e",
         "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder": "ff841e8617708828",
@@ -385,8 +386,8 @@
       "note": "losing rows leave state and timers untouched; the extra SendAdvert they assert is RFC 9568 Section 6.4.3's added step, recorded on the row's superseded marker, and does not act on the advert's contents",
       "requirement_sha": "5758833f16a2e950",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -471,8 +472,8 @@
       "note": "master/shutdown asserts StopTimers, SendAdvertZeroPriority, RemoveVIPs, Initialize; Backup shutdown sends no zero-priority advert",
       "requirement_sha": "7b1860b889cb5037",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -484,8 +485,8 @@
       "note": "armed-generation expiry sends an advert and re-arms at 1s; a stale generation does nothing",
       "requirement_sha": "a716945f2bc9bd3b",
       "tests": {
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168",
-        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168"
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "52489f84876bdb6f",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",

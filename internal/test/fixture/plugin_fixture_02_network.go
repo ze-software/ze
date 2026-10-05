@@ -182,7 +182,7 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	if !strings.Contains(entry.Detail, "router-id") ||
 		!strings.Contains(entry.Detail, "1.2.3.4") ||
-		!strings.Contains(entry.Detail, "10.0.0.2") {
+		!strings.Contains(entry.Detail, addrPeerTwo) {
 		return fmt.Errorf("audit detail missing router-id change: %+v", entry)
 	}
 	fmt.Fprintln(os.Stderr, "OK: show audit includes REST config commit")
@@ -208,7 +208,7 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 	if discardID == "" {
 		return fmt.Errorf("create discard session response=%v", created)
 	}
-	if _, err := auditRequest02(ctx, client, http.MethodPut, "/config/sessions/"+discardID, map[string]any{fieldPath: configPathRouterID, fieldValue: "10.0.0.3"}); err != nil {
+	if _, err := auditRequest02(ctx, client, http.MethodPut, "/config/sessions/"+discardID, map[string]any{fieldPath: configPathRouterID, fieldValue: addrPeerThree}); err != nil {
 		return err
 	}
 	discarded, err := auditRequest02(ctx, client, http.MethodDelete, "/config/sessions/"+discardID, nil)
@@ -233,7 +233,7 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 	if entry.Action != "config-discard" || entry.Surface != "rest" || entry.Outcome != outcomeSuccess {
 		return fmt.Errorf("unexpected discard audit entry=%+v", entry)
 	}
-	if !strings.Contains(entry.Detail, "10.0.0.3") {
+	if !strings.Contains(entry.Detail, addrPeerThree) {
 		return fmt.Errorf("discard audit detail missing discarded value: %+v", entry)
 	}
 	fmt.Fprintln(os.Stderr, "OK: show audit includes REST config discard")

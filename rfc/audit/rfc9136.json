@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9136-3.1-1": {
@@ -9,9 +12,9 @@
         "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength": "c5763befe78ef7f1",
         "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused": "c5763befe78ef7f1",
         "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58": "c5763befe78ef7f1",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "cda78b2a51f4ccf8"
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "e95f85b8a1869210"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength": "e85a5a2266c1e17d",
@@ -27,7 +30,7 @@
       "note": "Single-polarity positive (row marker). (a) forbidden: decoding the RD or the Ethernet Tag ID at other than the RFC 7432 layout (8-octet RD, 4-octet tag after the 10-octet ESI); (b) TestEVPNType5IPv4 assert.Equal(\"0:65000:100\", evpn.RD().String()) and assert.Equal(uint32(10), evpn.EthernetTag()) go red on a misplaced or misdecoded field. Only a type-0 RD is driven; RD type decoding is the shared ParseRouteDistinguisher.",
       "requirement_sha": "fb71b0b3f1accf09",
       "tests": {
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "cda78b2a51f4ccf8"
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "e95f85b8a1869210"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09"
@@ -38,10 +41,10 @@
       "note": "(a) forbidden: accepting an IP Prefix Length above 128; (b) TestEVPNType5PrefixLengthTooLong/ipv6 require.ErrorIs(err, ErrEVPNInvalidPrefix) on length 129 goes red if parseEVPNType5 accepts it; positive TestEVPNType5IPv6 decodes 64. The send side cannot exceed 128 (netip.Prefix). The ipv4 subtest's tag (33 > 32) proves the non-normative 'can be set to a value between 0 and 32' sentence, not this MUST NOT: a misplaced tag, listed as a finding.",
       "requirement_sha": "2e49d3e847576fd8",
       "tests": {
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong": "cda78b2a51f4ccf8",
-        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong#2": "cda78b2a51f4ccf8"
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong": "e95f85b8a1869210",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong#2": "e95f85b8a1869210"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09",

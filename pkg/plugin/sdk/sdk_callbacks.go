@@ -36,7 +36,8 @@ type EncodeNLRIHandler func(family string, args []string) (string, error)
 // DecodeNLRIHandler handles NLRI decoding requests. Returns a Go value (JSON-marshaled by the SDK).
 // addPath states whether each NLRI in hex carries a 4-octet Path Identifier
 // ahead of it (RFC 7911 Section 3).
-type DecodeNLRIHandler func(family string, hex string, addPath bool) (any, error)
+// withdraw selects MP_UNREACH withdrawal semantics rather than announcement semantics.
+type DecodeNLRIHandler func(family string, hex string, addPath, withdraw bool) (any, error)
 
 // DecodeCapabilityHandler handles capability decoding requests. Returns a Go value (JSON-marshaled by the SDK).
 type DecodeCapabilityHandler func(code uint8, hex string) (any, error)
@@ -238,14 +239,18 @@ func (p *Plugin) OnEncodeNLRI(fn EncodeNLRIHandler) {
 
 // OnDecodeNLRI sets the handler for NLRI decoding requests.
 //
-// The handler receives the address family, the hex-encoded NLRI section, and
-// whether the session negotiated ADD-PATH for that family. It returns a Go
-// data structure, which the SDK marshals once into the response.
+// The handler receives the address family, the hex-encoded NLRI section,
+// whether the session negotiated ADD-PATH for that family, and whether the
+// enclosing message withdraws the NLRI. It returns a Go data structure, which
+// the SDK marshals once into the response.
 //
 // The third argument is not advisory. RFC 7911 Section 3 puts a 4-octet Path
 // Identifier ahead of EACH NLRI in the section when ADD-PATH is negotiated,
 // and nothing in the octets says so, so a handler that ignores it reads the
 // identifier as prefix bytes and answers with routes the peer never sent.
+// The fourth argument selects MP_UNREACH withdrawal semantics; false or absent
+// means announcement. Callers MUST supply the enclosing message's action, and
+// handlers MUST NOT infer that action from the NLRI bytes.
 // DecodeNLRIHandler carries the same statement over the type.
 func (p *Plugin) OnDecodeNLRI(fn DecodeNLRIHandler) {
 	p.mu.Lock()
@@ -255,7 +260,7 @@ func (p *Plugin) OnDecodeNLRI(fn DecodeNLRIHandler) {
 		if err := json.Unmarshal(params, &input); err != nil {
 			return nil, fmt.Errorf("unmarshal decode-nlri: %w", err)
 		}
-		data, err := fn(input.Family, input.Hex, input.AddPath)
+		data, err := fn(input.Family, input.Hex, input.AddPath, input.Withdraw)
 		if err != nil {
 			return nil, err
 		}

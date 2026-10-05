@@ -503,6 +503,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 
 		applyFactsNextHop(facts, &mods)
+		applyNextHopFamily(&mods, srcNextHop)
 		applyFactsSendCommunity(facts, &mods)
 		applyFactsAIGP(facts, srcAIGP, srcNextHop, wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
@@ -592,6 +593,9 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// No intermediate rewritten payload, so no read buffer is borrowed here and
 		// nothing is adopted onto the entry.
 		peerWire := wire
+		opaqueReady := false
+		var candidate fwdDedupCand
+		var materialization []byte
 
 		var modBufIdx int
 		var modPoolRef *peerPool
@@ -624,12 +628,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// same community policy an identical edit set by construction.
 			var modified []byte
 			var bufIdx int
-			shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire}, &mods)
+			shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire, preserveOpaque: facts.preserveOpaqueAttributes}, &mods)
 			if shared != nil {
 				modified, bufIdx = copyMaterialization(shared, modPool)
 			} else {
 				var modFail modifyFailure
-				modified, bufIdx, modFail = buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil)
+				modified, bufIdx, modFail = buildForwardPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, facts.preserveOpaqueAttributes)
 				// Counts AND says it, once per reason per second; see
 				// recordModifyFailure. The route server fans one UPDATE out to every
 				// client, so this is the rail where an unbounded line hurt most.
@@ -645,9 +649,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				if modified != nil {
 					recordMaterialization()
 				}
-				dedup.commit(cand, modified)
+				candidate, materialization = cand, modified
 			}
 			if modified != nil {
+				opaqueReady = true
 				ctxID := peerWire.SourceCtxID()
 				if aspathWidthChanged {
 					ctxID = fwdContextIDWithASN4(peerWire.SourceCtxID(), facts.sendASN4)
@@ -689,17 +694,23 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 
 		{
-			// RFC 4271 Section 5: the cache key and builder MUST use one treatment.
-			effectiveWire, attrErr := parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes)
-			if attrErr != nil {
-				fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
-				r.fwdPool.releaseItem(&item)
-				continue
+			effectiveWire := peerWire
+			if !opaqueReady {
+				// RFC 4271 Section 5: unmodified input is shared and MUST stay immutable.
+				var attrErr error
+				effectiveWire, attrErr = parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes, update)
+				if attrErr != nil {
+					fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
+					dedup.abandon(candidate)
+					r.fwdPool.releaseItem(&item)
+					continue
+				}
 			}
 			body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 			if !ok {
 				// A failed build MUST release any outgoing-pool buffer acquired by
 				// the rebuild, just as a failed attribute treatment above does.
+				dedup.abandon(candidate)
 				r.fwdPool.releaseItem(&item)
 				continue
 			}
@@ -723,6 +734,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			}
 		}
 	dispatch:
+		// Dedup borrows this item's buffer. Publish only after the body can
+		// dispatch; an earlier failure MUST abandon before returning its slot.
+		if candidate.valid {
+			dedup.commit(candidate, materialization)
+		}
 
 		pending = append(pending, pendingFwd{
 			item: item,

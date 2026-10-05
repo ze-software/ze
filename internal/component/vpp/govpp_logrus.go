@@ -100,7 +100,10 @@ func slogLevelFromLogrus(level logrus.Level) slog.Level {
 		return slog.LevelInfo
 	case logrus.WarnLevel:
 		return slog.LevelWarn
+	case logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel:
+		return slog.LevelError
 	default:
+		// Third-party log entries carry an open level value; retain error severity.
 		return slog.LevelError
 	}
 }

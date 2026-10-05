@@ -9,6 +9,7 @@ package harnesstool
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -71,6 +72,19 @@ func TestHarnessSuiteAdmitsOnHostOnly(t *testing.T) {
 		script := "#!/bin/sh\n[ -f \"$ZE_RUN_JOB\" ] || exit 9\necho \"$@\" > " + record + "\nexit 5\n"
 		if err := os.WriteFile(self, []byte(script), 0o700); err != nil { //nolint:gosec // an executable test child
 			t.Fatal(err)
+		}
+		// This route claims a slot, so its advertised checkout must carry
+		// measurable Git inputs rather than a fabricated no-HEAD digest.
+		for _, argv := range [][]string{
+			{"init", "--quiet"},
+			{"add", "."},
+			{"-c", "user.name=fixture", "-c", "user.email=fixture@example.com", "commit", "--quiet", "-m", "harness admission fixture"},
+		} {
+			command := exec.CommandContext(t.Context(), "git", argv...)
+			command.Dir = root
+			if output, err := command.CombinedOutput(); err != nil {
+				t.Fatalf("git %q: %v: %s", argv, err, output)
+			}
 		}
 		hostFacts(t, root, nil, self)
 		inProcess = 0

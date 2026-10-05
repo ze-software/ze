@@ -94,7 +94,7 @@ func toVPPRoute(r staticRoute) (staticvpp.Route, error) {
 		out.Action = staticvpp.ActionReject
 		return out, nil
 	default:
-		return staticvpp.Route{}, fmt.Errorf("static/vpp: unknown action %d", r.Action)
+		panic("BUG: static: invalid route action")
 	}
 
 	for i := range r.NextHops {

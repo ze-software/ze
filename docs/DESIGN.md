@@ -194,7 +194,7 @@ block-backed multiplexers sized to RFC maximums:
 | Multiplexer | Buffer size | Purpose |
 |-------------|-------------|---------|
 | `bufMuxStd` | 4,096 (`message.MaxMsgLen`) | Standard message reads, and UPDATE attribute and NLRI building through `getBuildBuf` |
-| `bufMuxExt` | 65,535 (`message.ExtMsgLen`) | Message reads after Extended Message negotiation (RFC 8654) |
+| `bufMuxExt` | 65,535 (`message.ExtMsgLen`) | Reads after a local Extended Message advertisement; oversized outgoing rewrite scratch |
 
 Each multiplexer hands out a `BufHandle` from a block of `bufMuxBlockSize` buffers, and
 both share one byte budget.
@@ -633,7 +633,7 @@ and registering it.
 | Link-Local Next Hop | 77 | draft-ietf-idr-linklocal-capability | Implemented |
 
 <!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing, CodeRole -->
-<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps, ASN4, AddPathMode, ExtendedMessage, ExtendedNextHop -->
+<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps, ASN4, AddPathMode, ExtendedMessageRecv, ExtendedMessageSend, ExtendedNextHop -->
 <!-- source: internal/core/bgp/capability/session.go -- SessionCaps, RouteRefresh, GracefulRestart -->
 
 ### Path Attributes

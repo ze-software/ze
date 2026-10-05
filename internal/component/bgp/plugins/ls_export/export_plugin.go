@@ -113,6 +113,7 @@ func runTopologyExporter(conn net.Conn) int {
 		if _, err := netip.ParseAddr(peer); err != nil {
 			return fmt.Errorf("BGP-LS peer state address: %w", err)
 		}
+		//exhaustive:ignore // This exporter observes only peer state and BGP-LS refresh events.
 		switch event.GetEventType() {
 		case rpc.EventKindState:
 			exporter.peerState(peer, event.GetPeerState() == "up")

@@ -57,6 +57,7 @@ func (t RouteType) String() string {
 	case RouteExternalType2:
 		return routeNameExternalType2
 	default:
+		// Caller and strategy route types are open; preserve unclassified diagnostics.
 		return "unknown"
 	}
 }
@@ -72,6 +73,7 @@ func routeTypeRank(t RouteType) int {
 	case RouteExternalType2:
 		return 3
 	default:
+		// Caller and strategy route types are open; unclassified routes rank last.
 		return 4
 	}
 }
@@ -238,6 +240,8 @@ func BuildRoutes(res *Result, maxPaths int, resolver InterfaceResolver) []RouteE
 				Origin:   nv.AdvertisingDR,
 				NextHops: nextHops,
 			})
+		default:
+			panic("BUG: BuildRoutes: invalid vertex kind")
 		}
 	}
 	return selectBestRoutes(candidates, maxPaths)

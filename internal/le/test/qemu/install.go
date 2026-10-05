@@ -120,8 +120,10 @@ func (kind InstallKind) String() string {
 		return "install-scenarios-test"
 	case InstallKindVentoy:
 		return "install-ventoy-test"
-	default:
+	case InstallKindUnspecified:
 		return verdictWordUnspecified
+	default:
+		panic("BUG: invalid installer kind")
 	}
 }
 
@@ -143,8 +145,10 @@ func (verdict InstallVerdict) String() string {
 		return verdictWordSkip
 	case InstallVerdictFail:
 		return verdictWordFail
-	default:
+	case InstallVerdictUnspecified:
 		return verdictWordUnspecified
+	default:
+		panic("BUG: invalid installer verdict")
 	}
 }
 
@@ -371,8 +375,10 @@ func (installer *Installer) prefix() string {
 		return "INSTALL-SCENARIOS-QEMU: "
 	case InstallKindVentoy:
 		return "INSTALL-VENTOY-QEMU: "
-	default:
+	case InstallKindUnspecified:
 		return "INSTALL-QEMU: "
+	default:
+		panic("BUG: invalid installer kind")
 	}
 }
 
@@ -470,8 +476,10 @@ func (installer *Installer) Execute(ctx context.Context) (report InstallReport, 
 		return installer.executeScenarios(ctx, work, report)
 	case InstallKindVentoy:
 		return installer.executeVentoy(ctx, work, report)
-	default:
+	case InstallKindUnspecified:
 		return report, errors.New("installer QEMU action is unspecified")
+	default:
+		panic("BUG: invalid installer kind")
 	}
 }
 

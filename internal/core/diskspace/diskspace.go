@@ -38,7 +38,11 @@ func Free(path string) (uint64, error) {
 		var stat unix.Statfs_t
 		err := unix.Statfs(probe, &stat)
 		if err == nil {
-			return stat.Bavail * uint64(stat.Bsize), nil //nolint:gosec // Statfs_t.Bsize is uint32 on darwin and int64 on linux, and a block size is positive on both
+			free, err := Bytes(UsableBlocks(stat.Bavail), UsableBlocks(stat.Bsize))
+			if err != nil {
+				return 0, fmt.Errorf("statfs %s: %w", probe, err)
+			}
+			return free, nil
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			return 0, fmt.Errorf("statfs %s: %w", probe, err)

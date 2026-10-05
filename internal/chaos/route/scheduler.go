@@ -145,6 +145,8 @@ func (s *Scheduler) selectAction() Action {
 				} else {
 					action.ChurnCount = 1
 				}
+			default:
+				panic("BUG: invalid scheduled route action")
 			}
 			return action
 		}

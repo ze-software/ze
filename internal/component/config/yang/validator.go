@@ -31,7 +31,6 @@ const (
 )
 
 func (e ErrorType) String() string {
-	//nolint:exhaustive // default handles unknown
 	switch e {
 	case ErrTypeMissing:
 		return "missing"
@@ -47,8 +46,10 @@ func (e ErrorType) String() string {
 		return "length"
 	case ErrTypeCardinality:
 		return "cardinality"
-	default:
+	case ErrTypeUnknown:
 		return "unknown"
+	default:
+		panic("BUG: unknown YANG validation error type")
 	}
 }
 
@@ -217,7 +218,6 @@ func (v *Validator) ValidateType(path string, yangType *yang.YangType, value any
 
 // validateYangType validates against yang.YangType from processed schema.
 func (v *Validator) validateYangType(path string, yangType *yang.YangType, value any) error {
-	//nolint:exhaustive // default handles unimplemented types
 	switch yangType.Kind {
 	case yang.Ystring:
 		return v.validateString(path, yangType, value)
@@ -233,7 +233,11 @@ func (v *Validator) validateYangType(path string, yangType *yang.YangType, value
 		return v.validateUnion(path, yangType, value)
 	case yang.Ydecimal64:
 		return v.validateDecimal64(path, yangType, value)
+	case yang.Ynone, yang.Ybinary, yang.Ybits, yang.Yempty,
+		yang.Yidentityref, yang.YinstanceIdentifier, yang.Yleafref:
+		return nil
 	default:
+		// Schema kinds are open; retain the existing no-check behavior for unknown kinds.
 		return nil
 	}
 }

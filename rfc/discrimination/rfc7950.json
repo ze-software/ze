@@ -482,7 +482,7 @@
       "claim-sha": "22e34c5e987155a6",
       "route": "revert",
       "producer": "internal/component/config/loader.go::parseTreeWithYANG",
-      "producer-sha": "f1f623c0708445dc",
+      "producer-sha": "2d19cd1aeb26d86b",
       "break": "body of parseTreeWithYANG replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -504,7 +504,7 @@
       "claim-sha": "adc8a9c3f02c7631",
       "route": "revert",
       "producer": "internal/component/config/loader.go::parseTreeWithYANG",
-      "producer-sha": "f1f623c0708445dc",
+      "producer-sha": "2d19cd1aeb26d86b",
       "break": "body of parseTreeWithYANG replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

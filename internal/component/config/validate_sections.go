@@ -221,8 +221,8 @@ func refuseInvalidCustomSections(tree *Tree) error {
 // leaf name. The copy this function replaces split on ".", so it matched no
 // path the walk emits and every sensitive leaf printed its value.
 func isSensitiveLeaf(path string, sensitiveKeys map[string]bool) bool {
-	if idx := strings.LastIndex(path, "/"); idx >= 0 {
-		return sensitiveKeys[path[idx+1:]]
+	if _, leaf, found := strings.CutLast(path, "/"); found {
+		return sensitiveKeys[leaf]
 	}
 	return sensitiveKeys[path]
 }

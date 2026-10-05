@@ -61,6 +61,7 @@ var groupOrder = []Group{GroupWorkflow, GroupGate, GroupGenerate, GroupSuite, Gr
 // who runs the command, which is the fact that picks the group. An unknown
 // group has no title, and that empty answer is what KnownGroup refuses.
 func GroupTitle(group Group) string {
+	//exhaustive:ignore // Title projection also tests membership: an unregistered group has no heading.
 	switch group {
 	case GroupWorkflow:
 		return "Workflow (you type these while working)"

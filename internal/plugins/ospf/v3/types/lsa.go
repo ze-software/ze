@@ -114,7 +114,12 @@ func (t LSType) Known() bool {
 		// floods them by scope; the SR consumer decodes the bodies it understands and
 		// refloods unknown TLVs verbatim.
 		return true
+	case RIFunctionCode, LSTypeRouterInformationLink, LSTypeRouterInformationArea, LSTypeRouterInformationAS:
+		return true
+	case lsTypeScopeMask, lsTypeUBit, lsTypeFunctionMask, scopeBitsLinkLocal, scopeBitsArea, scopeBitsAS:
+		return false
 	default:
+		// The wire set is open; unnamed RI encodings still match by function code.
 		return t&lsTypeFunctionMask == RIFunctionCode
 	}
 }

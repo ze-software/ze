@@ -104,7 +104,9 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		return fmt.Errorf("parse header: %w", err)
 	}
 
-	// RFC 8654: Validate message length against max (4096 or 65535 if extended).
+	// RFC 8654 Section 6: "For all messages except for OPEN and KEEPALIVE
+	// messages, if the receiver has advertised the BGP Extended Message
+	// Capability, this document raises that limit to 65,535."
 	if err := hdr.ValidateLengthWithMax(s.extendedMessage); err != nil {
 		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
 		var lengthBuf [2]byte
@@ -381,7 +383,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	}
 
 	// Notify callback after pre-delivery validation for rejectable messages.
-	// Callback returns true if it took ownership of buf (e.g., cached it).
+	// Received UPDATE ownership may leave here, and the cache may recycle buf
+	// before the callback returns. Never read that UPDATE's bytes afterward.
+	// Control-message buffers remain borrowed through their handlers below.
 	var kept bool
 	if s.onMessageReceived != nil {
 		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "", 0)
@@ -389,9 +393,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 
 	// A policy filter on the import chain (e.g. filter_family tear-down) may have
 	// requested a session teardown during the callback. Honor it here, on the
-	// session read goroutine, before dispatching the UPDATE — mirroring the
-	// family-not-negotiated teardown above (RFC 4760 §7). Short-circuits
-	// handleUpdate so the FSM is not advanced for a session being closed.
+	// session read goroutine, before the normal UPDATE FSM event — mirroring the
+	// family-not-negotiated teardown above (RFC 4760 §7). The accepted-message
+	// event must not advance the FSM for a session being closed.
 	if req := s.takePolicyTeardown(); req != nil {
 		s.mu.RLock()
 		conn := s.conn
@@ -410,9 +414,11 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	}
 
 	var err error
-	switch hdr.Type { //nolint:exhaustive // unknown in default
+	switch hdr.Type {
 	case msgtype.TypeUPDATE:
-		err = s.handleUpdate(wireUpdate)
+		// All payload checks ran before publication. Only the FSM event remains:
+		// RFC 4271 Section 8.2.2 Event 27 restarts a nonzero HoldTimer.
+		err = s.fsm.Event(fsm.EventUpdateMsg)
 	case msgtype.TypeOPEN:
 		err = s.handleOpen(body)
 	case msgtype.TypeKEEPALIVE:
@@ -422,6 +428,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	case msgtype.TypeROUTEREFRESH:
 		err = s.handleRouteRefresh(body)
 	default:
+		// Peer-supplied message types form an open set; unknown types retain the rejection path.
 		err = s.handleUnknownType(hdr.Type)
 	}
 	return err, kept

@@ -267,8 +267,10 @@ func (b *xfrmMobikeBackend) prepareMigration(m TunnelMigration) ([2]xfrmStateMov
 			index, inbound = 0, true
 		case SADirOut:
 			outbound = true
-		default:
+		case SADirFwd:
 			return moves, nil, fmt.Errorf("xfrm: migration requires inbound/outbound policies")
+		default:
+			panic("BUG: migration policy has an unknown direction")
 		}
 		if !p.TunnelSrc.Equal(oldSrc[index]) || !p.TunnelDst.Equal(oldDst[index]) {
 			return moves, nil, fmt.Errorf("xfrm: migration policy endpoints changed")

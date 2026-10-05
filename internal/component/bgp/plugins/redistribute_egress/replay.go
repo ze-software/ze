@@ -300,11 +300,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 			"replay-id", b.ReplayID, "source", name)
 		return
 	default:
-		// A kind a later change adds while this switch stays silent about what
-		// it targets. Dropping is the only safe answer, for the reason above.
-		logger().Warn("BUG: redistribute-orchestrator: replay entry with an unknown target kind, dropping",
-			"replay-id", b.ReplayID, "source", name, "kind", target.kind)
-		return
+		panic("BUG: invalid replay target kind")
 	}
 
 	// Loop prevention (whole-batch drop): a source protocol's batch is never

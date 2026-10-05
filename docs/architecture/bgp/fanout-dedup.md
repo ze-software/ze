@@ -29,6 +29,23 @@ is the worst failure available on this path.
 policy group can hold identical edit sets over DIFFERENT bases. A
 filter-supplied raw export override reaches that state.
 
+**Effective opaque treatment is part of that identity.** Equal edits over one
+base can still produce different bytes when a registered selector preserves
+opaque attributes for one destination but not another. Both rails normalize
+an owned materialization in place before publishing it to dedup. A hit copies
+the completed treatment, never a payload that still needs a second allocation.
+Unmodified shared input uses the received-update entry's existing adopted
+read-buffer lifetime when ordinary treatment changes bytes; preserving it or
+finding it already normalized acquires no payload buffer.
+
+**Publish only after the destination body succeeds.** The dedup entry borrows
+the first destination item's outgoing slot; it does not own another buffer.
+Both rails keep a candidate private until body building succeeds. On failure,
+they abandon the candidate before returning the slot. Successful items stay in
+the pending fan-out until every destination has copied any dedup hit, so their
+buffers cannot be recycled during lookup. An encoding failure must not leave
+the next destination reading another UPDATE from a returned slot.
+
 **No adaptive threshold.** Any cutoff L silently disables sharing for a group
 size at or above L, which is a silent cap. The trade is +3% worst case against
 -29% best case, and it is recorded here rather than hidden behind a constant.
@@ -52,8 +69,9 @@ About 120ns per destination, `buildFwdBody` plus the wire wrapper, is NOT
 recovered. Taking it needs the shared buffer this design exists to avoid. It was
 measured and left.
 
-The route-server rail's four-slot cache, which stopped caching beyond four
-bodies without saying so, is gone. No cap is left to be silent about.
+The edit-set table does not stop sharing after four materializations. The
+separate fast-rail body cache retains four stack slots; a miss beyond those
+slots still builds and forwards the body.
 
 ## The negative half is expressible now
 

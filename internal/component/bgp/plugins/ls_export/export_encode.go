@@ -57,6 +57,7 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 	protocol := ls.BGPLSProtocolID(snapshot.Domain.Protocol)
 	identifier := snapshot.Domain.Identifier
 	var unreachable map[originIdentity]struct{}
+	//exhaustive:ignore // Only IGP protocols project unreachable origins into topology filtering.
 	switch snapshot.Domain.Protocol {
 	case linkstateevents.ISISLevel1, linkstateevents.ISISLevel2, linkstateevents.OSPFv2, linkstateevents.OSPFv3:
 		if len(snapshot.Unreachable) != 0 {

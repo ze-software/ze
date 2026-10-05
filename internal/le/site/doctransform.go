@@ -335,6 +335,8 @@ func relayoutEvidenceCell(cell string) (string, bool) {
 		case citationInline:
 			open = -1
 			prose = append(prose, segment)
+		default:
+			panic("BUG: invalid citation kind")
 		}
 	}
 	if len(groups) == 0 {

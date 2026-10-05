@@ -237,6 +237,7 @@ func ParseIfaceFaultParams(params map[string]string) IfaceFaultParams {
 // IsV2Action returns true if the action type is one of the parameterized
 // (opt-in via --chaos-actions) actions.
 func IsV2Action(t ActionType) bool {
+	//exhaustive:ignore // Only opt-in parameterized actions belong to this predicate.
 	switch t {
 	case ActionClockDrift, ActionRouteBurst, ActionWithdrawalBurst,
 		ActionRouteFlap, ActionSlowPeer, ActionZeroWindow,

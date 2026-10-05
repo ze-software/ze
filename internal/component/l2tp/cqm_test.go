@@ -69,5 +69,11 @@ func TestBucketStateString(t *testing.T) {
 	require.Equal(t, "established", BucketStateEstablished.String())
 	require.Equal(t, "negotiating", BucketStateNegotiating.String())
 	require.Equal(t, "down", BucketStateDown.String())
-	require.Equal(t, "unknown", BucketState(99).String())
+	// A bucket state is locally produced; an unnamed value is an internal defect.
+	defer func() {
+		if got := recover(); got != "BUG: unknown L2TP bucket state" {
+			t.Fatalf("unexpected panic for an unnamed bucket state: %v", got)
+		}
+	}()
+	_ = BucketState(99).String()
 }

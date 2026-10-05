@@ -66,8 +66,9 @@ func (v Verdict) String() string {
 		return verdictWordFail
 	case VerdictUnspecified:
 		return verdictWordUnspecified
+	default:
+		panic("BUG: invalid QEMU verdict")
 	}
-	return verdictWordUnspecified
 }
 
 // MarshalJSON writes the word rather than the number, so `| json` and `| yaml`
@@ -119,6 +120,8 @@ func (r HugepagesReport) Text() string {
 		return tb.String()
 	case VerdictFail, VerdictUnspecified:
 		tb.Str("FAIL ").Str(r.Reason).Byte('\n')
+	default:
+		panic("BUG: invalid hugepages verdict")
 	}
 
 	if len(r.ConsoleTail) > 0 {

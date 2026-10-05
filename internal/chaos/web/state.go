@@ -100,8 +100,9 @@ func (s PeerStatus) String() string {
 		return eventLabelReconnecting
 	case PeerSyncing:
 		return "syncing"
+	default:
+		panic("BUG: invalid dashboard peer status")
 	}
-	return "idle"
 }
 
 // CSSClass returns the CSS class for status coloring.
@@ -117,8 +118,9 @@ func (s PeerStatus) CSSClass() string {
 		return cssReconnecting
 	case PeerSyncing:
 		return "status-syncing"
+	default:
+		panic("BUG: invalid dashboard peer status")
 	}
-	return "status-idle"
 }
 
 // PeerState holds the current state and counters for a single peer.

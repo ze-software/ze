@@ -505,7 +505,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 	committed := false
 	var withheld uint64
 	if len(s.pathsLimit) != 0 {
-		handle := s.getReadBuffer()
+		handle := getReadBuf(len(body) > message.MaxMsgLen-message.HeaderLen)
 		defer s.returnReadBuffer(handle)
 		changes, _ := pathsLimitScratch.Get().(*pathsLimitChanges)
 		defer func() {

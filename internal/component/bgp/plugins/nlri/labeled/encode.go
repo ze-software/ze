@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -33,12 +34,15 @@ var (
 // DecodeNLRIHex decodes labeled unicast NLRI from hex and returns a data structure.
 // This implements the InProcessNLRIDecoder signature for the plugin registry.
 //
-// Wire format (RFC 8277 Section 2.2): [length_byte][label_stack (3*N bytes)][prefix_bytes].
-// Output: map with "prefix" and "labels" keys.
+// Wire formats (RFC 8277 Sections 2.2 and 2.4), after an optional Path Identifier:
 //
-// addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
-// (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
-func DecodeNLRIHex(famName, hexStr string, addPath bool) (any, error) {
+//	Offset 0: [length:1][labels:3*N][prefix:ceil(prefixBits/8)]  announcement
+//	Offset 0: [length:1][Compatibility:3][prefix:ceil(prefixBits/8)] withdrawal
+//	Offset 1: the label stack or Compatibility field starts here.
+//
+// Output is one map for a singleton section, otherwise an array of maps.
+// addPath and withdraw describe the enclosing message, never the NLRI bytes.
+func DecodeNLRIHex(famName, hexStr string, addPath, withdraw bool) (any, error) {
 	fam, ok := family.LookupFamily(famName)
 	if !ok {
 		return nil, fmt.Errorf("unknown family: %s", famName)
@@ -52,34 +56,70 @@ func DecodeNLRIHex(famName, hexStr string, addPath bool) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
-	// Path Identifier field, which is of four octets." Split it before reading
-	// the length octet, which follows it.
+	var routes [][]byte
+	if withdraw {
+		// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility
+		// field MUST be ignored." Frame by length, not by label-stack bits.
+		routes, err = nlrisplit.SplitWithdrawn(fam, data, addPath)
+	} else {
+		routes, err = nlrisplit.Split(fam, data, addPath)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(routes) == 0 {
+		return nil, errTruncatedLabeledUnicastNlri
+	}
+	if len(routes) == 1 {
+		// RFC 8277 Sections 2.2 and 2.4.
+		return decodeLabeledNLRI(fam, routes[0], addPath, withdraw)
+	}
+	results := make([]map[string]any, len(routes))
+	for index, raw := range routes {
+		// RFC 8277 Sections 2.2 and 2.4.
+		results[index], err = decodeLabeledNLRI(fam, raw, addPath, withdraw)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return results, nil
+}
+
+// decodeLabeledNLRI decodes one framed route without modifying its native bytes.
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." Only announcements interpret the label entries.
+func decodeLabeledNLRI(fam family.Family, data []byte, addPath, withdraw bool) (map[string]any, error) {
+	// RFC 7911 Section 3: consume the negotiated four-octet Path Identifier.
 	pathID, data, err := nlri.SplitPathID(data, addPath)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(data) < 4 { // minimum: 1 length + 3 label bytes
+	if len(data) < 4 {
 		return nil, errTruncatedLabeledUnicastNlri
 	}
-
-	totalBits := int(data[0])
-
-	// RFC 8277 Section 2.1: one or more 3-octet stack entries, each a 20-bit
-	// label, a 3-bit traffic class and the bottom-of-stack bit. ParseLabelStack
-	// keeps the entry whole, so the traffic class survives.
-	entries, _, err := nlri.ParseLabelStack(data[1:])
-	if err != nil {
-		return nil, errTruncatedLabeledUnicastNlri
+	var entries []uint32
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	var prefixBits, pos int
+	if withdraw {
+		// RFC 8277 Section 2.4: skip exactly three Compatibility octets.
+		data, err = nlrisplit.RouteCIDR(fam, data, scratch[:], true)
+		if err != nil {
+			return nil, err
+		}
+		prefixBits = int(data[0])
+		pos = 1
+	} else {
+		// RFC 8277 Section 2.1: retain every full entry, including TC and S.
+		entries, _, err = nlri.ParseLabelStack(data[1:])
+		if err != nil {
+			return nil, errTruncatedLabeledUnicastNlri
+		}
+		pos = 1 + len(entries)*3
+		prefixBits = int(data[0]) - len(entries)*24
 	}
-	labels := nlri.LabelValues(entries)
-	pos := 1 + len(entries)*3
-
-	// Parse prefix
-	prefixBits := totalBits - len(labels)*24
 	if prefixBits < 0 {
-		return nil, fmt.Errorf("invalid labeled unicast: totalBits=%d labels=%d", totalBits, len(labels))
+		return nil, fmt.Errorf("invalid labeled unicast prefix length: %d", prefixBits)
 	}
 
 	prefixBytes := nlri.PrefixBytes(prefixBits)
@@ -89,10 +129,16 @@ func DecodeNLRIHex(famName, hexStr string, addPath bool) (any, error) {
 
 	var addr netip.Addr
 	if fam.AFI == AFIIPv4 {
+		if prefixBits > 32 {
+			return nil, fmt.Errorf("invalid IPv4 labeled unicast prefix length: %d", prefixBits)
+		}
 		var b [4]byte
 		copy(b[:], data[pos:pos+prefixBytes])
 		addr = netip.AddrFrom4(b)
 	} else {
+		if prefixBits > 128 {
+			return nil, fmt.Errorf("invalid IPv6 labeled unicast prefix length: %d", prefixBits)
+		}
 		var b [16]byte
 		copy(b[:], data[pos:pos+prefixBytes])
 		addr = netip.AddrFrom16(b)

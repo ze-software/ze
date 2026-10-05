@@ -58,6 +58,8 @@ func tracePolicyFilterChain(filterRefs []filterapi.FilterRef, direction, peer st
 		case PolicyAccept:
 			entry.Action = dryRunActionAccept
 			entry.TextAfter = current
+		default:
+			panic("BUG: invalid policy action")
 		}
 
 		trace = append(trace, entry)
@@ -188,6 +190,8 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		} else {
 			actionStr = dryRunActionModify
 		}
+	default:
+		panic("BUG: invalid policy action")
 	}
 
 	// Compute changed attributes. Parse each filter text exactly once and

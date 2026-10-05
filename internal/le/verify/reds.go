@@ -202,6 +202,8 @@ func scanStages(root, run, path string, answer *Reds) {
 		case attributionOther:
 			// The stage said which files its red is about and this path is not
 			// one of them, so the red belongs to another change.
+		default:
+			panic("BUG: invalid verification attribution")
 		}
 	}
 	sortReds(answer.Naming)

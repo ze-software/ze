@@ -381,7 +381,8 @@ func TestForwardAdoptedHandleHeldUntilLastWrite(t *testing.T) {
 // newLeakTestUpdate builds a cache-resident ReceivedUpdate with a fresh message
 // ID, one activated plugin consumer, and a no-op poolBuf (noPoolBufID so eviction
 // does not touch the shared pool for the base buffer -- only adopted forward
-// handles do).
+// handles do). Cleanup unregisters the consumer so a test that does not ack still
+// returns adopted buffers once the workers release their outstanding retains.
 func newLeakTestUpdate(t testing.TB, cache *RecentUpdateCache, payload []byte, ctxID bgpctx.ContextID) (*ReceivedUpdate, uint64) {
 	t.Helper()
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -394,6 +395,7 @@ func newLeakTestUpdate(t testing.TB, cache *RecentUpdateCache, payload []byte, c
 		ReceivedAt:   time.Now(),
 	}
 	cache.RegisterConsumer("test-plugin")
+	t.Cleanup(func() { cache.UnregisterConsumer("test-plugin") })
 	cache.Add(update)
 	cache.Activate(id, 1)
 	return update, id

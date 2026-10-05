@@ -125,8 +125,10 @@ func (m *mschapv2Method) Process(response *Packet) MethodResult {
 			return MethodResult{Err: fmt.Errorf("eap-mschapv2: expected Success opcode %d in the acknowledgement, got %d", mschapv2OpSuccess, opCode)}
 		}
 		return m.handleSuccessAck()
-	default:
+	case mschapv2StateDone:
 		return MethodResult{Err: ErrMethodFailed}
+	default:
+		panic("BUG: invalid MSCHAPv2 method state")
 	}
 }
 

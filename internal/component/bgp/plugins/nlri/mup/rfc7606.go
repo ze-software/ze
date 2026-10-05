@@ -32,6 +32,7 @@ func (t MUPRouteType) Implemented(arch MUPArchType) bool {
 	if arch != MUPArch3GPP5G {
 		return false
 	}
+	//exhaustive:ignore // Recognizes only implemented route types under the supported MUP architecture.
 	switch t {
 	case MUPISD, MUPDSD, MUPT1ST, MUPT2ST:
 		return true

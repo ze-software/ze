@@ -170,6 +170,13 @@ func TestObserverEventTypeString(t *testing.T) {
 	require.Equal(t, "tunnel-up", ObserverEventTunnelUp.String())
 	require.Equal(t, "session-down", ObserverEventSessionDown.String())
 	require.Equal(t, "unknown", ObserverEventType(0).String())
+	// Zero is the empty record; any other unnamed event type is an internal defect.
+	defer func() {
+		if got := recover(); got != "BUG: unknown L2TP observer event type" {
+			t.Fatalf("unexpected panic for an unnamed observer event type: %v", got)
+		}
+	}()
+	_ = ObserverEventType(99).String()
 }
 
 func TestObserverEventSnapshot(t *testing.T) {

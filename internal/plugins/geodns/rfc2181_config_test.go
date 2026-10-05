@@ -132,6 +132,7 @@ func TestParseConfigMixedAddresses(t *testing.T) {
 	recs := cfg.HostSets["s"].Hosts["a.g.example."]
 	var haveA, haveAAAA bool
 	for _, r := range recs {
+		//exhaustive:ignore // This assertion observes address families, not other record kinds.
 		switch r.Kind {
 		case kindA:
 			haveA = true

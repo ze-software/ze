@@ -115,9 +115,10 @@ func leafInputType(vt config.ValueType) LeafField {
 		// asdot form (1.10). A number input refuses that value before it
 		// reaches the schema.
 		return LeafField{InputType: leafInputText, Placeholder: "e.g., 65546 or 1.10"}
+	default:
+		// Schema registrations are open; unknown leaf types retain the text editor.
+		return LeafField{InputType: leafInputText}
 	}
-
-	return LeafField{InputType: leafInputText}
 }
 
 // configViewComponent resolves the component that renders one config node.
@@ -141,17 +142,13 @@ func configViewComponent(kind config.NodeKind, v *ConfigViewData) templ.Componen
 		return configInlineList(v)
 	case config.NodeContainer, config.NodeLeaf, config.NodeFlex:
 		return configContainer(v)
+	default:
+		// Schema nodes form an open set. Render their available fields and children
+		// while naming an unknown kind in the warning.
+		serverLogger.Warn("config node kind has no view component",
+			"kind", nodeKindString(kind), "path", v.CurrentPath)
+		return configContainer(v)
 	}
-
-	// A node kind added without a case above lands here. configContainer renders
-	// the node's LeafFields and Children, which is the closest correct markup an
-	// unknown kind can get, and the warning names the kind so the missing case is
-	// findable. The caller used to test this return for nil to reach that warning,
-	// which never fired: every branch of this function returns a component.
-	serverLogger.Warn("config node kind has no view component",
-		"kind", nodeKindString(kind), "path", v.CurrentPath)
-
-	return configContainer(v)
 }
 
 // renderConfigContent renders the config view of one node.
@@ -178,9 +175,10 @@ func nodeKindString(kind config.NodeKind) string {
 		return nodeKindNameFlex
 	case config.NodeInlineList:
 		return nodeKindNameInlineList
+	default:
+		// Schema nodes form an open set, including caller-defined Node implementations.
+		return nodeKindNameUnknown
 	}
-
-	return nodeKindNameUnknown
 }
 
 // isBoolLeaf returns true if the named leaf at the given schema path has

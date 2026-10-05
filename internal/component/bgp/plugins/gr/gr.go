@@ -278,7 +278,7 @@ func (gp *grPlugin) wireStateCallbacks() {
 // OPEN events decode raw wire bytes via message.UnpackOpen (no format import needed).
 // EOR events are delivered as text via OnEvent (onEORReceived uses text-only delivery).
 func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
-	switch se.EventType { //nolint:exhaustive // GR only handles state+open
+	switch se.EventType {
 	case rpc.EventKindState:
 		gp.handleStructuredState(se.PeerAddress, se.State, se.Reason)
 	case rpc.EventKindOpen:
@@ -293,6 +293,13 @@ func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 				"peer", se.PeerAddress,
 				"type", fmt.Sprintf("%T", se.RawMessage))
 		}
+	case rpc.EventKindUnspecified, rpc.EventKindUpdate, rpc.EventKindNotification,
+		rpc.EventKindKeepalive, rpc.EventKindRefresh, rpc.EventKindEOR,
+		rpc.EventKindBoRR, rpc.EventKindEoRR, rpc.EventKindSent,
+		rpc.EventKindNegotiated, rpc.EventKindCount:
+		// These structured events do not change graceful-restart state.
+	default:
+		// The plugin event set is open; unknown events leave GR state unchanged.
 	}
 }
 
@@ -405,21 +412,32 @@ func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bo
 	return foundGR
 }
 
-// retainPeerFamilies supplies the received capability boundary to the RIB.
-// The RIB drops other families before its DOWN event; no parallel route
-// inventory or route-server-specific behavior is needed.
-func (gp *grPlugin) retainPeerFamilies(peerAddr string, cap *grPeerCap) {
-	args := make([]string, 1, 1+len(cap.Families))
-	args[0] = peerAddr
-	for _, entry := range cap.Families {
-		args = append(args, entry.Family.String())
+// retainPeerFamilies supplies the prepared GR/LLGR family boundary to the RIB.
+// The explicit on-down argument leaves nonretained-family withdrawals to the
+// forwarding DOWN owner while the RIB prunes its existing sent inventory.
+// RFC 9494 Section 4.2: "After the session goes down, and before the session is
+// re-established, the stale routes for an AFI/SAFI MUST be retained."
+// Retention starts before the forwarding owner handles peer-down.
+func (gp *grPlugin) retainPeerFamilies(peerAddr string) {
+	gp.state.mu.Lock()
+	state := gp.state.peers[peerAddr]
+	if state == nil {
+		gp.state.mu.Unlock()
+		return
 	}
+	args := make([]string, 2, 2+len(state.staleFamilies))
+	args[0] = peerAddr
+	args[1] = "on-down"
+	for fam := range state.staleFamilies {
+		args = append(args, fam.String())
+	}
+	gp.state.mu.Unlock()
 	gp.dispatchCommand("request bgp rib retain-routes", args...)
 }
 
 // handleStructuredState processes a structured state event.
 func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionState, reason string) {
-	switch state { //nolint:exhaustive // only up/down are actionable for GR
+	switch state {
 	case rpc.SessionStateDown:
 		// Peer deconfigured: release GR state + per-peer metrics, do not retain.
 		if reason == rpc.ReasonPeerRemoved {
@@ -442,7 +460,8 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		activated, completeDown := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
-			gp.retainPeerFamilies(peerAddr, cap)
+			// RFC 9494 Section 4.2.
+			gp.retainPeerFamilies(peerAddr)
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
@@ -465,6 +484,10 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		for _, fam := range purged {
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
 		}
+	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
+		// These states do not change graceful-restart state.
+	default:
+		// The plugin state set is open; unknown states leave GR state unchanged.
 	}
 }
 
@@ -619,7 +642,8 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
 			// 2. Retain routes — prevents bgp-rib from deleting on state=down
-			gp.retainPeerFamilies(peerAddr, cap)
+			// RFC 9494 Section 4.2.
+			gp.retainPeerFamilies(peerAddr)
 			// 3. Mark remaining routes as stale for new GR cycle
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}

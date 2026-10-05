@@ -36,7 +36,8 @@ func NLRIBearingFieldCount(withdrawn, pathAttrs, nlri []byte) int {
 
 	iter := attribute.NewAttrIterator(pathAttrs)
 	for code, _, _, ok := iter.Next(); ok; code, _, _, ok = iter.Next() {
-		switch code { //nolint:exhaustive // only the two MP attributes bear NLRI
+		//exhaustive:ignore // Only MP_REACH and MP_UNREACH contribute NLRI-bearing attributes.
+		switch code {
 		case attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI:
 			n++
 		}

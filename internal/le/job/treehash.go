@@ -124,18 +124,49 @@ var labelIgnores = map[string][]string{
 // A verification certificate keeps the whole-tree answer, because it asserts
 // something about the whole tree. SnapshotTree is unchanged
 // (docs/architecture/testing/verify-freshness-scope.md).
-func InputHash(root, label string) string {
+//
+// InputHash refuses a failed Git query or an unreadable input. An absent file
+// is a measured deletion; a failed measurement is not a matching generation.
+func InputHash(root, label string) (string, error) {
+	commit, err := git(root, "rev-parse", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("fingerprint %s inputs: read HEAD: %w", label, err)
+	}
+	sum := sha256.New()
+	add(sum, commit)
+
 	ignored, declared := labelIgnores[label]
-	if !declared {
-		return TreeHash(root)
+	if declared {
+		if err := writeReadPaths(sum, root, ignored); err != nil {
+			return "", fmt.Errorf("fingerprint %s inputs: %w", label, err)
+		}
+		return hex.EncodeToString(sum.Sum(nil)), nil
 	}
 
-	sum := sha256.New()
-
-	writeCommit(sum, root)
-	writeReadPaths(sum, root, ignored)
-
-	return hex.EncodeToString(sum.Sum(nil))
+	// Undeclared labels retain the whole-tree stream, but a Git failure must
+	// refuse admission instead of certifying the remaining fragments.
+	diff, err := git(root, "diff", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("fingerprint %s inputs: read tracked changes: %w", label, err)
+	}
+	add(sum, diff)
+	untracked, err := git(root, "ls-files", "-o", "--exclude-standard", "-z")
+	if err != nil {
+		return "", fmt.Errorf("fingerprint %s inputs: list untracked files: %w", label, err)
+	}
+	paths := strings.Split(string(untracked), "\x00")
+	slices.Sort(paths)
+	for _, rel := range paths {
+		if rel == "" {
+			continue
+		}
+		addText(sum, rel)
+		addText(sum, "\n")
+		if err := writeInputFileHash(sum, root, rel); err != nil {
+			return "", fmt.Errorf("fingerprint %s inputs: %w", label, err)
+		}
+	}
+	return hex.EncodeToString(sum.Sum(nil)), nil
 }
 
 // writeReadPaths puts each changed path this label reads into the stream: the
@@ -148,19 +179,58 @@ func InputHash(root, label string) string {
 // A whole diff cannot be hashed here the way writeDiff hashes one, because a
 // diff is one blob and this fingerprint has to drop the paths inside it that
 // the label does not read.
-func writeReadPaths(sum hash.Hash, root string, ignored []string) {
-	paths := dirtyPaths(root)
+func writeReadPaths(sum hash.Hash, root string, ignored []string) error {
+	tracked, err := git(root, "diff", "HEAD", "--name-only", "-z")
+	if err != nil {
+		return fmt.Errorf("list tracked changes: %w", err)
+	}
+	untracked, err := git(root, "ls-files", "-o", "--exclude-standard", "-z")
+	if err != nil {
+		return fmt.Errorf("list untracked files: %w", err)
+	}
+	paths := strings.Split(string(tracked), "\x00")
+	paths = append(paths, strings.Split(string(untracked), "\x00")...)
 	slices.Sort(paths)
 	paths = slices.Compact(paths)
 
 	for _, rel := range paths {
+		if rel == "" {
+			continue
+		}
 		if ignoredTree(rel, ignored) {
 			continue
 		}
 		addText(sum, rel)
 		addText(sum, "\n")
-		writeFileHash(sum, filepath.Join(root, filepath.FromSlash(rel)))
+		if err := writeInputFileHash(sum, root, rel); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+// writeInputFileHash keeps a proven deletion distinct from an input that
+// could not be read. Only the former can participate in a matching digest.
+func writeInputFileHash(sum hash.Hash, root, rel string) error {
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		addText(sum, missingFile)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("stat input %s: %w", rel, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("fingerprint input %s: not a regular file", rel)
+	}
+	content, err := fileHash(path)
+	if err != nil {
+		return fmt.Errorf("read input %s: %w", rel, err)
+	}
+	addText(sum, content)
+	addText(sum, "\n")
+	return nil
 }
 
 // ignoredTree reports whether one changed path lies under a tree this label

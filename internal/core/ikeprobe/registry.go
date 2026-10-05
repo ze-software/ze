@@ -20,6 +20,8 @@ import (
 	"github.com/ze-software/ze/internal/core/probe"
 )
 
+const labelUnspecified = "unspecified"
+
 // Outcome is what one padded INFORMATIONAL exchange answered. The zero value is an
 // outcome nobody set, so a completed probe never carries it.
 type Outcome uint8
@@ -43,6 +45,8 @@ const (
 // String is for display only; never compare with it.
 func (o Outcome) String() string {
 	switch o {
+	case OutcomeUnspecified:
+		return labelUnspecified
 	case OutcomeFits:
 		return "fits"
 	case OutcomeTooBig:
@@ -52,7 +56,8 @@ func (o Outcome) String() string {
 	case OutcomeRefused:
 		return "refused"
 	default:
-		return "unspecified"
+		// Provider outcomes are an open set; preserve an unknown result for display.
+		return labelUnspecified
 	}
 }
 
@@ -95,6 +100,8 @@ const (
 // String is for display only; never compare with it.
 func (r Refusal) String() string {
 	switch r {
+	case RefusalUnspecified:
+		return labelUnspecified
 	case RefusalSADown:
 		return "sa-down"
 	case RefusalRekeyPending:
@@ -112,7 +119,8 @@ func (r Refusal) String() string {
 	case RefusalRekeyed:
 		return "rekeyed"
 	default:
-		return "unspecified"
+		// Provider refusals are an open set; preserve an unknown result for display.
+		return labelUnspecified
 	}
 }
 

@@ -78,8 +78,10 @@ func (r ScopeReport) Text() string {
 		var tb textbuf.Buffer
 		return tb.Str("# packages\n").Str(lineText(r.Packages)).
 			Str("# tags\n").Str(lineText(r.Tags)).String()
-	default:
+	case printPackages, "":
 		return lineText(r.Packages)
+	default:
+		panic("BUG: changed scope report has an unknown print mode")
 	}
 }
 

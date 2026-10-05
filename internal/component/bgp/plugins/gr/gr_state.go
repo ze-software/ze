@@ -39,12 +39,12 @@ type grPeerState struct {
 	// restartTimer fires after the peer's advertised Restart Time (GR phase).
 	restartTimer *time.Timer
 
-	// restartDeadline is the absolute end of GR and the start of the LLST budget.
-	// Zero means GR expiry was canceled on reconnect or consumed by LLGR entry.
+	// restartDeadline is the conventional GR deadline. Omitted GR families
+	// enter LLGR at DOWN instead. Zero means no conventional GR remains.
 	restartDeadline time.Time
 
-	// inLLGR is true when the peer has transitioned from GR to LLGR period.
-	// RFC 9494: LLGR begins when GR restart-time expires.
+	// inLLGR is true while at least one family has an LLGR timer.
+	// Other families can still be in their conventional GR period.
 	inLLGR bool
 
 	// llgrFamilies tracks families currently in LLGR period with active LLST timers.
@@ -117,12 +117,13 @@ func (m *grStateManager) peerActive(peerAddr string) bool {
 
 // onSessionDown is called when a peer's session drops.
 // cap is the peer's GR capability from the previous OPEN (nil if no GR).
-// llgrCap is the peer's LLGR capability (nil if no LLGR).
+// llgrCap is the exchanged LLGR capability (nil if no enabled LLGR family).
 // wasNotification is true if the session ended due to NOTIFICATION.
 //
-// RFC 4724 Section 4.2: On TCP failure for GR-capable peer, retain routes
-// for AFI/SAFI in GR capability, mark as stale, and start Restart Time timer.
-// RFC 9494: If restart-time=0 and LLGR negotiated, enter LLGR immediately.
+// RFC 4724 Section 4.2: On TCP failure for a GR-capable peer, retain GR families,
+// mark them stale, and start the Restart Time timer.
+// RFC 9494 Section 4.2: Omitted GR families with nonzero exchanged LLST enter
+// LLGR immediately, as do listed families when Restart Time is zero.
 // NOTIFICATION sessions use normal BGP procedures (no route retention).
 func (m *grStateManager) onSessionDown(peerAddr string, cap *grPeerCap, llgrCap *llgrPeerCap, wasNotification bool) bool {
 	activated, completeDown := m.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
@@ -154,10 +155,26 @@ func (m *grStateManager) onSessionDownDeferred(peerAddr string, cap *grPeerCap, 
 	// RFC 4724 Section 4.2: consecutive restart -- delete previously stale
 	m.clearPeerLocked(peerAddr)
 
-	// Build stale family set from GR capability
+	// RFC 9494 Section 4.2: "If the Graceful Restart Capability that was received
+	// does not list all AFIs/SAFIs supported by the session, then the GR Restart
+	// Time shall be deemed zero for those AFIs/SAFIs that are not listed."
+	downAt := time.Now()
 	staleFamilies := make(map[family.Family]bool, len(cap.Families))
 	for _, f := range cap.Families {
 		staleFamilies[f.Family] = true
+	}
+	var immediate []family.Family
+	if llgrCap != nil {
+		for _, f := range llgrCap.Families {
+			if staleFamilies[f.Family] {
+				continue
+			}
+			if f.LLST == 0 {
+				continue
+			}
+			staleFamilies[f.Family] = true
+			immediate = append(immediate, f.Family)
+		}
 	}
 
 	if len(staleFamilies) == 0 {
@@ -166,16 +183,36 @@ func (m *grStateManager) onSessionDownDeferred(peerAddr string, cap *grPeerCap, 
 	}
 
 	state := &grPeerState{
-		staleFamilies:   staleFamilies,
-		llgrCap:         llgrCap,
-		restartDeadline: time.Now().Add(time.Duration(cap.RestartTime) * time.Second),
+		staleFamilies: staleFamilies,
+		llgrCap:       llgrCap,
+	}
+	if len(cap.Families) > 0 {
+		state.restartDeadline = downAt.Add(time.Duration(cap.RestartTime) * time.Second)
 	}
 
 	m.peers[peerAddr] = state
 	m.mu.Unlock()
 	return true, func() {
-		// RFC 4724 Section 4.2.
+		var pending *llgrPendingActions
+		if len(immediate) > 0 {
+			m.mu.Lock()
+			if m.peers[peerAddr] != state {
+				m.mu.Unlock()
+				return
+			}
+			// RFC 9494 Section 4.2. Retention and stale marking have completed;
+			// omitted families start their LLST budget at the original DOWN.
+			pending = m.enterLLGRLocked(peerAddr, state, immediate, downAt)
+			m.mu.Unlock()
+		}
+		// RFC 9494 Section 4.2: "The interval for which they are retained is limited
+		// by the sum of the Restart Time in the received Graceful Restart Capability
+		// and the Long-Lived Stale Time in the received Long-Lived Graceful Restart
+		// Capability." An immediate family's RPC MUST NOT delay a sibling's timer.
 		m.startRestartTimer(peerAddr, state)
+		if pending != nil {
+			pending.fire()
+		}
 	}
 }
 
@@ -185,9 +222,14 @@ func (m *grStateManager) onSessionDownDeferred(peerAddr string, cap *grPeerCap, 
 // RFC 4724 Section 4.2: "If the session does not get re-established within the
 // "Restart Time" that the peer advertised previously, the Receiving Speaker MUST
 // delete all the stale routes from the peer that it is retaining."
+// The deadline remains anchored to the original session-down time.
 func (m *grStateManager) startRestartTimer(peerAddr string, state *grPeerState) {
 	m.mu.Lock()
 	if m.peers[peerAddr] != state {
+		m.mu.Unlock()
+		return
+	}
+	if state.restartDeadline.IsZero() {
 		m.mu.Unlock()
 		return
 	}
@@ -344,6 +386,7 @@ type llgrEntryAction struct {
 }
 
 // fire invokes all pending callbacks outside the lock.
+// The collecting caller MUST release m.mu before calling fire.
 func (p *llgrPendingActions) fire() {
 	for _, e := range p.entries {
 		if p.mgr.onLLGREnter != nil {
@@ -391,8 +434,10 @@ func (m *grStateManager) handleTimerExpired(peerAddr string, owner *grPeerState)
 
 	// RFC 9494: Check if LLGR is available for any stale family
 	if state.llgrCap != nil && len(state.llgrCap.Families) > 0 {
-		pending := m.enterLLGRLocked(peerAddr, state)
+		// RFC 9494 Section 4.2. Already-running LLST families are not restarted.
+		pending := m.enterLLGRLocked(peerAddr, state, m.allStaleFamiliesLocked(state), state.restartDeadline)
 		state.restartDeadline = time.Time{}
+		state.restartTimer = nil
 		m.mu.Unlock()
 		pending.fire()
 		return
@@ -408,14 +453,17 @@ func (m *grStateManager) handleTimerExpired(peerAddr string, owner *grPeerState)
 	}
 }
 
-// enterLLGRLocked transitions a peer from GR to LLGR period.
-// Must be called with m.mu held. Returns pending callbacks to fire after unlock.
-// RFC 9494: Start per-family LLST timers, collect callback actions per family.
-// Families without LLST, or whose absolute LLST deadline elapsed, are purged immediately.
-func (m *grStateManager) enterLLGRLocked(peerAddr string, state *grPeerState) *llgrPendingActions {
-	state.inLLGR = true
-	state.restartTimer = nil
-	state.llgrFamilies = make(map[family.Family]*time.Timer)
+// enterLLGRLocked transitions the selected families whose GR period has ended.
+// Caller MUST hold m.mu and MUST fire the returned callbacks after unlocking.
+// Existing family timers are preserved; deadline is the selected GR period's end.
+// RFC 9494 Section 4.2: "For each AFI/SAFI for which it has received a nonzero
+// Long-Lived Stale Time, the helper router MUST start a timer for that
+// Long-Lived Stale Time."
+// Each timer uses that family's original deadline.
+func (m *grStateManager) enterLLGRLocked(peerAddr string, state *grPeerState, families []family.Family, deadline time.Time) *llgrPendingActions {
+	if state.llgrFamilies == nil {
+		state.llgrFamilies = make(map[family.Family]*time.Timer)
+	}
 
 	pending := &llgrPendingActions{peerAddr: peerAddr, mgr: m}
 
@@ -427,8 +475,14 @@ func (m *grStateManager) enterLLGRLocked(peerAddr string, state *grPeerState) *l
 		}
 	}
 
-	// Process each stale family
-	for fam := range state.staleFamilies {
+	// Selection is bounded by the received capability family set.
+	for _, fam := range families {
+		if !state.staleFamilies[fam] {
+			continue
+		}
+		if _, active := state.llgrFamilies[fam]; active {
+			continue
+		}
 		llst, hasLLGR := llstByFamily[fam]
 		if !hasLLGR {
 			// Family not in LLGR cap or LLST=0 -> purge immediately
@@ -440,7 +494,7 @@ func (m *grStateManager) enterLLGRLocked(peerAddr string, state *grPeerState) *l
 		// by the sum of the Restart Time in the received Graceful Restart Capability
 		// and the Long-Lived Stale Time in the received Long-Lived Graceful Restart
 		// Capability." Dispatch delay consumes this budget instead of extending it.
-		remaining := time.Until(state.restartDeadline.Add(time.Duration(llst) * time.Second))
+		remaining := time.Until(deadline.Add(time.Duration(llst) * time.Second))
 		if remaining <= 0 {
 			pending.purged = append(pending.purged, fam)
 			continue
@@ -465,13 +519,13 @@ func (m *grStateManager) enterLLGRLocked(peerAddr string, state *grPeerState) *l
 		delete(state.staleFamilies, fam)
 	}
 
-	// If no families entered LLGR, complete immediately
-	if len(state.llgrFamilies) == 0 {
+	state.inLLGR = len(state.llgrFamilies) > 0
+	// A family still in conventional GR also keeps this peer's retained RIB.
+	if len(state.staleFamilies) == 0 {
 		m.deletePeerLocked(peerAddr)
 		pending.complete = true
-	} else {
-		pending.entryDone = true
 	}
+	pending.entryDone = len(pending.entries) > 0
 
 	logger().Info("entered LLGR period",
 		"peer", peerAddr,
@@ -497,7 +551,8 @@ func (m *grStateManager) handleLLSTExpired(peerAddr string, fam family.Family, o
 	delete(state.staleFamilies, fam)
 	delete(state.llgrFamilies, fam)
 
-	lastFamily := len(state.llgrFamilies) == 0
+	state.inLLGR = len(state.llgrFamilies) > 0
+	lastFamily := len(state.staleFamilies) == 0
 	if lastFamily {
 		m.deletePeerLocked(peerAddr)
 	}

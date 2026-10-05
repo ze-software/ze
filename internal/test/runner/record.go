@@ -116,7 +116,7 @@ func (s State) String() string {
 	case StateTimeout:
 		return stateTimeout
 	default:
-		return stateUnknown
+		panic("BUG: unknown test state")
 	}
 }
 
@@ -539,7 +539,7 @@ func (r *Record) Colored() string {
 		gray   = "\033[90m"
 	)
 
-	switch r.State { //nolint:exhaustive // default handles StateNone, StateStarting
+	switch r.State {
 	case StateSuccess:
 		return green + r.Nick + reset
 	case StateFail:
@@ -550,8 +550,10 @@ func (r *Record) Colored() string {
 		return cyan + r.Nick + reset
 	case StateSkip:
 		return gray + r.Nick + reset
-	default:
+	case StateNone, StateStarting:
 		return r.Nick
+	default:
+		panic("BUG: unknown test state")
 	}
 }
 

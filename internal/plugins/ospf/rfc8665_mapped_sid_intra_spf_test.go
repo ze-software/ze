@@ -104,8 +104,10 @@ func rfc8665IntraInstall(t *testing.T) map[netip.Prefix]rfc8665SPFOutcome {
 			o.pop = true
 		case mplsfibevents.OpSwap:
 			o.swap = true
-		default:
+		case mplsfibevents.OpUnspecified, mplsfibevents.OpPush:
 			t.Fatalf("unexpected mpls-fib op toward %s: %+v", nh, e)
+		default:
+			panic("BUG: rfc8665IntraInstall: invalid locally emitted MPLS operation")
 		}
 		out[fec] = o
 	}

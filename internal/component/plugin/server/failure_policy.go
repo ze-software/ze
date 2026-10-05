@@ -34,9 +34,9 @@ func (s *Server) superviseProcess(proc *process.Process) {
 	s.applyFailurePolicy(proc)
 }
 
-// pluginFailurePolicy reports what ze does when this plugin fails. It answers
-// one of the three concrete outcomes and never rpc.FailureUnspecified, so it is
-// the single place a silent plugin is given a meaning.
+// pluginFailurePolicy reports what ze does when this plugin fails. It maps an
+// unspecified declaration to rpc.FailureIgnore; other typed declarations pass
+// through, so callers must also handle unknown plugin policies.
 //
 // A plugin that declared nothing, and a plugin that failed before it could
 // declare, are both read as rpc.FailureIgnore. That is what ze did before a
@@ -140,9 +140,11 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 		}
 	case rpc.FailureFatal:
 		s.stopDaemonForPlugin(name, "the plugin declares that its failure stops ze")
+	case rpc.FailureIgnore, rpc.FailureUnspecified:
+		logger().Warn("plugin exited and is not to be started again, so ze continues without it",
+			"plugin", name)
 	default:
-		// rpc.FailureIgnore, and nothing else: pluginFailurePolicy answers only
-		// the three outcomes and never the unspecified sentinel.
+		// Typed plugin registrations are open; unknown policies do not authorize a restart.
 		logger().Warn("plugin exited and is not to be started again, so ze continues without it",
 			"plugin", name)
 	}

@@ -46,7 +46,6 @@ var ParseRDString = nlri.ParseRDString
 // operator reading the log knows which octet to look at.
 var (
 	ErrMUPTruncated       = errors.New("mup: truncated data")
-	ErrMUPInvalidType     = errors.New("mup: invalid route type")
 	ErrMUPPrefixLength    = errors.New("mup: prefix length exceeds the address size of the AFI")
 	ErrMUPBodyLength      = errors.New("mup: route type length disagrees with the octets present")
 	ErrMUPAddressLength   = errors.New("mup: address length does not match the AFI")
@@ -98,7 +97,7 @@ func (t MUPRouteType) String() string {
 		return "t1st"
 	case MUPT2ST:
 		return "t2st"
-	default:
+	default: // The wire route-type registry is open; retain numeric names.
 		return "type(" + textbuf.StringUint8(uint8(t)) + ")"
 	}
 }
@@ -215,9 +214,9 @@ func (m *MUP) parseBody() error {
 		return m.parseBodyT1ST(rest)
 	case MUPT2ST:
 		return m.parseBodyT2ST(rest)
+	default:
+		panic("BUG: MUP parseBody reached an unimplemented route type")
 	}
-	// Unreachable: Implemented gates the call, and it answers for these four.
-	return ErrMUPInvalidType
 }
 
 // parseBodyISD reads an Interwork Segment Discovery route, Section 3.1.1:

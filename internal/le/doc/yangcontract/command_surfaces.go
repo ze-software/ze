@@ -187,16 +187,16 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 		}
 	}
 	var websiteCandidates, wikiCandidates []string
-	if commandCatalogPath != "" {
-		websiteCandidates = append(websiteCandidates,
-			filepath.Join(root, "website", "data", "cli-commands.json"))
-		wikiCandidates = append(wikiCandidates,
-			filepath.Join(root, "wiki", "command-catalog.md"))
-	} else {
+	if commandCatalogPath == "" {
 		websiteCandidates = append(websiteCandidates,
 			filepath.Join(filepath.Dir(root), "gh-pages", "data", "cli-commands.json"))
 		wikiCandidates = append(wikiCandidates,
 			filepath.Join(filepath.Dir(root), "wiki", "command-catalog.md"))
+	} else {
+		websiteCandidates = append(websiteCandidates,
+			filepath.Join(root, "website", "data", "cli-commands.json"))
+		wikiCandidates = append(wikiCandidates,
+			filepath.Join(root, "wiki", "command-catalog.md"))
 	}
 
 	liveRaw, live, err := loadLiveCommandCatalog(root, commandCatalogPath)
@@ -1329,6 +1329,7 @@ func markdownRenderedHeadingIdentity(heading string) string {
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(heading))
 	var rendered textbuf.Buffer
 	for {
+		//exhaustive:ignore // Heading identity projects visible text and ignores markup tokens.
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			return strings.Join(
@@ -1347,6 +1348,7 @@ func markdownInlineVisibleText(value string) string {
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(markdownHTMLSafeInline(value)))
 	var text textbuf.Buffer
 	for {
+		//exhaustive:ignore // Visible-text projection keeps text and termination; markup contributes no text.
 		switch tokenizer.Next() {
 		case xhtml.ErrorToken:
 			return markdownInlineVisibleTextNoHTML(text.String())
@@ -3421,6 +3423,8 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 			return finish()
 		case xhtml.DoctypeToken:
 			// A document type does not contribute command content.
+		default:
+			panic("BUG: HTML tokenizer returned an unknown token type")
 		}
 	}
 }
@@ -4102,6 +4106,8 @@ func commandOperatorGroupLabel(
 		if availability == availabilityWithRows {
 			return equivalentAvailabilityLabel(availability, declaredShape)
 		}
+	default:
+		panic("BUG: command operator group has an unknown surface")
 	}
 	switch availability {
 	case availabilityAlways:
@@ -4132,7 +4138,7 @@ func classifyCommandOperatorGroupLabel(
 		equivalentMarkdownOperatorGroupSurface:
 		return "", commandOperatorLabelCandidate(label)
 	default:
-		return "", false
+		panic("BUG: command operator group has an unknown surface")
 	}
 }
 
@@ -4299,6 +4305,8 @@ func commandHTMLGroups(
 				}
 			case xhtml.ErrorNode, xhtml.DocumentNode, xhtml.DoctypeNode, xhtml.RawNode:
 				scan.malformed = true
+			default:
+				panic("BUG: rendered command document has an unknown node type")
 			}
 		}
 		if !htmlVisibleSubtreeClosed(document, node) || codeCount == 0 {

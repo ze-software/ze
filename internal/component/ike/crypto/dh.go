@@ -194,7 +194,10 @@ func NewDHExchange(groupID DHGroupID) (*DHExchange, error) {
 		if err := ecpExchangePublic(ex, priv); err != nil {
 			return nil, err
 		}
+	case dhGroupNone:
+		return nil, ErrUnsupportedGroup
 	default:
+		// Configured and peer-proposed group IDs are an open set.
 		return nil, ErrUnsupportedGroup
 	}
 	return ex, nil
@@ -243,8 +246,10 @@ func (ex *DHExchange) SharedSecret(remotePublic []byte) ([]byte, error) {
 			return nil, err
 		}
 		return ex.privateEC.ECDH(remotePub)
-	default:
+	case dhGroupNone:
 		return nil, ErrUnsupportedGroup
+	default:
+		panic("BUG: DH exchange holds an unknown group")
 	}
 }
 

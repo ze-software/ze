@@ -68,16 +68,15 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	}
 
 	s.initPathsLimit(s.negotiated.Encoding)
+	// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a
+	// peer only if the BGP Extended Message Capability was received from that peer."
+	s.writeBuf.Resize(s.negotiated.ExtendedMessageSend)
 	s.writeMu.Unlock()
 
-	// RFC 8654: If extended message is negotiated, track for pool selection.
-	// MUST be capable of receiving/sending messages up to 65535 octets.
-	if s.negotiated.ExtendedMessage {
-		s.extendedMessage = true
-		s.writeMu.Lock()
-		s.writeBuf.Resize(true) // Expand to 65535 if needed
-		s.writeMu.Unlock()
-	}
+	// RFC 8654 Section 6: "For all messages except for OPEN and KEEPALIVE
+	// messages, if the receiver has advertised the BGP Extended Message
+	// Capability, this document raises that limit to 65,535."
+	s.extendedMessage = s.negotiated.ExtendedMessageRecv
 
 	// RFC 4271 Section 4.2: "A BGP speaker MUST calculate the value of the
 	// Hold Timer by using the smaller of its configured Hold Time and the

@@ -36,10 +36,23 @@ func (c *dispatchCapture) all() [][]byte {
 
 // setupCapturingSession brings a passive session to Established against a peer
 // in AS peerAS (local AS 65001, so peerAS 65001 is internal and any other value
-// external), with the RFC 8654 Extended Message capability on both sides when
-// extended is set, and records every received UPDATE payload it dispatches.
-func setupCapturingSession(t *testing.T, peerAS uint32, extended bool) (*Session, net.Conn, *dispatchCapture, func()) {
+// external), with independently selected RFC 8654 advertisements, and records
+// every received UPDATE payload it dispatches.
+func setupCapturingSession(t *testing.T, peerAS uint32, localExtended, peerExtended bool) (*Session, net.Conn, *dispatchCapture, func()) {
 	t.Helper()
+	// Earlier reactor fixtures can leave the global read budget auto-sized for
+	// very small peers. These wire-format tests are not pool-exhaustion tests.
+	bufMuxGlobalMu.Lock()
+	if budget := bufMuxStd.mux.budget; budget != nil {
+		previous := budget.maxBytes.Load()
+		updateBufMuxBudget(0)
+		t.Cleanup(func() {
+			bufMuxGlobalMu.Lock()
+			updateBufMuxBudget(previous)
+			bufMuxGlobalMu.Unlock()
+		})
+	}
+	bufMuxGlobalMu.Unlock()
 
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, peerAS, 0x01020301)
 	settings.Connection = ConnectionPassive
@@ -51,8 +64,10 @@ func setupCapturingSession(t *testing.T, peerAS uint32, extended bool) (*Session
 		65, 4, byte(peerAS >> 24), byte(peerAS >> 16), byte(peerAS >> 8), byte(peerAS),
 		1, 4, 0, 1, 0, 1,
 	}
-	if extended {
+	if localExtended {
 		settings.Capabilities = append(settings.Capabilities, &capability.ExtendedMessage{})
+	}
+	if peerExtended {
 		peerCaps = append(peerCaps, 6, 0)
 	}
 
@@ -98,7 +113,7 @@ func setupCapturingSession(t *testing.T, peerAS uint32, extended bool) (*Session
 	}()
 	require.NoError(t, session.ReadAndProcess())
 	require.Equal(t, fsm.StateEstablished, session.State())
-	require.Equal(t, extended, session.extendedMessage, "the fixture's Extended Message state")
+	require.Equal(t, localExtended, session.extendedMessage, "the fixture's advertised receive permission")
 
 	return session, client, capture, cleanup
 }
@@ -164,7 +179,7 @@ func TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB(t *testing.T) {
 	nlri := []byte{0x08, 0x0a}
 
 	t.Run("internal", func(t *testing.T) {
-		session, client, capture, cleanup := setupCapturingSession(t, 65001, false)
+		session, client, capture, cleanup := setupCapturingSession(t, 65001, false, false)
 		defer cleanup()
 		attrs := append([]byte{
 			0x40, 0x01, 0x01, 0x00,
@@ -183,7 +198,7 @@ func TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB(t *testing.T) {
 	})
 
 	t.Run("external", func(t *testing.T) {
-		session, client, capture, cleanup := setupCapturingSession(t, 65002, false)
+		session, client, capture, cleanup := setupCapturingSession(t, 65002, false, false)
 		defer cleanup()
 		kept := []byte{
 			0x40, 0x01, 0x01, 0x00,
@@ -236,7 +251,7 @@ func TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling(t *testing.T) {
 	nexthop := []byte{0x40, 0x03, 0x04, 192, 0, 2, 254}
 
 	t.Run("treat-as-withdraw", func(t *testing.T) {
-		session, client, capture, cleanup := setupCapturingSession(t, 65002, true)
+		session, client, capture, cleanup := setupCapturingSession(t, 65002, true, true)
 		defer cleanup()
 		attrs := append(append([]byte{0x40, 0x01, 0x02, 0x00, 0x00}, aspath...), nexthop...)
 		msg := buildUpdateMsg(receivedUpdateBody(attrs, nlri))
@@ -259,7 +274,7 @@ func TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("session-reset", func(t *testing.T) {
-		session, client, capture, cleanup := setupCapturingSession(t, 65002, true)
+		session, client, capture, cleanup := setupCapturingSession(t, 65002, true, true)
 		defer cleanup()
 		attrs := append(append([]byte{0x40, 0x01, 0x01, 0x00}, aspath...), nexthop...)
 		body := receivedUpdateBody(attrs, nlri)

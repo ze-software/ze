@@ -218,7 +218,7 @@
       "claim-sha": "f79a2a73379d49e8",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
+      "producer-sha": "1fb7bea19248a34f",
       "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "5e2bd1831e66eba9",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
+      "producer-sha": "1fb7bea19248a34f",
       "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,18 +262,7 @@
       "claim-sha": "77c6dc9f6f5a46ad",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
-      "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5881-5-2",
-      "polarity": "positive",
-      "unit": "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop",
-      "unit-sha": "97921ac1c8e7b524",
-      "claim-sha": "2e8350e93bec740a",
-      "route": "revert",
-      "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
+      "producer-sha": "1fb7bea19248a34f",
       "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +273,18 @@
       "claim-sha": "21245b27774ef88d",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
+      "producer-sha": "1fb7bea19248a34f",
+      "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-5-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop",
+      "unit-sha": "97921ac1c8e7b524",
+      "claim-sha": "2e8350e93bec740a",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
+      "producer-sha": "1fb7bea19248a34f",
       "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,7 @@
       "claim-sha": "da025482d7dae162",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
+      "producer-sha": "1fb7bea19248a34f",
       "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

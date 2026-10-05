@@ -286,7 +286,9 @@ func TestFamilyModeString(t *testing.T) {
 	require.Equal(t, "disable", FamilyModeDisable.String())
 	require.Equal(t, "require", FamilyModeRequire.String())
 	require.Equal(t, "ignore", FamilyModeIgnore.String())
-	require.Equal(t, "unknown", FamilyMode(99).String())
+	require.PanicsWithValue(t, "BUG: invalid family mode", func() {
+		_ = FamilyMode(99).String()
+	})
 }
 
 // TestBGPSchemaCapability verifies capability configuration.

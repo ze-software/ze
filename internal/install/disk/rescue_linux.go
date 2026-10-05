@@ -41,7 +41,7 @@ func branchName(b fatalBranch) string {
 	case branchReboot:
 		return "reboot"
 	default:
-		return "unknown"
+		panic("BUG: unexpected installer fatal branch")
 	}
 }
 
@@ -85,6 +85,8 @@ func fatalInitrd(cfg installConfig, msg string) {
 	case branchReboot:
 		slog.Info("no rescue credential configured; rebooting in 30s")
 		time.Sleep(30 * time.Second)
+	default:
+		panic("BUG: unexpected installer fatal branch")
 	}
 
 	if cfg.Source == sourceISO {

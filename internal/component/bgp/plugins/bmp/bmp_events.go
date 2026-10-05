@@ -42,19 +42,24 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 
 	// Maintain internal state regardless of whether senders are connected.
 	// Peers may establish before any collector connects (AC-3).
-	switch se.EventType { //nolint:exhaustive // only open, notification and state need pre-sender work
+	//exhaustive:ignore // Only OPEN, NOTIFICATION and state events update the pre-sender cache.
+	switch se.EventType {
 	case rpc.EventKindOpen:
 		bp.cacheOpenPDU(se)
 	case rpc.EventKindNotification:
 		bp.cacheNotificationPDU(se)
 	case rpc.EventKindState:
-		switch se.State { //nolint:exhaustive // only up/down carry peer state
+		switch se.State {
 		case rpc.SessionStateUp:
 			// Recorded even when no collector is connected: a collector that
 			// connects later still has to be told this peer is up.
 			bp.recordPeerUp(se)
 		case rpc.SessionStateDown:
 			cause = bp.clearPeerState(se)
+		case rpc.SessionStateUnspecified, rpc.SessionStateCount:
+			// These states do not change the peer cache.
+		default:
+			// The plugin state set is open; unknown states leave the cache unchanged.
 		}
 	}
 
@@ -92,7 +97,7 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		return
 	}
 
-	switch se.EventType { //nolint:exhaustive // BMP handles state, update, open, notification, keepalive, refresh
+	switch se.EventType {
 	case rpc.EventKindState:
 		bp.handleSenderState(se, senders, cause)
 	case rpc.EventKindOpen:
@@ -108,6 +113,11 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		if mirroring {
 			bp.handleSenderMirror(se, senders)
 		}
+	case rpc.EventKindUnspecified, rpc.EventKindEOR, rpc.EventKindBoRR,
+		rpc.EventKindEoRR, rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+		// These events have no collector message.
+	default:
+		// The plugin event set is open; unknown events have no collector message.
 	}
 }
 
@@ -440,7 +450,7 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 // cause carries the Peer Down reason and its Data, built by clearPeerState for
 // this same event. It is read on the down arm alone.
 func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession, cause peerDownCause) {
-	switch se.State { //nolint:exhaustive // only up/down are actionable for BMP
+	switch se.State {
 	case rpc.SessionStateUp:
 		// RFC 7854 S4.10: Peer Up MUST include sent and received OPEN PDUs.
 		// recordPeerUp (run just before this, from handleStructuredEvent) built
@@ -476,6 +486,10 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 				logger().Debug("bmp: sender peer down failed", "collector", ss.name, "error", err)
 			}
 		}
+	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
+		// These states have no Peer Up or Peer Down message.
+	default:
+		// The plugin state set is open; unknown states have no collector message.
 	}
 }
 

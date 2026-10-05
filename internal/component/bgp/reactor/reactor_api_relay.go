@@ -426,8 +426,10 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 			pathIDLen = relayPathIDLen
 		case rpc.NLRIFramingSourceWire:
 			// The bytes already carry the source's framing, identifiers included.
+		case rpc.NLRIFramingUnrecorded:
+			return nil, 0, 0, errRelayNLRIFraming
 		default:
-			// Refuse before touching a buffer. See errRelayNLRIFraming.
+			// Plugin framing codes form an open set; refuse unknown values before touching a buffer.
 			return nil, 0, 0, errRelayNLRIFraming
 		}
 	}
@@ -487,17 +489,25 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	needNextHop := relayNeedsNextHopAttr(scanned, fam)
 	// The stored next hop belongs to this route. A mixed received UPDATE can
 	// also carry a legacy NEXT_HOP belonging to a different IPv4 announcement.
-	// Reconstruction emits IPv4 unicast in the legacy field, so replace that
-	// attribute in our private decoded scratch before the egress rail reads it.
+	// Four-octet IPv4 next hops use legacy framing. RFC 8950 Section 3
+	// permits 16/32-octet IPv6 next hops for this family, which MUST remain
+	// in MP_REACH. The source context must carry that negotiated pair.
 	if fam == family.IPv4Unicast {
-		if len(nextHop) != 4 {
-			return nil, 0, 0, errRelayNextHopLen
-		}
-		if _, _, value, found := attribute.AttrFind(attrs, attribute.AttrNextHop); found {
-			if len(value) != 4 {
+		switch len(nextHop) {
+		case 4:
+			if _, _, value, found := attribute.AttrFind(attrs, attribute.AttrNextHop); found {
+				if len(value) != 4 {
+					return nil, 0, 0, errRelayNextHopLen
+				}
+				copy(value, nextHop)
+			}
+		case 16, 32:
+			ctx := bgpctx.Registry.Get(src.ctxID)
+			if ctx == nil || ctx.ExtendedNextHopFor(fam) != family.AFIIPv6 {
 				return nil, 0, 0, errRelayNextHopLen
 			}
-			copy(value, nextHop)
+		default:
+			return nil, 0, 0, errRelayNextHopLen
 		}
 	}
 

@@ -151,7 +151,7 @@ func formatFamily(afi family.AFI, safi family.SAFI) string {
 // order matters: the registered in-process decoder and the plugin's decode
 // command run the same producer, so the fast path answers identically without
 // a subprocess.
-func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []any {
+func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, withdraw bool) []any {
 	famStr := family.Family{AFI: afi, SAFI: safi}.String()
 	pluginName := lookupFamilyPlugin(famStr)
 	if pluginName == "" {
@@ -163,7 +163,7 @@ func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []
 
 	// `ze bgp decode` reads a hex blob with no session behind it, so no ADD-PATH
 	// was negotiated and no Path Identifier precedes an NLRI (RFC 7911 Section 3).
-	if raw, err := registry.DecodeNLRIByFamily(famStr, hexData, false); err == nil {
+	if raw, err := registry.DecodeNLRIByFamily(famStr, hexData, false, withdraw); err == nil {
 		var decoded any
 		if err := json.Unmarshal(raw, &decoded); err != nil {
 			return unparsed
@@ -238,7 +238,7 @@ func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error)
 	hexData := textbuf.StringHexUpper(data)
 	// `ze bgp decode` reads a hex blob with no session behind it, so no ADD-PATH
 	// was negotiated and no Path Identifier precedes an NLRI (RFC 7911 Section 3).
-	if raw, err := registry.DecodeNLRIByFamily(family, hexData, false); err == nil {
+	if raw, err := registry.DecodeNLRIByFamily(family, hexData, false, false); err == nil {
 		if !outputJSON {
 			var m map[string]any
 			if json.Unmarshal(raw, &m) == nil {

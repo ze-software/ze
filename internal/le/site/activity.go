@@ -136,6 +136,8 @@ func activityBody(window *reporewrite.ActivityWindow, surface activitySurface) s
 		body.Str("        </main>\n")
 	case activitySurfaceUnspecified:
 		panic("BUG: site.activityBody: the caller named no activity surface")
+	default:
+		panic("BUG: site.activityBody: invalid activity surface")
 	}
 	body.Str(activityScriptHTML(activityLineMetric(window), activityCommitMetric(window)))
 	return body.String()

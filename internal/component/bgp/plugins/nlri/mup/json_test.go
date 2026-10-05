@@ -74,6 +74,26 @@ var mupJSONCases = []struct {
 	{"t1st ipv6", AFIIPv6, wireT1STv6, jsonT1STv6},
 	{"t2st ipv6", AFIIPv6, wireT2STv6, jsonT2STv6},
 	{"unknown route type", AFIIPv4, wireUnknownType, jsonUnknownType},
+	{"unknown architecture with named type", AFIIPv4, "020001040A0B0C0D",
+		`{"arch":2,"code":1,"parsed":false,"raw":"020001040A0B0C0D"}`},
+}
+
+// TestMUPZeroValueJSON keeps the exported zero value opaque in both writers;
+// it has never passed the parser's implemented-type gate.
+func TestMUPZeroValueJSON(t *testing.T) {
+	t.Parallel()
+	var route MUP
+	const want = `{"arch":0,"code":0,"parsed":false,"raw":"00000000"}`
+	if got := string(route.AppendJSON(nil)); got != want {
+		t.Fatalf("AppendJSON = %s, want %s", got, want)
+	}
+	got, err := json.Marshal(mupToJSON(&route))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Fatalf("map JSON = %s, want %s", got, want)
+	}
 }
 
 // TestMUPAppendJSON verifies the in-process fast path renders every route type.
@@ -110,7 +130,7 @@ func TestMUPDecodeNLRIHex(t *testing.T) {
 			if tc.afi == AFIIPv6 {
 				family = "ipv6/mup"
 			}
-			decoded, err := DecodeNLRIHex(family, tc.wire, false)
+			decoded, err := DecodeNLRIHex(family, tc.wire, false, false)
 			require.NoError(t, err)
 			got, err := json.Marshal(decoded)
 			require.NoError(t, err)
@@ -157,7 +177,7 @@ func TestMUPDecodeNLRIHexRefusesMalformed(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			decoded, err := DecodeNLRIHex("ipv4/mup", tc.wire, false)
+			decoded, err := DecodeNLRIHex("ipv4/mup", tc.wire, false, false)
 			assert.Error(t, err)
 			assert.Nil(t, decoded)
 		})

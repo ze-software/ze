@@ -221,6 +221,8 @@ func (p *ASPath) PathLength() int {
 			}
 		case ASConfedSequence, ASConfedSet:
 			// RFC 5065: Confederation segments don't count for path selection
+		default:
+			// Segment types are open to callers; unknown types add no path length.
 		}
 	}
 	return length

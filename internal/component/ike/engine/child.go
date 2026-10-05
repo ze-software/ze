@@ -900,8 +900,10 @@ func selectorPort(child *ChildSA, local bool) dataplane.PortMatch {
 		return dataplane.ExactPortMatch(side.Port.Port)
 	case ipsec.PortOpaque:
 		return dataplane.ExactPortMatch(0)
-	default:
+	case ipsec.PortAny, 0:
 		return dataplane.AnyPortMatch()
+	default:
+		panic("BUG: unknown traffic selector port form")
 	}
 }
 

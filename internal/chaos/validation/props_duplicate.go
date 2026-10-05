@@ -37,7 +37,8 @@ func (p *NoDuplicateRoutes) ProcessEvent(ev peer.Event) {
 	if ev.PeerIndex < 0 || ev.PeerIndex >= p.n {
 		return
 	}
-	switch ev.Type { //nolint:exhaustive // only route-sent, route-withdrawn, and disconnected are relevant
+	//exhaustive:ignore // This independent property tracks only duplicate-announcement history.
+	switch ev.Type {
 	case peer.EventRouteSent:
 		if p.announced[ev.PeerIndex][ev.Prefix] {
 			p.violations = append(p.violations, Violation{

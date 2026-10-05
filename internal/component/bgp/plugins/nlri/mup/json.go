@@ -62,9 +62,9 @@ func (m *MUP) AppendJSON(buf []byte) []byte {
 		return m.appendJSONT1ST(buf)
 	case MUPT2ST:
 		return m.appendJSONT2ST(buf)
+	default:
+		panic("BUG: invalid parsed MUP route type")
 	}
-	// Unreachable: parsed is set only for the four route types above.
-	return append(buf, `{}`...)
 }
 
 // appendJSONISD writes an Interwork Segment Discovery route.
@@ -227,6 +227,8 @@ func mupToJSON(m *MUP) map[string]any {
 		route["endpoint_ip"] = m.endpoint.String()
 		route["endpoint_len"] = int(m.endpointBits)
 		route["teid"] = textbuf.StringUint32(m.teid)
+	default:
+		panic("BUG: invalid parsed MUP route type")
 	}
 
 	return route

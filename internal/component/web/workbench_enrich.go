@@ -136,6 +136,7 @@ func lookupListNode(schema *config.Schema, path []string) *config.ListNode {
 // other render paths in later phases.
 func splitRelatedByPlacement(tools []*config.RelatedTool) (row, table []*config.RelatedTool) {
 	for _, t := range tools {
+		//exhaustive:ignore // The list-table view selects only row and table placements.
 		switch t.Placement {
 		case config.RelatedPlacementRow:
 			row = append(row, t)

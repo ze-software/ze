@@ -119,6 +119,33 @@ family-specific path attributes, which flow through `reactor.PluginRoute` →
 <!-- source: internal/component/bgp/reactor/peer_static_routes.go -- toPluginParams -->
 <!-- source: internal/component/bgp/message/update_build_plugin.go -- BuildPlugin, PluginParams -->
 
+FlowSpec origination omits the MP_REACH next-hop even when configuration or the
+API supplies an IPv4 or IPv6 address. RFC 8955 Section 4 requires zero next-hop
+length, including the IPv6 families covered by RFC 8956. The config builder,
+established API batch builder and queued writer each consult `Family.NeedsNextHop()`.
+The socket test compares complete UPDATEs for all four registered FlowSpec
+families, preserving the NLRI, VPN route distinguisher and traffic-rate action.
+<!-- source: internal/component/bgp/message/update_build_plugin.go -- buildMPReachPlugin -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- buildBatchAnnounceUpdate -->
+<!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- buildRIBRouteUpdate -->
+<!-- test: internal/component/bgp/reactor/flowspec_origin_wire_test.go TestFlowSpecOriginationOmitsConfiguredNextHop -->
+
+Forwarding applies that family contract after destination policy and before
+next-hop withholding. Received FlowSpec next-hop bytes are ignored for forwarding
+decisions; `self`, explicit addresses and filter rewrites cannot supply a
+FlowSpec next hop. The registered MP_REACH edit handler removes the received
+field in the destination-owned output without changing the cached input, rule,
+route distinguisher or actions. A genuine legacy-unicast sibling retains its own
+next-hop decisions. The route-server proof drives actual TCP sessions and
+covering-route authorization through the registered RIB and route-server plugins.
+Its plugin server is installed as the shared event bus before engines spawn, as
+in the daemon, so authorization recovery can replay a rule whose first forward
+ran before the RIB selected it.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- payloadNextHop, applyNextHopFamily -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler -->
+<!-- test: internal/component/bgp/reactor/flowspec_forward_wire_test.go TestFlowSpecForwardingOmitsNextHop -->
+<!-- test: internal/component/bgp/reactor/flowspec_rs_wire_test.go TestFlowSpecRouteServerOmitsNextHop -->
+
 **Flow example (FlowSpec via the generic plugin path):**
 ```go
 // 1. The flowspec plugin's config parser pre-builds the NLRI + action attrs.

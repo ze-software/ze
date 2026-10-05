@@ -25,24 +25,24 @@
     },
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
-      "unit-sha": "ebb4b0462402041c",
-      "claim-sha": "1640e2df77f0b79a",
-      "route": "revert",
-      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::verifyASPA",
-      "producer-sha": "37dc2af41a25064c",
-      "break": "body of verifyASPA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
       "unit-sha": "ebb4b0462402041c",
       "claim-sha": "797725f8f282beb5",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::verifyASPA",
-      "producer-sha": "37dc2af41a25064c",
+      "producer-sha": "d434ead2e3e80a64",
+      "break": "body of verifyASPA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
+      "unit-sha": "ebb4b0462402041c",
+      "claim-sha": "1640e2df77f0b79a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::verifyASPA",
+      "producer-sha": "d434ead2e3e80a64",
       "break": "body of verifyASPA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -51,10 +51,10 @@
       "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid",
       "unit-sha": "570f2fc3bdbcb784",
       "claim-sha": "cad98c96f41a79b3",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::normalizeASPath",
-      "producer-sha": "b69a4cf1a2479d72",
-      "break": "line 46: \"if len(hops) == 0 || hops[len(hops)-1] != asn {\" -\u003e \"if true { // MUTATION-APPLIED: retain consecutive duplicate ASNs\""
+      "producer-sha": "1fb3b3f1fc0a37f3",
+      "break": "body of normalizeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
@@ -62,10 +62,10 @@
       "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops",
       "unit-sha": "7eabc5ee446a0c23",
       "claim-sha": "37d162baa35957cd",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::normalizeASPath",
-      "producer-sha": "b69a4cf1a2479d72",
-      "break": "line 46: \"if len(hops) == 0 || hops[len(hops)-1] != asn {\" -\u003e \"if func() bool { for _, hop := range hops { if hop == asn { return false } }; return true }() { // MUTATION-APPLIED: deduplicate all ASNs, including separated repeats\""
+      "producer-sha": "1fb3b3f1fc0a37f3",
+      "break": "body of normalizeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",

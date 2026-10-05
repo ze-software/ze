@@ -60,7 +60,7 @@ func runVPLSPlugin(conn net.Conn) int {
 //
 // addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
 // (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
-func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
+func DecodeNLRIHex(family, hexStr string, addPath, _ bool) (any, error) {
 	if family != familyVPLS {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
@@ -156,7 +156,7 @@ func RunDecode(input io.Reader, output io.Writer) int {
 			// The CLI and the plugin text command both hand over NLRI octets with no
 			// negotiation behind them, so no Path Identifier precedes them
 			// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
-			data, err := DecodeNLRIHex(fam, hexData, false)
+			data, err := DecodeNLRIHex(fam, hexData, false, false)
 			if err == nil {
 				if raw, merr := json.Marshal(data); merr == nil {
 					write("decoded json " + string(raw))

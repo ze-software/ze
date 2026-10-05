@@ -138,7 +138,7 @@ func TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking(t *testing.T) {
 				synctest.Wait()
 				require.Equal(t, []string{
 					"request bgp rib purge-stale " + testPeer,
-					"request bgp rib retain-routes " + testPeer + " ipv4/unicast",
+					"request bgp rib retain-routes " + testPeer + " on-down ipv4/unicast",
 					"request bgp rib mark-stale " + testPeer + " 0",
 					"request bgp rib release-routes " + testPeer,
 				}, rec.all())

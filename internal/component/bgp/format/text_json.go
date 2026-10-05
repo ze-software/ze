@@ -169,7 +169,7 @@ func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI)
 				if j > 0 {
 					buf = append(buf, ',')
 				}
-				buf = appendNLRIJSONValue(buf, n, fam)
+				buf = appendNLRIJSONValue(buf, n, fam, false)
 			}
 			buf = append(buf, `]}`...)
 		}
@@ -187,7 +187,7 @@ func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI)
 				if j > 0 {
 					buf = append(buf, ',')
 				}
-				buf = appendNLRIJSONValue(buf, n, fam)
+				buf = appendNLRIJSONValue(buf, n, fam, true)
 			}
 			buf = append(buf, `]}`...)
 		}
@@ -233,7 +233,9 @@ func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI)
 // RFC 7432: EVPN NLRI includes route-type, ESI, etc.
 // RFC 8277: Labeled Unicast NLRI includes labels.
 // RFC 8955: FlowSpec NLRI includes match components.
-func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
+// withdraw carries the enclosing operation; native VPN bytes cannot identify
+// whether their three leading octets are labels or a Compatibility field.
+func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family, withdraw bool) []byte {
 	// Fast path: concrete in-process NLRI types implement nlri.JSONAppender and
 	// write their JSON directly, skipping wire encode + hex + re-parse + map.
 	if w, ok := n.(nlri.JSONAppender); ok {
@@ -263,7 +265,7 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
 	if !isINET && registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
 
-		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData, addPath)
+		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData, addPath, withdraw)
 		if err == nil {
 			return append(buf, decoded...)
 		}
@@ -388,7 +390,7 @@ func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []b
 				if j > 0 {
 					buf = append(buf, ',')
 				}
-				buf = appendNLRIJSONValue(buf, n, famTyped)
+				buf = appendNLRIJSONValue(buf, n, famTyped, op.Action == actionDel)
 			}
 			buf = append(buf, `]}`...)
 		}

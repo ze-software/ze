@@ -45,6 +45,7 @@ func TestSRInstallPrefixSIDPushAndSwap(t *testing.T) {
 	inst.installRoutes(routes, sids, caps, algos, mySRGB)
 	var push, swap *mplsfibevents.Entry
 	for i := range bus.entries {
+		//exhaustive:ignore // This test extracts only push and swap entries for no-PHP assertions.
 		switch bus.entries[i].Op {
 		case mplsfibevents.OpPush:
 			push = &bus.entries[i]
@@ -177,6 +178,7 @@ func TestSRInstallHeterogeneousSRGB(t *testing.T) {
 		sids, caps, algos, mySRGB)
 	var push, swap *mplsfibevents.Entry
 	for i := range busTransit.entries {
+		//exhaustive:ignore // This transit assertion selects push and swap; PHP is checked separately.
 		switch busTransit.entries[i].Op {
 		case mplsfibevents.OpPush:
 			push = &busTransit.entries[i]

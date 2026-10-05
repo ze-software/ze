@@ -105,7 +105,7 @@ func stateValue(s fsm.State) float64 {
 	case fsm.StateInitialize:
 		return 0
 	default:
-		return 0
+		panic("BUG: vrrp: invalid FSM state")
 	}
 }
 

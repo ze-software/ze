@@ -445,7 +445,8 @@ func (s *lacSimulator) setupTunnel(ctx context.Context, conn *net.UDPConn, local
 			if !ok {
 				break
 			}
-			switch aType { //nolint:exhaustive // only extracting fields we need
+			//exhaustive:ignore // Extract only the AVPs needed for the tunnel handshake.
+			switch aType {
 			case l2tp.AVPMessageType:
 				if len(value) == 2 {
 					msgType = l2tp.MessageType(binary.BigEndian.Uint16(value))
@@ -545,7 +546,8 @@ func (s *lacSimulator) setupSessions(ctx context.Context, conn *net.UDPConn, ts 
 				if !ok {
 					break
 				}
-				switch aType { //nolint:exhaustive // only extracting fields we need
+				//exhaustive:ignore // Extract only the AVPs needed for the session handshake.
+				switch aType {
 				case l2tp.AVPMessageType:
 					if len(value) == 2 {
 						msgType = l2tp.MessageType(binary.BigEndian.Uint16(value))

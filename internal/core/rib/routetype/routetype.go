@@ -53,6 +53,10 @@ func (t Type) String() string {
 		return "unreachable"
 	case Prohibit:
 		return "prohibit"
+	case 0:
+		return "unset"
+	default:
+		// Plugin route-install values are open; retain unknown rendering.
+		return "unset"
 	}
-	return "unset"
 }

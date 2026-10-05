@@ -36,13 +36,20 @@ func TestSessionStateString(t *testing.T) {
 		{StateOpenReceived, "open-received"},
 		{StateOpenSent, "open-sent"},
 		{StateOperational, "operational"},
-		{SessionState(99), "unknown"},
 	}
 	for _, tt := range tests {
 		if got := tt.state.String(); got != tt.want {
 			t.Errorf("SessionState(%d).String() = %q, want %q", tt.state, got, tt.want)
 		}
 	}
+	t.Run("invalid internal state", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: invalid LDP session state" {
+				t.Fatalf("panic = %v, want invalid LDP session state BUG", got)
+			}
+		}()
+		_ = SessionState(99).String()
+	})
 }
 
 func TestSessionHandleInit(t *testing.T) {

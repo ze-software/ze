@@ -3,6 +3,7 @@
 package firewallnft
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/nftables"
@@ -126,6 +127,34 @@ func TestRaiseEnumsRoundTrip(t *testing.T) {
 	}
 }
 
+// TestRaiseEnumsRejectUnknown keeps kernel values outside the model from
+// becoming valid families, policies or chain types during readback.
+func TestRaiseEnumsRejectUnknown(t *testing.T) {
+	if got, err := raiseFamily(nftables.TableFamilyUnspecified); got != 0 || !errors.Is(err, errKernelTableFamilyIsUnspecified) {
+		t.Fatalf("unspecified family = %v, %v; want zero and unspecified error", got, err)
+	}
+	got, err := raiseFamily(nftables.TableFamily(255))
+	if err == nil {
+		t.Fatal("unknown family must return an error")
+	}
+	if got != 0 {
+		t.Fatalf("unknown family = %v; want zero", got)
+	}
+	if err.Error() != "unknown kernel table family 255" {
+		t.Fatalf("unknown family error = %q", err)
+	}
+	policy := nftables.ChainPolicy(255)
+	if got, ok := raisePolicy(&policy); got != 0 || ok {
+		t.Fatalf("unknown policy = %v, %v; want zero, false", got, ok)
+	}
+	if got, ok := raisePolicy(nil); got != 0 || ok {
+		t.Fatalf("absent policy = %v, %v; want zero, false", got, ok)
+	}
+	if got, ok := raiseChainType(nftables.ChainType("future")); got != 0 || ok {
+		t.Fatalf("unknown chain type = %v, %v; want zero, false", got, ok)
+	}
+}
+
 // VALIDATES: P0 -- set element keys decoded from the kernel match the
 // string form the operator wrote into config, closing the round-trip.
 // PREVENTS: `ze firewall show group blocked` emitting hex blobs or
@@ -156,15 +185,12 @@ func TestEncodeDecodeSetElementRoundTrip(t *testing.T) {
 	}
 }
 
-// VALIDATES: decoded keys with unexpected lengths fall back to hex
-// rather than panicking. A future kernel extension that packs extra
-// bytes into a key must not blow up CLI readback.
+// TestDecodeSetElementKeyMalformed preserves the exact hex display for a
+// malformed known key and an unrecognized kernel datatype.
 func TestDecodeSetElementKeyMalformed(t *testing.T) {
-	got := decodeSetElementKey(firewall.SetTypeIPv4, []byte{0x01})
-	if got == "" {
-		t.Error("decoder returned empty string on malformed key")
-	}
-	if got[0] != '0' {
-		t.Errorf("got %q, expected hex-prefixed fallback", got)
+	for _, typ := range []firewall.SetType{firewall.SetTypeIPv4, 0, firewall.SetType(255)} {
+		if got := decodeSetElementKey(typ, []byte{0x01}); got != "0x01" {
+			t.Errorf("type %d: got %q, want hex fallback 0x01", typ, got)
+		}
 	}
 }

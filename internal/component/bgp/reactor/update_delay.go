@@ -87,8 +87,9 @@ func (r updateDelayReleaseReason) String() string {
 		return "max-delay"
 	case updateDelayNotReleased:
 		return plugin.UpdateDelayReasonNotReleased
+	default:
+		panic("BUG: unknown update-delay release reason")
 	}
-	return "unknown"
 }
 
 // updateDelayPeer is what the hold remembers about ONE expected peer between its
@@ -346,7 +347,7 @@ func (h *updateDelayHold) trackLocked(p *Peer) {
 // guarantees it. Both the KEEPALIVE that establishes the session and the UPDATE
 // carrying a marker are read by the session's own read loop, in wire order
 // (processMessage, session_read.go), which calls onMessageReceived
-// SYNCHRONOUSLY and then hands the message to handleKeepalive or handleUpdate.
+// SYNCHRONOUSLY and then fires the corresponding KEEPALIVE or UPDATE FSM event.
 // The FSM's callback contract completes the Established callback before Event
 // returns in the uncontended case (fsm.go, SetCallback), so startInitialRoutes
 // and trackLocked have run before the loop reads the next message. A marker

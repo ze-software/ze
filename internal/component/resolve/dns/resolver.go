@@ -106,8 +106,9 @@ func (s Status) String() string {
 		return "REFUSED"
 	case StatusUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: invalid DNS resolver status")
 	}
-	return "unspecified"
 }
 
 // ParseStatus reads back a spelling String produced. It is the return path for

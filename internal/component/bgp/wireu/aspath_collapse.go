@@ -105,6 +105,7 @@ func CollapseAS4Family(dst, payload []byte, srcASN4 bool) (int, []attribute.ASPa
 	off := attrsStart
 	for off < attrsStart+attrLen {
 		span := attrSpanAt(payload, off)
+		//exhaustive:ignore // Rewrite only the AS-path family; copy all unrelated attributes unchanged.
 		switch span.code {
 		case attribute.AttrASPath:
 			if canonical.ASPath != nil {
@@ -196,6 +197,7 @@ func (f *as4FamilySpans) scan(payload []byte, attrsStart, attrLen int) error {
 			return fmt.Errorf("collapse AS4 family: attribute value overflows the attribute section: %w", ErrUpdateMalformed)
 		}
 
+		//exhaustive:ignore // Project only the four AS-path-family spans from the attribute stream.
 		switch span.code {
 		case attribute.AttrASPath:
 			f.asPath = span

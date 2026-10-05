@@ -61,11 +61,14 @@ raised (RFC5303-3.2-12).
 On the Up row, a received Down moves the adjacency to Initializing. The RFC
 generates no adjacency event there, but Ze still raises its internal session-down
 notice, because an adjacency that leaves Up must be withdrawn from the LSP and
-from SPF. Two cases the RFC discards, a TLV 240 whose Neighbor System ID is not
-ours and an invalid state value, set Initializing instead (RFC5303-3.2-7,
-RFC5303-3.2-9).
+from SPF. An invalid TLV 240 state is discarded before neighbor creation or
+adjacency mutation, including hold-timer refresh (RFC5303-3.2-7). A TLV 240
+whose Neighbor System ID is not ours still sets Initializing instead of
+being discarded (RFC5303-3.2-9).
 
 <!-- source: internal/plugins/isis/adjacency/fsm.go -- threeWayTableAction, applyThreeWayAction -->
+<!-- source: internal/plugins/isis/adjacency/fsm.go -- ReceiveHello -->
+<!-- source: internal/plugins/isis/circuit/runtime.go -- handleP2PHello -->
 
 
 ## Decision: padding is owned by the engine

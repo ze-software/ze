@@ -383,8 +383,8 @@ func (s *Session) Begin() *Packet {
 }
 
 // Process handles an incoming EAP-Response and returns the next EAP-Request
-// (or Success/Failure). Returns nil when the exchange is complete and the
-// final packet has already been returned.
+// (or Success/Failure). Returns nil when the packet is silently discarded or
+// when the exchange is complete and the final packet has already been returned.
 func (s *Session) Process(response *Packet) *Packet {
 	// RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with
 	// other codes MUST be silently discarded by both authenticators and peers."
@@ -399,8 +399,13 @@ func (s *Session) Process(response *Packet) *Packet {
 	if response.Code == 0 || response.Code > CodeFailure {
 		return nil
 	}
+	// RFC 3748 Section 2.2: "Based on the Code field, the EAP layer
+	// demultiplexes incoming EAP packets to the EAP peer and authenticator layers."
+	// Section 2.3: "EAP packets received with Code=1 (Request), Code=3 (Success),
+	// and Code=4 (Failure) are demultiplexed by the EAP layer and delivered to
+	// the peer layer." This session is the authenticator, not that peer.
 	if response.Code != CodeResponse {
-		return s.failure(response)
+		return nil
 	}
 
 	// RFC 3748 Section 4.1: "An authenticator receiving a Response whose
@@ -430,8 +435,10 @@ func (s *Session) Process(response *Packet) *Packet {
 		// whatever the peer answered the last word with, this exchange owes it
 		// an EAP-Failure and nothing else.
 		return s.failure(response)
-	default:
+	case stateSuccess, stateFailure:
 		return nil
+	default:
+		panic("BUG: invalid EAP session state")
 	}
 }
 

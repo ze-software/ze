@@ -60,6 +60,10 @@ func (a *localAuth) handle(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2t
 	}
 
 	switch req.Method {
+	case ppp.AuthMethodNone:
+		// The early guard admits no-auth before user lookup.
+		return l2tp.AuthResult{Accept: true, Message: "no auth required"}
+
 	case ppp.AuthMethodPAP:
 		return a.verifyPAP(req, user)
 
@@ -72,7 +76,7 @@ func (a *localAuth) handle(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2t
 		return l2tp.AuthResult{Accept: false, Message: "MS-CHAPv2 not supported by local auth"}
 
 	default:
-		return l2tp.AuthResult{Accept: false, Message: "unsupported auth method"}
+		panic("BUG: unknown PPP authentication request method")
 	}
 }
 

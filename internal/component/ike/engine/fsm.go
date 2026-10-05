@@ -379,6 +379,8 @@ func (ps *PeerSession) runResponder(
 			// Handshake in progress on the dispatch goroutine. Reap it if the peer
 			// abandoned it so responderBusy and the SATable slot free up (Finding 1).
 			ps.reapStaleHandshake(sa, table, log)
+		default:
+			panic("BUG: unknown IKE SA state in responder loop")
 		}
 	}
 }
@@ -516,6 +518,8 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 			"peer", sa.PeerName, "exchange", msg.Header.ExchangeType)
 	case StateIdle, StateSAInitReceived, StateAuthReceived, StateDead:
 		log.Debug("ike: message in unexpected state", "state", sa.State)
+	default:
+		panic("BUG: unknown IKE SA state in inbound dispatch")
 	}
 }
 
@@ -1135,8 +1139,11 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 	// authenticator, and an operator whose peer is being fed forged EAP-Success
 	// packets learns it from this line. The SA is left alone, so it stays in
 	// StateEAPInProgress and waits for the authenticator's next packet.
+	// RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with other codes
+	// MUST be silently discarded by both authenticators and peers."
 	if result.Discarded {
 		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "code", parsed.Code, "type", parsed.Type, "id", parsed.Identifier)
+		return
 	}
 
 	// RFC 3748 Section 5.2: "The peer SHOULD display this message to the user or

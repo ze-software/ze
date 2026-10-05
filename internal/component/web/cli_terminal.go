@@ -700,7 +700,7 @@ func parseConfigContent(content string, schema *config.Schema) (*config.Tree, er
 	case config.FormatHierarchical:
 		return config.NewParser(schema).Parse(content)
 	default:
-		return config.NewParser(schema).Parse(content)
+		panic("BUG: config format classifier returned an unknown format")
 	}
 }
 

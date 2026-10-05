@@ -810,10 +810,10 @@ func (m PrefixCountMode) String() string {
 		return "offered"
 	case PrefixCountInstalled:
 		return "installed"
+	default:
+		// Configuration-backed modes form an open set; retain the unknown value for diagnostics.
+		return textbuf.StrUintStr("unknown(", uint64(m), ")")
 	}
-	// The value itself, not a bare "unknown": a mode that reaches here is a bug,
-	// and the number is what identifies which one.
-	return textbuf.StrUintStr("unknown(", uint64(m), ")")
 }
 
 // parsePrefixCountMode maps a YANG enum value to its mode. ok is false for any

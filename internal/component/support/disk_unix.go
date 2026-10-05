@@ -5,8 +5,10 @@
 package support
 
 import (
+	"fmt"
 	"syscall"
 
+	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/paths"
 )
 
@@ -38,21 +40,32 @@ func collectDiskInfo() (any, error) {
 		}
 		seen[path] = true
 
-		total := stat.Blocks * uint64(stat.Bsize)
-		free := stat.Bavail * uint64(stat.Bsize)
-		used := total - free
-		var pct int
-		if total > 0 {
-			pct = int(used * 100 / total)
+		usage, err := diskUsageFromBlocks(path, diskspace.UsableBlocks(stat.Blocks),
+			diskspace.UsableBlocks(stat.Bavail), diskspace.UsableBlocks(stat.Bsize))
+		if err != nil {
+			return nil, fmt.Errorf("disk usage %s: %w", path, err)
 		}
-		results = append(results, diskUsage{
-			Path:       path,
-			TotalBytes: total,
-			FreeBytes:  free,
-			UsedBytes:  used,
-			UsedPct:    pct,
-		})
+		results = append(results, usage)
 	}
 
 	return map[string]any{"filesystems": results}, nil
+}
+
+func diskUsageFromBlocks(path string, blocks, available, blockSize uint64) (diskUsage, error) {
+	total, err := diskspace.Bytes(blocks, blockSize)
+	if err != nil {
+		return diskUsage{}, err
+	}
+	// Available blocks exclude reserved space; a signed deficit has already
+	// become zero. Cap at the total before subtracting to prevent underflow.
+	// Total bytes fit, so this product bounded by the same total fits too.
+	free := min(available, blocks) * blockSize
+	used := total - free
+	return diskUsage{
+		Path:       path,
+		TotalBytes: total,
+		FreeBytes:  free,
+		UsedBytes:  used,
+		UsedPct:    int(diskspace.Percent(used, total)),
+	}, nil
 }

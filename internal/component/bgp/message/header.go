@@ -123,7 +123,7 @@ func (h Header) ValidateLength() error {
 		// 4271 Section 6.1 assigns to that message.
 		minLen = HeaderLen
 	default:
-		// Unknown message type - only basic length check (>= 19)
+		// The wire type set is open; unknown types retain the common header floor.
 		minLen = HeaderLen
 	}
 
@@ -178,6 +178,8 @@ func (h Header) ValidateLengthWithMax(extendedMessage bool) error {
 		if extendedMessage {
 			maxLen = ExtMsgLen
 		}
+	default:
+		// The wire type set is open; unknown types retain the standard maximum.
 	}
 
 	if h.Length > maxLen {
@@ -215,6 +217,7 @@ func MaxMessageLength(msgType msgtype.MessageType, extendedMessage bool) uint16 
 		}
 		return MaxMsgLen
 	default:
+		// The wire type set is open; unknown types retain the standard maximum.
 		return MaxMsgLen
 	}
 }

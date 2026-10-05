@@ -121,7 +121,7 @@ func runRouteReflector(conn net.Conn) int {
 			if !ok {
 				continue
 			}
-			switch se.EventType { //nolint:exhaustive // only update/state/open are subscribed
+			switch se.EventType {
 			case rpc.EventKindUpdate:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					// Update withdrawal map BEFORE forwarding: the forward path can
@@ -138,6 +138,12 @@ func runRouteReflector(conn net.Conn) int {
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					rr.handleStructuredOpen(se, msg)
 				}
+			case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
+				rpc.EventKindRefresh, rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
+				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+				// These events do not trigger reflection.
+			default:
+				// The plugin event set is open; unknown events do not trigger reflection.
 			}
 		}
 		return nil
@@ -272,7 +278,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	peer := rr.peers[se.PeerAddress]
 	peer.Up = (se.State == rpc.SessionStateUp)
 	peer.ASN = se.PeerAS
-	switch se.State { //nolint:exhaustive // only up/down are actionable for RR
+	switch se.State {
 	case rpc.SessionStateUp:
 		peer.ReplayGen++
 		gen := peer.ReplayGen
@@ -281,13 +287,16 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	case rpc.SessionStateDown:
 		rr.mu.Unlock()
 		rr.handleStateDown(se.PeerAddress)
-	default: // other states (e.g. connected) -- no action
+	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
+		rr.mu.Unlock()
+	default:
+		// The plugin state set is open; unknown states need no further action.
 		rr.mu.Unlock()
 	}
 }
 
 // handleStateDown sends withdrawals for all routes from the downed source peer.
-// Routes are batched by family into comma-separated prefix lists to minimize RPCs.
+// Routes are batched by family and wire form to minimize RPCs.
 // Withdrawals are sent asynchronously (per-lifecycle goroutine, not hot path).
 //
 // Concurrency: OnStructuredEvent is called serially by the engine's delivery
@@ -305,10 +314,16 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		return
 	}
 
-	// Group prefixes by family for batched withdrawal.
-	byFamily := make(map[string][]string)
+	// Native VPN routes retain their wire form and ADD-PATH negotiation.
+	type withdrawalGroup struct {
+		family   string
+		wireForm bool
+		addPath  bool
+	}
+	byGroup := make(map[withdrawalGroup][]string)
 	for _, info := range entries {
-		byFamily[info.Family] = append(byFamily[info.Family], info.Prefix)
+		group := withdrawalGroup{family: info.Family, wireForm: info.WireForm, addPath: info.AddPath}
+		byGroup[group] = append(byGroup[group], info.Prefix)
 	}
 
 	// Send batched withdrawals to all peers except the one that went down.
@@ -320,10 +335,30 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 	}
 	excludeSel := selector.ExcludeAddr(addr)
 	go func() {
-		for fam, prefixes := range byFamily {
+		var command textbuf.Buffer
+		for group, prefixes := range byGroup {
+			slices.Sort(prefixes)
 			for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 				end := min(i+withdrawalBatchSize, len(prefixes))
-				rr.updateRouteSel(excludeSel, nlriDelCmd(fam, textbuf.Join(prefixes[i:end], ",")))
+				if !group.wireForm {
+					rr.updateRouteSel(excludeSel, nlriDelCmd(group.family, textbuf.Join(prefixes[i:end], ",")))
+					continue
+				}
+				// RFC 8277 Section 2.4: "When using an MP_UNREACH_NLRI
+				// attribute to withdraw a route whose NLRI was previously
+				// specified in an MP_REACH_NLRI attribute, the lengths and
+				// values of the respective prefixes must match, and the
+				// respective AFI/SAFIs must match." Native bytes keep RD
+				// and prefix; RFC 7911 framing keeps the identifier,
+				// including zero.
+				command.Reset().Str("update hex nlri ").Str(group.family)
+				if group.addPath {
+					command.Str(" addpath")
+				}
+				for _, prefix := range prefixes[i:end] {
+					command.Str(" del ").Str(prefix)
+				}
+				rr.updateRouteSel(excludeSel, command.String())
 			}
 		}
 	}()

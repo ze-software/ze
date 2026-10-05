@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-05",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -178,23 +179,23 @@
       "verdict": "enforced"
     },
     "RFC3748-4-5": {
-      "note": "Clauses: authenticator discards Codes other than 1-4; peer discards them. Authenticator: Codes 0,5,6,255 fail on out != nil, and the next Identity Response must still open MS-CHAPv2. Peer: eapdWantDiscarded on each undefined Code, then the Identity Request must still draw an Identity Response. Positive: defined Codes 1,3,4 draw a Failure from the authenticator (out == nil fails) and the peer answers a Request and returns ErrEAPFailure on Failure.",
+      "note": "RFC 3748 Section 4 requires undefined Codes to be silently discarded by both roles. TestRFC3748UndefinedCodesAreSilentlyDiscarded checks Codes 0,5,6,255: authenticator output must be nil; peer output must have Discarded=true and no error, response, completion or key; following Identity packets must still work. Its corrected negative controls exercise a valid authenticator Identity Response, a peer Identity Request and matching Failure, without requiring replies to wrong-role Codes. These preserve the existing unknown-Code proof but do not enforce the peer clause at the exchange-budget boundary: PeerSession.Process (internal/core/eap/peer.go) increments rounds and returns ErrTooManyRounds with peerStateFailed above maxEAPRounds=20 before its undefined-Code guard. Twenty-one undefined packets therefore produce a terminal error; twenty discards also exhaust the next valid packet's budget. The four-packet test does not detect this. handleEAPResponse (internal/component/ike/engine/fsm.go) converts that error to StateDead. Verdict concerns this uncovered undefined-Code behavior, not the separate unchanged authenticator wrong-role defect. Source inspection only; no execution or discrimination result claimed.",
       "requirement_sha": "b79c6b2da2e91564",
       "tests": {
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "34f6e882c4ad0ef2",
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "34f6e882c4ad0ef2"
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "e0e4c426f5444d02",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "e0e4c426f5444d02"
       },
       "units": {
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "810030b7452aa2f3",
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "810030b7452aa2f3"
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "8296d97469eb1da3",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "8296d97469eb1da3"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3748-4.1-1": {
       "note": "'Only in reply to a valid Request': TestRFC3748PeerAnswersNoInvalidRequest (a Request of another method mid-method and a method Request after Success each discarded, a valid Request answered). 'Never retransmitted on a timer': TestRFC3748PeerNeverRetransmitsOnATimer walks PeerSession for a time.Timer, time.Ticker or chan time.Time (none), checks Process is the only method returning *Packet or PeerResult, and shows an answered peer handed an early EAP-Success returns no Response and marks it Discarded. PeerSession has no transport, so Process is its only send path. Limit: the reflection does not look for a func-typed send callback; adding one would also add a send path the method-set check misses. All units recorded.",
       "requirement_sha": "22dd14ed9eba9a6c",
       "tests": {
-        "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "0491dc997a27dbd8",
+        "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "24aa543c2cc9f42d",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerAnswersNoInvalidRequest": "a4c2ccc90d93cad9",
         "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "5b577a81c25bf218"
       },

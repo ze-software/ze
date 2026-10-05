@@ -371,7 +371,7 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	}
 
 	// Standard YANG node types
-	//nolint:exhaustive // Only handle types relevant to config schema
+	//exhaustive:ignore // Only leaf and directory data entries project into config schema nodes.
 	switch entry.Kind {
 	case gyang.LeafEntry:
 		// leaf-list without ze:syntax extension — accepts single value or bracket list
@@ -1113,7 +1113,6 @@ func yangTypeToValueType(t *gyang.YangType) ValueType {
 		return TypeASN
 	}
 
-	//nolint:exhaustive // default handles all other types
 	switch t.Kind {
 	case gyang.Ystring:
 		return TypeString
@@ -1129,7 +1128,11 @@ func yangTypeToValueType(t *gyang.YangType) ValueType {
 		return TypeInt
 	case gyang.Yenum:
 		return TypeString // Enums stored as strings
+	case gyang.Ynone, gyang.Ybinary, gyang.Ybits, gyang.Ydecimal64,
+		gyang.Yidentityref, gyang.YinstanceIdentifier, gyang.Yleafref, gyang.Yunion:
+		return TypeString
 	default:
+		// Plugin-supplied YANG kinds are open; retain string storage for unknown kinds.
 		return TypeString
 	}
 }

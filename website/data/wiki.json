@@ -125,6 +125,11 @@
           "summary": "Every committed configuration in Ze is kept."
         },
         {
+          "title": "Backup and Restore",
+          "slug": "backup-and-restore",
+          "summary": "Ze keeps its credentials, keys and every committed configuration in one store: a database/ directory in the configuration folder (/etc/ze on a packaged install, /perm/ze on the appliance)."
+        },
+        {
           "title": "System",
           "slug": "system",
           "summary": "The system { } block carries the identity of the Ze instance and the global settings that do not belong to a specific subsystem."
@@ -223,6 +228,11 @@
           "title": "IPsec VPN",
           "slug": "ipsec",
           "summary": "Ze implements native IKEv2 in Go for route-based IPsec VPN tunnels."
+        },
+        {
+          "title": "Path MTU",
+          "slug": "path-mtu",
+          "summary": "show mtu measures the path MTU to every configured IPsec peer and to a reference address, works out what each tunnel can carry from the transform it actually negotiated, and says whether each XFRM..."
         },
         {
           "title": "TACACS+ AAA",
@@ -562,12 +572,22 @@
         {
           "title": "bgp-rpki",
           "slug": "bgp-rpki",
-          "summary": "RPKI origin validation via the RTR protocol (RFC 6811, RFC 8210) and ASPA path verification with policy enforcement (RTR v2, RFC 9582, draft-ietf-sidrops-aspa-verification)."
+          "summary": "RPKI origin validation via the RTR protocol (RFC 6811, RFC 8210) and ASPA path verification with policy enforcement (RTR v2 from draft-ietf-sidrops-8210bis-27, verification from..."
         },
         {
           "title": "bgp-rpki-decorator",
           "slug": "bgp-rpki-decorator",
           "summary": "Correlates UPDATE events and RPKI validation events into merged update-rpki events for consumer plugins that want both in one envelope."
+        },
+        {
+          "title": "bgp-ls-export",
+          "slug": "bgp-ls-export",
+          "summary": "BGP-LS origination (RFC 9552)."
+        },
+        {
+          "title": "bgp-epe",
+          "slug": "bgp-epe",
+          "summary": "BGP Egress Peer Engineering (RFC 9086)."
         },
         {
           "title": "bgp-aigp",
@@ -582,7 +602,7 @@
         {
           "title": "bgp-llnh",
           "slug": "bgp-llnh",
-          "summary": "Link-Local Next Hop for IPv6 (RFC 2545)."
+          "summary": "Link-Local Next Hop capability (BGP capability code 77)."
         },
         {
           "title": "bgp-softver",
@@ -607,7 +627,7 @@
         {
           "title": "bgp-nlri-ls",
           "slug": "bgp-nlri-ls",
-          "summary": "BGP Link-State (RFC 7752) and its VPN variant."
+          "summary": "BGP Link-State (RFC 9552, which obsoletes RFC 7752) and its VPN variant."
         },
         {
           "title": "bgp-nlri-labeled",

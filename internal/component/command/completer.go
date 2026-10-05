@@ -309,8 +309,8 @@ func (c *TreeCompleter) GhostText(input string) string {
 	// For pipe completions, extract the last word after the pipe.
 	// When pipe has sub-args (e.g., "| json c"), lastWord should be "c".
 	var lastWord string
-	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
-		fields := strings.Fields(strings.TrimSpace(input[pipeIdx+1:]))
+	if _, afterPipe, found := strings.CutLast(input, "|"); found {
+		fields := strings.Fields(strings.TrimSpace(afterPipe))
 		if len(fields) > 0 {
 			lastWord = fields[len(fields)-1]
 		}

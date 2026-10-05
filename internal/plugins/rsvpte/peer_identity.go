@@ -90,6 +90,7 @@ func (e *engine) updatePeerIdentity(source string, snapshot *linkstateevents.Sna
 	if snapshot == nil {
 		return
 	}
+	//exhaustive:ignore // Only native IGP snapshots contribute peer address ownership; other protocols are ignored.
 	switch snapshot.Domain.Protocol {
 	case linkstateevents.OSPFv2, linkstateevents.OSPFv3, linkstateevents.ISISLevel1, linkstateevents.ISISLevel2:
 	default:

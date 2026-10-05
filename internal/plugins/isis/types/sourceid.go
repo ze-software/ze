@@ -39,16 +39,16 @@ func NewSourceID(sys SystemID, pseudonode uint8) SourceID {
 func ParseSourceID(s string) (SourceID, error) {
 	// The pseudonode octet is the final '.'-separated group; the System ID is
 	// everything before it.
-	dot := strings.LastIndexByte(s, '.')
-	if dot < 0 {
+	system, pseudonode, found := strings.CutLast(s, ".")
+	if !found {
 		return SourceID{}, ErrBadGrouping
 	}
-	sys, err := ParseSystemID(s[:dot])
+	sys, err := ParseSystemID(system)
 	if err != nil {
 		return SourceID{}, err
 	}
 	var pn [1]byte
-	if n, err := parseHexOctets(pn[:], s[dot+1:]); err != nil || n != 1 {
+	if n, err := parseHexOctets(pn[:], pseudonode); err != nil || n != 1 {
 		if err != nil {
 			return SourceID{}, err
 		}

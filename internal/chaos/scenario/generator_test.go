@@ -266,6 +266,8 @@ func TestProfileConnectionMode(t *testing.T) {
 			activeCount++
 		case ModePassive:
 			passiveCount++
+		default:
+			panic("BUG: invalid generated connection mode")
 		}
 	}
 	// With 10 peers, we expect at least 1 of each mode

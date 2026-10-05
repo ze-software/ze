@@ -173,6 +173,8 @@ func (r *Report) Lines() []string {
 			looked.Str("  Looked for:  ").Str(r.Store).String(),
 			"  The directory holds no transcript with a recorded API call, so",
 			"  there is nothing to measure.")
+	default:
+		panic("BUG: unexpected token report state")
 	}
 
 	var store textbuf.Buffer

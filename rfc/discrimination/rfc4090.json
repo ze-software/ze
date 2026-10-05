@@ -593,7 +593,7 @@
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/frr.go::selectBypass",
       "producer-sha": "c78b83e2ef5ceb5b",
-      "break": "line 313: \"!=\" -> \"==\""
+      "break": "line 313: \"!=\" -\u003e \"==\""
     },
     {
       "rid": "RFC4090-6.2-1",
@@ -604,7 +604,7 @@
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/register.go::setupBypass",
       "producer-sha": "a1f576fd10bcc94f",
-      "break": "line 875: \"bc.MergePoint\" -> \"cfg.RouterID\""
+      "break": "line 875: \"bc.MergePoint\" -\u003e \"cfg.RouterID\""
     },
     {
       "rid": "RFC4090-6.4-1",
@@ -762,24 +762,24 @@
     },
     {
       "rid": "RFC4090-7.2-1",
-      "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
-      "unit-sha": "f89d9a1ee04764f9",
-      "claim-sha": "ee71347b4c3be82d",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-      "producer-sha": "0bcc1c13070b4f95",
-      "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4090-7.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
       "unit-sha": "f89d9a1ee04764f9",
       "claim-sha": "71637b8fb5964675",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-      "producer-sha": "0bcc1c13070b4f95",
+      "producer-sha": "6284526bbf21cbbe",
+      "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-7.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
+      "unit-sha": "f89d9a1ee04764f9",
+      "claim-sha": "ee71347b4c3be82d",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
+      "producer-sha": "6284526bbf21cbbe",
       "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

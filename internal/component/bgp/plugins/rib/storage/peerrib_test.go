@@ -1,11 +1,13 @@
 package storage
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -231,4 +233,108 @@ func TestPeerRIB_InsertEntry(t *testing.T) {
 	e2, ok := rib.Lookup(family.IPv4Unicast, nlri2)
 	require.True(t, ok)
 	assert.True(t, entriesEqual(e1, e2), "shared attrs should produce same handles")
+}
+
+// TestPeerRIBRetainedPathsSurviveReplacement covers both append operations,
+// ADD-PATH framing, and label side-data. Two independent snapshots survive
+// replacement, and the final release returns every old unique pool handle.
+func TestPeerRIBRetainedPathsSurviveReplacement(t *testing.T) {
+	prefix := netip.MustParsePrefix("198.18.247.0/24")
+	for _, tc := range []struct {
+		name string
+		fam family.Family
+		key []byte
+		labeled bool
+	}{
+		{"prefix", family.IPv4Unicast, []byte{24, 198, 18, 247}, false},
+		{"labeled", family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}, []byte{24, 198, 18, 247}, true},
+		{"opaque", family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState}, bgpLSNodeNLRI(91, 65091), false},
+	} {
+		for _, addPath := range []bool{false, true} {
+			name := tc.name
+			if addPath {
+				name += "/add-path"
+			}
+			t.Run(name, func(t *testing.T) {
+				rib := NewPeerRIB("192.0.2.247")
+				defer rib.Release()
+				rib.SetAddPath(tc.fam, addPath)
+				wire := tc.key
+				if addPath {
+					wire = append([]byte{0, 0, 0, 91}, tc.key...)
+				}
+				attrs := []byte{
+					0x40, 1, 1, 0,
+					0x40, 2, 6, 2, 1, 0xFE, 0xDC, 0xBA, 0x98,
+					0x40, 3, 4, 198, 18, 247, 246,
+				}
+				rib.Insert(tc.fam, attrs, wire)
+				oldLabels := []uint32{1048570, 1048569}
+				if tc.labeled {
+					h := pool.InternLabels(oldLabels)
+					if !rib.SetLabelsIfRouteExists(tc.fam, wire, h) {
+						_ = pool.Labels.Release(h)
+						t.Fatal("could not attach labels")
+					}
+				}
+				appendPaths := func(dst []PrefixPath) ([]PrefixPath, bool) {
+					if IsCIDRFamily(tc.fam) {
+						return rib.AppendPrefixPathsRetained(tc.fam, prefix, dst)
+					}
+					return rib.AppendKeyPathsRetained(tc.fam, tc.key, dst)
+				}
+				var scratch [2]PrefixPath
+				paths, storedAddPath := appendPaths(scratch[:0])
+				defer func() {
+					for i := range paths {
+						paths[i].Release()
+					}
+				}()
+				require.Len(t, paths, 1)
+				require.Equal(t, addPath, storedAddPath)
+				paths, _ = appendPaths(paths)
+				require.Len(t, paths, 2)
+				if addPath {
+					require.Equal(t, uint32(91), paths[0].PathID)
+				}
+				if !IsCIDRFamily(tc.fam) {
+					require.Equal(t, string(tc.key), paths[0].Route)
+				}
+				asPath := paths[0].Entry.ASPath
+				nextHop := paths[0].Entry.GetBundle().NextHop
+				labels := paths[0].Labels
+
+				require.True(t, rib.Remove(tc.fam, wire))
+				rib.Insert(tc.fam, []byte{0x40, 1, 1, 2}, wire)
+				if tc.labeled {
+					h := pool.InternLabels([]uint32{1048568})
+					if !rib.SetLabelsIfRouteExists(tc.fam, wire, h) {
+						_ = pool.Labels.Release(h)
+						t.Fatal("could not attach replacement labels")
+					}
+				}
+				data, err := pool.ASPath.Get(asPath)
+				require.NoError(t, err)
+				require.Equal(t, []byte{2, 1, 0xFE, 0xDC, 0xBA, 0x98}, data)
+				data, err = pool.NextHop.Get(nextHop)
+				require.NoError(t, err)
+				require.Equal(t, []byte{198, 18, 247, 246}, data)
+				if tc.labeled {
+					require.Equal(t, oldLabels, pool.ResolveLabels(labels))
+				}
+				paths[0].Release()
+				_, err = pool.ASPath.Get(asPath)
+				require.NoError(t, err, "second snapshot still owns AS_PATH")
+				paths[1].Release()
+				_, err = pool.ASPath.Get(asPath)
+				require.Error(t, err, "final snapshot must release AS_PATH")
+				_, err = pool.NextHop.Get(nextHop)
+				require.Error(t, err, "final snapshot must release bundle attributes")
+				if tc.labeled {
+					_, err = pool.Labels.Get(labels)
+					require.Error(t, err, "final snapshot must release label side-data")
+				}
+			})
+		}
+	}
 }

@@ -82,6 +82,8 @@ func adjacencyInState(t *testing.T, state State) *Adjacency {
 		ReceiveHello(adj, p2pLocal(t), threeWayHello(t, packet.AdjThreeWayDown), t0)
 	case StateUp:
 		ReceiveHello(adj, p2pLocal(t), threeWayHello(t, packet.AdjThreeWayInitializing), t0)
+	default:
+		panic("BUG: invalid adjacency fixture state")
 	}
 	if adj.State != state {
 		t.Fatalf("setup: adjacency in %v, want %v", adj.State, state)

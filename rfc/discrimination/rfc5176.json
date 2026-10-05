@@ -20,18 +20,7 @@
       "claim-sha": "af69f11532db9897",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-      "producer-sha": "055648896d92918c",
-      "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5176-2.3-1",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176InvalidCodeDiscarded",
-      "unit-sha": "389b4efc422d21d9",
-      "claim-sha": "fe940e9de9b4175e",
-      "route": "revert",
-      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-      "producer-sha": "055648896d92918c",
+      "producer-sha": "108e86a933e4bab9",
       "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +31,18 @@
       "claim-sha": "0d249a9b2f8618db",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-      "producer-sha": "055648896d92918c",
+      "producer-sha": "108e86a933e4bab9",
+      "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176InvalidCodeDiscarded",
+      "unit-sha": "389b4efc422d21d9",
+      "claim-sha": "fe940e9de9b4175e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
+      "producer-sha": "108e86a933e4bab9",
       "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -69,24 +69,24 @@
     },
     {
       "rid": "RFC5176-2.3-3",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
-      "unit-sha": "f1fa34d78e3e42d2",
-      "claim-sha": "3f2f84ff8d2e0986",
-      "route": "revert",
-      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-      "producer-sha": "055648896d92918c",
-      "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5176-2.3-3",
       "polarity": "negative",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
       "unit-sha": "f1fa34d78e3e42d2",
       "claim-sha": "1d88625089bff3ba",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-      "producer-sha": "055648896d92918c",
+      "producer-sha": "108e86a933e4bab9",
+      "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-2.3-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
+      "unit-sha": "f1fa34d78e3e42d2",
+      "claim-sha": "3f2f84ff8d2e0986",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
+      "producer-sha": "108e86a933e4bab9",
       "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -399,17 +399,6 @@
     },
     {
       "rid": "RFC5176-3.3-1",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse",
-      "unit-sha": "45643fcb0d66a72c",
-      "claim-sha": "57d832711e155a61",
-      "route": "revert",
-      "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
-      "producer-sha": "f62a214577dacfe5",
-      "break": "body of findSessions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5176-3.3-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds",
       "unit-sha": "4e56466b04916916",
@@ -429,6 +418,17 @@
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
       "producer-sha": "e4e2644e7cdfd24e",
       "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse",
+      "unit-sha": "45643fcb0d66a72c",
+      "claim-sha": "57d832711e155a61",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
+      "producer-sha": "f62a214577dacfe5",
+      "break": "body of findSessions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5176-3.3-1",
@@ -509,24 +509,24 @@
     },
     {
       "rid": "RFC5176-3.4-1",
-      "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields",
-      "unit-sha": "e1bb27f9547a47a9",
-      "claim-sha": "334e913b60e69f57",
-      "route": "revert",
-      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-      "producer-sha": "055648896d92918c",
-      "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5176-3.4-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields",
       "unit-sha": "e1bb27f9547a47a9",
       "claim-sha": "792c4a1a870733e4",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
-      "producer-sha": "055648896d92918c",
+      "producer-sha": "108e86a933e4bab9",
+      "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5176-3.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields",
+      "unit-sha": "e1bb27f9547a47a9",
+      "claim-sha": "334e913b60e69f57",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
+      "producer-sha": "108e86a933e4bab9",
       "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

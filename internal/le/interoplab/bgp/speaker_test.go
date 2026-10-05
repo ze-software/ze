@@ -317,7 +317,7 @@ func (speakerTimeoutError) Temporary() bool { return true }
 
 func TestSpeakerReadDistinguishesIdleFromMidMessageTimeout(t *testing.T) {
 	idle := &scriptedSpeakerConn{reads: []scriptedSpeakerRead{{err: speakerTimeoutError{}}}}
-	if _, timedOut, err := readSpeakerExact(idle, 4); err != nil || !timedOut {
+	if _, timedOut, err := readSpeakerExact(idle, 4, time.Now().Add(time.Second), true); err != nil || !timedOut {
 		t.Fatalf("idle read = timeout %v, error %v", timedOut, err)
 	}
 	split := &scriptedSpeakerConn{reads: []scriptedSpeakerRead{
@@ -325,9 +325,36 @@ func TestSpeakerReadDistinguishesIdleFromMidMessageTimeout(t *testing.T) {
 		{err: speakerTimeoutError{}},
 		{data: []byte{0xcd, 0xef, 0x01}},
 	}}
-	data, timedOut, err := readSpeakerExact(split, 4)
+	data, timedOut, err := readSpeakerExact(split, 4, time.Now().Add(time.Second), true)
 	if err != nil || timedOut || !bytes.Equal(data, []byte{0xab, 0xcd, 0xef, 0x01}) {
 		t.Fatalf("split read = %x, timeout %v, error %v", data, timedOut, err)
+	}
+}
+
+func TestSpeakerReadSeparatesQuietExpiryFromIncompleteFrame(t *testing.T) {
+	deadline := time.Now().Add(-time.Second)
+	idle := &scriptedSpeakerConn{reads: []scriptedSpeakerRead{{err: speakerTimeoutError{}}}}
+	if _, _, quiet, err := readSpeakerMessage(idle, deadline); err != nil || !quiet {
+		t.Fatalf("quiet capture expiry: quiet=%t err=%v", quiet, err)
+	}
+	partialHeader := &scriptedSpeakerConn{reads: []scriptedSpeakerRead{
+		{data: []byte{0xff}},
+		{err: speakerTimeoutError{}},
+	}}
+	if _, _, quiet, err := readSpeakerMessage(partialHeader, deadline); err == nil || quiet {
+		t.Fatalf("incomplete header classified as quiet expiry: quiet=%t err=%v", quiet, err)
+	}
+	header := speakerMessage(bgpUpdate, []byte{0, 0, 0, 0})[:bgpHeaderLength]
+	for _, fragment := range [][]byte{nil, {0, 0}} {
+		reads := []scriptedSpeakerRead{{data: header}}
+		if len(fragment) != 0 {
+			reads = append(reads, scriptedSpeakerRead{data: fragment})
+		}
+		reads = append(reads, scriptedSpeakerRead{err: speakerTimeoutError{}})
+		connection := &scriptedSpeakerConn{reads: reads}
+		if _, _, quiet, err := readSpeakerMessage(connection, deadline); err == nil || quiet {
+			t.Fatalf("incomplete body %x classified as quiet expiry: quiet=%t err=%v", fragment, quiet, err)
+		}
 	}
 }
 

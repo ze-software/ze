@@ -31,8 +31,10 @@ func v6RILSType(scope OpaqueScope) ospfv3types.LSType {
 		return ospfv3types.LSTypeRouterInformationLink
 	case OpaqueScopeAS:
 		return ospfv3types.LSTypeRouterInformationAS
-	default:
+	case OpaqueScopeArea:
 		return ospfv3types.LSTypeRouterInformationArea
+	default:
+		panic("BUG: invalid OSPF Router Information scope")
 	}
 }
 

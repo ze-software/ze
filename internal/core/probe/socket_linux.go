@@ -63,8 +63,10 @@ func pmtuDiscValue(df DFMode) int {
 		return unix.IP_PMTUDISC_PROBE
 	case DFHonorCache:
 		return unix.IP_PMTUDISC_DO
-	default:
+	case DFUnspecified, DFOff:
 		return unix.IP_PMTUDISC_DONT
+	default:
+		panic("BUG: probe: invalid DF mode")
 	}
 }
 

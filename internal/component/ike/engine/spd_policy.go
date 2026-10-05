@@ -182,6 +182,7 @@ func spdActionName(a dataplane.SPAction) string {
 		return "bypass"
 	case dataplane.SPActionDiscard:
 		return "discard"
+	default:
+		panic("BUG: unknown operator SPD action")
 	}
-	return "unknown"
 }

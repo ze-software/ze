@@ -81,7 +81,6 @@ const (
 	peerStateNameActive      = "active"
 	peerStateNameEstablished = "established"
 	peerStateNameIdleHold    = "idle-hold"
-	peerStateNameUnknown     = "unknown"
 )
 
 func (s PeerState) String() string {
@@ -97,7 +96,7 @@ func (s PeerState) String() string {
 	case PeerStateIdleHold:
 		return peerStateNameIdleHold
 	default:
-		return peerStateNameUnknown
+		panic("BUG: invalid peer state")
 	}
 }
 
@@ -1111,12 +1110,16 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 		}
 	}
 
-	if p.session != nil {
-		p.session.setRecvCtxID(p.recvCtxID)
-		p.session.setSendCtxID(p.sendCtxID)
-	}
-
+	// Capture this connection before releasing mu. A write callback acquires
+	// p.mu, so context publication MUST NOT wait for writeMu while holding it.
+	session := p.session
+	recvCtxID, sendCtxID := p.recvCtxID, p.sendCtxID
 	p.mu.Unlock()
+
+	if session != nil {
+		session.setRecvCtxID(recvCtxID)
+		session.setSendCtxID(sendCtxID)
+	}
 
 	p.refreshForwardFacts()
 }
@@ -1519,7 +1522,10 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 		if !p.canUseNextHopFor(addr, fam) {
 			return netip.Addr{}, ErrNextHopIncompatible
 		}
+	case bgptypes.NextHopUnset:
+		return netip.Addr{}, ErrNextHopUnset
 	default:
+		// API-supplied policies form an open set; unknown values remain unset errors.
 		return netip.Addr{}, ErrNextHopUnset
 	}
 	if p.linkLocalOnlyNextHopRefused(addr, fam) {
@@ -1571,6 +1577,7 @@ func rfc8950Family(fam family.Family) bool {
 	// protocol. This document extends the set of usable next-hop address
 	// families to include IPv6 in addition to IPv4 when advertising an IPv4 or
 	// VPN-IPv4 NLRI."
+	//exhaustive:ignore // Only the five IPv4 SAFIs selected here use this next-hop gate.
 	switch fam.SAFI {
 	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMPLSLabel, family.SAFIVPN, safiVPNMulticast:
 		return true
@@ -2192,6 +2199,7 @@ func handshakeInFlight(session *Session) bool {
 	if session == nil {
 		return false
 	}
+	//exhaustive:ignore // Only OPEN handshake phases count as an in-flight handshake.
 	switch session.State() {
 	case fsm.StateOpenSent, fsm.StateOpenConfirm:
 		return true

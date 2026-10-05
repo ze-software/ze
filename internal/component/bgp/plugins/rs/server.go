@@ -147,6 +147,8 @@ func SetLogger(l *slog.Logger) {
 // label or Compatibility value either carried (RFC 8277 Sections 2.4 and 2.5).
 // Its peer-down withdrawal still goes out as the announcement's hex, which the
 // set keeps in the entry rather than the key (withdrawalEntry).
+// VPN uses its registered RD/prefix identity in nlriStr, with its Path Identifier
+// and presence in the other key fields; the native hex stays in withdrawalEntry.
 type withdrawalKey struct {
 	fam      family.Family
 	prefix   netip.Prefix
@@ -156,12 +158,11 @@ type withdrawalKey struct {
 	addPath  bool
 }
 
-// withdrawalEntry is what the withdrawal set holds for one key: the token its
-// peer-down withdrawal names the route by, when the key is not that token. For
-// a CIDR-keyed route, wire is the hex of the latest announcement and addPath
-// says it carries a path identifier; for every other route both are zero and
-// the key alone names it. A re-announcement overwrites the entry, so a relabel
-// replaces the bytes the withdrawal goes out with.
+// withdrawalEntry retains the native announcement when the key is a CIDR or
+// registered VPN identity rather than its wire encoding. wire holds its hex;
+// addPath records the framing, independently of the identifier's value.
+// Other families retain their existing key-as-payload representation.
+// Re-announcement replaces the bytes used for a later peer-down withdrawal.
 type withdrawalEntry struct {
 	wire    string
 	addPath bool
@@ -342,7 +343,7 @@ func RunRouteServer(conn net.Conn) int {
 			if !ok {
 				continue
 			}
-			switch se.EventType { //nolint:exhaustive // RS handles update+state+open+refresh on structured path
+			switch se.EventType {
 			case rpc.EventKindUpdate:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					rs.dispatchStructured(se.PeerAddress, msg)
@@ -363,6 +364,12 @@ func RunRouteServer(conn net.Conn) int {
 						rs.handleRefresh(ev)
 					}
 				}
+			case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
+				rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
+				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+				// These events do not change route-server state.
+			default:
+				// The plugin event set is open; unknown events leave route-server state unchanged.
 			}
 		}
 		return nil

@@ -207,6 +207,12 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			"peer", s.settings.Address, "count", len(result.DuplicateRanges))
 	}
 
+	// RFC 9012 Section 13; RFC 9830 Sections 2.2 and 2.3. Attribute ranges
+	// MUST be deduplicated first, and both returned values MUST be used so
+	// later discards edit the published body rather than the received bytes.
+	wu, pathAttrs = applyTunnelEncap(wu, pathAttrs, hasNLRI, result)
+	body = wu.Payload()
+
 	// RFC 7606 Section 5.4: discard routes whose NLRI type ze does not implement, in
 	// families whose own specification has not overridden that rule. RFC 9552 Section 8.2.2:
 	// discard a Link-State NLRI whose syntax is malformed in a way ze can skip past. Runs on
@@ -259,6 +265,8 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			}
 			return wu, message.RFC7606ActionTreatAsWithdraw, nil
 		case typedNLRIKept:
+		default:
+			panic("BUG: invalid typed NLRI outcome")
 		}
 	}
 
@@ -333,9 +341,9 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			return s.rfc7606ResetNotification(wu, result.Description, result.Notification)
 		}
 		return s.rfc7606SessionReset(wu, result.Description)
+	default:
+		panic("BUG: invalid RFC 7606 action")
 	}
-
-	return s.publishBase(wu), message.RFC7606ActionNone, nil
 }
 
 // firstASMismatch checks a validated, reconstructed path, not the peer's AS_TRANS

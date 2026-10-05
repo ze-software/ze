@@ -219,6 +219,9 @@ func renderScenario(source, target string, network interoplab.Network) error {
 			if ipv6Token != "" {
 				text = strings.ReplaceAll(text, baseIPv6Prefix, ipv6Token)
 			}
+			if relative == "inject.msg" {
+				text = renderInjectedNextHops(text, ipv4)
+			}
 			// Both ze configs get the CLI block: the reload one replaces the
 			// running config, and a scenario that lost the `interop` user at
 			// SIGHUP would fail every assertion after it for a reason that has

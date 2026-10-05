@@ -139,7 +139,6 @@ func tokensToNestedMap(tokens []token) map[string]any {
 			break
 		}
 
-		//nolint:exhaustive // structural tokens (RBrace, brackets, parens, EOF) at value position are skipped
 		switch tokens[i].kind {
 		case tokenWord, tokenString:
 			// Could be "key value ;" or "key listkey { ... }"
@@ -186,6 +185,8 @@ func tokensToNestedMap(tokens []token) map[string]any {
 		case tokenRBrace, tokenEOF, tokenLBracket, tokenRBracket, tokenLParen, tokenRParen:
 			// Structural tokens at value position — not a key-value pair, skip.
 			i++
+		default:
+			panic("BUG: invalid config token kind")
 		}
 
 		// Skip trailing semicolon.
@@ -203,7 +204,7 @@ func extractBraceContent(tokens []token, pos *int) []token {
 	start := *pos
 	depth := 1
 	for *pos < len(tokens) && depth > 0 {
-		//nolint:exhaustive // only counting braces
+		//exhaustive:ignore // Only counts matching braces while preserving intervening tokens.
 		switch tokens[*pos].kind {
 		case tokenLBrace:
 			depth++

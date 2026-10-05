@@ -325,12 +325,6 @@ func NewPeerSessionTLS(identity string, cfg *PeerTLSConfig) *PeerSession {
 // Process handles an incoming EAP packet (Request or Success/Failure) from the authenticator
 // and returns the peer's response. On EAP-Success, Done is true and MSK is set.
 func (ps *PeerSession) Process(request *Packet) PeerResult {
-	ps.rounds++
-	if ps.rounds > maxEAPRounds {
-		ps.state = peerStateFailed
-		return PeerResult{Err: ErrTooManyRounds}
-	}
-
 	// RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with
 	// other codes MUST be silently discarded by both authenticators and peers."
 	// The discard comes before every other guard, including the parked cause
@@ -338,6 +332,22 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 	// nothing about the session, not even that the session is over.
 	if request.Code == 0 || request.Code > CodeFailure {
 		return peerDiscard()
+	}
+
+	// RFC 3748 Section 2.3: "Similarly, EAP packets received with Code=2
+	// (Response) are demultiplexed by the EAP layer and delivered to the
+	// authenticator layer." This session is the peer, not that authenticator.
+	if request.Code == CodeResponse {
+		return peerDiscard()
+	}
+
+	// Only defined packets addressed to this role consume the exchange budget.
+	// Admission precedes even an exhausted budget: a discarded Code must not
+	// change the state or reveal a parked method failure.
+	ps.rounds++
+	if ps.rounds > maxEAPRounds {
+		ps.state = peerStateFailed
+		return PeerResult{Err: ErrTooManyRounds}
 	}
 
 	// A parked TLS failure outranks whatever arrives next. The reply the RFC asks
@@ -447,8 +457,8 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 // would end the exchange, and an authenticator that can end an exchange with
 // one forged packet is the denial of service this guard would have introduced.
 //
-// The session is not left open forever: maxEAPRounds counts a discarded packet
-// like any other, so a flood of them ends in ErrTooManyRounds.
+// Undefined and wrong-role Codes consume no round budget. Role-admitted packets
+// still count against maxEAPRounds; the IKE carrier also bounds retransmissions.
 func peerDiscard() PeerResult { return PeerResult{Discarded: true} }
 
 // Succeeded reports whether the exchange completed successfully.

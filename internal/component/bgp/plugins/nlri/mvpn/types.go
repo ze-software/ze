@@ -75,7 +75,7 @@ func (t MVPNRouteType) String() string {
 		return "shared-tree-join"
 	case MVPNSourceTreeJoin:
 		return "source-tree-join"
-	default:
+	default: // The wire route-type registry is open; retain numeric names.
 		return "type(" + textbuf.StringUint8(uint8(t)) + ")"
 	}
 }
@@ -89,6 +89,7 @@ func (t MVPNRouteType) String() string {
 // code 5, sharedjoin.py code 6, sourcejoin.py code 7, and GenericMVPN for the
 // rest), so the two implementations publish the same members for the same bytes.
 func (t MVPNRouteType) bodyParsed() bool {
+	//exhaustive:ignore // Selects only MVPN route types whose bodies are decoded.
 	switch t {
 	case MVPNSourceActive, MVPNSharedTreeJoin, MVPNSourceTreeJoin:
 		return true
@@ -125,8 +126,10 @@ func (t MVPNRouteType) name() string {
 		return "C-Multicast Source Tree Join route"
 	case MVPNIntraASIPMSIAD, MVPNInterASIPMSIAD, MVPNSPMSIAD, MVPNLeafAD:
 		return ""
+	default:
+		// The wire route-type registry is open; unknown types have no long name.
+		return ""
 	}
-	return ""
 }
 
 // MVPN represents one Multicast VPN NLRI (RFC 6514).

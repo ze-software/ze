@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -49,7 +48,7 @@ func (s PluginStage) String() string {
 	case StageRunning:
 		return "Running"
 	default:
-		return textbuf.StrIntStr("Unknown(", int64(s), ")")
+		panic("BUG: unknown plugin startup stage")
 	}
 }
 
@@ -604,7 +603,8 @@ func decodeCapabilityPayload(cap PluginCapability) ([]byte, error) {
 		return []byte(cap.Payload), nil
 	case rpc.CapEncodingUnspecified:
 		return nil, fmt.Errorf("capability encoding unspecified with payload %q", cap.Payload)
+	default:
+		// Plugin capability encodings are open to direct API callers.
+		return nil, fmt.Errorf("unknown encoding: %s", cap.Encoding)
 	}
-
-	return nil, fmt.Errorf("unknown encoding: %s", cap.Encoding)
 }

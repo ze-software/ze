@@ -344,7 +344,7 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 				}
 
 			case ppp.LCPConfigureAck:
-				switch state { //nolint:exhaustive // Only negotiation states are reachable.
+				switch state {
 				case ppp.LCPStateReqSent:
 					state = ppp.LCPStateAckRcvd
 				case ppp.LCPStateAckSent:
@@ -358,6 +358,11 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 						return lcpResult{}, err
 					}
 					state = ppp.LCPStateReqSent
+				case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed,
+					ppp.LCPStateStopped, ppp.LCPStateClosing, ppp.LCPStateStopping, ppp.LCPStateOpened:
+					// The other named states do not participate in this negotiation.
+				default:
+					panic("BUG: invalid LCP negotiation state")
 				}
 
 			case ppp.LCPConfigureNak, ppp.LCPConfigureReject:
@@ -726,8 +731,11 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 						return ipcpResult{}, err
 					}
 					state = ppp.LCPStateReqSent
+				case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed,
+					ppp.LCPStateStopped, ppp.LCPStateClosing, ppp.LCPStateStopping, ppp.LCPStateOpened:
+					// The other named states do not participate in this negotiation.
 				default:
-					// An Ack outside the three negotiation states changes nothing here.
+					panic("BUG: invalid IPCP negotiation state")
 				}
 			case ppp.LCPConfigureNak:
 				options, err := ppp.ParseIPCPOptions(pkt.Data)

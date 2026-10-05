@@ -161,7 +161,8 @@ func separateMPAttributes(attrs []byte) (base []byte, mpReaches, mpUnreaches [][
 
 		attrBytes := attrs[pos : pos+totalLen]
 
-		switch attribute.AttributeCode(typeCode) { //nolint:exhaustive // Only MP_* need special handling
+		//exhaustive:ignore // Partition MP attributes from the unchanged base attribute stream.
+		switch attribute.AttributeCode(typeCode) {
 		case attribute.AttrMPReachNLRI:
 			mpReaches = append(mpReaches, attrBytes)
 		case attribute.AttrMPUnreachNLRI:

@@ -43,7 +43,7 @@ func TestBGPLSPrefixCountCountsNLRIsNotPrefixBytes(t *testing.T) {
 	fk := familyKey(family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState})
 
 	for _, want := range []int{0, 1, 3, 7} {
-		assert.Equal(t, want, countPrefixEntries(fk, lsSection(want), false),
+		assert.Equal(t, want, countPrefixEntries(fk, lsSection(want), false, false),
 			"%d Link-State NLRIs must count as %d. The CIDR walk reads octet 0 as a "+
 				"prefix length, which for a Link-State NLRI is the high byte of the "+
 				"NLRI Type, so the number it produces is unrelated to what the peer "+
@@ -90,7 +90,7 @@ func TestUnicastCountingIsUnchanged(t *testing.T) {
 		"default route": {[]byte{0}, 1},
 		"empty":         {nil, 0},
 	} {
-		assert.Equal(t, tc.want, countPrefixEntries(fk, tc.data, false), name)
+		assert.Equal(t, tc.want, countPrefixEntries(fk, tc.data, false, false), name)
 	}
 }
 

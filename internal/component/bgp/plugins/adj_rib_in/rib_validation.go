@@ -242,9 +242,7 @@ func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compa
 		logger().Debug("applied early reject", "peer", peerAddr)
 		r.removeInstalled(peerAddr, routeKey)
 	default:
-		logger().Warn("early decision with unknown action, ignoring",
-			"peer", peerAddr, "action", ed.action)
-		return false
+		panic("BUG: invalid early validation action")
 	}
 	return true
 }

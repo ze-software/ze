@@ -39,7 +39,7 @@ type fwdBodyResult struct {
 }
 
 // fwdBodyCacheKey identifies output by framing and effective attribute treatment.
-// Both rails MUST use the same treatment for this key and forwardWire.
+// Both rails MUST use this treatment for shared input and owned materialization.
 type fwdBodyCacheKey struct {
 	destCtxID      bgpctx.ContextID
 	wire           *wireu.WireUpdate
@@ -56,11 +56,37 @@ type fwdParseCache struct {
 	sanitizedWire   *wireu.WireUpdate
 }
 
-// forwardWire applies the effective destination treatment on a body-cache miss.
+// forwardWire applies destination treatment to shared input on a body-cache miss.
 // The input MUST remain immutable: other destinations may preserve its attributes.
-// Already-normalized updates retain their bytes; a changed update is compacted
-// into one owned allocation cached for the current source wire.
-//
+// A changed payload borrows a read buffer; owner MUST retain it through async
+// dispatch and return it at cache eviction via returnFwdHandles.
+func (cache *fwdParseCache) forwardWire(base *wireu.WireUpdate, preserveOpaque bool, owner *ReceivedUpdate) (*wireu.WireUpdate, error) {
+	if preserveOpaque {
+		return base, nil
+	}
+	if cache.sanitizedSource == base {
+		return cache.sanitizedWire, nil
+	}
+	// RFC 4271 Section 5.
+	payload, handle, err := forwardOpaquePayload(base.Payload(), false)
+	if err != nil {
+		return nil, err
+	}
+	normalized := base
+	if payload != nil {
+		normalized = wireu.NewWireUpdate(payload, base.SourceCtxID())
+		normalized.SetSourceID(base.SourceID())
+		owner.adoptFwdHandle(handle)
+	}
+	cache.sanitizedSource, cache.sanitizedWire = base, normalized
+	return normalized, nil
+}
+
+// forwardOpaquePayload returns nil when treatment leaves the payload unchanged.
+// owned MUST be true only for unpublished, exclusively owned materializations.
+// Otherwise changed bytes borrow a read buffer: the caller MUST adopt the
+// returned handle before dispatch and MUST NOT return it until readers finish.
+// Errors return any borrowed handle here and hand out no buffer.
 // RFC 4271 Section 5: "Unrecognized non-transitive optional attributes MUST be
 // quietly ignored and not passed along to other BGP peers."
 // RFC 4271 Section 5: "If a path with an unrecognized transitive optional attribute
@@ -73,35 +99,41 @@ type fwdParseCache struct {
 //	0: flags | 1: code | 2: length (1 octet, or 2 with Extended Length) | value.
 //
 // Only flags and section length change; opaque values retain their received bytes.
-func (cache *fwdParseCache) forwardWire(base *wireu.WireUpdate, preserveOpaque bool) (*wireu.WireUpdate, error) {
-	if preserveOpaque {
-		return base, nil
-	}
-	if cache.sanitizedSource == base {
-		return cache.sanitizedWire, nil
-	}
-	payload := base.Payload()
+func forwardOpaquePayload(payload []byte, owned bool) ([]byte, BufHandle, error) {
 	sections, err := wire.ParseUpdateSections(payload)
 	if err != nil {
-		return nil, err
+		return nil, BufHandle{}, err
 	}
 	attrs := sections.Attrs(payload)
 	attrStart := 4 + sections.WithdrawnLen()
 	iter := attribute.NewAttrIterator(attrs)
 	var out []byte
+	var handle BufHandle
 	written := 0
 	for iter.Remaining() != 0 {
 		start := iter.Offset()
 		code, flags, _, ok := iter.Next()
 		if !ok {
-			return nil, fmt.Errorf("malformed attributes at forwarding boundary")
+			returnReadBuffer(handle)
+			return nil, BufHandle{}, fmt.Errorf("malformed attributes at forwarding boundary")
 		}
 		unknown := flags&attribute.FlagOptional != 0 && !code.Recognized()
 		drop := unknown && flags&attribute.FlagTransitive == 0
 		stamp := unknown && flags&attribute.FlagTransitive != 0 && flags&attribute.FlagPartial == 0
 		if out == nil && (drop || stamp) {
-			out = make([]byte, len(payload))
-			written = copy(out, payload[:attrStart+start])
+			if owned {
+				out = payload
+				written = attrStart + start
+			} else {
+				handle = getReadBuf(len(payload) > message.MaxMsgLen-message.HeaderLen)
+				out = handle.Buf
+				if len(out) < len(payload) {
+					returnReadBuffer(handle)
+					handle = BufHandle{}
+					out = make([]byte, len(payload)) // pool-fallback
+				}
+				written = copy(out, payload[:attrStart+start])
+			}
 		}
 		if out == nil {
 			continue
@@ -109,30 +141,34 @@ func (cache *fwdParseCache) forwardWire(base *wireu.WireUpdate, preserveOpaque b
 		if drop {
 			continue
 		}
-		n := copy(out[written:], attrs[start:iter.Offset()])
+		n := iter.Offset() - start
+		if !owned || written != attrStart+start {
+			copy(out[written:], attrs[start:iter.Offset()])
+		}
 		if stamp {
 			out[written] |= byte(attribute.FlagPartial)
 		}
 		written += n
 	}
-	normalized := base
-	if out != nil {
-		attrLen := written - attrStart
-		// The compacted section cannot exceed the input's uint16 wire length.
-		binary.BigEndian.PutUint16(out[attrStart-2:], uint16(attrLen)) //nolint:gosec // G115: bounded by parsed input
-		written += copy(out[written:], sections.NLRI(payload))
-		normalized = wireu.NewWireUpdate(out[:written], base.SourceCtxID())
-		normalized.SetSourceID(base.SourceID())
+	if out == nil {
+		return nil, BufHandle{}, nil
 	}
-	cache.sanitizedSource, cache.sanitizedWire = base, normalized
-	return normalized, nil
+	attrLen := written - attrStart
+	// The compacted section cannot exceed the input's uint16 wire length.
+	binary.BigEndian.PutUint16(out[attrStart-2:], uint16(attrLen)) //nolint:gosec // G115: bounded by parsed input
+	nlri := sections.NLRI(payload)
+	if !owned || written != attrStart+len(attrs) {
+		copy(out[written:], nlri)
+	}
+	written += len(nlri)
+	return out[:written], handle, nil
 }
 
 // buildFwdBody builds the rawBodies/updates for a single destination peer.
 // Handles wire-level splitting (RFC 8654), zero-copy forwarding, and re-encode.
 // Returns ok=false if the peer should be skipped (parse/split error).
-// The caller MUST pass forwardWire's effective wire here and key any cached
-// result by that same treatment, so a cache hit and a fresh build agree.
+// The caller MUST pass effective bytes from forwardWire or buildForwardPayload
+// and key cached results by that treatment, so a cache hit and a fresh build agree.
 func buildFwdBody(
 	peerWire *wireu.WireUpdate,
 	maxMsgSize int,
@@ -511,6 +547,7 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 
 		value := attrs[off+hdrLen : end]
 		newValue := value
+		//exhaustive:ignore // Only MP_REACH and MP_UNREACH carry NLRI framing that this conversion rewrites.
 		switch code {
 		case attribute.AttrMPReachNLRI:
 			mp, err := attribute.ParseMPReachNLRI(value)

@@ -29,6 +29,37 @@ This is the **implementation reference** for Pool + Wire design in API programs:
 | Pool with `Intern()` / `Get()` | Memory deduplication (RIB mode) |
 | RIB keyed by attribute handle | Efficient route grouping |
 
+### JSON received-route reconciliation
+
+Received JSON UPDATEs apply Adj-RIB-In withdrawals before announcements, then
+reconcile the final stored candidates after releasing the peer lock. Reconciliation
+retains the action: withdrawals use the registered withdrawal splitter and semantic
+key, while announcements use the registered announcement framing. RFC 8277
+Compatibility bytes never identify a route or select a label-stack boundary.
+
+The JSON receive path stores labeled announcements through the same label/CIDR
+insertion operation as structured events. It also restores the family next hop
+that JSON carries separately from `raw.attributes`, using the existing MP_REACH
+writer before interning attributes. Thus a surviving route retains its own label
+binding and usable next hop when another peer withdraws.
+
+Registered CIDR keys normalize labeled NLRIs before prefix elections. VPN keys
+retain the Route Distinguisher and prefix; ADD-PATH identifies only the received
+path removed from its source peer, not a separate election. Removing the best
+path publishes the surviving candidate's decision, or one withdrawal when no
+candidate remains. Repeating the withdrawal publishes no duplicate change.
+
+Labeled best-path records retain an owned snapshot of the last published label
+values, separate from reusable attribute-pool handles and subscriber payloads.
+Unchanged labels participate in normal same-best suppression; a real relabel
+still publishes a replacement. The snapshot exists only for a live labeled best
+record and is removed on withdrawal or peer purge. Ordinary CIDR records remain
+pointer-free and carry no label snapshot.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- receivedFamilyAttrs, reconcileReceived, reconcileReceivedNLRIs -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- handleReceivedPool, insertPoolNLRIs -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore, checkRouteBestChange, purgeBestPrevForPeer -->
+
 ### Adj-RIB-Out native inventory
 
 The RIB plugin keeps one sent inventory for every registered NLRI splitter.
@@ -58,8 +89,17 @@ releasing the entry's old reference. Purges encode their withdrawals before
 releasing the removed references, then dispatch after unlocking. Lifecycle
 feedback is ignored so it cannot delete another source's newer advertisement.
 
+GR supplies the explicit `on-down` argument with its initial retention allowlist.
+Only that handoff silently removes sent entries for the source's nonretained
+families: their ordinary DOWN withdrawals belong to the forwarding owner (RS).
+Without `on-down`, the public command reconciles and withdraws removed families
+itself, because an established source has no pending forwarding DOWN owner.
+Retained families remain in this inventory; later NO_LLGR removal, EOR purge,
+expiry and release encode their source-specific withdrawals here.
+
 <!-- source: internal/component/bgp/plugins/rib/ribout_entry.go -- ribOutRouteKey, reconstructRoute -->
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- storeSentEntries, removeSentNLRIs -->
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- retainSentSourceFamiliesLocked, reconcileSentSourceLocked, dispatchSentLifecycle -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- formatCursorCommands -->
 
 ### Supersedes
@@ -715,6 +755,13 @@ exception. Its bounded relay preserves source identity and generation and uses
 the reactor's destination session, family and export checks. Route-server
 snapshots retain the received-generation cut; RS and RR also reject stale
 destination replay generations.
+Retained attribute reconstruction includes the separately pooled Extended
+Communities field. Authorization recovery therefore keeps a rule's traffic-rate
+action rather than advertising the same NLRI as a no-action rule when the first
+live forward preceded authorization.
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- RouteEntry.ToWireBytes -->
+<!-- test: internal/component/bgp/reactor/flowspec_rs_wire_test.go TestFlowSpecRouteServerOmitsNextHop -->
+<!-- test: internal/component/bgp/reactor/flowspec_rs_replay_wire_test.go TestFlowSpecRouteServerReplayKeepsActions -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- reconcileFlowSpecs, flowSpecAuthorized, drainFlowSpecEvents -->
 <!-- source: internal/core/bgp/ribevents/flowspec.go -- FlowSpecChanged, LookupFlowSpecPath, FlowSpecRoutes -->
 <!-- source: internal/component/bgp/plugins/rs/server_validation.go -- processValidation, replayFlowSpecs -->
@@ -760,16 +807,35 @@ ADD-PATH mode of the sessions that carry it. The record packs the winner and
 names the path that won by its received path id and ADD-PATH flag, which is
 what the published best-change carries.
 
-Candidates for a CIDR prefix are gathered by prefix: `PeerRIB.AppendPrefixPaths`
-appends every stored path of the prefix, one per path id under ADD-PATH, into a
-caller-owned slice that `gatherPrefixCandidatesLocked` backs with a stack array.
+Candidates for a CIDR prefix are gathered by prefix:
+`PeerRIB.AppendPrefixPathsRetained` appends every stored path, one per path id
+under ADD-PATH, into a caller-owned slice backed by a stack array. It retains
+the entry and label handles under the storage lock. Gathering transfers those
+references into candidates; rejected paths call `PrefixPath.Release`.
 A peer is never asked with another session's wire key, because a key framed for
-ADD-PATH reads as a different prefix in a peer stored without it. Every read of
-what the winner carries (next hop, labels, SRv6 SID, blackhole) goes back to the
-winner's own path through `candidateNLRI`. RFC 8277 Section 3.1 makes two paths
-of one ADD-PATH session comparable, so the path id names a path and never
+ADD-PATH reads as a different prefix in a peer stored without it. Winner metadata
+comes from the retained candidate revision, not a second lookup. RFC 8277
+Section 3.1 makes two paths of one ADD-PATH session comparable, so the path id
+names a path and never
 partitions the election. Two paths that tie on every RFC 4271 step are ordered
 by the lowest path id, a Ze tie-break rather than RFC text.
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- AppendPrefixPathsRetained, AppendKeyPathsRetained -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- PrefixPath.Release -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked, releaseCandidates -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->
+
+A changed winner reserves a peer-address interner reference before releasing
+`peerMu`. Successful insertion transfers it to the stored `bestPrev` record;
+failed next-hop or metric admission releases it. This makes DOWN fence an
+admitted first publication even when the peer has no prior winning record.
+Replacement or removal releases the old record's reference; a same-best
+decision acquires none. Peer purge pins the slot across its shard scan and
+releases each removed record separately. A same-address replacement in an
+already-scanned shard therefore retains its identity; only the final record,
+publication, or scan release returns the slot to the free list.
+A replacement in a shard still to be scanned is
+re-elected before Loc-RIB removal, without an intermediate withdrawal.
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, internPeer, retainPeer, releasePeer, purgeBestPrevForPeer, emitPurgedWithdraws -->
 
 The Loc-RIB mirror writes one BGP path per prefix under Instance 0
 (`bgpLocRIBInstance`): the RFC 4271 decision is already made here, and a second

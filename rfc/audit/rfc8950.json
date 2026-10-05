@@ -7,6 +7,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -29,28 +30,28 @@
       "note": "MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after the peer advertised Extended Next Hop for the relevant AFI/SAFI pair. Both gaps of the earlier verdict are closed. (a) explicit next hop: Peer.resolveNextHop now refuses it without the pair; TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair drives AnnounceNLRIBatch over a live pipe session with <1/1> only, <1/128> only and neither: IPv4 unicast is sent only with <1/1>, otherwise ErrNextHopIncompatible and no UPDATE on the wire; VPN-IPv4 resolves only with <1/128>. TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach shows the licensed route leaves as MP_REACH_NLRI 1/1 with the 16-octet next hop and the prefix, no NEXT_HOP and an empty NLRI field. (b) forward rails: TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, general and route-server rails, received IPv6 next hop unchanged and explicit IPv6 next hop: the paired destination gets MP_REACH with that next hop, the unpaired one only the withdrawal half. Next-hop self stays proven by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor, inlineIPv4Unicast and egressNextHopLacksExtendedNextHop. Not asserted: the queued-drain path (same resolveNextHop producer) and VPN-IPv4 on the forward rails (same gate keyed by the MP_REACH family). Defect noted separately: both new gates apply to every AFI 1 family, beyond this rule's SAFIs.",
       "requirement_sha": "f608a02bce1fb9c0",
       "tests": {
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "be64276510ff3da7",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "be64276510ff3da7",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "be64276510ff3da7",
-        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "90c32a4ee628e2ec",
-        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "90c32a4ee628e2ec",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "4fac1106f94928ca",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "4fac1106f94928ca",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "4fac1106f94928ca",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach": "6b0d2ec0a00d81cf",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "6b0d2ec0a00d81cf",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "6b0d2ec0a00d81cf",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",
-        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315"
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315",
+        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "90c32a4ee628e2ec",
+        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "90c32a4ee628e2ec"
       },
       "units": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "73442ab49b6d3c26",
-        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "9c7586305cc87a72",
-        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "9c7586305cc87a72",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach": "4988152462723476",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "2e7bebb3999de5ad",
         "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "2e7bebb3999de5ad",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "247c511b47d5880f",
-        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "247c511b47d5880f"
+        "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "247c511b47d5880f",
+        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair": "9c7586305cc87a72",
+        "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2": "9c7586305cc87a72"
       },
       "verdict": "enforced"
     },
@@ -58,8 +59,8 @@
       "note": "TestRFC8950PeerSupportDecidedPerPair / ...PeerWithoutThePairGetsNoIPv6NextHop drive Negotiate with both sides' Extended Next Hop capabilities and read the per-pair answer through Negotiated and EncodingCaps alike: both list the pair -> AFI 2; peer lacks the pair, lists another NH AFI, or sends no capability -> 0. Judge breaks: intersection ignoring the NH AFI, and intersection enabling every local pair, each turned the negative red.",
       "requirement_sha": "3657dea459e3c135",
       "tests": {
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "79de3d0b159f3a42",
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "79de3d0b159f3a42",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "ffd23015bd4db995",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "ffd23015bd4db995",
         "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerSupportDecidedPerPair": "d1862fc4bd3afdc5",
         "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerWithoutThePairGetsNoIPv6NextHop": "d1862fc4bd3afdc5"
       },

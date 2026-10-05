@@ -137,6 +137,15 @@ transition = {
 - **To:** CONNECT (active) or ACTIVE (passive)
 <!-- source: internal/component/bgp/fsm/fsm.go -- handleIdle, EventManualStart -->
 
+If ManualStart (Event 1) or AutomaticStart_with_DampPeerOscillations
+(Event 6) is delivered in OpenSent, OpenConfirm or Established, the FSM
+ignores it under RFC 4271 section 8.2.2. It returns no error, changes no
+state or ConnectRetryCounter, and invokes no state-change callback.
+Normal startup constructs a fresh Idle FSM; this rule describes the
+handler contract, not a claim that ordinary startup delivers starts in
+these later states.
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleOpenSent, handleOpenConfirm, handleEstablished -->
+
 ### TCP Connection Established
 
 - **Trigger:** TCP handshake complete

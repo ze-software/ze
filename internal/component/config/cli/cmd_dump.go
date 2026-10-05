@@ -89,8 +89,10 @@ func maskValue(v string, mode config.DisplayMode) string {
 			return config.SecretDataPlaceholder
 		}
 		return encoded
-	default:
+	case config.DisplayPlain:
 		return v
+	default:
+		panic("BUG: unknown config dump display mode")
 	}
 }
 

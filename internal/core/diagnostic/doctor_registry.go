@@ -253,6 +253,7 @@ func (phase DoctorCheckPhase) Valid() bool {
 	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhasePostConfig:
 		return true
 	default:
+		// Registration input is open; reject phases outside the named set.
 		return false
 	}
 }
@@ -277,7 +278,7 @@ func doctorPhaseRank(phase DoctorCheckPhase) int {
 	case DoctorPhasePostConfig:
 		return 2
 	default:
-		return 3
+		panic("BUG: invalid registered doctor phase")
 	}
 }
 

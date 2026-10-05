@@ -405,7 +405,8 @@ func mrtCollisionIsolatedUpdates() []mrtCollisionUpdate {
 			}
 			attrs = []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, asn}
 		}
-		if tc.mp {
+		switch {
+		case tc.mp:
 			code := byte(15)
 			value := []byte{0, 2, 1}
 			if tc.announce {
@@ -415,10 +416,10 @@ func mrtCollisionIsolatedUpdates() []mrtCollisionUpdate {
 			value = append(value, tc.nlri...)
 			attrs = append(attrs, 0x80, code, byte(len(value)))
 			attrs = append(attrs, value...)
-		} else if tc.announce {
+		case tc.announce:
 			attrs = append(attrs, 0x40, 3, 4, 192, 0, 2, 1)
 			announced = tc.nlri
-		} else {
+		default:
 			withdrawn = tc.nlri
 		}
 		body := append([]byte{0, byte(len(withdrawn))}, withdrawn...)

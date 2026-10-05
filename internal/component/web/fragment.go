@@ -441,6 +441,7 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 		meta.Default = "false"
 	}
 
+	//exhaustive:ignore // Only numeric bounds and selected patterns add browser validation metadata.
 	switch leaf.Type {
 	case config.TypeUint16:
 		meta.Min = "0"
@@ -493,8 +494,10 @@ func valueTypeToFieldType(vt config.ValueType) string {
 		return "asn"
 	case config.TypeString, config.TypeEmpty:
 		return fieldTypeString
+	default:
+		// Schema registrations are open; unknown leaf types retain the text editor.
+		return fieldTypeString
 	}
-	return fieldTypeString
 }
 
 // nodeDescription extracts the ze:help summary from a schema node, if available.
@@ -828,11 +831,11 @@ func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, l
 // splitFieldPath splits a slash-separated field path into the leaf name and the parent path suffix.
 // "remote/ip" returns ("ip", "remote"). "ip" returns ("ip", "").
 func splitFieldPath(field string) (leaf, parentSuffix string) {
-	idx := strings.LastIndex(field, "/")
-	if idx < 0 {
+	parent, name, found := strings.CutLast(field, "/")
+	if !found {
 		return field, ""
 	}
-	return field[idx+1:], field[:idx]
+	return name, parent
 }
 
 // resolveListField walks the YANG list schema to the node one field path names.

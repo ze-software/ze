@@ -90,7 +90,7 @@ func flowSpecLegacySeed07(ctx context.Context, _ []string) error {
 	commands := [][]string{
 		{argAdd, nftTable, nftFamilyInet, nftTableFlowspec},
 		{argAdd, nftChain, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, nftForwardHookSpec},
-		{argAdd, nftRule, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, "ip", nftMatchDestination, "198.51.100.0/24", nftVerdictDrop},
+		{argAdd, nftRule, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, "ip", nftMatchDestination, prefixTestNet2, nftVerdictDrop},
 	}
 	for _, args := range commands {
 		if output, err := exec.CommandContext(ctx, "nft", args...).CombinedOutput(); err != nil { //nolint:gosec // the fixture chooses the program and its arguments
@@ -177,7 +177,7 @@ func flowSpecLegacyTable07(ctx context.Context, plugin *sdk.Plugin) error {
 	if !ok {
 		return errors.New("sampled replacement never reached both FlowSpec hooks exactly once")
 	}
-	if strings.Contains(ruleset, "table inet flowspec {") || strings.Contains(ruleset, "198.51.100.0/24") {
+	if strings.Contains(ruleset, "table inet flowspec {") || strings.Contains(ruleset, prefixTestNet2) {
 		return errors.New("legacy FlowSpec table or rule survived reconcile")
 	}
 	return nil

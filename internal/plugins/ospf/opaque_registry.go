@@ -38,9 +38,7 @@ func (s OpaqueScope) lsType() types.LSType { return types.LSType(s) }
 func (s OpaqueScope) valid() bool { return s.lsType().IsOpaque() }
 
 // opaqueScopes is every scope the type carries, in LS type order. String spells each
-// one, so parseOpaqueScope holds no second copy of the vocabulary and a scope added to
-// the const block without a String arm renders "unknown" rather than parsing into
-// silence (ai/rules/principles.md).
+// one, keeping parseOpaqueScope's vocabulary identical to the rendered names.
 var opaqueScopes = [...]OpaqueScope{OpaqueScopeLink, OpaqueScopeArea, OpaqueScopeAS}
 
 // parseOpaqueScope maps a scope word to its flooding scope, reading String so the
@@ -66,7 +64,7 @@ func (s OpaqueScope) String() string {
 	case OpaqueScopeAS:
 		return scopeASName
 	default:
-		return "unknown"
+		panic("BUG: OpaqueScope.String: invalid scope")
 	}
 }
 

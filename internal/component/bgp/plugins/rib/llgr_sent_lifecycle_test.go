@@ -3,6 +3,7 @@ package rib
 
 import (
 	"bytes"
+	"encoding/hex"
 	"net/netip"
 	"testing"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// TestLLGRSentLifecycleOwnership checks received-generation ownership through
+// community decoration and every purge path, including dispatched withdrawals.
 func TestLLGRSentLifecycleOwnership(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
@@ -113,6 +116,16 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 					}
 				}
 				removedHandle := r.ribOut[dest][tc.fam][key].AttrHandle
+				withdrawals := make(map[string]int)
+				r.updateHook = func(command string, meta map[string]any) {
+					if meta["rib-lifecycle"] != true {
+						t.Fatalf("withdrawal lacks lifecycle feedback guard: %s", command)
+					}
+					if meta[metaKeyReplay] != true {
+						t.Fatalf("withdrawal lacks replay guard: %s", command)
+					}
+					withdrawals[command]++
+				}
 				switch operation {
 				case "purge":
 					_, _, _ = r.purgeStaleCommand([]string{source.String(), tc.fam.String()})
@@ -121,8 +134,29 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				case "expiry":
 					r.autoExpireStale(source, r.grState[source])
 				case "release":
-					r.retainRoutes(source.String(), nil)
+					r.retainRoutes(source.String(), nil, false)
 					r.releaseRoutes(source.String())
+				}
+				// Pin the command's native bytes and explicit identifier zero
+				// independently of the production withdrawal formatter.
+				wantWithdraw := "update hex nlri " + tc.fam.String() + " addpath del " + hex.EncodeToString(out)
+				wantFreshWithdraw := "update hex nlri " + tc.fam.String() + " addpath del " + hex.EncodeToString(freshOut)
+				if key.Prefix.IsValid() {
+					wantWithdraw = "update text nlri " + tc.fam.String() + " path-information 0 del " + key.Prefix.String()
+					wantFreshWithdraw = "update text nlri " + tc.fam.String() + " path-information 99 del " + key.Prefix.String()
+				}
+				if withdrawals[wantWithdraw] != 1 {
+					t.Fatalf("owned withdrawal %q dispatched %d times: %#v", wantWithdraw, withdrawals[wantWithdraw], withdrawals)
+				}
+				wantWrites := 1
+				if operation == "release" {
+					wantWrites = 2
+					if withdrawals[wantFreshWithdraw] != 1 {
+						t.Fatalf("released fresh withdrawal missing: %#v", withdrawals)
+					}
+				}
+				if len(withdrawals) != wantWrites {
+					t.Fatalf("withdrew an unowned route: %#v", withdrawals)
 				}
 				if _, remains := r.ribOut[dest][tc.fam][key]; remains {
 					t.Fatal("purged received ownership survived in sent inventory")
@@ -153,5 +187,104 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestRetainRoutesLeavesUnretainedWithdrawalsToForwardingOwner separates the
+// DOWN owners: RS withdraws families that were not retained; RIB owns later
+// purge/expiry withdrawals only for the retained families. Both must prune
+// their inventory, but retain-routes must not send a second DOWN withdrawal.
+func TestRetainRoutesLeavesUnretainedWithdrawalsToForwardingOwner(t *testing.T) {
+	testRetainRoutesSentOwnership(t, true)
+}
+
+// TestRetainRoutesLiveSourceWithdrawsPrunedFamilies exercises the registered
+// public command while its source remains established. No subsequent DOWN
+// forwarding owner exists, so the RIB must send the removed families itself.
+func TestRetainRoutesLiveSourceWithdrawsPrunedFamilies(t *testing.T) {
+	testRetainRoutesSentOwnership(t, false)
+}
+
+func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
+	t.Helper()
+	for _, tc := range []struct {
+		name string
+		fam  family.Family
+		wire []byte
+	}{
+		{"ipv6", family.IPv6Unicast, []byte{32, 32, 1, 13, 184}},
+		{"evpn", family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, nativeEVPNRoute()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newTestRIBManager(t)
+			source := netip.MustParseAddr("192.0.2.10")
+			dest := netip.MustParseAddr("192.0.2.20")
+			control := netip.MustParseAddr("192.0.2.21")
+			peer := storage.NewPeerRIB(source.String())
+			r.bgpPeers[source] = peer
+			r.peerUp[source] = true
+			t.Cleanup(func() {
+				peer.Release()
+				for _, families := range r.ribOut {
+					for _, routes := range families {
+						for _, entry := range routes {
+							entry.release()
+						}
+					}
+				}
+			})
+			attrs := nativeSentAttrs()
+			v4 := []byte{24, 192, 0, 2}
+			for _, route := range []struct {
+				fam  family.Family
+				wire []byte
+			}{
+				{family.IPv4Unicast, v4},
+				{tc.fam, tc.wire},
+			} {
+				peer.Insert(route.fam, attrs, route.wire)
+				peer.ModifyFamilyEntry(route.fam, route.wire, func(e *storage.RouteEntry) { e.MsgID = 91 })
+				event := nativeSentEvent(t, dest, route.fam, route.wire, attrs, false, false)
+				event.RouteMeta["source-message-id"] = float64(91)
+				r.handleSent(event)
+			}
+			other := nativeSentEvent(t, control, tc.fam, tc.wire, attrs, false, false)
+			other.RouteMeta["source-peer"] = "192.0.2.11"
+			r.handleSent(other)
+			var commands []string
+			r.updateHook = func(command string, _ map[string]any) {
+				commands = append(commands, command)
+			}
+			args := []string{source.String()}
+			if onDown {
+				args = append(args, "on-down")
+			}
+			args = append(args, family.IPv4Unicast.String())
+			status, _, err := r.handleCommand("request bgp rib retain-routes", "*", args)
+			if err != nil || status != statusDone {
+				t.Fatalf("retain-routes failed: status %q, error %v", status, err)
+			}
+			if onDown && len(commands) != 0 {
+				t.Fatalf("retain-routes duplicated forwarding-owner DOWN withdrawals: %v", commands)
+			}
+			if !onDown {
+				want := "update hex nlri " + tc.fam.String() + " del " + hex.EncodeToString(tc.wire)
+				if tc.fam == family.IPv6Unicast {
+					want = "update text nlri ipv6/unicast del 2001:db8::/32"
+				}
+				if len(commands) != 1 || commands[0] != want {
+					t.Fatalf("public retain-routes must withdraw pruned live family exactly once: got %v, want %q", commands, want)
+				}
+			}
+			if len(r.ribOut[dest][tc.fam]) != 0 {
+				t.Fatal("unretained sent family survived the DOWN decision")
+			}
+			if len(r.ribOut[dest][family.IPv4Unicast]) != 1 {
+				t.Fatal("retained sent family was removed")
+			}
+			if len(r.ribOut[control][tc.fam]) != 1 {
+				t.Fatal("another source's sent family was removed")
+			}
+		})
 	}
 }

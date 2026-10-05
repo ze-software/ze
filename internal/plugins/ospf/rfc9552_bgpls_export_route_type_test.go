@@ -47,6 +47,7 @@ func TestRFC9552ExtendedPrefixResolvesRouteType(t *testing.T) {
 				LinkStateID: types.LinkStateID{192, 0, 2, 0}, AdvertisingRouter: types.RouterID{2, 2, 2, 2}, Sequence: types.InitialSequenceNumber}}
 			area := types.BackboneArea
 			opaqueType := types.LSTypeOpaqueArea
+			//exhaustive:ignore // These fixtures need only Router, Summary Network and external base LSAs.
 			switch tc.base {
 			case types.LSTypeRouter:
 				base = bgplsTestRouter(10, types.InitialSequenceNumber)

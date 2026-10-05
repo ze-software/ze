@@ -276,6 +276,8 @@ func avpName(vendor uint16, at l2tpwire.AVPType) string {
 		return "rx-connect-speed"
 	case l2tpwire.AVPSequencingRequired:
 		return "sequencing-required"
+	default:
+		// AVP types are an open wire set; unknown attributes have no catalog name.
+		return ""
 	}
-	return ""
 }

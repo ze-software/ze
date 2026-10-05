@@ -20,8 +20,9 @@ func (a actionType) String() string {
 		return "blackhole"
 	case actionReject:
 		return "reject"
+	default:
+		panic("BUG: static: invalid route action")
 	}
-	return "unknown"
 }
 
 type nextHop struct {

@@ -58,6 +58,8 @@ func applyCapMode(mode capMode, code capability.Code, ps *PeerSettings) {
 		ps.RefusedCapabilities = append(ps.RefusedCapabilities, code)
 	case capModeEnable, capModeDisable:
 		// No enforcement action needed.
+	default:
+		panic("BUG: invalid capability mode")
 	}
 }
 
@@ -346,6 +348,8 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 			case capModeRefuse:
 				ps.RefusedAddPathFamilies = append(ps.RefusedAddPathFamilies, fam)
 			case capModeEnable, capModeDisable:
+			default:
+				panic("BUG: invalid ADD-PATH capability mode")
 			}
 
 			if entry.dir != capability.AddPathNone {

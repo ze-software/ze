@@ -320,8 +320,10 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 	switch sourceFormat {
 	case config.FormatSet, config.FormatSetMeta:
 		tree, err = config.NewSetParser(schema).Parse(content)
-	default:
+	case config.FormatHierarchical:
 		tree, err = config.NewParser(schema).Parse(content)
+	default:
+		panic("BUG: unknown detected config format")
 	}
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("parse error: %w", err)

@@ -48,6 +48,33 @@ func TestComponentHealthRow(t *testing.T) {
 	assert.Equal(t, flagClassGrey, flag)
 }
 
+// TestComponentHealthRowUnknownProbeKeepsFallback verifies that an unrecognized
+// callback status still follows AlwaysUp and config presence, including its summary.
+func TestComponentHealthRowUnknownProbeKeepsFallback(t *testing.T) {
+	tree := config.NewTree()
+	comp := componentDef{Name: "Probe", ConfigKey: "probe", HealthName: "probe"}
+	probes := map[string]health.ComponentHealth{
+		"probe": {Status: health.Status("future-status"), Reason: "unrecognized"},
+	}
+
+	status, flag, summary := componentHealthRow(comp, tree, probes)
+	assert.Equal(t, "Not configured", status)
+	assert.Equal(t, flagClassGrey, flag)
+	assert.Equal(t, "-", summary)
+
+	tree.SetContainer("probe", config.NewTree())
+	status, flag, summary = componentHealthRow(comp, tree, probes)
+	assert.Equal(t, "Configured", status)
+	assert.Equal(t, flagClassGreen, flag)
+	assert.Equal(t, "-", summary)
+
+	comp.AlwaysUp = true
+	status, flag, summary = componentHealthRow(comp, tree, probes)
+	assert.Equal(t, "Running", status)
+	assert.Equal(t, flagClassGreen, flag)
+	assert.Equal(t, "Serving this page", summary)
+}
+
 // workbenchForDashboard creates a workbench handler for dashboard testing.
 func workbenchForDashboard(t *testing.T, tree *config.Tree, dispatch CommandDispatcher) http.HandlerFunc {
 	t.Helper()

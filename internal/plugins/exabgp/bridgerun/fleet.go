@@ -208,10 +208,11 @@ func (f *Fleet) render(cache *[2][]byte, encoder bridge.Encoder, event bridge.Ev
 				"event", event.Kind)
 		case bridge.TextNone:
 			// ExaBGP writes no text line for this kind either.
+		default:
+			panic("BUG: invalid bridge text form")
 		}
-	default:
-		// EncoderJSON. Start refuses a fleet holding any other value, so this
-		// branch is the JSON format rather than a fallback for an unset one.
+	case bridge.EncoderUnspecified, bridge.EncoderJSON:
+		// Preserve the helper's zero-value JSON path; Start rejects unset scripts.
 		encoded, err := json.Marshal(event.ExabgpJSON())
 		if err != nil {
 			f.log.Warn("exabgp-bridge: marshal external JSON failed", "error", err)
@@ -219,6 +220,8 @@ func (f *Fleet) render(cache *[2][]byte, encoder bridge.Encoder, event bridge.Ev
 		}
 		encoded = append(encoded, '\n')
 		line = encoded
+	default:
+		panic("BUG: invalid bridge encoder")
 	}
 
 	// An empty slice is not nil, so a format that wrote nothing is cached as
@@ -230,13 +233,18 @@ func (f *Fleet) render(cache *[2][]byte, encoder bridge.Encoder, event bridge.Ev
 	return line, len(line) > 0
 }
 
-// encoderSlot indexes the per-format render cache. The two formats are the
-// whole set (bridge.Encoder), and Start refuses a script that names neither.
+// encoderSlot indexes the per-format render cache. Script constructors select
+// JSON or Text; Start rejects only Unspecified. Direct helper calls retain its
+// existing JSON slot for Unspecified.
 func encoderSlot(encoder bridge.Encoder) int {
-	if encoder == bridge.EncoderText {
+	switch encoder {
+	case bridge.EncoderText:
 		return 1
+	case bridge.EncoderUnspecified, bridge.EncoderJSON:
+		return 0
+	default:
+		panic("BUG: invalid bridge encoder")
 	}
-	return 0
 }
 
 // Stop closes every script's stdin, which gives each child an EOF, and waits

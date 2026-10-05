@@ -47,7 +47,7 @@ func (s SessionState) String() string {
 	case StateOperational:
 		return "operational"
 	default:
-		return "unknown"
+		panic("BUG: invalid LDP session state")
 	}
 }
 
@@ -478,8 +478,10 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace
 			expectedType = MsgTypeInitialize
 		case StateOpenReceived:
 			expectedType = MsgTypeKeepAlive
-		default:
+		case StateNonExistent, StateInitialized, StateOperational:
 			// Other states retain their normal message dispatch.
+		default:
+			panic("BUG: invalid LDP session state")
 		}
 		if expectedType != 0 {
 			// RFC 5036 Section 3.5.1.1: "When an LSR receives a Shutdown
@@ -820,6 +822,8 @@ func (s *Session) handleInit(msg initMessage, peerLSRID [4]byte) bool {
 		s.state = StateOpenReceived
 	case StateNonExistent, StateOpenReceived, StateOperational:
 		s.log.Warn("ldp: init received in unexpected state", "state", s.state.String())
+	default:
+		panic("BUG: invalid LDP session state")
 	}
 	return false
 }

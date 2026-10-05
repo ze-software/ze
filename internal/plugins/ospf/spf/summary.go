@@ -222,6 +222,8 @@ func collectSummaryNetworks(res *Result) []summaryNetwork {
 				continue
 			}
 			add(pfx, nr.Metric)
+		default:
+			panic("BUG: collectSummaryNetworks: invalid vertex kind")
 		}
 	}
 	out := make([]summaryNetwork, 0, len(best))

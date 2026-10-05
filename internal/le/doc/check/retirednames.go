@@ -195,8 +195,9 @@ func (k RetiredKind) String() string {
 		return "variable"
 	case RetiredKindUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: retired name has an unknown kind")
 	}
-	return "unspecified"
 }
 
 // Retirement is one retired name that is not an le command. Replacement is

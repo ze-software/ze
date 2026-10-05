@@ -192,7 +192,7 @@ func TestRestoreResumesInterrupted(t *testing.T) {
 // TestRestoreReplayRefusesBeforeMutation proves the AC-23 refusals: each one
 // keeps the intent, the stage and every recorded node where they were.
 func TestRestoreReplayRefusesBeforeMutation(t *testing.T) {
-	for _, change := range []string{"unrelated tree", "missing policy", "unknown policy", "changed source", "missing stage", "policy mismatch", "seed before tree"} {
+	for _, change := range []string{"unrelated tree", "missing policy", "unknown policy", "missing state", "unknown state", "changed source", "missing stage", "policy mismatch", "seed before tree"} {
 		t.Run(change, func(t *testing.T) {
 			state := "tree-moved"
 			if change == "seed before tree" {
@@ -224,6 +224,16 @@ func TestRestoreReplayRefusesBeforeMutation(t *testing.T) {
 				rewrite(func(fields map[string]any) { delete(fields, "policy") })
 			case "unknown policy":
 				rewrite(func(fields map[string]any) { fields["policy"] = "move-source" })
+			case "missing state", "unknown state":
+				rewrite(func(fields map[string]any) {
+					tree, ok := fields["tree"].(map[string]any)
+					require.True(t, ok)
+					if change == "missing state" {
+						delete(tree, "state")
+					} else {
+						tree["state"] = "future"
+					}
+				})
 			case "changed source":
 				s, err := OpenBlob(source, true)
 				require.NoError(t, err)

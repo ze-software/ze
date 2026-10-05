@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-01",
+  "audited": "2026-10-05",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -153,32 +153,32 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-11": {
-      "note": "spdPolicyParams over an operator SPD entry: a both-direction DISCARD entry (TestSPDPolicyMirrorsTheInboundSelector) and a both-direction BYPASS entry (TestRFC4301BypassReturnTrafficHasAnSPDIEntry) each install one SPD-I entry whose selector is the inbound traffic, remote prefix as source, local as destination, ports mirrored (dst 22, src any), with the entry's action. Negative: the SPD-I entry never carries the outbound orientation, and an out-only entry installs no SPD-I entry. Driven from the ipsec.SPDPolicy the config builds, not from the YANG parse. Re-judged 2026-09-29: the bypass units changed only by the deleted RFC4301-5.1-2 tag and comment lines (row retired, R15); bodies identical.",
+      "note": "Independent source rejudgment against full RFC 4301 Section 4.4.1. The controlling lead-in is: \u2018The SPD MUST permit a user or administrator to specify policy entries as follows:\u2019 The complete assigned item is: \u2018SPD-I: For inbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.\u2019 Read all three tagged units: internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector and internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry / TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy. The DISCARD case requires an inbound policy and exact remote-source/local-destination prefixes. The BYPASS positive additionally pins BYPASS and asymmetric source-any/destination-22 ports. Its distinct negative rejects outbound orientation and an inbound policy for an out-only entry. internal/component/ike/engine/spd_policy.go::spdPolicyParams selects directions, spdPolicyDirection reverses addresses and ports, and installSPDPolicies consumes the results through dp.InstallPolicy. The owned edit adds an unknown-direction panic to the test without weakening assertions or changing either tag claim. This is unit-level projection evidence, not execution of config commit or kernel packet delivery. The DISCARD unit itself does not assert action, protocol, ports or exact multiplicity, so those checks are not attributed to it. The canonical scope report marks its positive discrimination record unit-changed; parent must obtain a separate native recorder observation for this cover. No new execution is claimed.",
       "requirement_sha": "8d2219256c2659f6",
       "tests": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "070119884829e685",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "070119884829e685",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "b26485af99d67b42"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "cfb1c6b7c1879f57"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry": "7372c52891d30eba",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy": "6c2b68f7af6d7814",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "1650ee30d294a76f"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "0f30f2fd85d41f71"
       },
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-12": {
-      "note": "spdPolicyParams: the same both-direction DISCARD and BYPASS entries install one SPD-O entry whose selector is the outbound traffic, local prefix as source, remote as destination, src port 22, dst any, with the entry's action (TestSPDPolicyMirrorsTheInboundSelector, TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry). Negative: the SPD-O entry never carries the inbound orientation, and an in-only entry installs no SPD-O entry. Driven from the ipsec.SPDPolicy the config builds, not from the YANG parse. Re-judged 2026-09-29: the bypass units changed only by the deleted RFC4301-5.2-5 tag and comment lines (row retired, R15); bodies identical.",
+      "note": "Independent source rejudgment against full RFC 4301 Section 4.4.1. The controlling lead-in is: \u2018The SPD MUST permit a user or administrator to specify policy entries as follows:\u2019 The complete assigned item is: \u2018SPD-O: For outbound traffic that is to be bypassed or discarded, the entry consists of the values of the selectors that apply to the traffic to be bypassed or discarded.\u2019 Read all three tagged units: internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector and internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry / TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy. The DISCARD case requires an outbound policy and exact local-source/remote-destination prefixes. The BYPASS positive additionally checks BYPASS and source-22/destination-any ports. Its distinct negative rejects inbound orientation and an outbound policy for an in-only entry. internal/component/ike/engine/spd_policy.go::spdPolicyParams selects directions, spdPolicyDirection retains outbound orientation, and installSPDPolicies forwards each result to dp.InstallPolicy. The owned unknown-direction panic strengthens failure handling without changing either tag claim. These tests inspect builder results, not kernel installation or packet delivery; the DISCARD unit alone does not assert action, protocol, ports or exact multiplicity. Parent must renew this behavior-changed unit\u2019s positive record for this id separately from the -11 record. No test or recorder was executed by this judge.",
       "requirement_sha": "abf28dafe88ad9a2",
       "tests": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "070119884829e685",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "070119884829e685",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "b26485af99d67b42"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "cfb1c6b7c1879f57"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy": "af1ab69e40f5e049",
         "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry": "0ce4c4859b7fb73b",
-        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "1650ee30d294a76f"
+        "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector": "0f30f2fd85d41f71"
       },
       "verdict": "enforced"
     },
@@ -226,17 +226,16 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1.2-1": {
-      "note": "Re-judged pass 6 after the R3 split. The row now quotes, verbatim at 4.4.1.2, the SPD-entry structure item 'One to N selector sets that correspond to the \"condition\" for applying a particular IPsec action.' (MUST under D-3: the item carries no keyword and takes the level of the list 'each of which contains the following fields'; declared in the 4.4.1.2 unsourced-ids because the extractor reads keyword sentences only). Ze's operator SPD entry (parseSPDPolicy) holds exactly one selector set, and N = 1 lies within 'one to N', so the claim is honest. TestRFC4301SPDEntryHoldsOneSelectorSet proves the entry holds a complete set (local and remote prefix, protocol, port pair as written); TestRFC4301SPDEntryCannotCarryASecondSelectorSet guards N = 1 (the model has no slice/array/map of a selector). single-polarity positive holds: no input yields zero or several sets. The users MUST NOT moved verbatim to RFC4301-4.4.1.2-2 under {feature-declined}, quoting 'It is possible to associate multiple protocols (and ports) with a single SA by specifying multiple selector sets for that SA' (verbatim in 4.4.1.2) and naming parseSPDPolicy: the obligation is conditional on the multi-set entry the RFC makes possible and Ze does not offer, which is what the annotation means (docs/contributing/rfc-conformance-gates.md).",
+      "note": "Independent source rejudgment against complete RFC 4301 Section 4.4.1.2: \u2018An SPD is an ordered list of entries each of which contains the following fields.\u2019 The assigned complete item is: \u2018One to N selector sets that correspond to the \"condition\" for applying a particular IPsec action.\u2019 internal/component/ike/ipsec/config.go::ParseIPsecConfig calls parseSPDPolicies, and internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy constructs one SPDPolicy with one local/remote prefix, one protocol and one port pair. N=1 satisfies this structural item; this does not prove the separately allocated users-MUST-NOT rule or multi-selector negotiation. Read both tagged units and their helpers in internal/component/ike/ipsec/rfc4301_selector_set_test.go. TestRFC4301SPDEntryHoldsOneSelectorSet parses an actual config tree and checks both exact prefixes, protocol 17, local port value 53 and remote ANY. TestRFC4301SPDEntryCannotCarryASecondSelectorSet checks the returned model for selector-bearing collections and exactly four scalar prefix/port fields. The latter is a structural guard, not an exhaustive validator of hypothetical future nested models. The single-positive annotation is justified for the one-set representation, which has no selectable zero-set/multiple-set cardinality; it does not mean malformed configurations have no refusal paths. The enum-owned edits are ordinary exhaustive comments in the test and holdsSelector, outside the tag claim. They stale the audit unit but do not themselves change discrimination behavior or claim hashes; the canonical scope report records the tagged comment-only cover as verified. No new execution or baseline-freshness claim.",
       "requirement_sha": "b7e3b12a692cdf74",
       "tests": {
-        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "13ad9b85e33ee432",
-        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "13ad9b85e33ee432"
+        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "3d14d31516b85788",
+        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "3d14d31516b85788"
       },
       "units": {
-        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "9795b2cb7d61e49c",
+        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "e36059a837c5acc6",
         "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "d96c393ccd9f6ba5"
       },
-      "upgrade_reason": "The units are unchanged but the row they prove changed: the earlier weak verdict judged them against the users MUST NOT, which they could only show vacuous. Against the new text, the 'One to N selector sets' structure item, the one-set read-back is the obligation met, not the feature absent.",
       "verdict": "enforced"
     },
     "RFC4301-4.4.2-1": {
@@ -267,10 +266,10 @@
       "code": {
         "internal/component/ike/engine/child.go::childPolicyParams": "79e7fdf87431de45",
         "internal/component/ike/engine/child.go::installChildSA": "f8b8735e1db49d69",
-        "internal/component/ike/engine/child.go::selectorPort": "45372979c5be25a6",
+        "internal/component/ike/engine/child.go::selectorPort": "2d78edccba92603c",
         "internal/component/ike/engine/child.go::selectorProto": "d75eb4eb62bb8ee4"
       },
-      "note": "Row quote is a verbatim span of RFC 4301 Section 4.4.2 (rfc/full/rfc4301.txt:1916-1918). Gap confirmed at the producers: child.Selectors holds every negotiated pair, but selectorProto and selectorPort read Selectors[0] only, childPolicyParams builds one policy per direction from TSLocal/TSRemote, and installChildSA copies that one selector onto the transport inbound state. A second negotiated pair reaches neither the SPD nor the SAD.",
+      "note": "Independent source rejudgment against full RFC 4301 Section 4.4.2: \u2018For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.\u2019 The assigned row isolates the plural-values obligation and retains its applicable gap. internal/component/ike/engine/ts_narrow.go records all accepted pairs in NegotiatedPairs but only pair zero in NegotiatedTSi/NegotiatedTSr. createFirstChildSA retains the pair list while deriving TSLocal/TSRemote from those first prefixes. In internal/component/ike/engine/child.go, selectorProto and selectorPort consume Selectors[0] only; childPolicyParams builds one policy per direction from that protocol/port pair and TSLocal/TSRemote. installChildSA installs one inbound policy and copies its selector onto a transport-mode inbound SA; the tunnel-mode state has no selector and delegates matching to that one require-policy. Additional negotiated values therefore remain absent from the installed selector representation. No tests tag this gap row; neighboring single-selector proofs do not establish the missing plurality. The enum edit preserves ANY/zero, exact-port and OPAQUE outcomes and adds a panic for unknown forms; it neither creates nor remedies this existing gap. No implementation expansion or runtime verification performed.",
       "requirement_sha": "36315016bf1c571b",
       "verdict": "unimplemented"
     },

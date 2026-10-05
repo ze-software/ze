@@ -13,8 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
@@ -127,7 +127,7 @@ func (r *RIBManager) blackholeHonorRuleCount() int {
 // wire scan for a peer that stated no rule. That is the whole cost on a
 // deployment that does not use the feature: one atomic load and one map miss.
 //
-// peerAddr is the winner's peer, so the answer is per session, which is what
+// best names the winner, so the answer is per session, which is what
 // RFC 7999 Section 3.3 requires. A prefix announced by two peers is honored
 // only when the peer that WON the best-path selection is the one authorized for
 // it: the FIB installs one entry, and it must reflect the route it installs.
@@ -139,39 +139,35 @@ func (r *RIBManager) blackholeHonorRuleCount() int {
 // its members. The group is consulted only after the address misses, so a
 // member that states its own rule keeps it.
 //
-// Caller must not hold r.peerMu.
-func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, path storedPath, peerAddr netip.Addr) routetype.Type {
+// Caller MUST hold peerMu.RLock and retain best.entry until this function returns.
+func (r *RIBManager) blackholeRouteTypeForBest(prefix netip.Prefix, best *Candidate) routetype.Type {
 	p := r.blackholeCfg.Load()
 	if p == nil || len(*p) == 0 {
 		return 0
 	}
-	// The empty-map check above is what keeps an unconfigured deployment free of
-	// the address formatting this key needs (ai/rules/performance.md). A
-	// deployment that DID configure the feature pays one String() and one
-	// peerMeta read per best-path change, which is the same order as the wire
-	// scan it gates.
+	// An unconfigured deployment stops before the peer-group metadata read or
+	// community scan. A configured deployment uses the candidate's already
+	// canonical peer address, without formatting or another storage lookup.
 	//
 	// The name arm is empty because this plugin identifies a session by address
 	// and carries no config name for it. It answers a peer whose config key IS
 	// its own name, and configjson.PeerKey stores one there only when the name
 	// parses as an address, which config.validatePeerName refuses.
-	cfg, ok := configjson.LookupPeerConfig(*p, peerAddr.String(), "", r.peerGroupName(peerAddr))
+	cfg, ok := configjson.LookupPeerConfig(*p, best.PeerAddr, "", r.peerGroupName(best.PeerIP))
 	if !ok {
 		return 0
 	}
-	// Asked for CIDR families only, so path names its prefix (storedPath).
-	return blackholeRouteType(cfg, path.pfx, func() bool {
-		return r.bestCarriesBlackhole(fam, path, peerAddr, cfg.communities)
+	// Asked for CIDR families only: authorization is by the elected prefix.
+	return blackholeRouteType(cfg, prefix, func() bool {
+		return entryCarriesBlackhole(best.entry, cfg.communities)
 	})
 }
 
 // peerGroupName returns the peer-group one session belongs to. It is empty for
 // a standalone peer, and for a peer no event has been received from yet.
 //
-// Caller must not hold r.peerMu.
+// Caller MUST hold peerMu.RLock.
 func (r *RIBManager) peerGroupName(peerAddr netip.Addr) string {
-	r.peerMu.RLock()
-	defer r.peerMu.RUnlock()
 	meta := r.peerMeta[peerAddr]
 	if meta == nil {
 		return ""
@@ -179,19 +175,9 @@ func (r *RIBManager) peerGroupName(peerAddr netip.Addr) string {
 	return meta.GroupName
 }
 
-// bestCarriesBlackhole reports whether the winning peer's stored route for this
-// NLRI carries the BLACKHOLE community.
-//
-// It reads the interned COMMUNITIES attribute out of the peer's own RouteEntry,
-// the same route the best-path selection just chose, rather than re-parsing a
-// wire payload. storedPathSRv6SID reads the same bundle for the same reason.
-//
-// Caller must not hold r.peerMu.
-func (r *RIBManager) bestCarriesBlackhole(fam family.Family, path storedPath, peerAddr netip.Addr, want []attribute.Community) bool {
-	entry, ok := r.lookupStoredPath(fam, path, peerAddr)
-	if !ok {
-		return false
-	}
+// entryCarriesBlackhole reports whether the retained winning snapshot carries a
+// configured BLACKHOLE community. The caller MUST retain entry through this read.
+func entryCarriesBlackhole(entry storage.RouteEntry, want []attribute.Community) bool {
 	b := entry.GetBundle()
 	if !b.HasCommunities() {
 		return false

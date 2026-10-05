@@ -407,10 +407,7 @@ func (b *vppBackend) spdEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 			"%w: vpp: policy direction %d names neither inbound (%d) nor outbound (%d), and an ipsec_spd_entry_v2 carries one direction; installing it would program an inbound policy",
 			ErrNotSupported, p.Dir, SADirIn, SADirOut)
 	}
-	action, err := vppSPDAction(p.Action)
-	if err != nil {
-		return entry, err
-	}
+	action := vppSPDAction(p.Action)
 	var sadID uint32
 	if action == ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
 		if err := vppProtectMode(p.Mode); err != nil {
@@ -524,20 +521,21 @@ func vppUpperProto(proto uint8) (uint8, error) {
 // PROTECT was hardcoded here, so a bypass policy reached VPP as a protect policy. It
 // then black-holed the traffic it was meant to let through (SPParams.Action,
 // dataplane.go).
-func vppSPDAction(a SPAction) (ipsec_types.IpsecSpdAction, error) {
+func vppSPDAction(a SPAction) ipsec_types.IpsecSpdAction {
 	switch a {
 	case SPActionProtect:
-		return ipsec_types.IPSEC_API_SPD_ACTION_PROTECT, nil
+		return ipsec_types.IPSEC_API_SPD_ACTION_PROTECT
 	case SPActionBypass:
-		return ipsec_types.IPSEC_API_SPD_ACTION_BYPASS, nil
+		return ipsec_types.IPSEC_API_SPD_ACTION_BYPASS
 	case SPActionDiscard:
 		// RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of
 		// fragments using the normal SPD packet classification mechanisms." VPP
 		// carries the disposition itself, so the entry drops matching traffic in
 		// the forwarding plane rather than being refused here.
-		return ipsec_types.IPSEC_API_SPD_ACTION_DISCARD, nil
+		return ipsec_types.IPSEC_API_SPD_ACTION_DISCARD
+	default:
+		panic("BUG: policy has an unknown VPP action")
 	}
-	return 0, fmt.Errorf("%w: vpp: policy action %d is not an SPD disposition this backend can express", ErrNotSupported, a)
 }
 
 // vppPriority converts a Ze policy priority to the VPP one, and the SIGN FLIPS.

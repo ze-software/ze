@@ -27,8 +27,14 @@ never becomes an SPF vertex (RFC 5250 Section 3).
   opaque store beside the AS-external store. No new LSDB key type was added.
   <!-- source: internal/plugins/ospf/lsdb/opaque_as.go -- OpaqueOriginateInput, OriginateOpaque -->
 - **The O-bit is a Database Description signal only**, and not part of the Hello
-  E-bit and N-bit match, so an adjacency with a non-opaque peer is unaffected
-  (RFC 5250 Section 3.1).
+  E-bit and N-bit match (RFC 5250 Section 3.1). After either master/slave
+  negotiation succeeds, the peer's DD options determine whether its outgoing
+  summary includes Types 9, 10 and 11. A non-opaque peer receives only the
+  non-opaque headers; Ze still advertises its own O-bit in its DDs. The candidate
+  database summary before negotiation stays scope-complete. Exact OSPFv2 type
+  matching leaves OSPFv3's full-width types and internal Grace sentinel intact.
+  <!-- source: internal/plugins/ospf/neighbor/dd.go -- handleExStartDDLocked -->
+  <!-- source: internal/plugins/ospf/neighbor/rfc5250_dd_capability_test.go -- TestDDNegotiatedOpaqueCapabilityControlsAdvertisedSummary, TestDDOpaqueCapabilityPreservesV3NeutralSummary -->
 - **Type 11 reachability looks up the originator's ASBR routing table entry**
   (RFC 5250 Section 5), the same entries the Type 5 calculation uses: a
   router SPF reaches without the Router-LSA E-bit has none, so its Type 11 LSAs

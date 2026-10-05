@@ -233,9 +233,10 @@ type Registration struct {
 	// InProcessNLRIDecoder decodes one NLRI section for a family. addPath states
 	// whether the negotiation put a 4-octet Path Identifier in front of each NLRI
 	// (RFC 7911 Section 3); the bytes alone cannot answer that, so the flag
-	// travels with them.
-	InProcessNLRIDecoder func(family, hex string, addPath bool) (any, error) // (family, hex, addPath) → data (marshaled by registry)
-	InProcessNLRIEncoder func(family string, args []string) (string, error)  // (family, args) → hex
+	// travels with them. withdraw selects MP_UNREACH withdrawal semantics;
+	// callers MUST pass the enclosing message's action, not infer it from bytes.
+	InProcessNLRIDecoder func(family, hex string, addPath, withdraw bool) (any, error)
+	InProcessNLRIEncoder func(family string, args []string) (string, error) // (family, args) → hex
 
 	// In-process route encoder: builds a full UPDATE message for a given family.
 	// Used by `ze bgp encode` to delegate family-specific encoding to plugins,
@@ -1152,15 +1153,16 @@ func RequiredPlugins(families []string) []string {
 // DecodeNLRIByFamily finds the plugin registered for a family and calls its
 // in-process NLRI decoder. addPath states whether each NLRI in hexData is
 // prefixed with a 4-octet Path Identifier (RFC 7911 Section 3).
+// withdraw selects MP_UNREACH withdrawal semantics; false means announcement.
 // Returns the JSON result and nil on success.
 // Returns an error if no decoder is registered or the decoder fails.
 // This is the fast path — external plugins use RPC via Server.DecodeNLRI instead.
-func DecodeNLRIByFamily(family, hexData string, addPath bool) (json.RawMessage, error) {
+func DecodeNLRIByFamily(family, hexData string, addPath, withdraw bool) (json.RawMessage, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
 	if reg := familyIndex[family]; reg != nil && reg.InProcessNLRIDecoder != nil {
-		data, err := reg.InProcessNLRIDecoder(family, hexData, addPath)
+		data, err := reg.InProcessNLRIDecoder(family, hexData, addPath, withdraw)
 		if err != nil {
 			return nil, err
 		}

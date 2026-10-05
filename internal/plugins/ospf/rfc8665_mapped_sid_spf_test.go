@@ -146,8 +146,10 @@ func rfc8665SPFRead(t *testing.T, entries []mplsfibevents.Entry) map[netip.Prefi
 			o := out[byLabel[e.InLabel]]
 			o.swap = true
 			out[byLabel[e.InLabel]] = o
-		default:
+		case mplsfibevents.OpUnspecified:
 			t.Fatalf("unexpected mpls-fib op toward %s: %+v", nh, e)
+		default:
+			panic("BUG: rfc8665SPFRead: invalid locally emitted MPLS operation")
 		}
 	}
 	if _, ok := out[netip.Prefix{}]; ok {

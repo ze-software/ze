@@ -64,7 +64,7 @@ Tracks "what was negotiated" - which families are enabled. Lives in `internal/co
 ```go
 type NegotiatedCapabilities struct {
     families             map[family.Family]bool  // private, O(1) lookup
-    ExtendedMessage      bool                  // RFC 8654
+    ExtendedMessage      bool                  // RFC 8654: peer permits extended sends
     EnhancedRouteRefresh bool                  // RFC 7313
 }
 ```
@@ -113,7 +113,8 @@ type EncodingContext struct {
 // EncodingCaps in internal/core/bgp/capability/encoding.go
 type EncodingCaps struct {
     ASN4            bool                      // RFC 6793: 4-byte ASN support
-    ExtendedMessage bool                      // RFC 8654: max message 65535 bytes
+    ExtendedMessageRecv bool                  // RFC 8654: local advertisement
+    ExtendedMessageSend bool                  // RFC 8654: peer advertisement
     Families        []Family                  // Negotiated address families
     AddPathMode     map[Family]AddPathMode    // RFC 7911: per-family ADD-PATH mode
     ExtendedNextHop map[Family]AFI            // RFC 8950: next-hop AFI per family
@@ -122,8 +123,11 @@ type EncodingCaps struct {
 <!-- source: internal/core/bgp/context/context.go -- EncodingContext struct -->
 <!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps struct -->
 
-**ExtendedMessage:** Determines max message size (4096 standard, 65535 extended).
-Previously in SessionCaps, moved to EncodingCaps because it affects wire encoding.
+**ExtendedMessage:** Receive permission comes from the local advertisement;
+send permission comes from the peer advertisement. `EncodingContext.ExtendedMessage`
+selects the field for its direction. `computeHash` includes only that direction's
+permission, not the opposite direction's field.
+<!-- source: internal/core/bgp/context/context.go -- ExtendedMessage, computeHash -->
 
 **ExtendedNextHop:** Stores the next-hop AFI (not just bool). For example,
 `ExtendedNextHop[IPv4Unicast] = AFIIPv6` means IPv4 unicast can use IPv6 next-hop.
@@ -131,7 +135,7 @@ Previously in SessionCaps, moved to EncodingCaps because it affects wire encodin
 ### Key Methods
 
 - `ASN4() bool` - Returns true if 4-byte ASN negotiated
-- `ExtendedMessage() bool` - Returns true if extended message negotiated
+- `ExtendedMessage() bool` - Returns extended-message permission for this direction
 - `MaxMessageSize() int` - Returns 65535 if extended, 4096 otherwise
 - `AddPath(family) bool` - Returns true if ADD-PATH enabled for family in this direction
 - `LocalASN() uint32` - Returns local AS number
@@ -259,6 +263,9 @@ p.session.setRecvCtxID(p.recvCtxID)  // Propagate to session
 <!-- source: internal/component/bgp/reactor/peer.go -- setEncodingContexts -->
 
 This ensures WireUpdate carries the correct context for forwarding decisions.
+Receive storage grows to 64K only after our local OPEN advertises capability 6.
+A peer-only advertisement grants send permission, not a larger receive buffer.
+<!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer -->
 
 ### RawMessage Integration
 
@@ -367,6 +374,14 @@ Created at session establishment:
 - `NewNegotiatedCapabilities(neg)` - Which families are enabled
 - `FromNegotiatedRecv(neg)` - How peer sends to us (their send capabilities)
 - `FromNegotiatedSend(neg)` - How we send to peer (their receive capabilities)
+
+`Session.setSendCtxID` publishes the session and observed-writer context under
+`Session.mu` then `Session.writeMu`. Writers retain `writeMu` through transport
+completion and their semantic callback. `Peer.setEncodingContexts` releases
+`Peer.mu` before publication, so a writer callback can acquire it without a
+lock inversion.
+<!-- source: internal/component/bgp/reactor/session.go -- setSendCtxID -->
+<!-- source: internal/component/bgp/reactor/peer.go -- setEncodingContexts -->
 
 ### Usage Pattern
 

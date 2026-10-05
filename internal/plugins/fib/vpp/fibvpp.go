@@ -138,14 +138,15 @@ type incomingChange = sysribevents.BestChangeEntry
 // installedRoute tracks a route installed in VPP for correct flush/delete.
 type installedRoute struct {
 	nextHop string
-	tableID uint32
 }
 
 // fibVPP manages VPP FIB route programming.
 type fibVPP struct {
-	installed     map[string]installedRoute // prefix -> installed state
-	mplsInstalled map[string]bool           // prefix -> true (MPLS labeled routes)
-	srv6Installed map[string]bool           // prefix -> true (SRv6 steered routes)
+	installed     map[srv6RouteKey]installedRoute // (prefix, table) -> ordinary state
+	mplsInstalled map[string]bool                 // prefix -> true (MPLS labeled routes)
+	srv6Installed map[srv6RouteKey]bool           // (prefix, table) -> owned SRv6 steering
+	srv6TableID   uint32
+	retired       bool // prevents an old subscription racing reconnect reconciliation
 	backend       vppBackend
 	mplsBackend   mplsBackend
 	srv6Backend   srv6Backend
@@ -154,9 +155,9 @@ type fibVPP struct {
 
 func newFibVPP(backend vppBackend) *fibVPP {
 	return &fibVPP{
-		installed:     make(map[string]installedRoute),
+		installed:     make(map[srv6RouteKey]installedRoute),
 		mplsInstalled: make(map[string]bool),
-		srv6Installed: make(map[string]bool),
+		srv6Installed: make(map[srv6RouteKey]bool),
 		backend:       backend,
 	}
 }
@@ -199,20 +200,21 @@ func (f *fibVPP) replaceVPPRoute(c *incomingChange) error {
 	return f.backend.replaceRoute(c.Prefix, c.NextHop)
 }
 
-// delVPPRoute dispatches to rich or legacy delete. Uses the stored tableID
-// from the installed map (sysrib withdrawals carry TableID=0 even when the
-// route was installed in a non-default table).
+// delVPPRoute recovers an omitted table only from unambiguous owned identity.
 func (f *fibVPP) delVPPRoute(c *incomingChange) error {
-	tableID := c.TableID
-	if tableID == 0 {
-		if ir, ok := f.installed[c.Prefix.String()]; ok {
-			tableID = ir.tableID
-		}
+	key, err := f.srv6ChangeKey(c.Prefix, c.TableID, true)
+	if err != nil {
+		return err
 	}
-	if tableID != 0 {
-		return f.backend.delRichRoute(c.Prefix, tableID)
+	if key.table != 0 {
+		err = f.backend.delRichRoute(key.prefix, key.table)
+	} else {
+		err = f.backend.delRoute(key.prefix)
 	}
-	return f.backend.delRoute(c.Prefix)
+	if err == nil {
+		delete(f.installed, key)
+	}
+	return err
 }
 
 // processEvent handles a single (system-rib, best-change) payload received
@@ -224,6 +226,9 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.retired {
+		return
+	}
 
 	for i := range batch.Changes {
 		c := &batch.Changes[i]
@@ -231,7 +236,11 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			logger().Warn("fib-vpp: skipping change with empty prefix")
 			continue
 		}
-		if c.SRv6SID.IsValid() || f.srv6Installed[c.Prefix.String()] {
+		if err := f.restoreSRv6(); err != nil {
+			logger().Error("fib-vpp: ownership reconciliation failed; preserving forwarding", "error", err)
+			return
+		}
+		if c.SRv6SID.IsValid() || f.hasSRv6Route(c.Prefix, c.TableID) {
 			f.processSRv6Change(c)
 			continue
 		}
@@ -245,7 +254,8 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				logger().Error("fib-vpp: add route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix.String()] = installedRoute{nextHop: c.NextHop.String(), tableID: c.TableID}
+			key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false)
+			f.installed[key] = installedRoute{nextHop: c.NextHop.String()}
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
@@ -255,7 +265,8 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				logger().Error("fib-vpp: replace route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix.String()] = installedRoute{nextHop: c.NextHop.String(), tableID: c.TableID}
+			key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false)
+			f.installed[key] = installedRoute{nextHop: c.NextHop.String()}
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
@@ -264,13 +275,14 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				logger().Error("fib-vpp: del route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			delete(f.installed, c.Prefix.String())
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
 		case routeaction.VerbSkip:
 			logger().Warn("fib-vpp: skipping change with unspecified action", "prefix", c.Prefix)
+		default:
+			panic("BUG: invalid normalized route verb")
 		}
 	}
 }
@@ -283,7 +295,7 @@ func (f *fibVPP) processMPLSChange(c *incomingChange) {
 		return
 	}
 	pfxStr := c.Prefix.String()
-	switch c.Action.Verb() { //nolint:exhaustive // Unspecified is a no-op for MPLS
+	switch c.Action.Verb() {
 	case routeaction.VerbInstall, routeaction.VerbReplace:
 		if err := f.mplsBackend.addMPLSRoute(c.Prefix, c.NextHop, c.Labels); err != nil {
 			logger().Error("fib-vpp: MPLS add failed", "prefix", c.Prefix, "error", err)
@@ -302,6 +314,10 @@ func (f *fibVPP) processMPLSChange(c *incomingChange) {
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeRemovals.Inc()
 		}
+	case routeaction.VerbSkip:
+		// Unspecified and unknown actions do not change MPLS forwarding.
+	default:
+		panic("BUG: invalid normalized route verb")
 	}
 }
 
@@ -310,22 +326,29 @@ func (f *fibVPP) flushRoutes() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	for prefixStr, ir := range f.installed {
-		prefix, err := netip.ParsePrefix(prefixStr)
-		if err != nil {
+	if err := f.restoreSRv6(); err != nil {
+		logger().Warn("fib-vpp: flush ownership reconciliation failed", "error", err)
+		return
+	}
+	for key := range f.installed {
+		if backend, ok := f.srv6Backend.(*govppSRv6Backend); ok && backend.fallbacks[key] != nil {
+			if err := f.removeSRv6Fallback(key); err != nil {
+				logger().Warn("fib-vpp: flush fallback failed", "prefix", key.prefix, "table", key.table, "error", err)
+			}
 			continue
 		}
-		if ir.tableID == 0 {
-			if err := f.backend.delRoute(prefix); err != nil {
-				logger().Warn("fib-vpp: flush del failed", "prefix", prefixStr, "error", err)
-			}
+		var err error
+		if key.table == 0 {
+			err = f.backend.delRoute(key.prefix)
 		} else {
-			if err := f.backend.delRichRoute(prefix, ir.tableID); err != nil {
-				logger().Warn("fib-vpp: flush del failed", "prefix", prefixStr, "error", err)
-			}
+			err = f.backend.delRichRoute(key.prefix, key.table)
 		}
+		if err != nil {
+			logger().Warn("fib-vpp: flush del failed", "prefix", key.prefix, "table", key.table, "error", err)
+			continue
+		}
+		delete(f.installed, key)
 	}
-	f.installed = make(map[string]installedRoute)
 
 	if f.mplsBackend != nil {
 		for prefixStr := range f.mplsInstalled {
@@ -333,28 +356,31 @@ func (f *fibVPP) flushRoutes() {
 			if err != nil {
 				continue
 			}
-			if err := f.mplsBackend.delMPLSRoute(prefix, nil); err != nil {
+			key := srv6RouteKey{prefix: prefix, table: f.srv6TableID}
+			if err := f.removeSRv6Fallback(key); err != nil {
 				logger().Warn("fib-vpp: flush MPLS del failed", "prefix", prefixStr, "error", err)
 			}
 		}
 	}
-	f.mplsInstalled = make(map[string]bool)
 
 	if f.srv6Backend != nil {
-		for prefixStr := range f.srv6Installed {
-			prefix, err := netip.ParsePrefix(prefixStr)
-			if err != nil {
+		for key := range f.srv6Installed {
+			if _, remains := f.installed[key]; remains {
 				continue
 			}
-			if err := f.srv6Backend.delSRv6Steer(prefix, 0); err != nil {
-				logger().Warn("fib-vpp: flush SRv6 del failed", "prefix", prefixStr, "error", err)
+			if key.table == f.srv6TableID && f.mplsInstalled[key.prefix.String()] {
+				continue
 			}
+			if err := f.srv6Backend.delSRv6Steer(key.prefix, key.table); err != nil {
+				logger().Warn("fib-vpp: flush SRv6 del failed", "prefix", key.prefix, "table", key.table, "error", err)
+				continue
+			}
+			delete(f.srv6Installed, key)
 		}
 	}
-	f.srv6Installed = make(map[string]bool)
 
 	if m := fibVPPMetricsPtr.Load(); m != nil {
-		m.routesInstalled.Set(0)
+		m.routesInstalled.Set(float64(len(f.installed)))
 	}
 }
 
@@ -367,11 +393,12 @@ func (f *fibVPP) showInstalled() any {
 		Prefix  string `json:"prefix"`
 		NextHop string `json:"next-hop,omitempty"`
 		MPLS    bool   `json:"mpls,omitempty"`
+		TableID uint32 `json:"table-id,omitempty"`
 	}
 
 	entries := make([]entry, 0, len(f.installed)+len(f.mplsInstalled))
-	for prefix, ir := range f.installed {
-		entries = append(entries, entry{Prefix: prefix, NextHop: ir.nextHop})
+	for key, ir := range f.installed {
+		entries = append(entries, entry{Prefix: key.prefix.String(), NextHop: ir.nextHop, TableID: key.table})
 	}
 	for prefix := range f.mplsInstalled {
 		entries = append(entries, entry{Prefix: prefix, MPLS: true})

@@ -1,6 +1,6 @@
 # IKEv2 cryptographic primitives
 
-A pure-Go primitives layer with no network input or output and no state:
+A pure-Go primitives layer with no network input or output:
 Diffie-Hellman key exchange, PRF-based key derivation, encryption and integrity,
 and proposal negotiation. It maps the config algorithm names to IANA transform
 IDs and to Go standard library implementations.
@@ -62,6 +62,14 @@ that size.
 
 **`crypto/ecdh` for the ECP groups 19 and 20, not `crypto/elliptic`.** The ecdh
 package gives the correct API directly.
+
+**DH construction rejects unsupported group numbers before creating an exchange.**
+The current production callers create exchanges through `NewDHExchange` and do
+not change `GroupID` afterward, so an unnamed group reaching `SharedSecret` is a
+programmer error and raises a `BUG` panic. The exported field remains mutable;
+this invariant depends on those callers rather than on field encapsulation.
+Nil and cleared exchanges still return `ErrClearedExchange` before group dispatch,
+and the constructor still returns `ErrUnsupportedGroup` for an unsupported group.
 
 **The crypto package names its own `IKEProposal` and `ESPProposal`.** These
 shadow the config types of the same name on purpose: the package qualifier

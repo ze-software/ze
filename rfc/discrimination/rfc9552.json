@@ -244,6 +244,17 @@
       "break": "body of lsp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9552-5.2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter",
+      "unit-sha": "15d5e38086929d1e",
+      "claim-sha": "815a9ef79798f575",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::trafficEngineering",
+      "producer-sha": "29ee38e5d8c438a9",
+      "break": "body of trafficEngineering replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9552-5.2.1.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder",
@@ -638,6 +649,39 @@
       "producer": "internal/plugins/isis/bgpls_export.go::linkRouterIDs",
       "producer-sha": "f7de0741a71e5379",
       "break": "body of linkRouterIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.3.2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter",
+      "unit-sha": "c411739e3a270a46",
+      "claim-sha": "d93330b95f302f3d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::trafficEngineering",
+      "producer-sha": "29ee38e5d8c438a9",
+      "break": "body of trafficEngineering replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.3.2.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter",
+      "unit-sha": "b17249d44edbafc7",
+      "claim-sha": "dfbeccc181a7f509",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::linkAttributes",
+      "producer-sha": "f28ac6f4ccee0cc0",
+      "break": "body of linkAttributes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.3.2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter",
+      "unit-sha": "15d5e38086929d1e",
+      "claim-sha": "7f7d07a339c14dab",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::linkAttributes",
+      "producer-sha": "f28ac6f4ccee0cc0",
+      "break": "body of linkAttributes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9552-5.3.2.2-1",

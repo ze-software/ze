@@ -134,8 +134,9 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 	case engine.ActionIfaceAddrRemove:
 		// netns-scoped: removes then restores an address on the interface.
 		return executeIfaceAddrRemove(action, emit)
+	default:
+		panic("BUG: invalid executed chaos action")
 	}
-	return chaosResult{}
 }
 
 // executeRoute handles a single route dynamics action on the simulator's live connection.
@@ -174,6 +175,8 @@ func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending full withdrawal: %w", err)})
 		}
 		emit(Event{Type: EventWithdrawalSent, Count: len(routes), BytesSent: int64(wdBytes)})
+	default:
+		panic("BUG: invalid executed route action")
 	}
 }
 

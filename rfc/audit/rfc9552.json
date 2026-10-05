@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-05",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -122,17 +122,19 @@
       "verdict": "enforced"
     },
     "RFC9552-5.2.1-1": {
-      "note": "c23 rejudge: the IS-IS producer is now proven for both types (TestRFC9552ISISNodeCarriesBothRouterIDs: TLV 134 -> 1028 and TLV 140 -> 1029 with their values, revert record on isis lsp). Still weak: the OSPF producer (ospf/bgpls_export.go adds 1028/1029 from the TE Router Address) has no tagged unit, queued while the ospf package is held (R6), and no unit follows the node attribute onto the BGP-LS Attribute wire",
+      "note": "Rejudged all current tagged carriers against RFC 9552 Section 5.2.1: 'When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 and MAY be included in the link attribute described in Section 5.3.2.' Preserved IS-IS TestRFC9552ISISNodeRouterID and TestRFC9552ISISNodeCarriesBothRouterIDs assert exact per-node IPv4 and IPv6 values from native LSP TLVs 134/140. New OSPF TestRFC9552OSPFRouterIDsReachExporter installs one area-scope opaque-type-1 Router Address LSA per router, conforming to RFC 3630 Sections 2.1 and 2.4.1, and compares the complete native node TLV multiset and final encoded BGP-LS Attribute bytes from the registered exporter against independent literals. It catches omission, substitution, duplication and invented IPv6 IDs, closing the previous OSPF and final-attribute proof gaps. Read indexV2 scope guards, trafficEngineering, snapshot router-ID collection, encodeTopology, originateAttributes and send. The single-positive annotation is appropriate for this inclusion obligation. TestRFC9552OSPFAuxiliaryRouterIDsNotCollapsed is untagged robustness evidence only: multiple Router Address LSAs from one router violate RFC 3630's exactly-one-LSA condition and are not the conforming positive. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and no fresh independent-peer run is claimed.",
       "requirement_sha": "c412ac30190780d9",
       "tests": {
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "07e1ba0c24d70214",
-        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "07e1ba0c24d70214"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "07e1ba0c24d70214",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "4354b106e8d6116b"
       },
       "units": {
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "d94341e3d0458eff",
-        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "67187e0eab6a8759"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "67187e0eab6a8759",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "84692a74980e05e3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2.1.1-1": {
       "note": "First judgement 2026-10-02 (BGP c22 judge). Positive TestSameNodeHasOneKeyWhateverTheStorageOrder parses one node from two wire orders (512,514,515 and 515,514,512) and asserts both re-encode to the identical canonical bytes, equal to the ascending order: an order-dependent parse or encode goes red (revert record on parseNodeDescriptorTLVsAt observed red). Negative TestNodeDescriptorWriteToMatchesBytes asserts WriteTo and Bytes emit identical octets for one node, so the encoder choice cannot give a second key; it carries no record because Bytes/WriteTo repeat in types_descriptor.go and cannot be producer keys (journal row 2026-10-02).",
@@ -271,15 +273,15 @@
       "verdict": "enforced"
     },
     "RFC9552-5.2.3.1-1": {
-      "note": "Independent judgment: RFC 9552 section 5.2.3.1 says, \"The OSPF Route Type TLV MUST be included in the advertisement when the type is either being signaled explicitly in the underlying LSA or can be determined via another LSA for the same prefix when it is not signaled explicitly (e.g., in the case of OSPFv2 Extended Prefix Opaque LSA [RFC7684]).\" The source and wire carriers jointly close the previously missing correlation clause. TestRFC9552ExtendedPrefixResolvesRouteType installs actual base and Extended Prefix LSAs, requests the live publisher's snapshot, and checks exactly one marked extended advertisement with the correct router identity and route type: zero resolved to each of types 1..6, plus explicit AS/NSSA classes separately resolved to Type 1/2. An opaque-source marker prevents a base prefix alone satisfying the test; NSSA evidence in another area exercises the cross-bucket scan. TestRFC9552NativeOSPFRouteType separately drives exporter replacement/reconciliation and checks TLV 264 value 1 on the emitted prefix NLRI. encodeTopology passes the snapshot's RouteType directly to the prefix descriptor, so the two real boundaries compose; this is not a claim that the LSDB test alone reads BGP bytes. The clarified single-positive annotation is valid for origination, not an exemption for underlying zero and not a receive-refusal claim. Inspected fresh native records on encodeTopology and v2PrefixRouteTypes, including the latter's observed producer halt. No new judge test run.",
+      "note": "Independent source rejudgment against complete RFC 9552 Section 5.2.3.1: \u2018The OSPF Route Type TLV MUST be included in the advertisement when the type is either being signaled explicitly in the underlying LSA or can be determined via another LSA for the same prefix when it is not signaled explicitly (e.g., in the case of OSPFv2 Extended Prefix Opaque LSA [RFC7684]).\u2019 Read both tagged tests and their producers. internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType installs actual Router, Summary Network, AS External and NSSA LSAs plus an Extended Prefix LSA, then synchronously requests the live publisher snapshot. Ten cases assert exactly one opaque-marked extended advertisement for router 2.2.2.2 and the exact route type: underlying zero resolves to each of 1 through 6; explicit AS/NSSA classes each distinguish Type 1 from Type 2. The opaque provenance guard prevents a base prefix alone satisfying the test; NSSA in another area exercises the cross-bucket lookup. internal/plugins/ospf/bgpls_export.go::publishBGPLSLocked processes base LSAs before extensions; v2 dispatches Extended Prefix LSAs to extendedV2Prefix, which consumes v2PrefixRouteTypes results and publishes RouteType on the prefix. The exporter subscription in internal/component/bgp/plugins/ls_export/export_plugin.go forwards source snapshots to replace; export_state.go::replace calls encodeTopology, and reconcile forwards encoded routes. export_encode.go::encodeTopology copies RouteType into PrefixDescriptor.OSPFRouteType, whose encoder emits nonzero values as TLV 264. internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType independently drives replacement/reconciliation and asserts exactly TLV 264 value 1 in the captured prefix NLRI. This composes two unit boundaries; the LSDB test does not itself inspect BGP wire bytes, and the exporter test does not exercise all six route types or a live BGP peer. The single-positive annotation is valid for this origination obligation, not an exemption for underlying zero or a receive-refusal assertion. The owned edit is an ordinary exhaustive comment in the fixture switch, outside the tag claim; it requires audit rejudgment but does not by itself change discrimination behavior or claim hashes. Stored producer-halt records were read, not replayed or independently freshness-verified. Concurrent producer changes are not attributed to this comment edit.",
       "requirement_sha": "c518550f04f2281f",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "de280b1c094e08d4",
-        "internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "708a9a8051791b09"
+        "internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "13a3a06b70ab3f57"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "f0355b7bfd1485ad",
-        "internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "5a0596f08f928889"
+        "internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "453c6aa97c53eb10"
       },
       "verdict": "enforced"
     },
@@ -314,21 +316,27 @@
       "verdict": "enforced"
     },
     "RFC9552-5.3.2.1-1": {
-      "note": "c23 rejudge: IS-IS links now proven for both types on both ends (TestRFC9552ISISLinkCarriesAllRouterIDs: 1028/1029 local, 1030/1031 remote, negative catches an IPv6 swap; +/- revert records on linkRouterIDs). Still weak: the OSPF link producer is untested (ospf package held, R6 queue), so 'all auxiliary Router-IDs' is proven for one of the two IGPs Ze exports",
+      "note": "Rejudged all current tagged carriers against RFC 9552 Section 5.3.2.1: 'All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.' Preserved IS-IS TestRFC9552ISISLinkRouterIDs and TestRFC9552ISISLinkCarriesAllRouterIDs assert exact local/remote IPv4 and IPv6 inclusion and separately forbid swapped values. OSPF TestRFC9552OSPFRouterIDsReachExporter uses conforming single Router Address LSAs and pins both directed links' exact 1028/1030 values through complete encoded attributes. TestRFC9552OSPFRouterIDAbsenceReachExporter uses absent, MaxAge and unrelated-opaque local sources with a live remote control: it requires the remote ID to remain on the correct side and forbids invented local IDs, with roles reversed on the reverse link. TestRFC9552OSPFInterASRouterIDsReachExporter uses RFC 5392 type-6 Link TLVs in both permitted area/AS scopes, mandatory remote-AS and permitted simultaneous remote IPv4/IPv6 ASBR IDs, with no prohibited Link ID; it requires local 1028 and remote 1030/1031 in exact final bytes and detects contamination from an internal same-four-octet-ID router. Read indexV2, trafficEngineering, linkAttributes and exporter attribute producers; Remote.ASN == 0 correctly prevents internal-ID borrowing. Literal complete snapshots and final attribute equality catch missing, swapped, duplicate or invented IDs rather than merely accepting a parse. The untagged multi-LSA case is robustness evidence, not a conforming positive; untagged wrong-scope and mixed-body regressions support provenance without adding tagged covers. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and the documented FRR ordinary/inter-AS collectors are not claimed freshly passed.",
       "requirement_sha": "418ca4fa3543e232",
       "tests": {
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "07e1ba0c24d70214",
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "07e1ba0c24d70214",
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs": "07e1ba0c24d70214",
-        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "07e1ba0c24d70214"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "07e1ba0c24d70214",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter": "4354b106e8d6116b",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter": "4354b106e8d6116b",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "4354b106e8d6116b"
       },
       "units": {
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "fedfb153729e9d34",
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "fedfb153729e9d34",
         "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs": "4b831df520a7f1ce",
-        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "4b831df520a7f1ce"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "4b831df520a7f1ce",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter": "1a0724e121a229fe",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter": "f64fed56fbf5214c",
+        "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "84692a74980e05e3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.3.2.2-1": {
       "note": "negative refuses an IS-IS replacement carrying TLV 1094 and keeps the prior state; positive shows a Direct link still carries the mask; OSPF Protocol-IDs 3 and 6 are not driven",

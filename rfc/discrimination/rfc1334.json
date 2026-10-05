@@ -20,7 +20,7 @@
       "claim-sha": "1ec690bcecc56e21",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/auth.go::authMethodToLCPOptions",
-      "producer-sha": "7917d642d32d1603",
+      "producer-sha": "f013ef79e83f64eb",
       "break": "body of authMethodToLCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

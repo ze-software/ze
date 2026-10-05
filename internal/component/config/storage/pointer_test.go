@@ -34,6 +34,19 @@ func pointerTestStores() []pointerTestStore {
 	}
 }
 
+// TestPointerPathRejectsUnknown keeps untrusted names outside the closed key dispatcher.
+func TestPointerPathRejectsUnknown(t *testing.T) {
+	for _, tt := range pointerTestStores() {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			store := tt.newStore(t, dir)
+			path, err := pointerPath(store, tt.configPath(dir), pointerName("future"))
+			require.EqualError(t, err, `unknown config pointer "future"`)
+			assert.Empty(t, path)
+		})
+	}
+}
+
 func TestWriteCandidateVersion(t *testing.T) {
 	for _, tt := range pointerTestStores() {
 		t.Run(tt.name, func(t *testing.T) {

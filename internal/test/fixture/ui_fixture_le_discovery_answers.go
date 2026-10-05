@@ -73,7 +73,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		unit    string
 	}{
 		{command: "repo package-map", verb: actionUpdate, outputs: []string{"ai/PACKAGE-MAP.md"}, unit: "(3 packages)"},
-		{command: "doc index", verb: "write", outputs: []string{"ai/DOCS-TO-CODE.md", "ai/CODE-TO-DOCS.md"}, unit: "(3 design docs)"},
+		{command: cmdDocIndex, verb: "write", outputs: []string{"ai/DOCS-TO-CODE.md", "ai/CODE-TO-DOCS.md"}, unit: "(3 design docs)"},
 	} {
 		treeName := strings.ReplaceAll(tc.command, " ", "-") + "-command"
 		tree := filepath.Join(here, treeName)
@@ -103,7 +103,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 					return uiLeDiscoveryAnswersFailf("%s omits authored package %s", output, path)
 				}
 			}
-			if tc.command == "doc index" {
+			if tc.command == cmdDocIndex {
 				for _, doc := range []string{"documented.md", "registered.md", "undocumented.md"} {
 					if !bytes.Contains(generated[i], []byte("docs/architecture/"+doc)) {
 						return uiLeDiscoveryAnswersFailf("%s omits authored document %s", output, doc)
@@ -301,7 +301,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if got := runLE("", "repo package-map", "nonesuch").code; got != 2 {
 		return uiLeDiscoveryAnswersFailf("an unknown repo package-map action answered %d, want 2", got)
 	}
-	if got := runLE("", "doc index", "nonesuch").code; got != 2 {
+	if got := runLE("", cmdDocIndex, "nonesuch").code; got != 2 {
 		return uiLeDiscoveryAnswersFailf("an unknown doc index action answered %d, want 2", got)
 	}
 	// Both are GRAMMAR refusals, and leaction answers 2 for every one of them:
@@ -389,12 +389,12 @@ func uiLeDiscoveryAnswersMergedEnvironment(overrides map[string]string) []string
 		}
 	}
 	base = childEnvironment(base, map[string]string{
-		"GIT_CONFIG_GLOBAL":   os.DevNull,
-		"GIT_CONFIG_NOSYSTEM": "1",
-		"GIT_AUTHOR_NAME":     "Fixture",
-		"GIT_AUTHOR_EMAIL":    "fixture@example.invalid",
-		"GIT_COMMITTER_NAME":  "Fixture",
-		"GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+		envGitConfigGlobal: os.DevNull,
+		envGitConfigSystem: "1",
+		"GIT_AUTHOR_NAME":  gitFixtureName,
+		envGitAuthorEmail:  "fixture@example.invalid",
+		envGitCommitName:   gitFixtureName,
+		envGitCommitEmail:  "fixture@example.invalid",
 	})
 	return childEnvironment(base, overrides)
 }
@@ -612,15 +612,15 @@ func leDiscoveryWiringTree(ctx context.Context, root string) ([]string, error) {
 	}
 	git := func(args ...string) error {
 		result := uiLeDiscoveryAnswersRunCommand(ctx, root, nil, "git", args...)
-		if result.err != nil || result.code != 0 {
-			return fmt.Errorf("prepare discovery Git %v: %v (exit %d)\n%s%s", args, result.err, result.code, result.stdout, result.stderr)
+		if result.err != nil {
+			return fmt.Errorf("prepare discovery Git %v: %w (exit %d)\n%s%s", args, result.err, result.code, result.stdout, result.stderr)
 		}
 		return nil
 	}
 	for _, args := range [][]string{
 		{"init", "-q"},
-		{"add", "-A"},
-		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", "commit", "-qm", "baseline"},
+		{argAdd, "-A"},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", argCommit, "-qm", "baseline"},
 		{"update-ref", "refs/remotes/origin/main", "HEAD"},
 	} {
 		if err := git(args...); err != nil {
@@ -630,10 +630,10 @@ func leDiscoveryWiringTree(ctx context.Context, root string) ([]string, error) {
 	if err := leDiscoveryWriteFiles(root, map[string]string{"docs/committed.md": "# Unpushed change\n"}); err != nil {
 		return nil, err
 	}
-	if err := git("add", "docs/committed.md"); err != nil {
+	if err := git(argAdd, "docs/committed.md"); err != nil {
 		return nil, err
 	}
-	if err := git("-c", "core.hooksPath="+os.DevNull, "-c", "commit.gpgsign=false", "commit", "-qm", "unpushed change"); err != nil {
+	if err := git("-c", "core.hooksPath="+os.DevNull, "-c", "commit.gpgsign=false", argCommit, "-qm", "unpushed change"); err != nil {
 		return nil, err
 	}
 	if err := leDiscoveryWriteFiles(root, map[string]string{
@@ -643,7 +643,7 @@ func leDiscoveryWiringTree(ctx context.Context, root string) ([]string, error) {
 	}); err != nil {
 		return nil, err
 	}
-	if err := git("add", "docs/staged.md"); err != nil {
+	if err := git(argAdd, "docs/staged.md"); err != nil {
 		return nil, err
 	}
 	return []string{"docs/committed.md", "docs/staged.md", "docs/untracked.md", "internal/sample/changed.go"}, nil

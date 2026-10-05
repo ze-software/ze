@@ -91,6 +91,13 @@ contradicts the Notification that follows.
 <!-- source: internal/plugins/ldp/register.go -- runSession, startSessionForAdj, sessionUpEvent -->
 <!-- source: internal/plugins/ldp/session.go -- handleInit, keepaliveReceived, ReadLoop -->
 
+Session states are local FSM values, not decoded peer codes. State dispatch and
+`SessionState.String` treat an unnamed value as an internal BUG; zero remains
+the named NonExistent state. Peer-message rejection and named state behavior
+are unchanged.
+
+<!-- source: internal/plugins/ldp/session.go -- SessionState.String, processMessages, handleInit -->
+
 ## Decision: an unacceptable Initialization is NAK'd, never clamped
 
 `processMessages` checks the Common Session Parameters before `handleInit` reads

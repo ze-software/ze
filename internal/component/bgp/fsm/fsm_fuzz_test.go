@@ -17,6 +17,7 @@ func validState(s State) bool {
 	case StateIdle, StateActive, StateConnect, StateOpenSent, StateOpenConfirm, StateEstablished:
 		return true
 	default:
+		// This oracle accepts an open numeric set so corrupt states fail the fuzz test.
 		return false
 	}
 }

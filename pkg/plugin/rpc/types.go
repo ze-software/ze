@@ -417,6 +417,7 @@ func (phase DoctorCheckPhase) Valid() bool {
 	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhasePostConfig:
 		return true
 	default:
+		// Plugin declarations are open; reject an unknown phase without panicking.
 		return false
 	}
 }
@@ -644,6 +645,9 @@ type DecodeNLRIInput struct {
 	// prepending the Path Identifier field, which is of four octets." The octets
 	// do not say so themselves, so the negotiation result crosses with them.
 	AddPath bool `json:"add-path,omitempty"`
+	// Withdraw selects MP_UNREACH withdrawal semantics. False or absent retains
+	// announcement semantics; the action MUST come from the enclosing message.
+	Withdraw bool `json:"withdraw,omitempty"`
 }
 
 // DecodeNLRIOutput is the output for ze-plugin-engine:decode-nlri (plugin→engine).
@@ -971,6 +975,7 @@ type RouteMetricsInput struct {
 type RouteMetric struct {
 	Cost        uint64 `json:"cost"`
 	Resolved    bool   `json:"resolved"`
+	Recursive   bool   `json:"recursive"`
 	MissingAIGP bool   `json:"missing-aigp"`
 }
 

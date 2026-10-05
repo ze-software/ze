@@ -99,6 +99,7 @@ func TestBMPRoutesExcludedFromBestPath(t *testing.T) {
 	r.peerMu.RLock()
 	candidates := r.gatherCandidatesLocked(ipv4Uni, nlri, false)
 	r.peerMu.RUnlock()
+	defer releaseCandidates(candidates)
 
 	require.Len(t, candidates, 1, "only BGP peer should be a candidate")
 	assert.Equal(t, "10.0.0.1", candidates[0].PeerAddr)

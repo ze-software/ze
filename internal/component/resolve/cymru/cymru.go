@@ -229,8 +229,8 @@ func parseASNName(txt string) (string, bool) {
 	// Try to extract "Org Name" from "LABEL - Org Name, CC" format.
 	if _, after, found := strings.Cut(label, " - "); found {
 		// Strip trailing ", CC" (country code suffix).
-		if commaIdx := strings.LastIndex(after, ", "); commaIdx >= 0 {
-			return after[:commaIdx], true
+		if name, _, found := strings.CutLast(after, ", "); found {
+			return name, true
 		}
 
 		return after, true

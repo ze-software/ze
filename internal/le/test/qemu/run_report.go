@@ -29,7 +29,7 @@ func (v RunVerdict) String() string {
 	case RunVerdictUnspecified:
 		return verdictWordUnspecified
 	default:
-		return "invalid"
+		panic("BUG: invalid QEMU run verdict")
 	}
 }
 

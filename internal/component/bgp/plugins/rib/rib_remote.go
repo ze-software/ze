@@ -64,7 +64,7 @@ func (r *RIBManager) igpDistance(addr netip.Addr) igpcost.Distance {
 		return igpcost.Distance{}
 	}
 	d := out.Distances[0]
-	cost := igpcost.Distance{Cost: d.Cost, Resolved: d.Resolved, MissingAIGP: d.MissingAIGP}
+	cost := igpcost.Distance{Cost: d.Cost, Resolved: d.Resolved, Recursive: d.Recursive, MissingAIGP: d.MissingAIGP}
 	if len(remote.costs) >= 4096 {
 		// Non-best candidates can churn next hops without changing the engine
 		// revision. Bound their cache independently of retained route count.
@@ -112,8 +112,8 @@ func (r *RIBManager) runRemoteMetrics(ctx context.Context) {
 }
 
 func (r *RIBManager) removeLocRIB(fam family.Family, prefix netip.Prefix, pathID uint32) {
-	if r.locRIB != nil {
-		r.locRIB.Remove(fam, prefix, bgpProtocolID, pathID)
+	if loc := r.locRIB.Load(); loc != nil {
+		loc.Remove(fam, prefix, bgpProtocolID, pathID)
 	} else if remote := r.forkRIB; remote != nil {
 		remote.mu.Lock()
 		defer remote.mu.Unlock()
@@ -124,8 +124,8 @@ func (r *RIBManager) removeLocRIB(fam family.Family, prefix netip.Prefix, pathID
 }
 
 func (r *RIBManager) insertLocRIB(fam family.Family, prefix netip.Prefix, path locrib.Path, forward locrib.ForwardHandle) {
-	if r.locRIB != nil {
-		r.locRIB.InsertForward(fam, prefix, path, forward)
+	if loc := r.locRIB.Load(); loc != nil {
+		loc.InsertForward(fam, prefix, path, forward)
 	} else if remote := r.forkRIB; remote != nil {
 		remote.mu.Lock()
 		defer remote.mu.Unlock()

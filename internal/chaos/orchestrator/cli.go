@@ -553,8 +553,10 @@ Control:
 		daemonConfig = scenario.GenerateFRRConfig(configParams)
 	case scenario.TargetBIRD:
 		daemonConfig = scenario.GenerateBIRDConfig(configParams)
-	default:
+	case scenario.TargetZe:
 		daemonConfig = scenario.GenerateConfig(configParams)
+	default:
+		panic("BUG: invalid parsed daemon target")
 	}
 
 	// Config-only mode: output config and exit (no orchestrator).

@@ -252,11 +252,10 @@ func serveActivity(options ActivityOptions, address string) error {
 }
 
 func parseActivityAddress(value string) (string, int, error) {
-	separator := strings.LastIndexByte(value, ':')
-	if separator < 0 {
+	host, rawPort, found := strings.CutLast(value, ":")
+	if !found {
 		return value, 8000, nil
 	}
-	host, rawPort := value[:separator], value[separator+1:]
 	if host == "" {
 		host = "127.0.0.1"
 	}

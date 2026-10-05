@@ -137,6 +137,7 @@ func normalizeSeverity(s string) diagnostic.Severity {
 	case diagnostic.SeverityError, diagnostic.SeverityWarning:
 		return diagnostic.Severity(s)
 	default:
+		// Plugin severity strings form an open set; keep unknown findings as warnings.
 		return diagnostic.SeverityWarning
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/population"
 )
 
@@ -127,9 +128,10 @@ type commandResult struct {
 }
 
 type runnerOps struct {
-	lookPath func(string) (string, error)
-	capture  func(context.Context, []string, string, []string) commandResult
-	stream   func(context.Context, []string, string, []string, io.Writer) (int, error)
+	lookPath  func(string) (string, error)
+	capture   func(context.Context, []string, string, []string) commandResult
+	stream    func(context.Context, []string, string, []string, io.Writer) (int, error)
+	inputHash func(string) (string, error)
 }
 
 // Runner owns the checkout, current lint configuration, toolchain, and process
@@ -180,6 +182,9 @@ func newRunner(ctx context.Context, root string, chain gotoolchain.Toolchain, op
 	if ops.lookPath == nil || ops.capture == nil || ops.stream == nil {
 		return nil, errors.New("lint process operations are incomplete")
 	}
+	if ops.inputHash == nil {
+		return nil, errors.New("lint input fingerprint operation is missing")
+	}
 	for _, program := range []string{lintProgram, listProgram, trackedProgram} {
 		if _, err := ops.lookPath(program); err != nil {
 			return nil, fmt.Errorf("required lint tool %s is unavailable: %w", program, err)
@@ -198,9 +203,10 @@ func newRunner(ctx context.Context, root string, chain gotoolchain.Toolchain, op
 
 func realRunnerOps() runnerOps {
 	return runnerOps{
-		lookPath: exec.LookPath,
-		capture:  captureCommand,
-		stream:   streamCommand,
+		lookPath:  exec.LookPath,
+		capture:   captureCommand,
+		stream:    streamCommand,
+		inputHash: func(root string) (string, error) { return job.InputHash(root, job.LintLabel) },
 	}
 }
 
@@ -293,9 +299,26 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 		return LintPlan{Passes: passes}, nil
 	}
 
+	// A flavor can claim a package only because an earlier flavor did not
+	// select its files. Check the shared lint input fingerprint at each
+	// observation boundary so live edits cannot silently change that premise.
+	inputs, err := r.ops.inputHash(r.root)
+	if err != nil {
+		return LintPlan{}, fmt.Errorf("measure lint inputs before planning: %w", err)
+	}
+	config, err := os.ReadFile(filepath.Join(r.root, configName)) //nolint:gosec // the planner rereads its checkout configuration
+	if err != nil {
+		return LintPlan{}, fmt.Errorf("read lint configuration before planning: %w", err)
+	}
+	if !bytes.Equal(config, r.config) {
+		return LintPlan{}, errors.New("lint inputs changed before planning: configuration differs from the loaded tags; rerun with a new runner")
+	}
 	seen := make(map[string]bool)
 	for _, flavor := range basePasses() {
 		packages, files, err := r.goList(flavor, patterns)
+		if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
+			return LintPlan{}, errors.Join(err, inputErr)
+		}
 		if err != nil {
 			return LintPlan{}, err
 		}
@@ -310,6 +333,9 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 
 	for _, flavor := range flavors {
 		packages, files, err := r.goList(flavor, patterns)
+		if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
+			return LintPlan{}, errors.Join(err, inputErr)
+		}
 		if err != nil {
 			return LintPlan{}, err
 		}
@@ -336,6 +362,9 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 	if reportCoverage {
 		var err error
 		coverage, err = r.coverage(seen)
+		if inputErr := r.checkPlanningInputs(inputs, "tracked-file coverage"); inputErr != nil {
+			return LintPlan{}, errors.Join(err, inputErr)
+		}
 		if err != nil {
 			return LintPlan{}, err
 		}
@@ -355,6 +384,17 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 		plan.Passes[index].Command = replaceConfigPath(plan.Passes[index].Command, plan.TaglessConfig)
 	}
 	return plan, nil
+}
+
+func (r *Runner) checkPlanningInputs(want, after string) error {
+	current, err := r.ops.inputHash(r.root)
+	if err != nil {
+		return fmt.Errorf("measure lint inputs after %s during planning: %w", after, err)
+	}
+	if current != want {
+		return fmt.Errorf("lint inputs changed during planning after %s; no plan was produced; rerun when source edits have stopped", after)
+	}
+	return nil
 }
 
 func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string]bool, map[string]bool, error) {

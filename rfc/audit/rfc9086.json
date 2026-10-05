@@ -2,6 +2,7 @@
   "audited": "2026-10-05",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -12,8 +13,8 @@
       "tests": {
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "511e2ab2aae3d91b",
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "511e2ab2aae3d91b",
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "6bdfb4d672851af6"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "1f5303e3ea1836c5",
@@ -27,8 +28,8 @@
       "note": "(a) forbidden: a BGP-LS Link NLRI whose Remote Node Descriptors lack TLV 516 or TLV 512 of the peer. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts remote 516=192.0.2.2 and remote 512=65001 on the Link NLRI; each goes red if that TLV is dropped or carries the local value. Negative: TestRFC9086NativePeerRequiresNodeIdentities, a remote Router-ID of 0.0.0.0 refuses origination, installs no label and emits no command.",
       "requirement_sha": "b363a5df9b3da09c",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "6bdfb4d672851af6"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
@@ -41,7 +42,7 @@
       "requirement_sha": "a237fa9f14cfadd4",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "5f3cfdb2d2321a90",
@@ -53,8 +54,8 @@
       "note": "(a) forbidden: advertising an index-encoded PeerNode SID without advertising the SRGB through the RFC 9085 SR Capabilities TLV. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts the Node NLRI attribute carries TLV 1034 with range 100 and base label 16000 alongside the index SID 7; TestRFC9086NativePeerIndexRequiresSRGB asserts an index SID with no SRGB is refused and no command is emitted.",
       "requirement_sha": "b8c18495cecfb380",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "6bdfb4d672851af6"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",

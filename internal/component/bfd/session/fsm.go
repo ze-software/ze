@@ -136,6 +136,8 @@ func (m *Machine) applyTransitionLocked(recvState packet.State) {
 			// RFC 5880 Section 6.2: ignore Up while local Down.
 		case packet.StateAdminDown:
 			// Handled by the AdminDown branch in Receive.
+		default:
+			// Received states are open wire input; unknown states do not transition.
 		}
 	case packet.StateInit:
 		if recvState == packet.StateInit || recvState == packet.StateUp {
@@ -149,6 +151,8 @@ func (m *Machine) applyTransitionLocked(recvState packet.State) {
 		}
 	case packet.StateAdminDown:
 		// Already handled by caller; included for switch exhaustiveness.
+	default:
+		panic("BUG: invalid local BFD session state")
 	}
 }
 

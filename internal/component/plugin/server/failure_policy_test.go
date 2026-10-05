@@ -430,6 +430,7 @@ func TestPluginFailurePolicyReadsAnUndeclaredPolicyAsIgnore(t *testing.T) {
 		{"ignore stands", rpc.FailureIgnore, plugin.RespawnUnstated, rpc.FailureIgnore},
 		{"fatal stands", rpc.FailureFatal, plugin.RespawnUnstated, rpc.FailureFatal},
 		{"a declined respawn does not soften fatal", rpc.FailureFatal, plugin.RespawnDeclined, rpc.FailureFatal},
+		{"unknown typed policy stays unrecognized", rpc.FailurePolicy(255), plugin.RespawnUnstated, rpc.FailurePolicy(255)},
 	}
 
 	for _, tc := range cases {

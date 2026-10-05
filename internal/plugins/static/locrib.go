@@ -170,7 +170,7 @@ func staticPath(r staticRoute) (locrib.Path, error) {
 	case actionForward:
 		// Handled below.
 	default:
-		return locrib.Path{}, fmt.Errorf("unknown action %d", r.Action)
+		panic("BUG: static: invalid route action")
 	}
 
 	if len(r.NextHops) == 0 {

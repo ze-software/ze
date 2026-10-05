@@ -162,8 +162,9 @@ func communityAttrCode(typ filtertext.CommunityKind) attribute.AttributeCode {
 		return attribute.AttrLargeCommunity
 	case communityTypeExtended:
 		return attribute.AttrExtCommunity
+	default:
+		panic("BUG: invalid community kind")
 	}
-	return attribute.AttrCommunity // unreachable: typ is always one of the three constants
 }
 
 // communityValueSize returns the wire size of one community value for the
@@ -176,8 +177,9 @@ func communityValueSize(typ filtertext.CommunityKind) int {
 		return 12
 	case communityTypeExtended:
 		return 8
+	default:
+		panic("BUG: invalid community kind")
 	}
-	return 4 // unreachable: typ is always one of the three constants
 }
 
 // ingressTagCommunities appends wire values to the target attribute in

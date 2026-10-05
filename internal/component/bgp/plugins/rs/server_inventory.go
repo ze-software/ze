@@ -28,6 +28,7 @@ type nlriRecord struct {
 	action     string // actionAdd or actionDel
 	prefix     netip.Prefix
 	nlriStr    string // non-empty only for non-unicast families
+	nativeKey  string // registered VPN identity, excluding label/Compatibility
 	wireForm   bool   // nlriStr is hex of one NLRI, not a text token
 	addPath    bool   // wireForm hex carries a 4-octet path identifier
 	// cidrKeyed says the route is keyed by prefix and pathID, because its
@@ -274,6 +275,24 @@ func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string,
 		}
 		if cidrKeyed {
 			rec.prefix, rec.pathID, rec.cidrKeyed = opaqueRouteCIDR(fam, part, addPath, scratch)
+		} else if fam.SAFI == family.SAFIVPN {
+			pathID, payload, splitErr := nlri.SplitPathID(part, addPath)
+			if splitErr != nil {
+				logger().Warn("VPN inventory path identifier rejected", "family", famStr, "error", splitErr)
+				offset += size
+				continue
+			}
+			// RFC 8277 Section 2.4: "Upon reception, the value of the
+			// Compatibility field MUST be ignored." The registered key
+			// retains RD and prefix, but neither label nor Compatibility.
+			key, keyErr := nlrisplit.GetPrefixKey(fam)(payload, scratch, action == actionDel)
+			if keyErr != nil {
+				logger().Warn("VPN inventory identity rejected", "family", famStr, "error", keyErr)
+				offset += size
+				continue
+			}
+			rec.pathID = pathID
+			rec.nativeKey = string(key)
 		}
 		records = append(records, rec)
 		offset += size
@@ -308,6 +327,9 @@ func opaqueRouteCIDR(fam family.Family, part []byte, addPath bool, scratch []byt
 // recordKey derives the withdrawal-set key for one record. The add and the del
 // arm MUST derive it the same way, or a withdrawal never cancels its announce.
 func recordKey(rec *nlriRecord) withdrawalKey {
+	if rec.nativeKey != "" {
+		return withdrawalKey{fam: rec.fam, nlriStr: rec.nativeKey, pathID: rec.pathID, wireForm: true, addPath: rec.addPath}
+	}
 	if rec.cidrKeyed {
 		return withdrawalKey{fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID}
 	}
@@ -320,6 +342,9 @@ func recordKey(rec *nlriRecord) withdrawalKey {
 // recordEntry is what the withdrawal set holds for an announced record: the
 // hex its peer-down withdrawal goes out as when the key is not that hex.
 func recordEntry(rec *nlriRecord) withdrawalEntry {
+	if rec.nativeKey != "" {
+		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath}
+	}
 	if rec.cidrKeyed {
 		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath}
 	}

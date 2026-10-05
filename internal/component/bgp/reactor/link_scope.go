@@ -102,6 +102,8 @@ func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, rout
 		// The speaker's own Link-Local is the right second address.
 	case nextHopRouterUnspecified, nextHopRouterThirdParty:
 		return netip.Addr{}
+	default:
+		panic("BUG: invalid next-hop router")
 	}
 	if !configured.Is6() || !configured.IsLinkLocalUnicast() {
 		return netip.Addr{}

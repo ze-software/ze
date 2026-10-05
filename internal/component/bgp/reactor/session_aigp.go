@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	wireu "github.com/ze-software/ze/internal/core/bgp/wire"
 )
@@ -152,7 +153,7 @@ func stripAIGPBody(dst, body []byte) ([]byte, error) {
 }
 
 func (s *Session) writeUpdateWithoutAIGP(body []byte) error {
-	handle := s.getReadBuffer()
+	handle := getReadBuf(len(body) > message.MaxMsgLen-message.HeaderLen)
 	defer s.returnReadBuffer(handle)
 	filtered, err := stripAIGPBody(handle.Buf, body)
 	if err != nil {

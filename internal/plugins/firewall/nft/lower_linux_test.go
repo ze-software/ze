@@ -184,6 +184,32 @@ func TestLowerEnumsRejectUnknown(t *testing.T) {
 	}
 }
 
+// An unvalidated owner set must be rejected before its elements reach the
+// encoder's closed, already-validated type dispatch.
+func TestLowerSetRejectsUnknownTypeBeforeEncoding(t *testing.T) {
+	for _, tc := range []struct {
+		typ  firewall.SetType
+		want string
+	}{
+		{0, "unknown set type 0"},
+		{99, "unknown set type 99"},
+	} {
+		table := &nftables.Table{Name: "ze_t", Family: nftables.TableFamilyINet}
+		set := &firewall.Set{
+			Name:     "unvalidated",
+			Type:     tc.typ,
+			Elements: []firewall.SetElement{{Value: "192.0.2.1"}},
+		}
+		got, elements, err := lowerSet(table, set)
+		if err == nil || err.Error() != tc.want {
+			t.Fatalf("type %d: got error %v, want %q", tc.typ, err, tc.want)
+		}
+		if got != nil || elements != nil {
+			t.Fatalf("type %d: rejection returned a set or elements", tc.typ)
+		}
+	}
+}
+
 // VALIDATES: Category A -- Counter.Name with a non-empty value is rejected.
 // PREVENTS: a named counter silently collapsing to an anonymous one.
 func TestLowerCounterRejectsName(t *testing.T) {

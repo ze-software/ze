@@ -78,6 +78,28 @@ func TestAuthMethodToLCPOptions(t *testing.T) {
 	}
 }
 
+// TestAuthMethodInvalidInternalValue distinguishes an unnamed internal method
+// from unknown wire protocols, which authMethodFromAuthProto maps to None.
+func TestAuthMethodInvalidInternalValue(t *testing.T) {
+	t.Run("encode", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: unknown authentication method" {
+				t.Fatalf("panic = %v, want BUG: unknown authentication method", got)
+			}
+		}()
+		authMethodToLCPOptions(AuthMethod(255))
+	})
+	t.Run("dispatch", func(t *testing.T) {
+		defer func() {
+			if got := recover(); got != "BUG: unknown authentication method" {
+				t.Fatalf("panic = %v, want BUG: unknown authentication method", got)
+			}
+		}()
+		s := pppSession{negotiatedAuthMethod: AuthMethod(255)}
+		s.runAuthPhase()
+	})
+}
+
 // VALIDATES: authMethodToLCPOptions and authMethodFromAuthProto
 //
 //	round-trip for every concrete method: encode yields the

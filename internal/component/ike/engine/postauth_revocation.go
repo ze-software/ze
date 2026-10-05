@@ -211,6 +211,8 @@ func (r *serverCertRecheck) run(
 		// turn one responder outage into an outage of every tunnel.
 		log.Warn("ike: the authenticator certificate revocation status was not re-checked after the tunnel came up",
 			"peer", peerName, "reason", err)
+	default:
+		panic("BUG: unknown server certificate recheck status")
 	}
 }
 

@@ -1033,13 +1033,19 @@ func TestSessionState_String(t *testing.T) {
 		{L2TPSessionWaitConnect, "wait-connect"},
 		{L2TPSessionWaitCSAnswer, "wait-cs-answer"},
 		{L2TPSessionEstablished, "established"},
-		{L2TPSessionState(99), "unknown"},
 	}
 	for _, tt := range tests {
 		if got := tt.state.String(); got != tt.want {
 			t.Errorf("state %d: got %q, want %q", tt.state, got, tt.want)
 		}
 	}
+	// The FSM creates states locally; wire message codes never become state numbers.
+	defer func() {
+		if got := recover(); got != "BUG: unknown L2TP session state" {
+			t.Fatalf("unexpected panic for an unnamed session state: %v", got)
+		}
+	}()
+	_ = L2TPSessionState(99).String()
 }
 
 // --- Boundary tests ---

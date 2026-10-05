@@ -68,6 +68,7 @@ func (op pathOperation) Validate() error {
 			return fmt.Errorf("move does not accept target, replacement, or under")
 		}
 	default:
+		// The operation set is open at this command-input boundary.
 		return fmt.Errorf("unknown operation %q", op.Kind)
 	}
 	for name := range op.ListNodes {
@@ -305,10 +306,9 @@ func findYangDefinitions(statements []*gyang.Statement, op pathOperation) []Manu
 				if statement.Argument == target {
 					location := statement.Location()
 					line := 0
-					if column := strings.LastIndexByte(location, ':'); column >= 0 {
-						prefix := location[:column]
-						if separator := strings.LastIndexByte(prefix, ':'); separator >= 0 {
-							line, _ = strconv.Atoi(prefix[separator+1:])
+					if prefix, _, found := strings.CutLast(location, ":"); found {
+						if _, number, found := strings.CutLast(prefix, ":"); found {
+							line, _ = strconv.Atoi(number)
 						} else {
 							line, _ = strconv.Atoi(strings.TrimPrefix(prefix, "line "))
 						}

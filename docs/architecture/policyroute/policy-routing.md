@@ -5,8 +5,9 @@
 
 Config shape: `policy { route <name> { interface; rule { from; then; } } }`. The
 `from` block carries source and destination address, ports, protocol, TCP flags
-and `@set` references. The `then` block carries one terminal action: accept,
-drop, `table N`, a next-hop IP, or `tcp-mss N`.
+and `@set` references. The `then` block carries at most one terminal action:
+accept, drop, `table N` or a next-hop IP. `tcp-mss N` may accompany a terminal
+action or stand alone; alone it adjusts MSS without adding a terminal action.
 
 ## Decisions
 
@@ -65,7 +66,9 @@ apply time.
 ### One terminal action per rule
 
 Only one of accept, drop, table or next-hop is allowed. The conflict is detected
-at parse time with an error listing the conflicting actions.
+at parse time with an error listing the conflicting actions. A TCP-MSS-only rule
+keeps its unspecified terminal action through translation, so it adds neither a
+verdict nor a routing-table selection.
 
 ## The registry pattern this reinforces
 

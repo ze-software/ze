@@ -126,11 +126,21 @@ func marshalEngineSteps(steps []EngineStep) ([]byte, error) {
 	return json.Marshal(steps)
 }
 
-// UnmarshalEngineSteps parses engine-steps.json content.
+// UnmarshalEngineSteps parses engine-steps.json and rejects unknown kinds before
+// publishing any steps to the executor.
 func UnmarshalEngineSteps(data []byte) ([]EngineStep, error) {
 	var steps []EngineStep
 	if err := json.Unmarshal(data, &steps); err != nil {
 		return nil, fmt.Errorf("engine steps file: %w", err)
+	}
+	for i := range steps {
+		switch steps[i].Kind {
+		case EngineStepCommand, EngineStepStream, EngineStepExpectOutput,
+			EngineStepExpectEvent, EngineStepExpectStream, EngineStepExpectCommandError:
+		default:
+			// JSON is an open boundary: unnamed numeric values are not steps.
+			return nil, fmt.Errorf("engine steps file: step %d: unknown kind %d", i+1, steps[i].Kind)
+		}
 	}
 	return steps, nil
 }
@@ -547,6 +557,9 @@ func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEve
 				return fmt.Errorf("engine step %d: stream output missing %q within %s",
 					i+1, step.Text, step.Timeout)
 			}
+		default:
+			// Direct callers can supply an open numeric kind too; never skip it.
+			return fmt.Errorf("engine step %d: unknown kind %d", i+1, step.Kind)
 		}
 	}
 

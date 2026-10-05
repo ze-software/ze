@@ -434,9 +434,9 @@ func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selectorStr st
 			}
 		}
 		return matched, nil, nil
+	default:
+		panic("BUG: invalid parsed peer selector kind")
 	}
-
-	return nil, nil, nil
 }
 
 func excludePeer(all []plugin.PeerInfo, idx int) []plugin.PeerInfo {

@@ -196,6 +196,8 @@ func ScanAnswerLines(data []byte, atEOF bool) (advance int, token []byte, err er
 		return 0, nil, nil
 	case answerLineOther:
 		// Framed by its newline, below.
+	default:
+		panic("BUG: answer line classifier returned an unknown state")
 	}
 
 	return ScanLinesKeepingReturns(data, atEOF)

@@ -31,19 +31,17 @@ func TestVPPSPDActionCarriesEveryDisposition(t *testing.T) {
 		{"bypass", SPActionBypass, ipsec_types.IPSEC_API_SPD_ACTION_BYPASS},
 		{"discard", SPActionDiscard, ipsec_types.IPSEC_API_SPD_ACTION_DISCARD},
 	} {
-		got, err := vppSPDAction(tc.in)
-		if err != nil {
-			t.Errorf("%s: vppSPDAction: %v", tc.name, err)
-			continue
-		}
+		got := vppSPDAction(tc.in)
 		if got != tc.want {
 			t.Errorf("%s: action = %v, want %v", tc.name, got, tc.want)
 		}
 	}
 
-	// The negative half. A disposition this backend cannot express is refused, never
-	// mapped onto whichever action a default happened to name.
-	if _, err := vppSPDAction(SPAction(200)); err == nil {
-		t.Error("vppSPDAction accepted an unknown disposition; it must refuse rather than pick one")
-	}
+	// An unknown internal action must not select an arbitrary disposition.
+	defer func() {
+		if got := recover(); got != "BUG: policy has an unknown VPP action" {
+			t.Fatalf("panic = %v, want unknown-action BUG assertion", got)
+		}
+	}()
+	_ = vppSPDAction(SPAction(200))
 }

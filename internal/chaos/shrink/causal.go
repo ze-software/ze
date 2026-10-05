@@ -33,7 +33,8 @@ func removeWithDependents(events []peer.Event, removeIdx int) []peer.Event {
 		// For events after the removal point, check preconditions.
 		if j > removeIdx {
 			skip := false
-			switch events[j].Type { //nolint:exhaustive // only relevant types checked
+			//exhaustive:ignore // Only events requiring an established peer have this precondition.
+			switch events[j].Type {
 			case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 				peer.EventEORSent, peer.EventWithdrawalSent, peer.EventChaosExecuted,
 				peer.EventError:
@@ -53,11 +54,18 @@ func removeWithDependents(events []peer.Event, removeIdx int) []peer.Event {
 		}
 
 		// Update tracked state.
-		switch events[j].Type { //nolint:exhaustive // only state-changing types matter
+		switch events[j].Type {
 		case peer.EventEstablished:
 			established[events[j].PeerIndex] = true
 		case peer.EventDisconnected:
 			established[events[j].PeerIndex] = false
+		case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
+			peer.EventEORSent, peer.EventError, peer.EventChaosExecuted,
+			peer.EventReconnecting, peer.EventWithdrawalSent, peer.EventRouteAction,
+			peer.EventDroppedEvents:
+			// These events do not change the established state.
+		default:
+			panic("BUG: invalid shrink event type")
 		}
 
 		result = append(result, events[j])

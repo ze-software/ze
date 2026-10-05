@@ -202,6 +202,8 @@ func ParseLCPOptions(buf []byte) ([]LCPOption, error) {
 	case LCPOptionsPastEnd:
 		return w.Options, errOptionLengthMismatch
 	case LCPOptionsOK:
+	default:
+		panic("BUG: unknown LCP option fault")
 	}
 	return w.Options, nil
 }
@@ -555,6 +557,8 @@ func NegotiatePeerOptions(opts []LCPOption, policy LCPNegPolicy) (acks, naks, re
 			naks = append(naks, entry)
 		case negReject:
 			rejects = append(rejects, entry)
+		default:
+			panic("BUG: unknown LCP negotiation outcome")
 		}
 	}
 	return

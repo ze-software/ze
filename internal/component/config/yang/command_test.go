@@ -1002,6 +1002,21 @@ module test-union-cmd {
 	assert.Equal(t, command.ArgEnum, def.UnionDefs[1].Kind)
 }
 
+// TestArgDefUnionSkipsUnknownKind preserves the supported member when schema metadata adds an unknown kind.
+func TestArgDefUnionSkipsUnknownKind(t *testing.T) {
+	def, ok := yangTypeToArgDef("limit", &gyang.YangType{
+		Kind: gyang.Yunion,
+		Type: []*gyang.YangType{
+			{Kind: gyang.TypeKind(999)},
+			{Kind: gyang.Yuint8},
+		},
+	})
+	require.True(t, ok)
+	require.Len(t, def.UnionDefs, 1)
+	assert.Equal(t, command.ArgUint, def.UnionDefs[0].Kind)
+	assert.Equal(t, 8, def.UnionDefs[0].UintBits)
+}
+
 // TestArgDefFromUintRangeYANG verifies uint leaves with range constraints.
 //
 // VALIDATES: AC-3 -- uint leaf with range produces ArgDef with range metadata.

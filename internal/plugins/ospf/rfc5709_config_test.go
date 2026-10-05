@@ -107,6 +107,8 @@ func TestMultiAFConfigParse(t *testing.T) {
 			sawV4U = f.cfg.InstanceID == 64
 		case afIPv6Multicast, afIPv4Multicast:
 			// not configured in this case
+		default:
+			panic("BUG: invalid parsed OSPF address family")
 		}
 	}
 	if !sawV6U || !sawV4U {

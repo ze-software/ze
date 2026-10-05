@@ -85,7 +85,7 @@ func (t BGPLSNLRIType) String() string {
 		return "prefix-v6"
 	case BGPLSSRv6SIDNLRI:
 		return "srv6-sid"
-	default: // format unknown NLRI types numerically
+	default: // The wire NLRI-type registry is open; retain numeric names.
 		var b textbuf.Buffer
 		return b.Reset().Str("type(").Uint16(uint16(t)).Str(")").String()
 	}
@@ -125,7 +125,7 @@ const (
 // String returns a human-readable protocol name.
 func (p BGPLSProtocolID) String() string {
 	// enumeration: exempt (these are RFC 7752 BGP-LS protocol-ID names, not plugin names)
-	switch p { //nolint:exhaustive // Unknown protocols formatted in default
+	switch p {
 	case ProtoISISL1:
 		return "isis-l1"
 	case ProtoISISL2:
@@ -140,7 +140,10 @@ func (p BGPLSProtocolID) String() string {
 		return "ospfv3"
 	case ProtoBGP:
 		return "bgp"
-	default: // format unknown protocols numerically
+	case ProtoRSVPTE, ProtoSegment:
+		var b textbuf.Buffer
+		return b.Reset().Str("proto(").Uint8(uint8(p)).Str(")").String()
+	default: // The wire Protocol-ID registry is open; retain numeric names.
 		var b textbuf.Buffer
 		return b.Reset().Str("proto(").Uint8(uint8(p)).Str(")").String()
 	}
@@ -317,7 +320,7 @@ func parseBGPLS(data []byte) (bGPLSNLRI, error) {
 	proto := BGPLSProtocolID(body[0])                // Protocol-ID (1 byte)
 	identifier := binary.BigEndian.Uint64(body[1:9]) // Identifier (8 bytes)
 
-	switch nlriType { //nolint:exhaustive // Unsupported types handled in default
+	switch nlriType {
 	case BGPLSNodeNLRI:
 		// RFC 7752 Section 3.2.1 - Node NLRI (Type 1)
 		node := &BGPLSNode{nlriType: nlriType, protocolID: proto, identifier: identifier}
@@ -355,7 +358,7 @@ func parseBGPLS(data []byte) (bGPLSNLRI, error) {
 		srv6.cached = data[:4+nlriLen]
 		return srv6, nil
 
-	default: // unknown NLRI type
+	default: // The wire NLRI-type registry is open; unknown types stay unsupported.
 		return nil, ErrBGPLSInvalidType
 	}
 }

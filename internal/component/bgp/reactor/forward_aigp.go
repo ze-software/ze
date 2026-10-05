@@ -84,10 +84,17 @@ func aigpMetricValue(value []byte) (uint64, bool) {
 	return binary.BigEndian.Uint64(value[offset:]), true
 }
 
-func aigpIncrement(nh, sourcePeer netip.Addr, sourceLinkMetric uint64) (uint64, bool) {
+// aigpIncrement retains the recursive missing-AIGP distinction: RFC 7311
+// Section 3.4.3 permits attribute discard there, not for an unknown link cost.
+func aigpIncrement(nh, sourcePeer netip.Addr, sourceLinkMetric uint64) igpcost.Distance {
 	distance := igpcost.Lookup(nh)
 	if distance.MissingAIGP {
-		return 0, false
+		return distance
+	}
+	// The non-zero direct-link rule does not replace the recursive procedure:
+	// its received BGP AIGP values and terminal distance may sum to zero.
+	if distance.Resolved && distance.Recursive {
+		return distance
 	}
 	var increment uint64
 	if distance.Resolved {
@@ -96,7 +103,7 @@ func aigpIncrement(nh, sourcePeer netip.Addr, sourceLinkMetric uint64) (uint64, 
 	if increment == 0 && nh.Unmap() == sourcePeer.Unmap() {
 		increment = sourceLinkMetric
 	}
-	return increment, increment != 0
+	return igpcost.Distance{Cost: increment, Resolved: increment != 0}
 }
 
 // sourceAIGPLinkMetric belongs to the link toward the received next hop, never
@@ -114,7 +121,13 @@ func (r *Reactor) sourceAIGPLinkMetric(addr netip.Addr) uint64 {
 // applyFactsAIGP runs after policy and next-hop edits on both forward rails.
 // It uses the received value as the accumulation base, not a previously sent
 // value, so replay or a metric change cannot add the same distance twice.
-func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, base []byte, sourcePeer netip.Addr, sourceLinkMetric uint64, mods *filterapi.ModAccumulator) {
+// A true result means this announcement was withheld only for its unavailable
+// cost. The caller MUST carry that reason to the successful write receipt so a
+// later metric change can recover this recipient, without a new received UPDATE.
+func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, base []byte, sourcePeer netip.Addr, sourceLinkMetric uint64, mods *filterapi.ModAccumulator) bool {
+	if mods.IsWithdraw() {
+		return false
+	}
 	out := payloadAIGP(base)
 	for _, op := range mods.Ops() {
 		if op.Code != uint8(attribute.AttrAIGP) {
@@ -128,7 +141,7 @@ func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, b
 		}
 	}
 	if len(received) == 0 && len(out) == 0 {
-		return
+		return false
 	}
 	suppress := func() {
 		if len(out) != 0 {
@@ -139,12 +152,12 @@ func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, b
 		// Origination is an explicit route operation, never an accidental
 		// side effect of a transit filter inserting an attribute.
 		suppress()
-		return
+		return false
 	}
 	off, err := attribute.AIGPMetricOffset(received)
 	if err != nil {
 		suppress()
-		return
+		return false
 	}
 	after := aigpNextHop(base)
 	if edited, set := modsNextHop(mods); set {
@@ -160,11 +173,11 @@ func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, b
 		if !bytes.Equal(received, out) {
 			mods.OpCopy(uint8(attribute.AttrAIGP), filterapi.AttrModSet, received)
 		}
-		return
+		return false
 	}
 	if off < 0 {
 		suppress()
-		return
+		return false
 	}
 	var scope *receiveNextHopScope
 	if f.localScope != nil {
@@ -173,21 +186,33 @@ func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, b
 	if !isLocalAIGPNextHop(after, f.localAddr, scope) {
 		// The RFC's distance calculation only authorizes next-hop-self.
 		suppress()
-		return
+		return false
 	}
 	receivedNextHop := before.legacy
 	if before.mp.IsValid() {
 		receivedNextHop = before.mp
 	}
-	increment, usable := aigpIncrement(receivedNextHop, sourcePeer, sourceLinkMetric)
-	if !usable {
-		// Section 3.4.3 requires a non-zero distance and forbids accumulating
-		// through a recursive BGP next hop that has no AIGP.
+	distance := aigpIncrement(receivedNextHop, sourcePeer, sourceLinkMetric)
+	if distance.MissingAIGP {
+		// RFC 7311 Section 3.4.3: "If the route to XNH is a BGP-learned route
+		// that does NOT have an AIGP attribute, then exit this procedure and
+		// do not pass on any AIGP attribute."
 		suppress()
-		return
+		return false
+	}
+	if !distance.Resolved {
+		// RFC 7311 Section 3.4.3: "Then, when R1 changes the next hop of a
+		// route from R2 to R1, the AIGP TLV value MUST be increased by a
+		// non-zero amount." Do not invent a cost or undo next-hop-self:
+		// withdraw the route until its required distance becomes available.
+		mods.SetWithdraw()
+		fwdLogger().Warn("withholding route: AIGP next-hop-self has no non-zero distance",
+			"source", sourcePeer, "peer", f.addr)
+		return true
 	}
 	mods.OpCopy(uint8(attribute.AttrAIGP), filterapi.AttrModSet, received)
 	ops := mods.Ops()
 	value := ops[len(ops)-1].Buf
-	binary.BigEndian.PutUint64(value[off:], igpcost.Add(binary.BigEndian.Uint64(received[off:]), increment))
+	binary.BigEndian.PutUint64(value[off:], igpcost.Add(binary.BigEndian.Uint64(received[off:]), distance.Cost))
+	return false
 }

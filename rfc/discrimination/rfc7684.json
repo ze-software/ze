@@ -86,7 +86,7 @@
       "claim-sha": "9fe2b179e51afa0e",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
-      "producer-sha": "5c5335abf1e54c07",
+      "producer-sha": "6df8e607849558ea",
       "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

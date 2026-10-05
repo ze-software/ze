@@ -424,6 +424,32 @@ func TestBGPLSNodeStringCommandStyle(t *testing.T) {
 	}
 }
 
+// TestBGPLSNodeNumericProtocolNames keeps extension and unknown Protocol-IDs
+// numeric after wire decoding, rather than inventing new command spellings.
+func TestBGPLSNodeNumericProtocolNames(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		protocol BGPLSProtocolID
+		want     string
+	}{
+		{ProtoRSVPTE, "node protocol proto(8) asn 65001"},
+		{ProtoSegment, "node protocol proto(9) asn 65001"},
+		{BGPLSProtocolID(250), "node protocol proto(250) asn 65001"},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			t.Parallel()
+			wire := NewBGPLSNode(tc.protocol, 0x100, NodeDescriptor{ASN: 65001}).Bytes()
+			node, err := parseBGPLS(wire)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := node.String(); got != tc.want {
+				t.Fatalf("decoded node = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // TestBGPLSLinkStringCommandStyle verifies command-style string representation.
 //
 // VALIDATES: BGPLSLink String() outputs command-style format for API round-trip.

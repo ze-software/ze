@@ -123,6 +123,8 @@ func (f *fibP4) processEvent(batch *incomingBatch) {
 			delete(f.installed, c.Prefix.String())
 		case routeaction.VerbSkip:
 			logger().Warn("fib-p4: skipping change with unspecified action", "prefix", c.Prefix)
+		default:
+			panic("BUG: invalid normalized route verb")
 		}
 	}
 }

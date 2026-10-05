@@ -64,7 +64,7 @@
       "claim-sha": "b191c911a6c142a2",
       "route": "revert",
       "producer": "internal/plugins/isis/lsdb/flooding.go::ReceiveLSP",
-      "producer-sha": "05a0c3aa11ab5bac",
+      "producer-sha": "71ade1972f991393",
       "break": "body of ReceiveLSP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

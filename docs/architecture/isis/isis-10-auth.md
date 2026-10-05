@@ -25,6 +25,15 @@ It lives in the `packet` subpackage, operates on raw PDU bytes only, and imports
 no config, circuit or database layer. It is testable on bytes alone. The
 three-file split is size, not behavior.
 
+Caller-supplied keys and raw PDU type octets retain safe unknown-value results.
+After algorithm validation and PDU decoding, the private digest, hash and PDU
+class helpers assert `BUG` for an impossible value. `AuthAlgoNone` and
+`AuthAlgoCleartext` still have no fixed digest length or hash constructor.
+
+<!-- source: internal/plugins/isis/packet/auth_types.go -- authTypeFor, digestLen, newHash, classOf -->
+<!-- source: internal/plugins/isis/packet/auth_sign.go -- SignPDU, tlvRegionStart -->
+<!-- source: internal/plugins/isis/packet/auth_verify.go -- VerifyPDU, authLayoutForReceived -->
+
 <!-- source: internal/plugins/isis/packet/auth_sign.go -- SignPDU, computeDigest, finalizeLSPChecksum, StripPurgeBody -->
 <!-- source: internal/plugins/isis/packet/auth_verify.go -- VerifyPDU, verifyKey, authLayoutForReceived -->
 

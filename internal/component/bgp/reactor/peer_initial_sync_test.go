@@ -623,8 +623,8 @@ var defaultRouteNLRI = []byte{0x00}
 // octet is 32 (0x20) because a link-local address is also included.
 //
 // RFC requirement: RFC2545-3-3 positive -- both halves of the condition hold: the
-// speaker shares the loopback subnet with the entity named by the global next hop
-// (::1) and with the peer the route is advertised to (fd00::2).
+// speaker's connected-scope snapshot includes the entity named by the global
+// next hop (::1) and the peer the route is advertised to (fd00::2).
 //
 // VALIDATES: the originated ::/0 leaves with the 32-octet form, global first.
 // PREVENTS: the default-originate rail emitting the 16-octet form in a case
@@ -635,9 +635,14 @@ var defaultRouteNLRI = []byte{0x00}
 // RFC 4271 Section 5.1.3 forbids advertising a peer its own address as NEXT_HOP,
 // and originatedNextHopIsPeerOwn (forward_next_hop.go) refuses it, so a fixture
 // that gives both ends ::1 asserts the wire form of a message Ze must never send.
-// `./le setup` provisions fd00::2 on the loopback.
+// The fixture supplies both connected prefixes instead of depending on loopback
+// provisioning on the host running this test.
 func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 	peer, conn := newDefaultOriginatePeer(t, "fd00::2", "::1", "fe80::1")
+	peer.refreshLinkScopeFrom([]netip.Prefix{
+		netip.MustParsePrefix("::1/128"),
+		netip.MustParsePrefix("fd00::/64"),
+	})
 
 	peer.sendInitialRoutes()
 

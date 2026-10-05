@@ -31,9 +31,9 @@ func sortedPeerNames(peers map[string]SiteToSitePeer) []string {
 // PortForm names how one traffic selector states its port range.
 //
 // RFC 7296 Section 3.13.1 gives three encodings and they are not interchangeable.
-// The zero value is deliberately invalid, so a field nobody filled can never read as
-// a valid form (ai/rules/evidence.md). parseTrafficSelectorPort normalizes
-// an absent leaf to PortAny, which is the RFC's own default and today's behavior.
+// Zero is not a parsed form and checkPortProgrammable rejects it. Wire and String
+// retain the existing ANY representation for an unset selector. parsePortSelector
+// normalizes an absent leaf to PortAny, which is the RFC's own default.
 type PortForm uint8
 
 const (
@@ -77,8 +77,12 @@ func (p PortSelector) Wire() (start, end uint16) {
 		return p.Port, p.Port
 	case PortOpaque:
 		return 65535, 0
-	default:
+	case PortAny, 0:
 		return 0, 65535
+	default:
+		// Wire ranges are normalized by PortSelectorFromWire or rejected;
+		// no received numeric code is used directly as a PortForm.
+		panic("BUG: unknown traffic selector port form")
 	}
 }
 
@@ -109,8 +113,12 @@ func (p PortSelector) String() string {
 		return portDecimal(p.Port)
 	case PortOpaque:
 		return "opaque"
-	default:
+	case PortAny, 0:
 		return portAnyKeyword
+	default:
+		// Parsing and wire conversion assign named forms; zero is handled
+		// above for callers that have not populated a selector.
+		panic("BUG: unknown traffic selector port form")
 	}
 }
 
@@ -331,9 +339,11 @@ func checkPortProgrammable(peerName, number, side string, p PortSelector, proto 
 		// accepting and widening at install time is not.
 		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port opaque cannot be programmed by any dataplane backend Ze has, because the kernel policy selector derives its port mask from the port value and an exact match on port 0 is not expressible; use any, or a port number in 1..65535",
 			ErrTrafficSelectorPolicy, peerName, number, side)
-	default:
+	case 0:
 		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port form %d is not a form Ze can encode; accepted values are any, opaque, or a port number in 1..65535",
 			ErrTrafficSelectorPolicy, peerName, number, side, uint8(p.Form))
+	default:
+		panic("BUG: unknown traffic selector port form")
 	}
 }
 

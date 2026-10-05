@@ -392,6 +392,8 @@ func (m *probeManager) dispatchStateAction(ctx context.Context, cfg ProbeConfig,
 		m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog withdraw", []string{cfg.Group})
 	case StateInit, StateRising, StateFalling, StateEnd:
 		// No watchdog action for intermediate or terminal states.
+	default:
+		panic("BUG: invalid healthcheck state")
 	}
 }
 
@@ -419,6 +421,8 @@ func (m *probeManager) handleIPTransition(ipt *ipTracker, cfg ProbeConfig, state
 		}
 	case StateInit, StateRising, StateFalling, StateExit, StateEnd:
 		// No IP action for these states (EXIT handled in handleExit).
+	default:
+		panic("BUG: invalid healthcheck IP transition state")
 	}
 }
 

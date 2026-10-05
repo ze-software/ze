@@ -253,6 +253,8 @@ func (a *allocator) buildActions(policyName string, rule PolicyRule, basePriorit
 	}
 
 	switch rule.Action.Type {
+	case 0:
+		// A rule without a terminal action retains any TCP-MSS adjustment.
 	case ActionAccept:
 		actions = append(actions, firewall.Accept{})
 
@@ -296,6 +298,8 @@ func (a *allocator) buildActions(policyName string, rule PolicyRule, basePriorit
 				NextHop: rule.Action.NextHop,
 			})
 		}
+	default:
+		panic("BUG: policyroute: invalid action type")
 	}
 
 	return actions, ipRules, autoRoutes, nil

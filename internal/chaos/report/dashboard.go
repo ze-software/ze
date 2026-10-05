@@ -91,6 +91,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.rw.printf("\rpeer %d | WARNING: %d events dropped (channel full)\n", ev.PeerIndex, ev.Count)
 	case peer.EventError, peer.EventChaosExecuted, peer.EventReconnecting:
 		d.printLifecycle(ev)
+	default:
+		panic("BUG: invalid dashboard event type")
 	}
 }
 

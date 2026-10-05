@@ -53,7 +53,6 @@ var (
 	errNatAddressRangeMixedIpv4Ipv6                 = errors.New("NAT address range: mixed IPv4/IPv6 bounds")
 	errNatPortRangeRequiresALower                   = errors.New("NAT port range requires a lower bound")
 	errInvalidNatAddress                            = errors.New("invalid NAT address")
-	errUnsupportedSetTypeForElementEncoding         = errors.New("unsupported set type for element encoding")
 	errTtlBelowFloorIsZero                          = errors.New("ttl-below floor is 0, which no TTL can be below")
 	errIcmpQuotedTcpPortNamesNoSide                 = errors.New("icmp-quoted-tcp-port names no side")
 	errIcmpQuotedTcpPortIsZero                      = errors.New("icmp-quoted-tcp-port is 0, which no TCP session carries")
@@ -81,8 +80,10 @@ func lowerFamily(f firewall.TableFamily) (nftables.TableFamily, error) {
 		return nftables.TableFamilyBridge, nil
 	case firewall.FamilyNetdev:
 		return nftables.TableFamilyNetdev, nil
+	default:
+		// Apply accepts unvalidated owner tables; reject unknown families.
+		return 0, fmt.Errorf("unknown table family %q", f)
 	}
-	return 0, fmt.Errorf("unknown table family %q", f)
 }
 
 // raiseFamily converts nftables.TableFamily to ze TableFamily. Unknown values
@@ -104,8 +105,10 @@ func raiseFamily(f nftables.TableFamily) (firewall.TableFamily, error) {
 		return firewall.FamilyNetdev, nil
 	case nftables.TableFamilyUnspecified:
 		return 0, errKernelTableFamilyIsUnspecified
+	default:
+		// Kernel families are open; reject values the model cannot represent.
+		return 0, fmt.Errorf("unknown kernel table family %d", f)
 	}
-	return 0, fmt.Errorf("unknown kernel table family %d", f)
 }
 
 // The arp family numbers its hooks in its own space (include/uapi/linux/
@@ -141,8 +144,10 @@ func lowerHook(family nftables.TableFamily, h firewall.ChainHook) (*nftables.Cha
 		return nftables.ChainHookIngress, nil
 	case firewall.HookEgress:
 		return nftables.ChainHookEgress, nil
+	default:
+		// Apply accepts unvalidated owner chains; reject unknown hooks.
+		return nil, fmt.Errorf("unknown chain hook %q", h)
 	}
-	return nil, fmt.Errorf("unknown chain hook %q", h)
 }
 
 // lowerARPHook maps the two hooks an arp chain can attach to. The pointers are
@@ -157,8 +162,10 @@ func lowerARPHook(h firewall.ChainHook) (*nftables.ChainHook, error) {
 	case firewall.HookForward, firewall.HookPrerouting, firewall.HookPostrouting,
 		firewall.HookIngress, firewall.HookEgress:
 		return nil, fmt.Errorf("chain hook %q does not exist in family arp; use input or output", h)
+	default:
+		// Apply accepts unvalidated owner chains; reject unknown hooks.
+		return nil, fmt.Errorf("unknown chain hook %q", h)
 	}
-	return nil, fmt.Errorf("unknown chain hook %q", h)
 }
 
 // lowerFlowtableHook rejects any hook other than ingress: flowtables are
@@ -179,8 +186,10 @@ func lowerChainType(ct firewall.ChainType) (nftables.ChainType, error) {
 		return nftables.ChainTypeNAT, nil
 	case firewall.ChainRoute:
 		return nftables.ChainTypeRoute, nil
+	default:
+		// Apply accepts unvalidated owner chains; reject unknown types.
+		return "", fmt.Errorf("unknown chain type %q", ct)
 	}
-	return "", fmt.Errorf("unknown chain type %q", ct)
 }
 
 func lowerPolicy(p firewall.Policy) (nftables.ChainPolicy, error) {
@@ -189,8 +198,10 @@ func lowerPolicy(p firewall.Policy) (nftables.ChainPolicy, error) {
 		return nftables.ChainPolicyAccept, nil
 	case firewall.PolicyDrop:
 		return nftables.ChainPolicyDrop, nil
+	default:
+		// Apply accepts unvalidated owner chains; reject unknown policies.
+		return 0, fmt.Errorf("unknown chain policy %q", p)
 	}
-	return 0, fmt.Errorf("unknown chain policy %q", p)
 }
 
 func lowerSetType(st firewall.SetType) (nftables.SetDatatype, error) {
@@ -207,8 +218,10 @@ func lowerSetType(st firewall.SetType) (nftables.SetDatatype, error) {
 		return nftables.TypeMark, nil
 	case firewall.SetTypeIfname:
 		return nftables.TypeIFName, nil
+	default:
+		// Apply accepts unvalidated owner sets; reject unknown types.
+		return nftables.SetDatatype{}, fmt.Errorf("unknown set type %d", st)
 	}
-	return nftables.SetDatatype{}, fmt.Errorf("unknown set type %d", st)
 }
 
 // lowerSet translates a ze Set into the nftables.Set plus its elements,
@@ -421,6 +434,7 @@ func termWritesNetworkHeader(term *firewall.Term) bool {
 // families (arp, bridge, netdev). A lowering handed UNSPEC MUST NOT guess: a
 // family-specific write rejects instead (lowerSetDSCP).
 func tableNFProto(family nftables.TableFamily) byte {
+	//exhaustive:ignore // Only single-IP-family tables project to an NFPROTO; all others stay unspecified.
 	switch family {
 	case nftables.TableFamilyIPv4:
 		return unix.NFPROTO_IPV4
@@ -963,6 +977,7 @@ func lowerICMPErrorQuotedTCPPortMatch(family nftables.TableFamily, port uint16, 
 	case firewall.QuotedPortUnspecified:
 		return nil, errIcmpQuotedTcpPortNamesNoSide
 	default:
+		// Apply accepts unvalidated owner matches; reject unknown sides.
 		return nil, errIcmpQuotedTcpPortNamesNoSide
 	}
 	if port == 0 {
@@ -1166,6 +1181,7 @@ func lowerLimit(l firewall.Limit) ([]expr.Any, error) {
 	case firewall.RateDimensionBytes:
 		limitType = expr.LimitTypePktBytes
 	default:
+		// Apply accepts limits that bypass ParseRateSpec; reject their dimension.
 		return nil, errLimitRateDimensionUnsetParseratespecBypassed
 	}
 	return []expr.Any{&expr.Limit{
@@ -1621,7 +1637,7 @@ func maskedAddr(addr, mask []byte) []byte {
 }
 
 // encodeSetElementKey converts a string element value to the binary encoding
-// expected by nftables for the given set type.
+// expected by nftables. lowerSet has already checked the type with lowerSetType.
 func encodeSetElementKey(st firewall.SetType, value string) ([]byte, error) {
 	switch st {
 	case firewall.SetTypeIPv4:
@@ -1673,8 +1689,9 @@ func encodeSetElementKey(st firewall.SetType, value string) ([]byte, error) {
 		return parseMAC(value)
 	case firewall.SetTypeIfname:
 		return ifnameBytes(value), nil
+	default:
+		panic("BUG: unknown validated firewall set type")
 	}
-	return nil, errUnsupportedSetTypeForElementEncoding
 }
 
 // decodeSetElementKey is the inverse of encodeSetElementKey. It
@@ -1717,6 +1734,8 @@ func decodeSetElementKey(st firewall.SetType, key []byte) string {
 			i++
 		}
 		return string(key[:i])
+	default:
+		// Kernel set types are open; unknown types retain the hex fallback.
 	}
 	return fmt.Sprintf("%#x", key)
 }

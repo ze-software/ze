@@ -127,16 +127,16 @@ func TestNegotiationOutcomeDecidesSwapOrRestart(t *testing.T) {
 		want     string // "" means swap
 	}{
 		{
-			name:     "capability removed that the peer never used",
-			current:  []capability.Capability{capIPv4(), &capability.ExtendedMessage{}},
+			name:     "add-path removed that the peer never used",
+			current:  []capability.Capability{capIPv4(), capAddPathIPv4Both()},
 			next:     []capability.Capability{capIPv4()},
 			peerCaps: []capability.Capability{capIPv4()},
 			want:     "",
 		},
 		{
-			name:     "capability added that the peer does not support",
+			name:     "add-path added that the peer does not support",
 			current:  []capability.Capability{capIPv4()},
-			next:     []capability.Capability{capIPv4(), &capability.ExtendedMessage{}},
+			next:     []capability.Capability{capIPv4(), capAddPathIPv4Both()},
 			peerCaps: []capability.Capability{capIPv4()},
 			want:     "",
 		},
@@ -166,6 +166,20 @@ func TestNegotiationOutcomeDecidesSwapOrRestart(t *testing.T) {
 			current:  []capability.Capability{capIPv4()},
 			next:     []capability.Capability{capIPv4(), &capability.ExtendedMessage{}},
 			peerCaps: []capability.Capability{capIPv4(), &capability.ExtendedMessage{}},
+			want:     "Capabilities",
+		},
+		{
+			name:     "local extended receive permission added without peer advertisement",
+			current:  []capability.Capability{capIPv4()},
+			next:     []capability.Capability{capIPv4(), &capability.ExtendedMessage{}},
+			peerCaps: []capability.Capability{capIPv4()},
+			want:     "Capabilities",
+		},
+		{
+			name:     "local extended receive permission removed without peer advertisement",
+			current:  []capability.Capability{capIPv4(), &capability.ExtendedMessage{}},
+			next:     []capability.Capability{capIPv4()},
+			peerCaps: []capability.Capability{capIPv4()},
 			want:     "Capabilities",
 		},
 	}
@@ -201,7 +215,7 @@ func TestNegotiationOutcomeDecidesSwapOrRestart(t *testing.T) {
 // key" passes against both failures; identity plus the delivered set passes
 // against neither.
 func TestReloadCapabilityChangeKeepsTheSessionWhenNegotiationIsUnchanged(t *testing.T) {
-	current := negotiationSettings(capIPv4(), &capability.ExtendedMessage{})
+	current := negotiationSettings(capIPv4(), capAddPathIPv4Both())
 	next := negotiationSettings(capIPv4())
 
 	r, peer := newSwapTestReactor(t, current, next)
@@ -435,8 +449,8 @@ func TestReloadDecisionReadsPeerSettingsUnderLock(t *testing.T) {
 // first example reachable at all. Removing a capability the peer never had removes
 // its mismatch entry, so a comparison including Mismatches would report every such
 // change as a difference and the procedure would never swap.
-// PREVENTS: widening the exclusion. The second row keeps a real encoding change
-// visible, so an implementation that excluded more than Mismatches fails it.
+// PREVENTS: widening the exclusion. Local-only and bilateral Extended Message
+// changes remain visible because they change the actual receive permission.
 func TestNegotiatedOutcomeEqualIgnoresMismatchesOnly(t *testing.T) {
 	peerCaps := []capability.Capability{capIPv4()}
 
@@ -447,8 +461,14 @@ func TestNegotiatedOutcomeEqualIgnoresMismatchesOnly(t *testing.T) {
 
 	require.NotEmpty(t, withExtMsg.Mismatches, "the fixture must produce a mismatch to ignore")
 	require.Empty(t, withoutExtMsg.Mismatches)
-	assert.True(t, negotiatedOutcomeEqual(withExtMsg, withoutExtMsg),
-		"a mismatch entry is reporting, not negotiated state")
+	assert.False(t, negotiatedOutcomeEqual(withExtMsg, withoutExtMsg),
+		"a local Extended Message advertisement changes receive permission")
+
+	withUnusedFamily := capability.Negotiate(
+		[]capability.Capability{capIPv4(), capIPv6()}, peerCaps, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002})
+	require.NotEmpty(t, withUnusedFamily.Mismatches)
+	assert.True(t, negotiatedOutcomeEqual(withUnusedFamily, withoutExtMsg),
+		"an unsupported family changes mismatch reporting, not negotiated state")
 
 	supported := capability.Negotiate(
 		[]capability.Capability{capIPv4(), &capability.ExtendedMessage{}},

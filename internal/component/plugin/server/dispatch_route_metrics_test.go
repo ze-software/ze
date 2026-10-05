@@ -42,7 +42,7 @@ func TestRouteMetricsTransportResolvesRecursiveChanges(t *testing.T) {
 			})
 			first, err := client.RouteMetrics(ctx, []string{"198.19.230.1"})
 			require.NoError(t, err)
-			require.Equal(t, []rpc.RouteMetric{{Cost: 107, Resolved: true}}, first.Distances)
+			require.Equal(t, []rpc.RouteMetric{{Cost: 107, Resolved: true, Recursive: true}}, first.Distances)
 
 			routes[1].AIGP = 200
 			_, err = client.RouteInstall(ctx, routes[1:])
@@ -52,14 +52,26 @@ func TestRouteMetricsTransportResolvesRecursiveChanges(t *testing.T) {
 			require.Greater(t, changed.Revision, first.Revision, "a recursive AIGP-only change must invalidate subprocess metric caches")
 			next, err := client.RouteMetrics(ctx, []string{"198.19.230.1"})
 			require.NoError(t, err)
-			require.Equal(t, []rpc.RouteMetric{{Cost: 207, Resolved: true}}, next.Distances)
+			require.Equal(t, []rpc.RouteMetric{{Cost: 207, Resolved: true, Recursive: true}}, next.Distances)
 
 			routes[1].AIGPPresent = false
 			_, err = client.RouteInstall(ctx, routes[1:])
 			require.NoError(t, err)
 			missing, err := client.RouteMetrics(ctx, []string{"198.19.230.1"})
 			require.NoError(t, err)
-			require.Equal(t, []rpc.RouteMetric{{Cost: 7, Resolved: true, MissingAIGP: true}}, missing.Distances, "a BGP hop without AIGP must remain distinguishable from a valid accumulated metric")
+			require.Equal(t, []rpc.RouteMetric{{Cost: 7, Resolved: true, Recursive: true, MissingAIGP: true}}, missing.Distances, "a BGP hop without AIGP must remain distinguishable from a valid accumulated metric")
+
+			routes[0].Metric = 0
+			routes[1].AIGP = 0
+			routes[1].AIGPPresent = true
+			_, err = client.RouteInstall(ctx, routes)
+			require.NoError(t, err)
+			zero, err := client.RouteMetrics(ctx, []string{"198.19.230.1", "198.19.231.1"})
+			require.NoError(t, err)
+			require.Equal(t, []rpc.RouteMetric{
+				{Resolved: true, Recursive: true},
+				{Resolved: true},
+			}, zero.Distances, "the transport must distinguish a computed recursive zero from a direct zero")
 		})
 	}
 }

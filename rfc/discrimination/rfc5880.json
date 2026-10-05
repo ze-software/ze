@@ -2473,7 +2473,7 @@
       "claim-sha": "fc4faec086ff0bee",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
+      "producer-sha": "1fb7bea19248a34f",
       "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2484,7 +2484,7 @@
       "claim-sha": "294a5a72e7e54e82",
       "route": "revert",
       "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
-      "producer-sha": "01ebf29739d1658e",
+      "producer-sha": "1fb7bea19248a34f",
       "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

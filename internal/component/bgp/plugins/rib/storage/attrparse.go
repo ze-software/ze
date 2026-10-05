@@ -49,7 +49,8 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 		}
 		seen[typeCode] = true
 
-		switch typeCode { //nolint:exhaustive // only bundle-interned attrs; rest goes to otherAttrs
+		//exhaustive:ignore // Intern dedicated bundle fields; preserve all other attributes in OtherAttrs.
+		switch typeCode {
 		case attribute.AttrASPath:
 			h, err := pool.ASPath.Intern(value)
 			if err != nil {

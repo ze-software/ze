@@ -35,8 +35,10 @@ func (p importPolicy) String() string {
 	case policyRetireSource:
 		return "import"
 	case policyUnspecified:
+		return "unspecified operation"
+	default:
+		panic("BUG: unknown import policy")
 	}
-	return "unspecified operation"
 }
 
 // MarshalText writes the policy's durable spelling.
@@ -47,8 +49,10 @@ func (p importPolicy) MarshalText() ([]byte, error) {
 	case policyRetireSource:
 		return []byte("retire-source"), nil
 	case policyUnspecified:
+		return nil, fmt.Errorf("BUG: import policy %d has no durable spelling", p)
+	default:
+		panic("BUG: unknown import policy")
 	}
-	return nil, fmt.Errorf("BUG: import policy %d has no durable spelling", p)
 }
 
 // UnmarshalText refuses every spelling but the two policies.
@@ -84,8 +88,10 @@ func (s priorState) MarshalText() ([]byte, error) {
 	case priorSource:
 		return []byte("source"), nil
 	case priorUnspecified:
+		return nil, fmt.Errorf("BUG: prior state %d has no durable spelling", s)
+	default:
+		panic("BUG: unknown import prior state")
 	}
-	return nil, fmt.Errorf("BUG: prior state %d has no durable spelling", s)
 }
 
 // UnmarshalText refuses every spelling but the three states.
@@ -268,8 +274,10 @@ func validPrior(node priorNode, name string) error {
 		}
 		return nil
 	case priorSource, priorUnspecified:
+		return errors.New("the destination state is missing or not allowed here")
+	default:
+		panic("BUG: unknown import prior state")
 	}
-	return errors.New("the destination state is missing or not allowed here")
 }
 
 // importProgress is where a valid intent's recorded nodes sit now. It is

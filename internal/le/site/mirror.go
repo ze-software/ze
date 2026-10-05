@@ -158,6 +158,8 @@ func (converter *mirrorConverter) feed(fragment string) error {
 			converter.end(string(name))
 		case xhtml.CommentToken, xhtml.DoctypeToken:
 			// Neither shows a reader anything, so neither reaches the mirror.
+		default:
+			// The tokenizer's token set is open; unknown tokens contribute no mirror content.
 		}
 	}
 }

@@ -489,6 +489,7 @@ func kindFromID(id string) GraphNodeKind {
 	case NodeAddress:
 		return NodeAddress
 	default:
+		// Node IDs are open strings; unknown prefixes retain section classification.
 		return NodeSection
 	}
 }

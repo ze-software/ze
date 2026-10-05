@@ -46,6 +46,19 @@ func matchPeers(adapter *reactorAPIAdapter, s string) []*Peer {
 	return peers
 }
 
+// TestPeerSelectorZeroMatchesNothing resolves a zero selector against populated peers.
+// It must not widen to the wildcard when the closed kind dispatch rejects unknown values.
+func TestPeerSelectorZeroMatchesNothing(t *testing.T) {
+	adapter := setupSelectorReactor()
+	var sel selector.Selector
+
+	adapter.r.mu.RLock()
+	defer adapter.r.mu.RUnlock()
+	peers, err := adapter.getMatchingPeersSel(&sel, announceOrigin(plugin.OperatorSender()))
+	require.NoError(t, err)
+	assert.Empty(t, peers)
+}
+
 // TestPeerSelectorByName verifies that a peer can be resolved by its Name field.
 //
 // VALIDATES: getMatchingPeersSel returns the peer whose settings.Name matches the selector.

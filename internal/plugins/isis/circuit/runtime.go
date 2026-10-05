@@ -78,6 +78,27 @@ func (c *Circuit) handleLANHello(srcSNPA adjacency.SNPA, h *packet.LANHello) adj
 // IIH's circuit-type field intersected with the circuit's configured levels;
 // when both support L1 we use L1, else L2 (a P2P adjacency is a single record).
 func (c *Circuit) handleP2PHello(srcSNPA adjacency.SNPA, h *packet.P2PHello) adjacency.Transition {
+	// RFC 5303 Section 3.2: "If the option is present and contains invalid
+	// Adjacency Three-Way State, the PDU SHALL be discarded and no further
+	// action is taken." Check every TLV 240 before applyHello can create a
+	// neighbor, including an invalid option followed by a valid duplicate.
+	// The decoded IIH length bounds this TLV scan.
+	for _, tlv := range h.TLVs {
+		if tlv.Type != packet.TLVP2PThreeWay {
+			continue
+		}
+		if len(tlv.Value) == 0 {
+			continue
+		}
+		switch packet.AdjThreeWayState(tlv.Value[0]) {
+		case packet.AdjThreeWayDown, packet.AdjThreeWayInitializing, packet.AdjThreeWayUp:
+			// Named wire states continue through the normal Hello admission.
+		default:
+			// The state octet is an open wire value.
+			return adjacency.Transition{Rejected: true, RejectReason: "invalid-three-way-state"}
+		}
+	}
+
 	level := c.p2pLevel(h.CircuitType)
 	if level == 0 {
 		return adjacency.Transition{Rejected: true, RejectReason: "level-mismatch"}

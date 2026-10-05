@@ -327,7 +327,7 @@ func TestRPCDecodeNLRI(t *testing.T) {
 		err  error
 	}, 1)
 	go func() {
-		j, err := engineConn.SendDecodeNLRI(context.Background(), "ipv4/flow", "180a0000", false)
+		j, err := engineConn.SendDecodeNLRI(context.Background(), "ipv4/flow", "180a0000", false, false)
 		done <- struct {
 			json string
 			err  error
@@ -338,7 +338,7 @@ func TestRPCDecodeNLRI(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ze-plugin-callback:decode-nlri", req.Method)
 
-	result := map[string]string{"json": `[{"source":"10.0.0.0/24"}]`}
+	result := rpc.DecodeNLRIOutput{JSON: json.RawMessage(`[{"source":"10.0.0.0/24"}]`)}
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
 
 	r := <-done

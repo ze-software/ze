@@ -50,8 +50,9 @@ func (s SAState) String() string {
 		return "established"
 	case StateDead:
 		return "dead"
+	default:
+		panic("BUG: unknown IKE SA state")
 	}
-	return "unknown"
 }
 
 // SA holds the state for a single IKE Security Association.

@@ -401,6 +401,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			}
 		case routeaction.VerbSkip:
 			logger().Warn("fib-kernel: skipping change with unspecified action", "prefix", c.Prefix)
+		default:
+			panic("BUG: invalid normalized route verb")
 		}
 	}
 

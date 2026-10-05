@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -257,23 +258,25 @@ func (r *FamilyRIB) lookupOpaque(nlriBytes []byte) (RouteEntry, bool) {
 	return ps.lookup(pathID)
 }
 
-// appendKeyPaths appends every path stored for the route key to dst and
-// returns the extended slice. key is a RouteKey result: no path identifier,
+// appendKeyPathsRetained appends retained paths stored for the route key to
+// dst. key is a RouteKey result: no path identifier,
 // whatever framing the session that triggered the lookup uses, and no label.
 // Each path carries the wire route it was received with. Without ADD-PATH the
 // route holds at most one path, under path identifier zero. A CIDR family
-// appends nothing: its routes are asked by prefix (appendPrefixPaths).
+// appends nothing: its routes are asked by prefix (appendPrefixPathsRetained).
 //
-// The entries are copies whose pool handles are NOT retained, lookupEntry's
-// contract.
-func (r *FamilyRIB) appendKeyPaths(key []byte, dst []PrefixPath) []PrefixPath {
+// Caller MUST hold PeerRIB.mu. Each appended path owns its handles until Release.
+func (r *FamilyRIB) appendKeyPathsRetained(key []byte, dst []PrefixPath) []PrefixPath {
 	if r.cidr {
 		return dst
 	}
 	identity := string(key)
 	if !r.addPath {
 		if entry, ok := r.opaque[identity]; ok {
-			dst = append(dst, PrefixPath{Entry: entry, Route: r.routeNLRI(0, identity)})
+			path := PrefixPath{Entry: entry, Route: r.routeNLRI(0, identity), Labels: attrpool.InvalidHandle}
+			if path.retain() {
+				dst = append(dst, path)
+			}
 		}
 		return dst
 	}
@@ -282,8 +285,14 @@ func (r *FamilyRIB) appendKeyPaths(key []byte, dst []PrefixPath) []PrefixPath {
 		return dst
 	}
 	for i := range ps.entries {
-		pathID := ps.entries[i].pathID
-		dst = append(dst, PrefixPath{PathID: pathID, Entry: ps.entries[i].entry, Route: r.routeNLRI(pathID, identity)})
+		entry := &ps.entries[i]
+		path := PrefixPath{
+			PathID: entry.pathID, Entry: entry.entry,
+			Route: r.routeNLRI(entry.pathID, identity), Labels: attrpool.InvalidHandle,
+		}
+		if path.retain() {
+			dst = append(dst, path)
+		}
 	}
 	return dst
 }

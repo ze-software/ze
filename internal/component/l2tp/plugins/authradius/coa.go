@@ -184,6 +184,8 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 		cl.sendResponse(from, pkt, nakCode(pkt.Code), radius.ErrorCauseInvalidRequest)
 		return
 	case eventTimestampCurrent:
+	default:
+		panic("BUG: unknown CoA timestamp classification")
 	}
 
 	// RFC 5176 Section 3.2: "A NAS MUST respond to a CoA-Request including a

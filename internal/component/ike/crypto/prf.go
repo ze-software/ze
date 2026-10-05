@@ -19,6 +19,7 @@ func prfHashFunc(id PRFID) func() hash.Hash {
 	case PRF_HMAC_SHA2_512:
 		return sha512.New
 	default:
+		// Algorithm IDs accepted by PRF and PRFPlus are an open set.
 		return nil
 	}
 }
