@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-05",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -84,17 +84,30 @@
       "verdict": "enforced"
     },
     "RFC9086-7-1": {
-      "note": "RFC 9086 Section 7 whole sentence: \"The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.\" Current requirement text ends at PeerNode SID and the remaining clauses are disclosed on RFC9086-7-2; the source sentence and historical capability boundary have not changed. TestRFC9086NativeConfigurationEnableDisable genuinely proves configure/enable/disable for PeerNode: parsed operator configuration yields label 16007 plus exact PeerNode TLV, removing configuration removes forwarding labels and emits collector withdrawals while the session remains up. Producers epe_config.go ParseConfig and epe_source.go publishLocked implement only PeerNode assignment. No current tagged unit proves PeerAdj/PeerSet options or per-recipient information control, and the row's previous weak judgment explicitly bound the whole sentence. Preserve weak rather than upgrading solely because the summary was truncated; the existing RFC9086-7-2 gap remains intact, with no new exclusion or feature implementation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
-      "requirement_sha": "e719b13ef5fd8bc1",
+      "code": {
+        "internal/component/bgp/plugins/epe/epe_config.go::ParseConfig": "92e03c31f41202ad",
+        "internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig": "3ead3d87a079d8e5"
+      },
+      "note": "Independent EPEReconcileNow judgment against RFC9086 Section 7 and owner R3. Tested: \"The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID,\". Gap: \"PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.\" TestRFC9086NativeConfigurationEnableDisable parses PeerNode configuration, asserts label 16007 and exact PeerNode TLV bytes, then removes configuration and requires both collector withdrawals and label removal while the session stays up. The registered producer/exporter path connects these controls to native advertisements. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig provides only PeerNode assignments. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig exposes no per-recipient EPE control, and exporter reconciliation supplies the same desired topology to attached collectors. Existing publishLocked breaks establish producer reachability for both retained claims, not complete Section 7 conformance. The complete sentence remains unmet; no absent PeerAdj, PeerSet, or per-recipient capability is implemented by this correction.",
+      "requirement_sha": "5d193a49ad429a5f",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable": "6bdfb4d672851af6",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "6bdfb4d672851af6"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable": "56cdeefc3b5f14f5",
         "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "56cdeefc3b5f14f5"
       },
-      "verdict": "weak"
+      "verdict": "partial"
+    },
+    "RFC9086-7-2": {
+      "code": {
+        "internal/component/bgp/plugins/epe/epe_config.go::ParseConfig": "92e03c31f41202ad",
+        "internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig": "3ead3d87a079d8e5"
+      },
+      "note": "Independent EPEReconcileNow first judgment against the complete RFC9086 Section 7 operator-control sentence and owner R3. The retained split-gap clause requires PeerAdj SID and PeerSet SID advertisement controls and selection of information for each internal or external recipient. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig accepts PeerNode assignments only; it has no PeerAdj or PeerSet assignment. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig configures exporter enablement and domain mappings, not per-recipient EPE information controls. The exporter supplies the same desired topology to its attached collectors. These absent capabilities remain disclosed in Support remaining and the gap annotation. Existing PeerNode enable/disable tests prove none of this absent scope; recording it does not authorize implementation or imply another distinct RFC sentence.",
+      "requirement_sha": "4720bad2539a3889",
+      "verdict": "unimplemented"
     }
   },
   "rfc": "rfc9086"
