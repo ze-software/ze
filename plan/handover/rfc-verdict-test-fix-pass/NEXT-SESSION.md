@@ -1,9 +1,10 @@
 # Next session: spec-rfc-verdict-test-fix-pass
 
-Everything needed is in this directory (plan/handover/rfc-verdict-test-fix-pass/),
-committed. Nothing under tmp/ is needed, on this machine or another. Four intentionally red,
-untracked tests live only in the tree of the machine that wrote them (listed in HANDOFF.md
-owner items); copies of the older ones are in data/.
+For the 2026-10-05 machine transfer, start with
+[CHECKPOINT-2026-10-05.md](CHECKPOINT-2026-10-05.md). It explains the portable
+recovery archive, safe restoration, observed failures and pending work.
+The source snapshot is not a completed implementation or a live-source commit.
+The instructions and status below are historical; the checkpoint takes precedence.
 
 ## 1. Paste this as the first message of the new session
 
@@ -11,8 +12,8 @@ Replace N with the number of agents to run at once.
 
 ```
 Continue spec-rfc-verdict-test-fix-pass. Read
-plan/handover/rfc-verdict-test-fix-pass/HANDOFF.md
-first, then RULINGS.md and the last 20 lines of QUEUE.md in the same directory.
+plan/handover/rfc-verdict-test-fix-pass/CHECKPOINT-2026-10-05.md
+first and restore its snapshot safely, then read HANDOFF.md and RULINGS.md.
 Claim the parent spec with
 ./le spec claim spec plan/pre-release/spec-rfc-verdict-test-fix-pass.md
 Run once before any agent records or stamps (the briefs name these lock paths):
