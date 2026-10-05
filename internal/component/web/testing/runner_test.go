@@ -164,6 +164,7 @@ func installFakeAgentBrowser(t *testing.T) string {
 	logPath := filepath.Join(dir, "agent-browser.log")
 	envLogPath := filepath.Join(dir, "agent-browser-env.log")
 	fillPath := filepath.Join(dir, "agent-browser-fills.tsv")
+	loginPollsPath := filepath.Join(dir, "agent-browser-login-polls")
 	scriptPath := filepath.Join(dir, "agent-browser")
 	// The fake REMEMBERS a fill and answers `get value` from it, because that is
 	// the round trip Browser.fill performs: the real agent-browser fills a div
@@ -173,11 +174,21 @@ func installFakeAgentBrowser(t *testing.T) string {
 	//
 	// AGENT_BROWSER_TEST_UNFILLABLE names the one selector the fake refuses to
 	// store, which is how a test asks for that div.
+	// Login completion is independent of fetch/XHR idleness: keep its DOM
+	// predicate false for the requested polls, or forever when pending is -1.
 	script := "#!/bin/sh\n" +
 		"printf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n" +
 		"env | grep ^AGENT_BROWSER_ | sort >> \"" + envLogPath + "\"\n" +
 		"case \"$1\" in\n" +
-		"  eval) echo true ;;\n" +
+		"  eval)\n" +
+		"    case \"$2\" in\n" +
+		"      *notification-bar*)\n" +
+		"        echo x >> \"" + loginPollsPath + "\"\n" +
+		"        n=$(wc -l < \"" + loginPollsPath + "\")\n" +
+		"        pending=${AGENT_BROWSER_TEST_LOGIN_PENDING:-0}\n" +
+		"        if [ \"$pending\" -lt 0 ] || [ \"$n\" -le \"$pending\" ]; then echo false; else echo true; fi ;;\n" +
+		"      *) echo true ;;\n" +
+		"    esac ;;\n" +
 		"  fill)\n" +
 		"    if [ \"$2\" != \"$AGENT_BROWSER_TEST_UNFILLABLE\" ]; then\n" +
 		"      printf '%s\\t%s\\n' \"$2\" \"$3\" >> \"" + fillPath + "\"\n" +
@@ -186,6 +197,8 @@ func installFakeAgentBrowser(t *testing.T) string {
 		"    if [ \"$2\" = value ] && [ -f \"" + fillPath + "\" ]; then\n" +
 		"      awk -F'\\t' -v s=\"$3\" '$1==s{v=$2} END{printf \"%s\", v}' \"" + fillPath + "\"\n" +
 		"    fi ;;\n" +
+		"  snapshot)\n" +
+		"    if [ \"${AGENT_BROWSER_TEST_LOGIN_PENDING:-0}\" -lt 0 ]; then echo 'heading \"Login\"'; fi ;;\n" +
 		"esac\n" +
 		"exit 0\n"
 	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {

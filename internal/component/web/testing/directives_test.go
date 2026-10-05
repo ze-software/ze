@@ -98,20 +98,65 @@ func TestSetLocaleEmitsAcceptLanguageHeader(t *testing.T) {
 	}
 }
 
-// TestLoginActionDrivesLoginForm verifies the login action fills the username
-// and password fields and submits.
+// TestLoginActionDrivesLoginForm verifies the login action fills both credentials,
+// submits once, and waits for authenticated-page readiness before another open.
 func TestLoginActionDrivesLoginForm(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
+	t.Setenv("AGENT_BROWSER_TEST_LOGIN_PENDING", "2")
 	b := newBrowser("https://127.0.0.1:1234")
 	if err := b.Login("noc", "secret"); err != nil {
 		t.Fatalf("Login: %v", err)
 	}
-	cmds := readAgentLog(t, logPath)
-	joined := strings.Join(cmds, "\n")
-	for _, want := range []string{"fill #username noc", "fill #password secret", "press Enter"} {
-		if !strings.Contains(joined, want) {
-			t.Errorf("login commands missing %q; got:\n%s", want, joined)
+	if err := b.Open("/admin/peer/"); err != nil {
+		t.Fatalf("open admin page: %v", err)
+	}
+	assertAgentCommands(t, logPath, []string{
+		"--ignore-https-errors open https://127.0.0.1:1234/",
+		"eval " + inflightIdleExpr,
+		"fill #username noc",
+		"get value #username",
+		"fill #password secret",
+		"get value #password",
+		`click form[action="/login"] button[type="submit"]`,
+		"eval " + loginReadyExpr,
+		"eval " + loginReadyExpr,
+		"eval " + loginReadyExpr,
+		"open https://127.0.0.1:1234/admin/peer/",
+		"eval " + inflightIdleExpr,
+	})
+}
+
+// TestLoginRejectsIdleWithoutAuthentication keeps a rejected or never-completed
+// native POST from passing merely because fetch/XHR traffic is idle.
+func TestLoginRejectsIdleWithoutAuthentication(t *testing.T) {
+	verifyMode(t, false)
+	logPath := installFakeAgentBrowser(t)
+	t.Setenv("AGENT_BROWSER_TEST_LOGIN_PENDING", "-1")
+	b := newBrowser("https://127.0.0.1:1234")
+	err := b.Login("noc", "secret")
+	if err == nil {
+		t.Fatal("login succeeded without an authenticated page")
+	}
+	if !strings.Contains(err.Error(), "login did not reach an authenticated page") {
+		t.Errorf("login failure lost its completion condition: %v", err)
+	}
+	if !strings.Contains(err.Error(), `heading "Login"`) {
+		t.Errorf("login failure lost the final snapshot: %v", err)
+	}
+	submits, polls := 0, 0
+	for _, command := range readAgentLog(t, logPath) {
+		if command == `click form[action="/login"] button[type="submit"]` {
+			submits++
 		}
+		if command == "eval "+loginReadyExpr {
+			polls++
+		}
+	}
+	if submits != 1 {
+		t.Errorf("submitted %d times, want exactly one", submits)
+	}
+	if polls < 2 {
+		t.Errorf("observed readiness %d times, want bounded polling", polls)
 	}
 }
 

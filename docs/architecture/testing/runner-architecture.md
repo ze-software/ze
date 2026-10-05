@@ -203,7 +203,7 @@ against the peer address has two values to compare.
 | `press` | `key` (+ optional `id`/`text`) | Press a key, optionally focused on an element |
 | `wait` | `ms` (or none) | Wait `ms` milliseconds, or for in-flight network to settle. A wait longer than 30s touches the browser between sleeps: the `agent-browser` daemon reaps itself after 60s with no command and takes the page with it, so a pure sleep of a minute returned to a browser holding nothing |
 | `wait-until` | `path` + `contains` | Re-open `path` until the page it serves contains the text. Stops polling at `expectDeadline`. **Leaves the browser on `path`** |
-| `login` | `user` + `password` | Drive the login form and submit |
+| `login` | `user` + `password` | Submit the real login form once and wait for a loaded authenticated page before continuing |
 | `back` | none | The browser's own back button. The only way to prove what a pushed URL does when the operator returns to it: htmx 2 restores its own history cache, htmx 4 keeps none and the browser navigates for real |
 | `forward` | none | The browser's own forward button. htmx 4 traverses the Navigation API, which holds entries on both sides of the current one, and the entry AHEAD is reached by a second traversal that `back` cannot make |
 | `screenshot` | `file` | Save a screenshot |
@@ -224,6 +224,14 @@ A positive `expect=` cannot stand in for `wait-until`: it re-reads the DOM the p
 already holds, so a readback the browser never fetched again reports the state that
 was true before the action. `action=wait` cannot either, because its idle predicate
 is true both before a request begins and after it ends.
+
+Login waits for a complete authenticated document, not fetch/XHR idleness.
+The form submits a native POST, which those counters do not observe. An
+immediate following navigation can replace that request before its session
+cookie arrives. The login action polls for the authenticated page's chrome and
+the absence of the login form under `expectDeadline`; it neither re-submits nor
+re-opens the page. Failure retains the final snapshot.
+<!-- source: internal/component/web/testing/runner.go -- Login, waitLogin, loginReadyExpr -->
 
 Two properties of `wait-until` bite if you assume otherwise.
 
@@ -268,16 +276,21 @@ operation; if it is not on `PATH`, the suite skips.
 <!-- source: internal/test/cli/cmd_web.go -- exec.LookPath("agent-browser") skip when absent -->
 <!-- source: internal/component/web/testing/runner.go -- Browser methods invoke agent-browser via runAgent -->
 
-The web suite runs each `.wb` test in parallel (capped at 4) with full per-test
-isolation: each test gets its own `ze` daemon (own port via `ReservePorts` + own
-tmpdir config store) and its own `agent-browser` session (via `AGENT_BROWSER_SESSION`
-env var), so `.wb` scenarios that mutate and `commit` config cannot corrupt each other.
+The web suite runs each `.wb` test in parallel (capped at 4). Each test gets
+its own `ze` daemon (own port via `ReservePorts` + own tmpdir config store).
+When `AGENT_BROWSER_SESSION` is unset, it also gets its own browser session,
+so scenarios that mutate and `commit` config cannot corrupt each other.
 The session name carries the runner's process id and the test nick
 (`le-web-<pid>-<nick>`). The `agent-browser` daemon is shared by every run
 on the host, so a name from the nick alone made two concurrent runs drive one
 browser for the same test number. Each test closes only its own session, and
 the daemon's idle timeout reaps a session whose run died. No run closes all
 sessions, because that kills the pages of every other run on the host.
+
+An inherited `AGENT_BROWSER_SESSION` currently overrides that generated identity
+in `Browser.agentEnv`, so those browsers are not isolated. Leave this variable
+unset for suite runs.
+<!-- source: internal/component/web/testing/runner.go -- agentEnv -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest, per-test ReservePorts + MkdirTemp + session -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestBrowserSession -->
 <!-- source: internal/component/web/testing/runner.go -- newBrowserWithSession, agentEnv sets AGENT_BROWSER_SESSION -->

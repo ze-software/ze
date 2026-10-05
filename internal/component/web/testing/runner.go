@@ -215,10 +215,9 @@ func (b *Browser) setLocale(lang string) error {
 	return b.runAgentEnsureDaemon("set", "headers", hdr)
 }
 
-// Login drives the login form: it navigates to the root (which renders the
-// login form when the session is unauthenticated), fills the credentials, and
-// submits. Used by the `action=login:user=..:password=..` directive to exercise
-// role-gated pages.
+// Login drives the real login form once and waits for the authenticated page.
+// The native form POST is not counted by waitLoad's fetch/XHR instrumentation;
+// returning on network idleness lets the next Open cancel authentication.
 func (b *Browser) Login(user, password string) error {
 	if err := b.Open("/"); err != nil {
 		return err
@@ -229,10 +228,38 @@ func (b *Browser) Login(user, password string) error {
 	if err := b.fillID("password", password); err != nil {
 		return err
 	}
-	if err := b.Press("Enter"); err != nil {
-		return err
+	if err := b.runAgent("click", `form[action="/login"] button[type="submit"]`); err != nil {
+		return fmt.Errorf("submit login: %w", err)
 	}
-	return b.waitLoad()
+	return b.waitLogin()
+}
+
+// loginReadyExpr requires the shared authenticated-page chrome in both finder
+// and workbench modes. An empty document, an error page, and a login overlay
+// must not acknowledge authentication.
+const loginReadyExpr = `document.readyState === 'complete' && document.getElementById('notification-bar') !== null && document.querySelector('form[action="/login"]') === null`
+
+// waitLogin observes the submitted navigation without re-opening or submitting
+// anything. The normal positive-expectation deadline bounds a rejected login.
+func (b *Browser) waitLogin() error {
+	err := retryPositive(func() error {
+		out, err := b.runAgentOutput("eval", loginReadyExpr)
+		if err != nil {
+			return fmt.Errorf("read login completion: %w", err)
+		}
+		if strings.TrimSpace(out) != "true" {
+			return errors.New("login did not reach an authenticated page")
+		}
+		return nil
+	})
+	if err != nil {
+		snapshot, snapshotErr := b.fullSnapshot()
+		if snapshotErr != nil {
+			return fmt.Errorf("%w; snapshot: %w", err, snapshotErr)
+		}
+		return fmt.Errorf("%w; snapshot:\n%s", err, snapshot)
+	}
+	return nil
 }
 
 // Snapshot returns the interactive accessibility snapshot.
