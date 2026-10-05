@@ -426,7 +426,7 @@ background child writes that report to `tmp/store-trim/last.log`, which holds
 the latest run. The action exits 1 when a budget, a cache path or the
 `ze.le.store.trim` value was refused; a contended entry or an unmet budget is
 reported and exits 0.
-<!-- source: internal/le/scratch/storetrim.go -- startTrimWhenDue, trimStores, trimReport -->
+<!-- source: internal/le/scratch/storetrim.go -- storeTrimBeforeDispatch, startTrimWhenDue, trimStores, trimReport -->
 <!-- source: internal/le/scratch/cachetrim.go -- trimCaches, removeOldest, walkGoFormatCache -->
 
 After the caches, the same child trims the stores a live session may be using,

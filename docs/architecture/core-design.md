@@ -57,6 +57,16 @@ that function directly, and repository workflows invoke
 `./le <area> <action>`. A package must return structured answers through the
 shared renderer rather than add a private JSON mode.
 
+An area that needs a turn before every le command, native hooks included,
+registers it through `leroot.RegisterBeforeDispatch` from the same `init()`,
+and the le root handler runs every such hook ahead of the dispatch. The scratch
+area's hourly store trim is one. The root handler therefore names no tool
+package, and every area stays one blank import. A hook never prints, never
+waits for slow work, and returns nothing, so the command's output and exit code
+are the dispatch's alone.
+<!-- source: internal/le/le/root/beforedispatch.go -- RegisterBeforeDispatch, RunBeforeDispatch -->
+<!-- source: internal/le/register.go -- run -->
+
 **The package sits at the path its command name predicts.** A space in the name
 is a directory level, and a hyphen inside a level joins words naming one thing:
 `le spec journal` lives at `internal/le/spec/journal`, and

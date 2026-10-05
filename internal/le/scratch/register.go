@@ -16,5 +16,5 @@ func init() {
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)
-
+	leroot.RegisterBeforeDispatch(area, storeTrimBeforeDispatch)
 }

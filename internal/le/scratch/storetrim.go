@@ -3,8 +3,9 @@
 // Related: cacheclean.go -- the store list the trim shares with cache-clean
 //
 // This file bounds the build stores le and its sessions fill. Every le
-// invocation asks StartStoreTrimWhenDue whether a trim is due, which costs one
-// read of a ten-byte stamp file; at most once an hour one invocation wins a
+// invocation runs storeTrimBeforeDispatch, the hook register.go gives le's
+// root handler, and it asks startStoreTrimWhenDue whether a trim is due, which
+// costs one read of a ten-byte stamp file; at most once an hour one invocation wins a
 // lock, writes the stamp and starts `le scratch store-trim background` as a
 // detached child, so no caller waits for a walk of a cache that can hold tens
 // of gigabytes. The child is a process rather than a goroutine because the
@@ -221,13 +222,35 @@ func (t Trigger) String() string {
 // return without waiting for the trim to finish.
 type TrimSpawn func(root string) error
 
-// StartStoreTrimWhenDue starts the background trim when the hourly stamp is
-// due, and answers what it did. It never prints and never waits for the trim:
-// le's root handler calls it before every command, hooks included.
+// storeTrimBeforeDispatch is the hook register.go gives le's root handler
+// (leroot.RegisterBeforeDispatch), so the store trim has its hourly chance to
+// start before every le command, native hooks included. It never prints, never
+// waits for the trim, and deliberately does not read the Trigger, so the
+// command's exit code and output are the dispatch's alone. A trigger failure
+// is written to tmp/store-trim/last.log.
+//
+// program is `le` or `ze le`; the words after its first are what the trim
+// child's argv needs before `scratch store-trim background`: none for the le
+// binary, and the root handler's own name for a ze binary carrying le.
+func storeTrimBeforeDispatch(program string) {
+	leading := strings.Fields(program)
+	if len(leading) > 0 {
+		leading = leading[1:]
+	}
+	startStoreTrimWhenDue(storeTrimSpawn(leading))
+}
+
+// storeTrimSpawn answers how the hook starts the background trim. It is a
+// variable so TestLeInvocationSpawnsStoreTrimWhenDue can record the spawn
+// instead of starting a child of the test binary.
+var storeTrimSpawn = detachedTrim
+
+// startStoreTrimWhenDue starts the background trim when the hourly stamp is
+// due, and answers what it did. It never prints and never waits for the trim.
 //
 // A checkout that cannot be resolved answers TriggerFailed with nowhere to
 // write why; the command le was asked for then reports the same failure itself.
-func StartStoreTrimWhenDue(spawn TrimSpawn) Trigger {
+func startStoreTrimWhenDue(spawn TrimSpawn) Trigger {
 	root, err := checkoutRoot()
 	if err != nil {
 		return TriggerFailed
@@ -370,7 +393,7 @@ func appendTrimLog(root string, now time.Time, message string) {
 	file.WriteString(line.String()) //nolint:errcheck // the trigger has no channel to report a failed log write on
 }
 
-// DetachedTrim answers the spawn le's root handler uses: it starts this same
+// detachedTrim answers the spawn the store-trim hook uses: it starts this same
 // executable as `<leading...> scratch store-trim background` in its own
 // session, with stdin from the null device and stdout and stderr into
 // tmp/store-trim/last.log, and does not wait. leading is empty for the le
@@ -383,7 +406,7 @@ func appendTrimLog(root string, now time.Time, message string) {
 // The started process is released rather than waited for; a long-lived
 // parent therefore holds a zombie entry until it exits, which costs a pid and
 // nothing else.
-func DetachedTrim(leading []string) TrimSpawn {
+func detachedTrim(leading []string) TrimSpawn {
 	return func(root string) error {
 		executable, err := os.Executable()
 		if err != nil {
