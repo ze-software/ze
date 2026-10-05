@@ -537,7 +537,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		{checkDashStdio, 14},
 		{checkCIDispatch, 10},
 		{checkRepoCompiles, 7},
-		{checkTestSensitivity, 45},
+		{checkTestSensitivity, 50},
 	} {
 		answered, err := runLE(nil, tc.command, "selftest", "|", "json")
 		if err != nil {
