@@ -45,6 +45,13 @@ its own `OnChange` handler with matching `AddRef` and `Release` calls.
 <!-- source: internal/component/bgp/plugins/rib/forward_observer.go -- debug subscriber -->
 <!-- source: internal/component/bgp/plugins/rib/forward_tracker.go -- first production consumer -->
 
+The RIB engine owns the forwarding tracker it creates through `SetLocRIB`.
+On every engine exit, `runRIBPlugin` calls `SetLocRIB(nil)`. This unsubscribes
+the observers, stops and joins the tracker worker, and releases queued handles.
+Closing the engine connection therefore also releases this worker.
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin, SetLocRIB -->
+<!-- source: internal/component/bgp/plugins/rib/forward_tracker.go -- Stop -->
+
 ## Measured
 
 `BenchmarkLocribInsert` in its baseline, `ForwardNil` and `ForwardHandle`

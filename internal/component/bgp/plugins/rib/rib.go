@@ -651,6 +651,7 @@ func runRIBPlugin(conn net.Conn) int {
 	// In-process consumers use the shared Loc-RIB; a subprocess mirrors selected
 	// routes and resolves next-hop distances over the registered engine RPC.
 	r.SetLocRIB(locrib.Default())
+	defer r.SetLocRIB(nil) // Unsubscribe and join the forwarding tracker on every exit.
 	if r.locRIB == nil {
 		r.setupRemoteRIB()
 	}
