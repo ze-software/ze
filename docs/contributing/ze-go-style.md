@@ -100,8 +100,9 @@ type Candidate struct {
 
 Full rule: `ai/rules/go-standards.md`, "Prefer Typed Numeric Over String".
 
-The four rules below apply to code written from 2026-10-04. Older code does not
-need a rewrite to meet them.
+The sum-type, construction and lifecycle rules below apply to code written from
+2026-10-04. Older code does not need a rewrite to meet those rules. Enum switch
+coverage applies to both old and new code.
 
 #### One state, one variant
 
@@ -126,18 +127,48 @@ func (Failed) outcome()  {}
 The consumer uses a type switch with one arm for each state, and each arm reads
 only that state's data.
 
-#### A switch over a closed set has no default
+#### Every enum switch has a coverage policy
 
-A switch over a typed enum or a sealed interface lists every value and has no
-`default` arm. When a value is added, every switch that lists the old values
-becomes a place to update. A `default` arm takes the new value without a word,
-and gives it a behavior that nobody chose. A `default` is correct only when the
-set is open, for example a code read from the wire. Its comment then says that
-the set is open.
+Classify each enum value switch by its input and purpose. A `default` handles
+values outside the named set; it does not replace explicit named cases.
 
-The `exhaustive` linter accepts a `default` as complete, because older code
-relies on that. So for new code, the reader is the check.
+| Class | Input and purpose | Required handling |
+|-------|-------------------|-------------------|
+| C: closed, internal | A value only Ze produces | List every distinct named value explicitly. A retained `default` is only `panic("BUG: <what>")`, after tracing constructors, mutations and callers to prove that unvalidated external input cannot reach it. |
+| O: open, from outside | A code from the wire, a file, config or a plugin | List every accessible distinct named value explicitly. Keep a safe, non-panicking unknown handler in `default`, with a comment that the set is open. |
+| P: intentionally partial | A predicate, projection or independent handler for a legitimate subset | Put `//exhaustive:ignore // <why this switch handles a subset>` immediately before the switch. Preserve the behavior for nonmatching values. |
+
+A complete dispatcher or state/event transition table is C or O, even when some
+named events do nothing. P is not an exemption for missing cases in such a
+dispatcher. Do not use a blanket `nolint:exhaustive`, file exemption, cast or
+untagged switch to avoid coverage.
+
+Preserve existing named behavior, including unsupported-value errors, sentinel
+outcomes and valid zeros. This coverage migration does not impose invalid-zero
+semantics on existing types: preserve an existing valid unnamed zero path
+explicitly too. Inspect behavior after the switch, not only its arms. Do not
+add protocol support or change masked-code recognition to make a case explicit.
+
+Completeness is by distinct constant value: one named case covers same-valued
+aliases. Within the enum's package, private members count; across package
+boundaries, only exported members are required. Use named constants, not
+literals, to satisfy named-member coverage.
+<!-- source: vendor/github.com/nishanths/exhaustive/common.go -- checklist.add, checklist.found, exprConstVal -->
+
+The `exhaustive` linter currently accepts a `default` as complete because
+`.golangci.yml` still sets `default-signifies-exhaustive: true`. That setting
+stays until the migration's final cutover. Strict global checking is not live:
+reviewers MUST apply C/O/P to old and new enum switches, including switches
+whose named cases are already complete. The linter does not prove input
+closure, judge subset reasons or check default and post-switch behavior.
 <!-- source: .golangci.yml -- exhaustive default-signifies-exhaustive -->
+<!-- source: vendor/github.com/nishanths/exhaustive/switch.go -- switchChecker -->
+
+Sealed-interface type switches are separate. Their consumers still list each
+variant with no `default`, under the new-code rule above. `exhaustive` checks
+enum value switches, not sealed-interface type-switch completeness; that
+remains a reader check.
+<!-- source: vendor/github.com/nishanths/exhaustive/switch.go -- switchChecker -->
 
 #### Validated at construction
 
@@ -394,7 +425,7 @@ A finding from these tools names the rule, so the rule is not restated above.
 | Only a named panic | `writeGoPatterns` | A `panic(` in content that holds no panic with a `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix. One allowed panic admits every other panic in the same content, so a peer-reachable panic stays a reader check (see "Assertions, in a language that has none") |
 | No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |
 | No `nil, nil` answer | `nilnil` | A `(pointer, error)` function that returns neither |
-| Every enum value handled | `exhaustive` (a `default` counts, so new code with no `default` is a reader check: see "A switch over a closed set has no default") | A `switch` over an enum that skips a value |
+| Every enum value handled | `exhaustive` (currently a `default` counts; C/O/P coverage for old and new code remains a reader check: see "Every enum switch has a coverage policy") | Missing enum members in an unignored value switch without a `default`; not sealed-interface type-switch omissions |
 | A `//nolint` names its linter and its reason | `nolintlint`, `writeGoPatterns` | `//nolint`, or `//nolint:x` with no `// reason` |
 | No legacy logger | `forbidigo`, `writeGoPatterns` | `log.Print*`, `log.Fatal*`, `log.Panic*`: use `slog` |
 | No allocating formatter | `writeGoPatterns` | `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, `strconv.FormatInt`, `strconv.FormatUint`: use `textbuf.Buffer` |

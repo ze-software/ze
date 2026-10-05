@@ -1,0 +1,803 @@
+# Spec: enum-switch-exhaustiveness
+
+| Field | Value |
+|-------|-------|
+| Status | in-progress |
+| Owner | Thomas |
+| Scope | tooling |
+| Depends | - |
+| Phase | 1/10 |
+| Handoff | - |
+| Updated | 2026-10-05 |
+
+## Task
+
+Make enum coverage explicit without turning unexpected input into silent success or a daemon panic. The initial scope was analysis and this spec only. Thomas subsequently authorized implementation after the BGP and startup-race verification repairs; that implementation starts here.
+
+### Owner requirement, 2026-10-04
+
+> Task: make every Go switch over an enum list every value, then turn off
+> `default-signifies-exhaustive` in .golangci.yml so the exhaustive linter
+> enforces it for all code. Owner: Thomas. Run it through /ze-spec first
+> (non-trivial, repo-wide sweep).
+
+> A default arm can stay, but only for values outside the named set.
+
+| Class | What the switch is over | Fix |
+|-------|------------------------|-----|
+| Closed, internal | a value only Ze produces | List every value. Keep a `default` only as `panic("BUG: <what>")` |
+| Open, from outside | a code read from the wire, a file, config or a plugin | List every named value. Keep `default` as the handler for unknown codes, with a comment that the set is open. Never panic: a peer MUST NOT be able to panic the daemon |
+| Intentionally partial | e.g. a few attribute codes out of a large registry | `//exhaustive:ignore // <why this switch handles a subset>` |
+
+The table is Thomas's requirement, verbatim. The inventory uses C, O and P for these classes. P is the explicit subset exception, not permission to hide an incomplete complete-dispatch function. A complete state/event transition table is C or O even when some named events intentionally do nothing; independent event observers can be P.
+
+### Scope boundaries
+
+| Included | Excluded |
+|----------|----------|
+| First-party enum value switches, including old code, tests, platform builds and existing exhaustive suppressions | Third-party vendor rewrites, string-to-enum migrations, map exhaustiveness and sealed-interface type-switch tooling |
+| Named zero values, sentinels, bit fields, aliases and test-only enum members | New algorithm, protocol, family or plugin support |
+| Existing named-value behavior; safe unknown-input behavior; BUG assertions for proven internal impossible values | Changes to wire formats, supported algorithms, routing policy or authentication policy |
+| Style-guide correction and global linter cutover | A new bespoke switch checker or opt-in enforcement mode |
+
+## Required Reading
+
+- [ ] `docs/contributing/ze-go-style.md`, Types that cannot lie and the linter table.
+  → Decision: replace the no-default wording with Thomas's three-class rule; the enum rule applies to old and new code.
+- [ ] `docs/contributing/running-commands.md`, The lint gate; `docs/contributing/testing.md`.
+  → Constraint: use the registered le action and its build matrix, not a host-only bare linter command.
+- [ ] `vendor/github.com/nishanths/exhaustive/{doc.go,switch.go,common.go,enum.go}`.
+  → Constraint: completeness is by distinct constant value, with only accessible members required across package boundaries. The analyzer does not validate input provenance or subset reasons.
+- [ ] `internal/le/go/lint/{actions.go,verifylint.go,matrix.go}`.
+  → Constraint: the action owns admission, build selection and tracked-file coverage. Its current CLI has only a package-scope selector.
+- [ ] `ai/rules/{evidence,go-standards,testing,rfc-compliance,documentation,commands}.md` and each changed file's design page.
+  → Constraint: prove a closed producer before adding a panic; retain protocol guards and read applicable RFC text before changing a protocol obligation.
+
+**Key insights:** an unknown wire number is not an internal invariant violation. A named zero is not necessarily invalid. A useful default must not exempt missing named values. A reasoned subset switch is different from a complete dispatcher.
+
+## Current Behavior
+
+| Producer read | Observed behavior |
+|---------------|-------------------|
+| `.golangci.yml`, exhaustive settings | `default-signifies-exhaustive` is true; report caps are 50 per linter and 10 identical messages |
+| `switch.go`, `switchChecker` | A default suppresses missing-member findings globally; enforce comments do not override that setting |
+| `actions.go`, `runHere`; `verifylint.go`, `newRunner` and `passPlan` | le reads the checkout config and runs its platform/tag matrix; no alternate-config or linter selector is exposed |
+| `common.go`, `checklist.add` and `checklist.found` | In-package private constants count; cross-package private constants do not; one case covers same-valued aliases |
+| `internal/le/hookruntime/writeedit.go`, `writeGoPatterns` | Existing panic guard permits BUG-prefixed literal assertions; it is not an enum-exhaustiveness checker |
+| First-party marker/check search | No enforce markers or bespoke closed-switch/default checker found in the inspected source, hooks and ruleguard rules; do not delete unrelated enumeration/config gates |
+
+### Measurement
+
+The exhaustive-only run exited 1 because it found missing cases, not because analysis failed. It executed 18 passes and reported 487 diagnostics: **237 distinct switch locations, 167 files, 86 packages**. Host reported 226; Linux integration reported 237. Other passes repeated locations already in that union. No type-check diagnostics appeared.
+
+Command: `env PATH="<session-scratch>/exhaustive-bin:$PATH" CGO_ENABLED=0 ./le --name enum-switch-spec go lint run`.
+
+The session-local adapter ran the installed golangci-lint with `--enable-only exhaustive`, an alternate config and per-pass JSON output. The config copied `.golangci.yml`, set `default-signifies-exhaustive` false, disabled both issue caps and retained feature tags. A second scratch copy omitted tags for le's compile-out passes. le still chose packages, targets, tags, resource limits and job admission. The root config was not edited.
+
+Tool: golangci-lint v2.13.1, exhaustive v0.12.0, built with Go 1.27.0. HEAD observed after the run was `a829eb68d15cc2bd2cbaad8a0782e9f52b8168a1`; the run inspected the shared working tree, not an immutable checkout of that commit. Deduplication key: filename, line and column. Package counts below derive from those distinct findings.
+
+Research artifacts are under `tmp/session/2026-10-02-ba93202e-6f62-48a4-9b4e-c0aa37a4cc74/scratch/`: `exhaustive-run.log`, `exhaustive-measurement.json`, `exhaustive-findings.json`, `exhaustive-package-counts.json`, both configs, per-pass JSON and classification reports. The source locations, findings counts and classifications needed to implement are retained below; full per-switch producer evidence and proposed actions are also in exhaustive-inventory-final.json in that scratch directory; the scratch directory is not the acceptance proof for the finished change.
+
+### Coverage limits and bypasses
+
+- The registered action reports three tracked-file coverage exceptions: `.golangci/ruleguard/modern.go`, `examples/plugin/go/main.go` and `tools.go`. These exceptions are not evidence that their source contains no enum switches. Inspect their source at cutover; do not broaden this work into fixing the separate-module/tool-pin infrastructure.
+- Standard golangci generated-file filtering remains active. Source research found two generated value switches, both over built-in string fields in web templates, not typed enums. Reconcile generated sources again at cutover; edit a generator rather than its output if an enum switch appears.
+- Existing `nolint:exhaustive` directives hide **117 sites in 80 files** from the diagnostic run. Their classifications are included below. Remove these directives: use named cases for C/O, or the owner's reasoned switch-local ignore form for P.
+- `internal/component/bgp/cli/encode.go`, `cmdEncode`, deliberately uses an untagged switch to avoid exhaustive checking. Replace this bypass with a typed SAFI switch and a reasoned P annotation; preserve the registry fallback.
+- Type switches, untyped constant families and arbitrary boolean switches are outside this analyzer. Do not claim that this setting enforces sealed-interface completeness. Do not introduce casts or untagged switches to evade enum checks.
+- Missing-case diagnostics cannot find a bad default on an already-exhaustive switch. `internal/component/command/argvalidate.go`, `ValidateArgString`, names every ArgKind but returns nil for an unknown kind. G001 records this verified policy gap. Before editing batches, perform a type-aware census of all first-party enum switches across the same build populations, including complete switches. Assign each a class and inspect its default and post-switch behavior. Use scratch analysis, not a new permanent checker. The measured inventory and commit sizes below are lower bounds until that census is reconciled.
+
+## Data Flow
+
+| Path | Transformation | Boundary / preservation |
+|------|----------------|-------------------------|
+| Developer invokes le lint | le admission → build-flavor package selection → golangci → exhaustive facts and switch checking → diagnostics | Run through the real action; no permanent launcher adapter |
+| Peer, file, kernel or plugin supplies a code | Decode or parse → typed value → switch | O until an inspected producer/validator proves a finite internal set; retain unknown handler |
+| Ze constructs a state or category | Constructor/parser/classifier → stored enum → switch | C only after tracing constructors, mutations and callers; valid zeros remain explicit |
+| Consumer selects an independent subset | Shared enum → predicate, projection or state-specific handler | P preserves nonmatching behavior and names the subset reason |
+
+| Architectural check | Holds in this design? | Evidence / constraint |
+|---------------------|-----------------------|-----------------------|
+| No bypassed layers | Yes | Existing le action and runtime producers stay in place |
+| No unintended coupling | Yes | Package-owned cases and comments; no central enum registry added |
+| No duplicated functionality | Yes | Use upstream exhaustive, not a Ze checker |
+| Zero-copy preserved | Required | No new per-packet allocation, conversion, lookup table or helper layer for this sweep |
+| Registration, outbound | N-A | No new feature, command, family or handler |
+| Registration, inbound | Required | Preserve plugin registry fallbacks, including `cmdEncode`; enum completeness must not replace discovery with a feature list |
+
+## Risks & Assumptions
+
+### Assumptions
+
+| ID | Assumption | Basis | If wrong | Validation | Status |
+|----|------------|-------|----------|------------|--------|
+| A-1 | The baseline switch inventory still names the implementation tree | Shared-tree measurement and source reads | New or moved switches escape the batch list | Rerun the strict inventory only after changes; reconcile added/removed locations and suppressions | Validate at implementation |
+| A-2 | Each C switch receives only locally produced values | Per-switch producer evidence in research | A peer or plugin can trigger a new panic | Read constructor, mutation and caller references before each BUG-default edit; reclassify O if not proved | Validate at implementation |
+| A-3 | Generated/coverage-exempt sources add no missed enum switch | Bounded generated-source research, not a whole-AST proof | “Every switch” overstates coverage | Inspect the declared exceptions and generated-source enum intersections at cutover | Validate at implementation |
+| A-4 | Moving a test-only enum declaration does not add protocol support | Unknown/rejection tests and current decoder defaults | An unsupported algorithm or capability becomes accepted | Keep decode/negotiation refusals and names unchanged; run the named regression tests | Validate at implementation |
+
+### Risks
+
+| ID | Risk | Early signal | Mitigation |
+|----|------|--------------|------------|
+| R-1 | A useful default is deleted, producing silent no-op or fallthrough | Case-only mechanical patch | Move known behavior into explicit cases; retain an appropriate unknown handler; inspect code after the switch |
+| R-2 | Known sentinel behavior changes | Named zero newly reaches a BUG default | Enumerate sentinel outcomes explicitly, including existing errors, display strings and valid zero values |
+| R-3 | A broad ignore hides incomplete complete dispatch | Reason says only “unknown handled in default” | C/O stays checked; P reason names an actual predicate, projection or state-specific subset |
+| R-4 | Same-valued aliases or masks cause duplicate cases | Bit-field and imported registry enums | Enumerate distinct values once; keep mask semantics and named aliases documented at their declaration |
+| R-5 | A default has masked-code behavior, not just fallback | OSPF Router Information function-code recognition | Preserve recognition for unnamed values with the same masked code; do not limit it to newly explicit constants |
+| R-6 | Test-only typed members cannot be named in production | `codeSoftwareVersion` and `encrNull` | Move each sole named declaration to its owning production enum with an unsupported-value comment; retain unknown formatting and refusal, not new support |
+| R-7 | Scope drifts into known-value semantic repair | PendingChange.Summary renders activate/deactivate as set | This sweep does not authorize new output policy. Keep current named behavior explicit; record any proposed semantic correction separately rather than disguise it as lint cleanup |
+| R-8 | Internal misuse already has a documented/tested fallback | AuthMode.String, SetupOutcome.String, MulticastMACForLevel | Apply the owner's closed-set policy deliberately; update the affected misuse contract/tests, not external-input rejection |
+| R-9 | Enum closure is lost through mutation or exported fields | DHExchange.GroupID and PortForm consumers | Preserve validating constructors and peer guards; repeat source-reference inspection against the tree being edited |
+| R-10 | Measurement undercounts | Issue caps, nolint filters, generated filter, build tags | Uncapped per-pass reports, separate suppression inventory, declared coverage limits and final global run |
+| R-11 | Unnamed zero is a valid existing construction | Zero Selector, ScopeReport.Print empty, private hook sentinel, shared IPsec direction | Preserve the zero path explicitly; do not infer zero-invalid from newer style guidance |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | A daemon panic, changed routing/authentication decision, altered CLI output, or silently lost handling of a new enum member |
+| How is it undone? | No schema/data migration. If needed, prepare an owner-approved corrective patch; do not run destructive git commands |
+| Who else touches these paths? | Active protocol/RFC proof work, including `plan/pre-release/spec-rfc-verdict-test-fix-pass.md`; reconcile concurrent edits without overwriting them |
+
+## Wiring Test
+
+| Entry point | Feature code | Test / observable result |
+|-------------|--------------|--------------------------|
+| `./le go lint run scope <scratch-fixture-package>` | Final root config → upstream `switchChecker` | Throwaway `EnumSwitchLintContract`: an unmarked switch missing a member fails even with a default; adding the case passes; adding a new member fails again |
+| Same real lint action | Switch-local ignore semantics | Throwaway `EnumSwitchSubsetContract`: justified ignored subset passes; an adjacent unmarked incomplete switch still fails |
+| Normal full-tree lint action | All registered build flavors | No exhaustive finding; preserve declared coverage exceptions and report any unrelated lint failure separately |
+
+## Acceptance Criteria
+
+| ID | Input / condition | Expected behavior |
+|----|-------------------|-------------------|
+| AC-1 | Full type-aware source census and final switch inventories | Every first-party enum switch, including already-complete switches absent from diagnostics, has exactly one C/O/P disposition. Reconcile build populations, generated sources, coverage exceptions, new/moved findings and every preexisting suppression; a clean linter run alone cannot satisfy this criterion |
+| AC-2 | C switch, each distinct named value | Explicit case preserves its intended existing behavior, including valid zeros and named sentinel errors |
+| AC-3 | C switch, impossible unnamed internal value | No plausible fallback or silent success; retained default is a BUG-prefixed panic, unreachable from unvalidated external input |
+| AC-4 | O switch, named and unknown values | Every accessible distinct named value is explicit; unknown handler remains non-panicking and has an open-set comment |
+| AC-5 | P switch | Immediately preceding reasoned exhaustive-ignore directive; existing subset and nonmatching behavior preserved; no blanket/file exemption |
+| AC-6 | New named member, unmarked C/O switch with default | Real le lint action reports that switch; explicit-exhaustive-switch remains false/unset |
+| AC-7 | Existing suppressions, marker/check footprint | No first-party nolint:exhaustive workaround or enforce marker; replace the known untagged avoidance; remove a bespoke checker only if one actually exists at implementation time |
+| AC-8 | Test-only unknown values and mask/alias cases | No new protocol support, duplicate cases, changed unknown rendering, or lost masked-code recognition |
+| AC-9 | Documentation | Guide states the three classes and global old/new-code coverage; it does not claim exhaustive checks sealed-interface type switches |
+| AC-10 | Final whole-tree analysis and runtime smoke | Exhaustive clean across the existing matrix; fixture omission trips through le; changed external-input paths keep their observed safe outcomes |
+
+## TDD Test Plan
+
+No permanent tests that merely duplicate case lists or configuration text. Add a regression test only for a changed consumer-visible boundary not already covered.
+
+| Kind | Concrete test / probe | Purpose |
+|------|-----------------------|---------|
+| Lint smoke | `EnumSwitchLintContract` and `EnumSwitchSubsetContract` above | Red/green proof through the real developer entry point; scratch fixtures only |
+| Existing unit | `TestDHUnsupportedGroup`, `internal/component/ike/crypto/dh_test.go` | Unsupported constructor group still returns its error rather than panicking |
+| Existing unit | `TestSoftwareVersionCapabilityDecidesNothing` and `TestSoftwareVersionCapabilityIsRecordedForDisplay` | Moving code 75's declaration preserves unknown storage and negotiation results |
+| Existing unit | `TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher` | Moving ENCR_NULL's declaration preserves rejection; do not weaken assertions or alter its claim |
+| Existing unit | `TestParseEncoderRefusesAThirdWord` | External encoder strings still fail before internal enum dispatch |
+| Boundary smoke | Exported capability parser with raw unknown code; DH constructor with unknown group; CLI argument parser with unknown token | Invoke real entry APIs and check exact existing unknown/error outcomes, not bare no-panic assertions |
+| Package regression | Owning tests for every edited package, through registered/admitted le commands | Preserve state transitions, output, sentinels and rejection behavior |
+| Final gate | Full registered lint and relevant unit verification once after integration | No compile-out or platform-specific case omission |
+
+| Boundary | Named edge | Unknown edge | Expected result |
+|----------|------------|--------------|-----------------|
+| Local enum | Zero/sentinel and highest named distinct value | An unnamed representable value | Named contract explicit; unknown BUG only after closure proof |
+| Open enum | Unsupported but named code | Unknown protocol/kernel/plugin code | Existing safe rejection/preservation path; no new support |
+| Aliases/masks | Equal-valued aliases and flag combinations | Unnamed value matching an existing mask | One case per value; keep existing masked behavior |
+
+Functional/interoperability requirement: no wire-visible behavior change is planned. Existing protocol regression scenarios remain applicable. If a batch changes wire behavior, it leaves this preservation plan and needs the applicable peer scenario, RFC review and discrimination evidence before landing. A lint success is not proof of protocol conformance.
+
+## Files to Modify
+
+| Surface | Change |
+|---------|--------|
+| Go files in the switch inventory below | Apply the assigned class, preserve control flow and update stale comments |
+| Owning enum declarations and existing boundary tests | Resolve test-only members, aliases and genuine internal-invalid contract changes; inspect references first |
+| `.golangci.yml` | Final cutover sets default-signifies-exhaustive false; keep global checking, no opt-in mode |
+| `docs/contributing/ze-go-style.md` | Types that cannot lie: replace no-default wording and enum old-code exemption; mechanical table: state actual global enum checking, separate type switches |
+| Source-linked subsystem pages, when a described contract changes | Update in the same batch as the code; do not bulk-rewrite unrelated pages |
+| `plan/spec-enum-switch-exhaustiveness.md` | This analysis/spec record; no permanent new checker, command, config flag or runtime dependency |
+
+## Files to Create
+
+Only this spec is created during analysis. Implementation adds no permanent checker, wrapper or fixture solely to duplicate upstream exhaustive behavior. Any new behavioral regression test belongs beside its owning existing package tests.
+
+### Integration Checklist
+
+| Integration point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema | N-A | No new RPC/config leaf |
+| YANG validation constraints | N-A | Preserve parsers and validation |
+| YANG custom validators | N-A | No new option |
+| CLI commands/flags | N-A | Preserve command grammar and behavior; no lint CLI extension |
+| CLI grammar | N-A | No command syntax change |
+| Editor autocomplete | N-A | Preserve current descriptors |
+| Functional test for new RPC/API | N-A | No new RPC/API |
+| Pipe completeness | Yes | Existing command pipe cases and fallback behavior remain covered by owning tests |
+| Env var registration | N-A | No new env var |
+| Doctor/runtime dependency | N-A | No new daemon dependency |
+| Prometheus counters | N-A | Preserve existing metric behavior |
+| BGP family surface | N-A | No new family/capability/attribute support |
+
+### Documentation Update Checklist
+
+| # | Surface | Applies? | Action / reason |
+|---|---------|----------|-----------------|
+| 1 | Feature list | N-A | No user feature |
+| 2 | Config syntax | N-A | No syntax change |
+| 3 | CLI reference | N-A | No command added |
+| 4 | API/RPC | N-A | No API change |
+| 5 | Plugin guide | N-A | No plugin contract change |
+| 6 | Contributor guide | Yes | Update ze-go-style.md, Types that cannot lie and linter table |
+| 7 | Wire format | N-A | Preserve bytes and protocol behavior |
+| 8 | Plugin SDK | N-A | Preserve transport/contracts |
+| 9 | RFC behavior/claims | Conditional | Preserve existing claims; changed tagged behavior requires the applicable RFC evidence and discrimination record |
+| 10 | Test infrastructure | N-A | Reuse existing lint action; scratch probes are not new infrastructure |
+| 11 | Comparison | N-A | No new support claim |
+| 12 | Architecture | Conditional | Update only a source-linked contract changed by BUG-only internal fallback semantics |
+| 13 | Route metadata | N-A | No keys added |
+| 14 | Metrics | N-A | Preserve current counters |
+| 15 | Registries/inventory | N-A | No new runtime feature; preserve discovery |
+| 16 | Source anchors | Yes | Derive touched-file pages with le spec citation anchors and inspect Design headers in each batch; name unchanged contracts explicitly |
+| 17 | Examples | Yes | Correct any guide example of enum default policy; do not alter unrelated CLI/config examples |
+
+### Discovery
+
+| Question | Answer |
+|----------|--------|
+| Where does an agent look first? | Existing ai/INDEX.md rows for the Go style guide and le go lint |
+| What prevents regression? | Upstream exhaustive in global mode, with default-signifies-exhaustive false |
+| What prevents a second source of truth? | Enum declarations remain authoritative; this inventory is a dated migration record, not a runtime registry |
+| What proves reachability? | The real le lint action rejects the scratch omission probe |
+
+## Implementation Steps
+
+1. **Establish policy and full population.** Retain the measured strict red baseline. Complete the type-aware enum-switch census described above, inspect complete switches as well as findings, and extend/recount the package inventory before assigning code batches. Correct the guide's three-class policy without yet claiming that the global cutover has landed. The omission smoke waits for step 4; it cannot prove strict enforcement against the current permissive root config.
+2. **Apply the package batches below.** One owner per file. Read the enum, producer, caller/mutation references and post-switch code; apply C/O/P to the full census, not just the seed rows. Keep safe external defaults and explicit sentinels. Migrate existing exhaustive suppressions in the same package batch, not in a separate overlapping pass.
+3. **Resolve declaration edges in their owning batch.** Move the test-only unsupported capability/algorithm declarations once, without enabling them. Replace variable aliases used as constant cases with the owning declared constants. Preserve hidden/unnamed zero contracts explicitly.
+4. **Cut over globally.** After all batches, set the root setting false and update the guide's enforcement statement. Run EnumSwitchLintContract and EnumSwitchSubsetContract through the normal scoped le action using the final root config, with direct and aliased enum inputs. Require the expected missing-member diagnostic, not merely a nonzero exit. After removing those disposable probes, reconcile the inventory and run the full lint matrix once. No transient enforce markers, permanent adapter or bespoke checker.
+5. **Prove preservation and review.** Run the relevant boundary probes and owning regression tests. Independent review checks closed provenance, safe open defaults, subset reasons, all final diagnostic/suppression locations and source-linked docs. Stop with implementation evidence; do not claim protocol support from lint.
+
+### Alternatives and decision
+
+| Approach | Tradeoff | Decision |
+|----------|----------|----------|
+| Package-aligned batches, final global config cutover | Keeps protocol/input provenance with its owner; limits overlapping file edits; final cutover waits for every batch | Chosen |
+| One atomic repo-wide switch patch | One commit but mixes internal state, external codes, masks and test fixtures; difficult to review for peer-safe behavior | Rejected |
+| Opt-in markers or a bespoke Ze check | Leaves unmarked switches unchecked or duplicates upstream behavior | Rejected by owner |
+
+Simplicity: existing cases/defaults and upstream linter only. Uniformity: one three-class policy, including old suppressions. Performance: no new runtime allocation or dispatch abstraction. Strongest risk: mistaking a typed external number for a closed internal enum.
+
+### Critical Review Checklist
+
+| Check | Evidence required |
+|-------|-------------------|
+| Completeness | Every inventory row and every final new finding has a disposition; no remaining first-party exhaustive nolint |
+| Closed provenance | Constructor/validator and mutation/caller evidence, not an enum name or comment alone |
+| External safety | Exact error/unknown behavior on hostile or future codes; no new peer-reachable panic |
+| Subset legitimacy | The ignored switch is a projection/predicate/state-specific subset, not a complete dispatcher missing cases |
+| Preservation | Named zero, sentinels, same-valued aliases, default masks, fallthrough and code after the switch retain their contract |
+| Test honesty | No weakened negative test, no new unsupported protocol capability, no assertion that only echoes source wiring |
+
+### Deliverables
+
+| Deliverable | Verification |
+|-------------|--------------|
+| Explicit or justified enum switches | Uncapped exhaustive-only inventory plus independent C/O/P review |
+| Global linter enforcement | Real le omission smoke and final full matrix |
+| Safe runtime behavior | Named boundary probes and owning package regression output |
+| Correct guide | Source-aware reading and le doc check verify after implementation edits |
+
+### Review Gate
+
+No implementation review has run. Phase 1 establishes the policy and census; the implementation closure adds the standard closure template and its independent review evidence.
+
+| Run | Scope | Result | Evidence |
+|-----|-------|--------|----------|
+
+## Analysis Disposition
+
+At the end of analysis on 2026-10-04, implementation had not been authorized and no switch had been fixed. The analyzed seed inventory has 356 sites in 243 files and 113 packages: 153 C, 42 O and 161 P. It combines 237 diagnostics, 117 suppression sites, one deliberate analyzer avoidance and one verified policy gap in an already-complete switch. These are lower bounds, not the population of all enum switches; step 1 completes that census before code edits. The suppression inventory includes stale directives over plain integer switches; those need directive removal, not new enum machinery. The global config remains true until the implementation's final cutover.
+
+## Measured Package Counts
+
+Counts in this table are the 237 uncapped linter findings only. Existing suppressions and the untagged avoidance are additional inventory rows, not fabricated linter findings.
+
+| Package | Reported switches |
+|---------|-------------------|
+| `cmd/ze` | 2 |
+| `cmd/ze/hub` | 1 |
+| `internal/chaos/orchestrator` | 2 |
+| `internal/chaos/scenario` | 1 |
+| `internal/chaos/web` | 1 |
+| `internal/component/bgp/plugins/ls_export` | 3 |
+| `internal/component/bgp/plugins/rib/storage` | 1 |
+| `internal/component/bgp/plugins/rpki` | 3 |
+| `internal/component/bgp/reactor` | 10 |
+| `internal/component/bgp/redistribute` | 1 |
+| `internal/component/bgp/wireu` | 3 |
+| `internal/component/cli` | 2 |
+| `internal/component/command` | 15 |
+| `internal/component/config` | 10 |
+| `internal/component/config/cli` | 3 |
+| `internal/component/config/storage` | 1 |
+| `internal/component/config/system` | 1 |
+| `internal/component/config/transaction` | 3 |
+| `internal/component/doctor` | 1 |
+| `internal/component/iface` | 1 |
+| `internal/component/ike/crypto` | 5 |
+| `internal/component/ike/dataplane` | 1 |
+| `internal/component/ike/engine` | 4 |
+| `internal/component/ike/ipsec` | 4 |
+| `internal/component/kernelcap` | 1 |
+| `internal/component/l2tp` | 2 |
+| `internal/component/l2tp/plugins/authlocal` | 1 |
+| `internal/component/l2tp/ppp` | 11 |
+| `internal/component/l2tp/pppoeclient` | 1 |
+| `internal/component/mcp` | 5 |
+| `internal/component/mtu/cmd` | 19 |
+| `internal/component/plugin/all` | 1 |
+| `internal/component/plugin/registry` | 1 |
+| `internal/component/plugin/server` | 2 |
+| `internal/component/radius` | 2 |
+| `internal/component/support` | 1 |
+| `internal/component/vpp` | 1 |
+| `internal/component/web` | 3 |
+| `internal/core/bgp/capability` | 2 |
+| `internal/core/bgp/routeaction` | 1 |
+| `internal/core/eap` | 2 |
+| `internal/core/family` | 2 |
+| `internal/core/ikeprobe` | 2 |
+| `internal/core/ipsecinventory` | 1 |
+| `internal/core/probe` | 7 |
+| `internal/core/selector` | 1 |
+| `internal/exabgp/bridge` | 1 |
+| `internal/le` | 1 |
+| `internal/le/cli/catalog` | 1 |
+| `internal/le/job` | 1 |
+| `internal/le/repo/changed` | 1 |
+| `internal/le/rfc` | 2 |
+| `internal/le/site` | 1 |
+| `internal/le/spec/status` | 1 |
+| `internal/le/test/qemu` | 5 |
+| `internal/le/weekly` | 1 |
+| `internal/plugins/exabgp/bridgerun` | 1 |
+| `internal/plugins/fib/kernel` | 3 |
+| `internal/plugins/firewall/nft` | 1 |
+| `internal/plugins/firewall/vpp` | 1 |
+| `internal/plugins/flowspec-firewall` | 2 |
+| `internal/plugins/geodns` | 2 |
+| `internal/plugins/iface/netlink` | 3 |
+| `internal/plugins/iface/vpp` | 1 |
+| `internal/plugins/isis` | 7 |
+| `internal/plugins/isis/adjacency` | 1 |
+| `internal/plugins/isis/lsdb` | 3 |
+| `internal/plugins/isis/packet` | 5 |
+| `internal/plugins/isis/transport` | 2 |
+| `internal/plugins/ldp` | 1 |
+| `internal/plugins/memlock` | 1 |
+| `internal/plugins/mrt` | 1 |
+| `internal/plugins/ntp` | 1 |
+| `internal/plugins/ospf` | 22 |
+| `internal/plugins/ospf/lsdb` | 1 |
+| `internal/plugins/ospf/neighbor` | 1 |
+| `internal/plugins/ospf/packet` | 1 |
+| `internal/plugins/ospf/redistribute` | 1 |
+| `internal/plugins/ospf/spf` | 1 |
+| `internal/plugins/ospf/sr` | 1 |
+| `internal/plugins/ospf/types` | 3 |
+| `internal/plugins/ospf/v3/types` | 1 |
+| `internal/plugins/rsvpte` | 1 |
+| `internal/test/cli` | 1 |
+| `internal/test/fixture` | 1 |
+| `internal/test/runner` | 3 |
+
+## Commit Batches
+
+Seven initial package-aligned code batches, then one global cutover commit. Counts below include diagnostics, existing suppressions, the known avoidance and G001. They are lower bounds: the full census in step 1 updates the counts and splits a batch further when necessary. Each code commit includes its contract-test/comment/doc updates; these are not seven competing writers to the same file. Final reconciliation can add sites but cannot silently omit them.
+
+| Batch | Switch sites | Files | C | O | P | Ownership |
+|-------|--------------|-------|---|---|---|-----------|
+| 1. Commands | 55 | 28 | 34 | 0 | 21 | CLI, command, MTU commands, MCP |
+| 2. ConfigPlatform | 66 | 45 | 34 | 8 | 24 | Config, plugin infrastructure, web, probes and platform consumers |
+| 3. Tools | 45 | 38 | 20 | 1 | 24 | cmd, le, test harness, chaos |
+| 4. SecuritySubscriber | 44 | 25 | 24 | 4 | 16 | IKE/IPsec, PPP/L2TP, RADIUS, EAP |
+| 5. BGP | 85 | 62 | 18 | 18 | 49 | BGP engine/core, ExaBGP, capability declaration edge |
+| 6. RoutingPlugins | 28 | 20 | 17 | 4 | 7 | IS-IS, LDP, RSVP, MRT, FIB, FlowSpec firewall |
+| 7. OSPF | 33 | 25 | 6 | 7 | 20 | OSPF packet, LSDB, export and state consumers |
+| 8. Global cutover | All | Config and guide | - | - | - | Root setting false, enforcement wording, final matrix and omission smoke |
+
+## Switch Classification Inventory
+
+This is the dated seed inventory, not a generated-code allowlist or a complete census. D identifiers are linter diagnostics, S identifiers are existing suppressions, B identifies the untagged avoidance, and G identifies an already-complete switch with a policy gap. Repeated function names refer to distinct switches in source order. The class policy above supplies the required edit; the basis explains why that class applies. Recheck producer evidence before a panic edit. Step 1 must inventory, classify and audit the defaults and post-switch outcomes of already-complete enum switches too; upstream exhaustive does not inspect those outcomes.
+
+### Commands
+
+| ID | File | Function / enum | Class | Basis |
+|----|------|-----------------|-------|-------|
+| G001 | `internal/component/command/argvalidate.go` | ValidateArgString / `command.ArgKind` | C | Complete validation dispatcher over internal argument descriptors; every named case exists, but the default returns nil for an unknown kind. Preserve named validation and replace the impossible-value success with a BUG assertion after caller/producer proof. |
+| S065 | `internal/component/cli/completer.go` | Completer.TypeHint / `gyang.TypeKind` | P | Presentation override gives friendly hints for string, uint8/16/32, bool and enum over generic schema-name rendering; unions are handled after the switch. |
+| S066 | `internal/component/cli/completer_validate.go` | validateYangType / `gyang.TypeKind` | P | Best-effort completion filter recognizes union, string patterns, uint8/16/32, bool and enum; other kinds intentionally remain eligible rather than implementing authoritative validation. |
+| D029 | `internal/component/cli/editor.go` | pendingChangeKey / `config.PendingChangeKind` | P | Rename alone uses two paths; every other change uses the generic path/member key. |
+| S067 | `internal/component/cli/editor_commit.go` | appendStructuralOpConflict / `config.StructuralOpType` | P | Staleness pre-scan specializes Rename source/destination and InsertMember reference checks, not execution of every structural operation. |
+| S068 | `internal/component/cli/editor_draft.go` | applyMemberOp / `config.StructuralOpType` | P | Member helper for InsertMember, DeactivateMember and ActivateMember; caller explicitly narrows to these three. |
+| S069 | `internal/component/cli/editor_leaflist.go` | Editor.writeThroughMemberOp / `config.StructuralOpType` | P | Leaf-list operation specialization for insert/deactivate/activate; other structural execution lives elsewhere. |
+| S070 | `internal/component/cli/editor_test.go` | TestCmdCommitSessionConflictFormatting / `contract.ConflictType (cli alias)` | C | Full conflict-format dispatcher, not subset observer. Enum is exactly Live=0 and Stale=1, both rendered. |
+| S071 | `internal/component/cli/model_commands_commit.go` | Model.cmdCommitSession / `contract.ConflictType (cli alias)` | C | Formats every returned conflict; omitting a future conflict kind would be incomplete dispatch. |
+| D030 | `internal/component/cli/model_commands_session.go` | formatChangeEntry / `config.PendingChangeKind` | C | Complete formatting dispatch over internally constructed changes. |
+| D031 | `internal/component/command/argvalidate.go` | Constraint / `command.ArgKind` | C | Kind describes a Ze argument definition, not an operator-provided code. |
+| D032 | `internal/component/command/pipe.go` | foldFilters / `command.pipeKind` | P | Only selected command-owned filters are folded; unrelated operators must remain in the chain. |
+| S072 | `internal/component/command/pipe.go` | collectPipeMeta / `pipeKind` | P | Records row-selection provenance only: Match, Count, valid First/Last and command-owned/alias Unknown filters. Formats/enrichment/display/paging do not explain row inclusion. |
+| D033 | `internal/component/command/pipe.go` | validatePipeArgument / `command.PipeArgKind` | C | Complete dispatch over the catalog's internal argument contracts. |
+| D034 | `internal/component/command/pipe.go` | shapeDescription / `command.AnswerShape` | C | Shape is a registered internal descriptor; external spellings are parsed to known shapes. |
+| D035 | `internal/component/command/pipe.go` | isDataTransformOp / `command.pipeKind` | P | Membership predicate for answer-changing operators. |
+| D036 | `internal/component/command/pipe.go` | isStructuredTransformOp / `command.pipeKind` | P | Membership predicate for structured transforms, not complete execution dispatch. |
+| D037 | `internal/component/command/pipe.go` | isLineTransformOp / `command.pipeKind` | P | Membership predicate for operations meaningful over rendered lines. |
+| S073 | `internal/component/command/pipe.go` | processStreamPipes / `pipeKind` | P | Extracts Resolve/Origin flags; other operations remain in the later stream pipeline. |
+| D038 | `internal/component/command/pipe_catalog.go` | AnswerShape.String / `command.AnswerShape` | C | Closed descriptor vocabulary; raw plugin shape strings are normalized rather than cast. |
+| D039 | `internal/component/command/pipe_catalog.go` | PipeClass.String / `command.PipeClass` | C | Catalog-owned descriptor, never an operator string cast. |
+| D040 | `internal/component/command/pipe_catalog.go` | PipeArgKind.String / `command.PipeArgKind` | C | All argument kind values originate in the compiled catalog. |
+| D041 | `internal/component/command/pipe_catalog.go` | PipeRepeat.String / `command.PipeRepeat` | C | Compiled operator repetition contract. |
+| D042 | `internal/component/command/pipe_catalog.go` | PipeOperator.ArgHint / `command.PipeArgKind` | C | Complete rendering dispatch for catalog argument descriptors. |
+| S074 | `internal/component/command/pipe_columns.go` | columnsInChain / `pipeKind` | P | Projects Display and Fill into columnRequest; does not execute the other operators. |
+| S075 | `internal/component/command/pipe_records.go` | applyPipesRecords NDJSON specialization / `pipeKind` | P | Overrides Match, Count, First and Last after NDJSON rendering for line semantics; other kinds continue to normal dispatch below. |
+| D043 | `internal/component/command/pipe_records.go` | applyRecordOp / `command.pipeKind` | P | Record-stage specialization: count/display have preceding handling and formatting belongs to later stages. |
+| S076 | `internal/component/command/pipe_records.go` | positionalAddressFields / `pipeKind` | P | Address-enrichment specialization derives suffixes for Resolve and Origin only. |
+| S077 | `internal/component/command/pipe_records.go` | transformPositionalAddressItem / `pipeKind` | P | Executes two positional address enrichments, not arbitrary pipe operations. |
+| D044 | `internal/component/command/render_records.go` | recordRendererKeeps / `command.pipeKind` | P | Selects the renderer's subset after record transforms, not a complete operator dispatcher. |
+| D045 | `internal/component/command/usage.go` | usageValues / `command.ArgKind` | C | Ordinary descriptor dispatch already explicitly handles non-enumerated string and integer kinds. |
+| D096 | `internal/component/mcp/auth.go` | AuthMode.String / `mcp.AuthMode` | C | Configuration strings are normalized into Ze auth strategies, not numeric wire values. |
+| D097 | `internal/component/mcp/bearer.go` | buildAuthenticator / `mcp.AuthMode` | P | Helper implements only static bearer strategies; OAuth construction belongs to the caller. |
+| D098 | `internal/component/mcp/jwt.go` | hashBytes / `crypto.Hash` | P | Intentional JWT hashing specialization; the imported hash universe is larger than the supported JWT algorithms. |
+| D099 | `internal/component/mcp/streamable_auth.go` | buildAuthForMode / `mcp.AuthMode` | C | Complete dispatch over normalized internal authentication strategies. |
+| D100 | `internal/component/mcp/tools.go` | TaskSupportLevel.String / `mcp.TaskSupportLevel` | C | Internal tool descriptor built from string metadata. |
+| D101 | `internal/component/mtu/cmd/arith.go` | ipFamily.String / `cmd.ipFamily` | C | Family is derived from parsed addresses, not cast from a wire family code. |
+| D102 | `internal/component/mtu/cmd/arith.go` | minimumMTU / `cmd.ipFamily` | C | Internal normalized family, with legitimate missing-family error behavior. |
+| D103 | `internal/component/mtu/cmd/arith.go` | mss / `cmd.ipFamily` | C | Complete arithmetic dispatch on internally derived address family. |
+| D104 | `internal/component/mtu/cmd/mtu.go` | runStatus.String / `cmd.runStatus` | C | Run outcome is computed by Ze. |
+| D105 | `internal/component/mtu/cmd/mtu.go` | runVerdict.String / `cmd.runVerdict` | C | Verdict is an internally computed decision, not an input code. |
+| D106 | `internal/component/mtu/cmd/mtu.go` | noteSeverity.String / `cmd.noteSeverity` | C | Severity is selected by diagnostic code. |
+| D107 | `internal/component/mtu/cmd/overhead.go` | deriveESPOverhead / `ipsecinventory.Mode` | C | Unlike encryption transform IDs, the inventory mode is normalized by Ze rather than passed through from a protocol or kernel code. |
+| D108 | `internal/component/mtu/cmd/run.go` | proberKind.String / `cmd.proberKind` | C | Names the local measurement implementation chosen by the run. |
+| D109 | `internal/component/mtu/cmd/run.go` | inventoryState.String / `cmd.inventoryState` | C | Internal classification of whether the inventory read answered. |
+| D110 | `internal/component/mtu/cmd/run.go` | mtuRun.measure / `cmd.searchOutcome` | C | The local search algorithm constructs outcomes; received ICMP fields are not cast to this enum. |
+| D111 | `internal/component/mtu/cmd/search.go` | probeOutcome.String / `cmd.probeOutcome` | C | Probe results are normalized outcomes, not raw external codes. |
+| D112 | `internal/component/mtu/cmd/state.go` | tcpMTUProbing.String / `cmd.tcpMTUProbing` | C | The raw OS integer is validated and converted before this switch. |
+| D113 | `internal/component/mtu/cmd/state.go` | tcpMTUProbing.finding / `cmd.tcpMTUProbing` | C | Explicit dispatch already distinguishes every valid normalized setting; only sentinel is missing. |
+| D114 | `internal/component/mtu/cmd/verdict.go` | tunnelVerdict.String / `cmd.tunnelVerdict` | C | Local sizing decision, not wire code. |
+| D115 | `internal/component/mtu/cmd/verdict.go` | tunnelVerdict.needsCommand / `cmd.tunnelVerdict` | P | Predicate deliberately selects only verdicts with a usable different recommendation. |
+| D116 | `internal/component/mtu/cmd/verdict.go` | runVerdictOf / `cmd.tunnelVerdict` | C | Complete fold over internally produced verdicts, including explicit neutral cases. |
+| D117 | `internal/component/mtu/cmd/verdict.go` | underlayOutcome.String / `cmd.underlayOutcome` | C | The advice matrix computes this enum. |
+| D118 | `internal/component/mtu/cmd/verdict.go` | underlayOutcome.severity / `cmd.underlayOutcome` | C | Complete classification of advice matrix results. |
+| D119 | `internal/component/mtu/cmd/verdict.go` | underlayOutcome.text / `cmd.underlayOutcome` | C | Complete text dispatch for locally computed advice outcomes. |
+
+### ConfigPlatform
+
+| ID | File | Function / enum | Class | Basis |
+|----|------|-----------------|-------|-------|
+| D046 | `internal/component/config/change_file.go` | StructuralOp.PendingChange / `config.StructuralOpType` | C | The file parser selects named operation constructors rather than casting arbitrary file text into the enum. |
+| D047 | `internal/component/config/change_file.go` | PendingChange.ConflictPaths / `config.PendingChangeKind` | P | Rename is the deliberate two-path exception to ordinary Path overlap checks. |
+| D048 | `internal/component/config/change_file.go` | PendingChange.Summary / `config.PendingChangeKind` | C | Complete operator-summary dispatch over locally produced pending-change variants; omitted known variants require a semantic decision, not a subset exemption. |
+| D049 | `internal/component/config/change_file.go` | formatStructuralLine / `config.StructuralOpType` | C | Serialization dispatch for the same recognized structural operations. |
+| D050 | `internal/component/config/cli/cmd_dump.go` | maskValue / `config.DisplayMode` | C | Display policy is selected locally, not decoded as an arbitrary numeric mode. |
+| D051 | `internal/component/config/cli/cmd_migrate.go` | configMigrateWithWarnings / `config.ConfigFormat` | C | External file bytes are classified into exactly three named formats. |
+| D052 | `internal/component/config/cli/cmd_validate.go` | runValidation / `config.ConfigFormat` | C | DetectFormat's output is a finite local classification even when input is untrusted configuration. |
+| S078 | `internal/component/config/cli/cmd_validate.go` | yangRepair / `configyang.ErrorType` | P | Optional repair lookup supports only implemented repair recipes. |
+| S079 | `internal/component/config/cli/cmd_validate.go` | yangErrorCode / `configyang.ErrorType` | C | Complete code mapping omits named zero ErrTypeUnknown. |
+| S080 | `internal/component/config/parser_freeform.go` | Parser.parseFlex / `config.tokenType` | C | Full syntax-mode dispatcher, not a predicate. |
+| S081 | `internal/component/config/parser_freeform.go` | Parser.parseFlexValue / `config.tokenType` | P | Enclosing loop admits only word, string, LBracket and LParen; switch specializes bracketed collection. |
+| S082 | `internal/component/config/parser_freeform.go` | Parser.parseInlineList / `config.tokenType` | C | Complete attribute-value grammar dispatcher. |
+| S083 | `internal/component/config/parser_freeform.go` | Parser.skipBlock / `config.tokenType` | P | Delimiter-depth scanner deliberately discards content. |
+| S084 | `internal/component/config/parser_freeform.go` | Parser.collectArray / `config.tokenType` | C | Full token-to-content dispatcher including catch-all transformation. |
+| S085 | `internal/component/config/parser_freeform.go` | Parser.collectParenthesized / `config.tokenType` | C | Complete content assembly dispatcher. |
+| S086 | `internal/component/config/probe.go` | ProbeConfigType / `config.tokenType` | P | Top-level bgp-block predicate, not full parsing. |
+| S087 | `internal/component/config/reader.go` | tokensToNestedMap / `config.tokenType` | C | Actual suppression: reader.go, switch at 143. Already lists all ten kinds. |
+| S088 | `internal/component/config/reader.go` | extractBraceContent / `config.tokenType` | P | Actual suppression: reader.go, switch at 207. Brace-depth projection. |
+| D053 | `internal/component/config/related.go` | RelatedPlacement.String / `config.RelatedPlacement` | C | Descriptor parser validates tokens before assigning enum. |
+| D054 | `internal/component/config/related.go` | RelatedPresentation.String / `config.RelatedPresentation` | C | Descriptor presentation is validated at construction. |
+| D055 | `internal/component/config/related.go` | RelatedClass.String / `config.RelatedClass` | C | Styling class is a validated descriptor classification. |
+| D056 | `internal/component/config/related.go` | RelatedEmpty.String / `config.RelatedEmpty` | C | Validated empty-placeholder policy. |
+| D057 | `internal/component/config/schema.go` | parseNumericRangeValue / `config.ValueType` | P | Numeric range parsing intentionally supports numeric types only. |
+| D058 | `internal/component/config/setparser.go` | NormalizeLeafValue / `config.ValueType` | P | Only bool and ASN have canonicalization rules; other accepted strings must remain untouched. |
+| D059 | `internal/component/config/storage/source.go` | ReadConfigSource / `storage.ConfigSource` | C | Source identity is bound to an owned storage wrapper, not read as a file enum. |
+| D060 | `internal/component/config/system/doctor.go` | checkResolvConfPath / `host.PlatformType` | P | This diagnostic only compares gokrazy and conventional Linux resolver-path conventions. |
+| S089 | `internal/component/config/tokenizer_test.go` | TestTokenizerNestedBraces / `config.tokenType` | P | Brace-balance projection in test. |
+| D061 | `internal/component/config/transaction/executor.go` | settlementResource / `transaction.SettlementResourceSource` | C | Registered in-process settlement rules select operation fields. |
+| D062 | `internal/component/config/transaction/solver.go` | addsAddressing / `rpc.OperationVerb` | P | Predicate deliberately recognizes additions/modifications, not destroy operations. |
+| D063 | `internal/component/config/transaction/solver.go` | startsABinder / `rpc.OperationVerb` | P | Predicate selects starts/changes; stops deliberately do not qualify. |
+| S090 | `internal/component/config/yang/command.go` | yangTypeToArgDef / `goyang.TypeKind` | O | Actual suppression: yang/command.go, switch at 662. Complete supported/unsupported conversion; unsupported default is not grounds for exemption. |
+| S091 | `internal/component/config/yang/validator.go` | ErrorType.String / `configyang.ErrorType` | C | Actual suppression: yang/validator.go, switch at 35. Complete local rendering omits named zero. |
+| S092 | `internal/component/config/yang/validator.go` | Validator.validateYangType / `goyang.TypeKind` | O | Actual suppression: yang/validator.go, switch at 221. Full validation dispatcher currently accepts unimplemented types; not a predicate. |
+| S093 | `internal/component/config/yang_schema.go` | yangToNode / `goyang.EntryKind` | P | Actual suppression: yang_schema.go, switch at 375. Selective config-node projection of leaves/directories. |
+| S094 | `internal/component/config/yang_schema.go` | yangTypeToValueType / `goyang.TypeKind` | O | Actual suppression: yang_schema.go, switch at 1117. Full representation mapping, not a predicate. |
+| D064 | `internal/component/doctor/checks_linux.go` | checkRandomSeed / `host.PlatformType` | P | Checks known Linux seed-service arrangements only. |
+| D065 | `internal/component/iface/link_queue_test.go` | TestSubscribersHandOffRatherThanApply / `iface.linkEventClass` | P | Fixture emits carrier/router events only and deliberately fails any other event class. |
+| D080 | `internal/component/kernelcap/kernelcap.go` | State.String / `kernelcap.State` | C | Kernel facts are classified into local verdicts, not cast into State. |
+| D120 | `internal/component/plugin/all/config_claims_test.go` | TestClaimAllowlistReasons / `claims.Kind` | P | Test isolates allowlist hygiene; other claim problems have separate tests. |
+| D121 | `internal/component/plugin/registry/setup.go` | SetupOutcome.String / `registry.SetupOutcome` | C | Registry records locally produced setup results and refuses invalid outcomes. |
+| D122 | `internal/component/plugin/server/command.go` | selectorMatchesPeer / `selector.Kind` | P | Only name and ASN require peer metadata; IP-shaped matching is delegated. |
+| D123 | `internal/component/plugin/server/failure_policy.go` | Server.applyFailurePolicy / `rpc.FailurePolicy` | O | Policy is a plugin registration input; text decoding rejects unknown spellings, but complete proof of every registration path's validation was not established. |
+| D126 | `internal/component/support/collect_linux.go` | tableFamilyName / `nftables.TableFamily` | O | Family comes from kernel nftables readback. |
+| S102 | `internal/component/traffic/config.go` | parseFilterValue / `traffic.FilterType` | C | Already lists four named values, including filterUnknown; suppression stale. |
+| D127 | `internal/component/vpp/govpp_logrus.go` | slogLevelFromLogrus / `logrus.Level` | O | Hook consumes third-party log entries; no range-validation boundary is shown. |
+| D128 | `internal/component/web/editor.go` | EditorManager.Diff / `contract.PendingChangeKind` | C | Production editor adapter copies locally constructed pending-change kinds. |
+| D129 | `internal/component/web/editor.go` | EditorManager.pendingChangePaths / `contract.PendingChangeKind` | P | Rename is the only two-location path-marking specialization. |
+| D130 | `internal/component/web/ui_mode.go` | UIMode.String / `web.UIMode` | C | Cookies/env text is normalized to one of two local values. |
+| D141 | `internal/core/probe/df.go` | DFMode.String / `probe.DFMode` | C | CLI mode text is converted by a rejecting parser into local enum values. |
+| D142 | `internal/core/probe/errqueue.go` | ErrQueueOutcome.String / `probe.ErrQueueOutcome` | C | Network/kernel errors are locally classified, not cast into outcome values. |
+| D143 | `internal/core/probe/icmp.go` | Family.String / `probe.Family` | C | Family is derived from an address with a total local classifier. |
+| D144 | `internal/core/probe/icmp.go` | Family.network / `probe.Family` | C | Resolver family is the local Family classification. |
+| D145 | `internal/core/probe/socket.go` | SocketKind.String / `probe.SocketKind` | C | Socket kind is assigned by successful local open branches. |
+| D146 | `internal/core/probe/socket.go` | Family.icmpNetwork / `probe.Family` | C | Local address-family enum must explicitly reject its no-family sentinel. |
+| D147 | `internal/core/probe/socket_linux.go` | pmtuDiscValue / `probe.DFMode` | C | Locally selected DF policy becomes a kernel socket option. |
+| D148 | `internal/core/selector/selector.go` | Selector.MatchesPeerKey / `selector.Kind` | C | Complete key-matching dispatch; ASN has a documented false result rather than being an accidental missing arm. |
+| D168 | `internal/plugins/firewall/nft/lower_linux.go` | tableNFProto / `nftables.TableFamily` | P | Extracts a single IP family only; multi-family and non-IP tables intentionally have no single nfproto. |
+| D169 | `internal/plugins/firewall/vpp/backend_linux.go` | hookIsInput / `firewall.ChainHook` | C | Binary direction mapping for the full configured hook set, not an incomplete feature handler. |
+| D172 | `internal/plugins/geodns/rfc2181_config_test.go` | TestParseConfigMixedAddresses / `geodns.recordKind` | P | Test detects presence of both address record families, not all DNS record kinds. |
+| D173 | `internal/plugins/geodns/server.go` | recordRR / `geodns.recordKind` | C | DNS query type does not become recordKind; records are created by validated config builders. |
+| D174 | `internal/plugins/iface/netlink/show_linux.go` | macvlanModeName / `netlink.MacvlanMode` | P | Documented readback specialization names only the two modes Ze creates; other deliberately means drift, not a missing pretty-printer name. |
+| D175 | `internal/plugins/iface/netlink/xfrm_linux.go` | xfrmDirString / `netlink.Dir` | O | Unvalidated kernel XFRM policy direction. |
+| D176 | `internal/plugins/iface/netlink/xfrm_linux.go` | xfrmModeString / `netlink.Mode` | O | Mode comes directly from kernel policy templates. |
+| D177 | `internal/plugins/iface/vpp/tunnel.go` | vppBackendImpl.CreateTunnel / `iface.TunnelKind` | P | Backend intentionally implements only its supported tunnel subset and rejects every other kind. |
+| D197 | `internal/plugins/memlock/memlock_linux_test.go` | TestMemlockRecordsItsOutcome / `registry.SetupOutcome` | P | Test accepts exactly the plugin's success/soft-failure outcomes and rejects everything else. |
+| D199 | `internal/plugins/ntp/doctor.go` | clockNoSyncSeverity / `host.PlatformType` | P | Disabled clock synchronization is diagnosed only on platforms where Ze defines an operational policy. |
+
+### Tools
+
+| ID | File | Function / enum | Class | Basis |
+|----|------|-----------------|-------|-------|
+| D001 | `cmd/ze/help_command.go` | argKindString / `command.ArgKind` | C | Complete argument-category renderer, not a specialization. Schema types are converted to internal named categories. |
+| D002 | `cmd/ze/hub/service_web.go` | startWebServer (showHandler closure) / `web.UIMode` | C | Although selected through HTTP/config, the actual enum is normalized to a closed set before dispatch. |
+| D003 | `cmd/ze/ze_core_pipe.go` | pipeUsage / `command.PipeClass` | C | Complete grouping of the in-process static operator catalog. |
+| S001 | `internal/chaos/inprocess/chaos.go` | endsSession / `engine.ActionType` | P | Predicate selects guaranteed-session-ending TCPDisconnect, NotificationCease, DisconnectDuringBurst, ReconnectStorm and HoldTimerExpiry; collision need not end the original session. |
+| S002 | `internal/chaos/inprocess/runner.go` | Run event-draining goroutine / `peer.EventType` | P | Tracks Established, Disconnected and ChaosExecuted for establishment and settle accounting; all events still reach Consumer and collectedEvents. |
+| S003 | `internal/chaos/inprocess/runner_test.go` | TestInProcessEventLogFormat / `peer.EventType` | P | Presence assertion observes Established and RouteSent; timestamp assertion separately checks every event. |
+| S004 | `internal/chaos/inprocess/runner_test.go` | TestInProcessDisconnectReconnect / `peer.EventType` | P | Counts only peer-zero Established and Disconnected transitions for reconnect timing bounds. |
+| S005 | `internal/chaos/inprocess/runner_test.go` | TestInProcessChaosReconnect / `peer.EventType` | P | Counts Established and Disconnected to require a chaos-induced fall and recovery. |
+| D004 | `internal/chaos/orchestrator/cli.go` | CLIRun / `scenario.Target` | C | Complete target-to-config dispatch after validated CLI parsing. |
+| D005 | `internal/chaos/orchestrator/fork.go` | forkDaemon / `scenario.Target` | P | This helper deliberately launches only external FRR/BIRD daemons; Ze has a separate launch path. |
+| D006 | `internal/chaos/scenario/target.go` | Target.DefaultBinary / `scenario.Target` | C | Complete binary-name mapping for validated target selection. |
+| S006 | `internal/chaos/shrink/causal.go` | removeWithDependents precondition switch / `peer.EventType` | P | Selects establishment-dependent RouteSent, RouteReceived, RouteWithdrawn, EORSent, WithdrawalSent, ChaosExecuted, Error and Disconnected after the removal point. |
+| S007 | `internal/chaos/shrink/causal.go` | removeWithDependents establishment tracker / `peer.EventType` | P | Only Established and Disconnected change the session-lifetime boolean. |
+| S008 | `internal/chaos/validation/props_convergence.go` | ConvergenceDeadline.ProcessEvent / `peer.EventType` | P | Pairs RouteSent with RouteReceived; every event separately advances lastTime. |
+| S009 | `internal/chaos/validation/props_duplicate.go` | NoDuplicateRoutes.ProcessEvent / `peer.EventType` | P | RouteSent checks/records duplicates, RouteWithdrawn clears a prefix and Disconnected resets the peer. |
+| S010 | `internal/chaos/validation/props_holdtimer.go` | HoldTimerEnforcement.ProcessEvent / `peer.EventType` | P | ChaosExecuted with hold-timer-expiry starts pending expiry; Disconnected and Established clear it. |
+| S011 | `internal/chaos/validation/props_ordering.go` | MessageOrdering.ProcessEvent / `peer.EventType` | P | Established/Disconnected update state; RouteSent/RouteReceived are checked against that state. |
+| S012 | `internal/chaos/validation/props_route.go` | RouteConsistency.ProcessEvent / `peer.EventType` | P | Selects Established, RouteSent, RouteReceived, RouteWithdrawn and Disconnected to maintain expected/received route models; diagnostics and scheduler events are not model inputs. |
+| D007 | `internal/chaos/web/render.go` | toastForEvent / `peer.EventType` | P | Toast selection intentionally excludes routine route and successful lifecycle events. |
+| D150 | `internal/le/cli/catalog/catalog.go` | argumentKind / `command.ArgKind` | C | Complete category renderer over the same internal YANG command model as help_command.go. |
+| D151 | `internal/le/group_test.go` | TestGateStagesAreNotWorkflowOrReport / `leroot.Group` | P | Membership assertion deliberately accepts only gate-compatible groups and fails everything else; this is not a missing renderer or dispatcher. |
+| D152 | `internal/le/job/job.go` | Kind.String / `job.Kind` | C | Admission outcome is assigned by Ze's admission machinery, not read as an arbitrary registry numeric code. |
+| D153 | `internal/le/repo/changed/scope.go` | ScopeReport.Text / `repochanged.printMode` | C | The production report receives a validated print mode; its zero-value report additionally has intentional packages rendering. |
+| D154 | `internal/le/rfc/check_core.go` | rollupRowVerdict / `rfc.RollupState` | P | Formatting specialization adds a cause only for gap and unproven contributions; otherwise it passes the state through unchanged. |
+| D155 | `internal/le/rfc/rfc.go` | RollupState.String / `rfc.RollupState` | C | Complete string representation of Ze-derived rollup states. |
+| D156 | `internal/le/site/commands_test.go` | visibleText / `html.TokenType` | P | Visible-text extraction intentionally ignores tokens without visible text. |
+| D157 | `internal/le/spec/status/answer.go` | Answer / `specstatus.closureAction` | C | Raw CLI words have already been classified by a total internal parser; malformed input becomes a named sentinel. |
+| D158 | `internal/le/test/qemu/install.go` | InstallKind.String / `testqemu.InstallKind` | C | Installer kind comes from compiled action wrappers, not environment numeric input. |
+| D159 | `internal/le/test/qemu/install.go` | InstallVerdict.String / `testqemu.InstallVerdict` | C | Ze assigns the proof verdicts internally; zero is deliberately not success. |
+| D160 | `internal/le/test/qemu/install.go` | Installer.prefix / `testqemu.InstallKind` | C | Complete log-prefix dispatch for internally selected installer proofs. |
+| D161 | `internal/le/test/qemu/install.go` | Installer.Execute / `testqemu.InstallKind` | C | Full execution dispatch over the internal installer action set, with a meaningful unspecified refusal. |
+| D162 | `internal/le/test/qemu/netns.go` | networkNamespace.String / `testqemu.networkNamespace` | C | Namespace mode is a private, table-assigned test policy. |
+| D163 | `internal/le/weekly/poster.go` | stampWanted / `weekly.Stamp` | C | Complete decision over the three internal parsed date-stamp choices. |
+| S111 | `internal/test/cli/cmd_l2tp_scale.go` | lacSimulator.setupTunnel / `l2tp.AVPType` | P | Extracts MessageType, AssignedTunnelID and Challenge from setup replies; not a complete AVP dispatcher. |
+| S112 | `internal/test/cli/cmd_l2tp_scale.go` | lacSimulator.setupSessions / `l2tp.AVPType` | P | Extracts MessageType and AssignedSessionID for session setup; other AVPs are outside this projection. |
+| S113 | `internal/test/cli/cmd_peer_test.go` | setNonZero / `reflect.Kind` | C | Complete supported/rejected-kind dispatcher for local peer.Config fields: every considered field must get a nonzero value or fail loudly; not a subset observation predicate. |
+| D233 | `internal/test/cli/cmd_vpp_stub.go` | vppStubState.reply / `api.MessageType` | O | Imported protocol message-category metadata enters from a registry interface without demonstrated category validation. It is not a raw peer-supplied numeric field, but closing the interface requires additional proof. |
+| D234 | `internal/test/fixture/ui_fixture_cli_format_default.go` | cliFormatDefaultLength / `reflect.Kind` | P | Length is defined only for the selected length-bearing kinds; other kinds must remain an error. |
+| S114 | `internal/test/peer/open_capability.go` | ownedCapabilities / `capability.Code` | P | Overrides sender-owned Role, AddPath, FQDN, GracefulRestart, LLGR, SoftwareVersion and PathsLimit values. ASN4 is handled before switch. Others are intentionally mirrored. |
+| D235 | `internal/test/runner/display.go` | Display.TestFinished / `runner.State` | P | Completion-line rendering deliberately suppresses nonterminal states. |
+| D236 | `internal/test/runner/parallel.go` | parallelRunner.Run (worker closure) / `runner.State` | C | This is the scheduler's complete state-finalization decision, not merely a formatting subset: every nonterminal state currently gets a result-derived terminal state. |
+| D237 | `internal/test/runner/peer_contract.go` | EncodingTests.validateOnePeerBlock / `peer.Claim` | C | File text is normalized by Ze's claim parser; the returned enum has four fixed possibilities, including an explicit unclaimed result. |
+| S115 | `internal/test/runner/record.go` | Record.Colored / `runner.State` | C | Complete state-to-presentation renderer; named None/Starting states are hidden in default, not an observation subset. |
+| S116 | `internal/test/runner/record_collection.go` | Tests.Summary / `runner.State` | P | Projects completed Success, Fail, Timeout and Skip into four counters; progress states have no completed-result count. |
+| S117 | `internal/test/runner/stress.go` | IterationStats.Add / `runner.State` | P | Counts executed Success, Fail and Timeout only; Skip deliberately is not an executed iteration outcome. |
+
+### SecuritySubscriber
+
+| ID | File | Function / enum | Class | Basis |
+|----|------|-----------------|-------|-------|
+| D066 | `internal/component/ike/crypto/cipher.go` | integrityHashFunc / `crypto.IntegrityID` | O | Cryptographic algorithm selector originates in negotiated protocol/config data; retain refusal rather than assert on unsupported algorithms. |
+| D067 | `internal/component/ike/crypto/dh.go` | NewDHExchange / `crypto.DHGroupID` | O | Constructor accepts algorithm IDs from config/negotiation and must reject unsupported IDs safely. |
+| D068 | `internal/component/ike/crypto/dh.go` | (*DHExchange).SharedSecret / `crypto.DHGroupID` | C | The switched group belongs to a locally constructed exchange, not the peer public-key bytes. NewDHExchange returns an exchange only for three supported groups. |
+| D069 | `internal/component/ike/crypto/transform.go` | EncryptionID.String / `crypto.EncryptionID` | O | Formatting an open wire identifier must remain safe for unsupported values. |
+| D070 | `internal/component/ike/crypto/transform.go` | DHGroupID.String / `crypto.DHGroupID` | O | Formats protocol IDs, including unknown and no-group values. |
+| D071 | `internal/component/ike/dataplane/xfrm_migrate_linux.go` | (*xfrmMobikeBackend).prepareMigration / `dataplane.SADir` | P | Migration deliberately accepts only the inbound/outbound pair, not forwarding policies. |
+| D072 | `internal/component/ike/engine/bypass_test.go` | TestIKEBypassPoliciesSelectorAndPriority / `dataplane.SADir` | C | Test checks the full direction result of a local policy producer; forwarding is a named forbidden output, not an ignored category. |
+| D073 | `internal/component/ike/engine/child.go` | selectorPort / `ipsec.PortForm` | C | Form is Ze's normalized representation, not a direct cast of a peer protocol code; wire/config producers choose one of three forms. |
+| D074 | `internal/component/ike/engine/eap_auth.go` | eapMethodType / `ipsec.AuthMode` | P | EAP specialization intentionally answers only EAP modes and reports non-EAP for other auth modes. |
+| D075 | `internal/component/ike/engine/reconcile_test.go` | mutateForTest / `reflect.Kind` | P | Test mutation helper supports only kinds it knows how to mutate; unsupported kinds deliberately fail its caller's coverage assertion. |
+| D076 | `internal/component/ike/ipsec/rfc4301_selector_set_test.go` | holdsSelector / `reflect.Kind` | P | Only collection kinds require extraction of an element type. |
+| D077 | `internal/component/ike/ipsec/rfc4301_selector_set_test.go` | TestRFC4301SPDEntryCannotCarryASecondSelectorSet / `reflect.Kind` | P | Distinguishes collection fields from scalar fields for a structural test. |
+| D078 | `internal/component/ike/ipsec/traffic_selector.go` | PortSelector.Wire / `ipsec.PortForm` | C | Validated constructors translate external representations into a finite internal form. |
+| D079 | `internal/component/ike/ipsec/traffic_selector.go` | PortSelector.String / `ipsec.PortForm` | C | Formats the same finite normalized PortForm model. |
+| D081 | `internal/component/l2tp/metrics.go` | (*l2tpStatsPoller).poll / `l2tp.L2TPSessionState` | C | This is a complete bucket classifier over Ze session FSM state, not a subset handler. |
+| D082 | `internal/component/l2tp/plugins/authlocal/auth.go` | (*localAuth).handle / `ppp.AuthMethod` | P | Wire-auth dispatch occurs after the explicit no-auth path has already returned; this switch intentionally handles only the remaining methods. |
+| D083 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / Initial / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D084 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / Starting / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D085 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / Closed / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D086 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / Stopped / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D087 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / Closing / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D088 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / Stopping / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D089 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / ReqSent / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D090 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / AckRcvd / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D091 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / AckSent / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D092 | `internal/component/l2tp/ppp/ppp_fsm.go` | LCPDoTransition / Opened / `ppp.lCPEvent` | C | Complete state/event transition table: ignored named events still have an explicit unchanged-state/no-action result, not an independent subscription subset. |
+| D093 | `internal/component/l2tp/ppp/session_run.go` | (*pppSession).applyTransition / `ppp.LCPState` | P | Side-effect specialization preserves peer-termination tracking only across Stopping/Stopped; it is not the main FSM dispatcher. |
+| S095 | `internal/component/l2tp/pppoeclient/session.go` | negotiateLCP / `ppp.LCPState` | C | Complete Configure-Ack transition dispatcher over locally maintained state, not a predicate. |
+| D094 | `internal/component/l2tp/pppoeclient/session.go` | negotiateIPCP / ConfigureAck handling / `ppp.LCPState` | C | Complete Configure-Ack transition dispatcher over locally maintained state, like negotiateLCP. Preserve the three transitions and explicitly group other named states under their existing no-change outcome; only an unnamed impossible internal state may reach a BUG assertion. |
+| S096 | `internal/component/l2tp/session_fsm.go` | parseICRQ / `l2tp.AVPType` | P | ICRQ-specific projection from shared AVP catalog. |
+| S097 | `internal/component/l2tp/session_fsm.go` | parseICCN / `l2tp.AVPType` | P | ICCN connection/proxy field projection. |
+| S098 | `internal/component/l2tp/session_fsm.go` | parseOCRQ / `l2tp.AVPType` | P | OCRQ-specific extraction, not universal AVP dispatch. |
+| S099 | `internal/component/l2tp/session_fsm.go` | parseOCCN / `l2tp.AVPType` | P | OCCN speed/framing/sequencing projection. |
+| S100 | `internal/component/l2tp/session_fsm.go` | parseCDN / `l2tp.AVPType` | P | CDN result/session/cause projection. |
+| D095 | `internal/component/l2tp/subscriber_lifetime_linux_test.go` | TestL2TPSubscriberNetworkLifetime / route event callback / `redistevents.RouteAction` | C | Test asserts every action emitted by a local subscriber route producer; Unspecified is explicitly forbidden, not a legitimate unhandled event. |
+| S101 | `internal/component/l2tp/tunnel_initiator.go` | parseSCCRP / `l2tp.AVPType` | P | SCCRP-specific projection from common tunnel/session catalog. |
+| D124 | `internal/component/radius/authenticator.go` | (*radiusAuthenticator).credential / `radius.AuthMethod` | P | Non-EAP credential helper intentionally handles PAP/CHAP only; Authenticate routes EAP elsewhere first. |
+| D125 | `internal/component/radius/config.go` | AuthMethod.EAPType / `radius.AuthMethod` | P | Queries the EAP subset of the authentication vocabulary. |
+| D134 | `internal/core/eap/eap.go` | (*Session).Process / `eap.sessionState` | C | Complete dispatch over private session lifecycle state; terminal states have intentional explicit behavior to record. |
+| D135 | `internal/core/eap/eap_mschapv2.go` | (*mschapv2Method).Process / `eap.mschapv2State` | C | Private method-state dispatch needs explicit Done refusal; peer opcode is separately validated. |
+| S106 | `internal/core/eap/rfc3748_peer_timer_test.go` | timerField / `reflect.Kind` | P | Selected reflection traversal for timer ownership test, not universal Kind dispatch. |
+| D138 | `internal/core/ikeprobe/registry.go` | Outcome.String / `ikeprobe.Outcome` | C | Outcome is synthesized by Ze's probe lifecycle, not copied from a peer code. |
+| D139 | `internal/core/ikeprobe/registry.go` | Refusal.String / `ikeprobe.Refusal` | C | Refusal is an internal reason selected by the engine. |
+| D140 | `internal/core/ipsecinventory/registry.go` | Mode.String / `ipsecinventory.Mode` | C | Inventory mode is normalized by a local producer, rather than directly accepting kernel or peer mode codes. |
+
+### BGP
+
+| ID | File | Function / enum | Class | Basis |
+|----|------|-----------------|-------|-------|
+| B001 | `internal/component/bgp/cli/encode.go` | cmdEncode family dispatch / `family.SAFI` | P | Unicast is encoded locally; all other families dispatch through the registered route encoder, not a static family list. |
+| S013 | `internal/component/bgp/config/loader_test.go` | TestLoadReactorRouteRefreshCapabilities / `capability.Code` | P | Assertion counts two requested capabilities, not a capability dispatcher. |
+| S014 | `internal/component/bgp/config/peers.go` | validatePeerProcessCaps / `capability.Code` | P | Predicate selects capabilities requiring a route-producing process. |
+| S015 | `internal/component/bgp/format/decode.go` | notificationSubcodeString / `message.NotifyErrorCode` | O | Full subcode rendering dispatch with generic fallback, not a predicate. |
+| S016 | `internal/component/bgp/format/text_human.go` | appendAttributeText / `attribute.AttributeCode` | O | Full attribute renderer with generic hexadecimal representation. |
+| S017 | `internal/component/bgp/format/text_update.go` | appendNonUpdate / `msgtype.MessageType` | O | Formatting dispatcher chooses dedicated or raw representation for every input. |
+| S018 | `internal/component/bgp/fsm/fsm.go` | FSM.handleIdle / `fsm.Event` | C | Complete state transition dispatch, including intentionally ignored events. |
+| S019 | `internal/component/bgp/fsm/fsm.go` | FSM.handleConnect / `fsm.Event` | C | Full state dispatcher; state-specific errors are real behavior, not grounds for an exemption. |
+| S020 | `internal/component/bgp/fsm/fsm.go` | FSM.handleActive / `fsm.Event` | C | Full state dispatcher. |
+| S021 | `internal/component/bgp/fsm/fsm.go` | FSM.handleOpenSent / `fsm.Event` | C | Full event/state transition table including BFD substates. |
+| S022 | `internal/component/bgp/fsm/fsm.go` | FSM.handleOpenConfirm / `fsm.Event` | C | Full event dispatcher, not a subscription subset. |
+| S023 | `internal/component/bgp/fsm/fsm.go` | FSM.handleEstablished / `fsm.Event` | C | Complete event handling including unexpected messages. |
+| S024 | `internal/component/bgp/message/notification.go` | Notification.subcodeString / `NotifyErrorCode` | O | Complete rendering of wire error-code/subcode pairs. |
+| S025 | `internal/component/bgp/message/rfc7606_shape.go` | NLRIBearingFieldCount / `attribute.AttributeCode` | P | Shape predicate counts only attributes carrying NLRI. |
+| S026 | `internal/component/bgp/message/update_build_plugin.go` | UpdateBuilder.BuildPlugin / `attribute.AttributeCode` | P | Transformation intercepts engine-owned attributes and records ORIGIN presence; it does not decode all attributes. |
+| S027 | `internal/component/bgp/plugins/adj_rib_in/rib.go` | runAdjRIBInPlugin.OnStructuredEvent callback / `rpc.EventKind` | P | Adj-RIB-In consumes state and update events only. |
+| S028 | `internal/component/bgp/plugins/adj_rib_in/rib.go` | AdjRIBInManager.dispatch / `rpc.EventKind` | P | Same selective consumer on JSON rail. |
+| S029 | `internal/component/bgp/plugins/adj_rib_in/rib.go` | AdjRIBInManager.handleReceived / `routeaction.Action` | P | Family-operation Add/Del specialization over an enum also used for best-change Update/Withdraw. |
+| S030 | `internal/component/bgp/plugins/bmp/bmp.go` | BMPPlugin.processInitiation / `uint16 TLV.Type (not a defined enum)` | O | Initiation TLV dispatcher with unknown TLVs ignored. |
+| S031 | `internal/component/bgp/plugins/bmp/bmp_events.go` | BMPPlugin.handleStructuredEvent (pre-sender switch) / `rpc.EventKind` | P | Cache maintenance is a projection before later full sender handling. |
+| S032 | `internal/component/bgp/plugins/bmp/bmp_events.go` | BMPPlugin.handleStructuredEvent (nested state switch) / `rpc.SessionState` | C | Up/Down are the entire actionable lifecycle enum, not a broader set of connection states. |
+| S033 | `internal/component/bgp/plugins/bmp/bmp_events.go` | BMPPlugin.handleStructuredEvent (sender switch) / `rpc.EventKind` | P | BMP sender consumes session state plus six wire-message-related kinds, not EOR/negotiated/control event vocabulary. |
+| S034 | `internal/component/bgp/plugins/bmp/bmp_events.go` | BMPPlugin.handleSenderState / `rpc.SessionState` | C | Complete Up/Down lifecycle handling. |
+| S035 | `internal/component/bgp/plugins/bmp/msg.go` | DecodeMsg / `uint8 CommonHeader.Type (not a defined enum)` | O | Complete BMP wire-message dispatch. |
+| S036 | `internal/component/bgp/plugins/cmd/update/update_text_nlri.go` | parseNLRI / `family.SAFI` | C | Caller narrows config/plugin family before prefix parser; generic default is not evidence of an open input here. |
+| S037 | `internal/component/bgp/plugins/gr/gr.go` | grPlugin.handleStructuredEvent / `rpc.EventKind` | P | GR structured rail owns state and OPEN; EOR uses text rail. |
+| S038 | `internal/component/bgp/plugins/gr/gr.go` | grPlugin.handleStructuredState / `rpc.SessionState` | C | Full typed lifecycle dispatch, not arbitrary FSM state subset. |
+| D008 | `internal/component/bgp/plugins/ls_export/export_encode.go` | encodeTopology / `linkstateevents.Protocol` | P | Only IGP protocols use the unreachable-node exclusion set; this is not protocol dispatch. |
+| D009 | `internal/component/bgp/plugins/ls_export/export_plugin.go` | runTopologyExporter event callback / `rpc.EventKind` | P | Subscribed state/refresh events update export lifecycle; other event kinds are irrelevant. |
+| D010 | `internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go` | epeProofBus.Emit / `mplsfib.Action` | C | Test bus observes native EPE producer operations, not a peer-supplied numeric action. |
+| S039 | `internal/component/bgp/plugins/nlri/flowspec/plugin_decode.go` | formatWithOperator / `FlowOperator bit flags` | P | Comparison-bit projection excludes framing flags and shares same-valued aliases with bitmask operators. |
+| S040 | `internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go` | componentMaxValue / `FlowComponentType` | P | Numeric-component specialization called only from numeric text parser, not full component dispatch. |
+| S041 | `internal/component/bgp/plugins/nlri/flowspec/types_numeric.go` | numericComponent.numericString / `FlowOperator bit flags` | P | Numeric comparison rendering, excluding framing flags and protocol's special spelling. |
+| S042 | `internal/component/bgp/plugins/nlri/ls/types.go` | BGPLSProtocolID.String / `BGPLSProtocolID` | O | Full wire protocol identifier renderer. |
+| S043 | `internal/component/bgp/plugins/nlri/ls/types.go` | parseBGPLS / `BGPLSNLRIType` | O | Complete NLRI wire decoder. |
+| S044 | `internal/component/bgp/plugins/persist/server.go` | RunPersistServer.OnStructuredEvent callback / `rpc.EventKind` | P | Persistence consumes state, sent update and received OPEN. |
+| S045 | `internal/component/bgp/plugins/rib/rib.go` | RIBManager.dispatch / `rpc.EventKind` | P | Route-storage subscription dispatch excludes non-route events. |
+| S046 | `internal/component/bgp/plugins/rib/rib.go` | RIBManager.handleSent / `routeaction.Action` | P | FamilyOperation Add/Del specialization; shared Action also contains best-change Update/Withdraw. |
+| S047 | `internal/component/bgp/plugins/rib/rib_structured.go` | RIBManager.dispatchStructured / `rpc.EventKind` | P | Structured RIB subscription subset; BoRR/EoRR use text dispatch. |
+| S048 | `internal/component/bgp/plugins/rib/ribout_entry.go` | reconstructRoute / `attribute.AttributeCode` | P | Display-field projection, not the full replay attribute dispatcher. |
+| S049 | `internal/component/bgp/plugins/rib/storage/attrparse.go` | ParseAttributes / `attribute.AttributeCode` | O | Full storage dispatch routes each attribute to specialized or opaque pool; generic storage is not a predicate. |
+| D011 | `internal/component/bgp/plugins/rib/storage/familyrib.go` | IsCIDRFamily / `family.SAFI` | P | Predicate selects the three storage shapes that can use CIDR keys; all others use opaque storage. |
+| D012 | `internal/component/bgp/plugins/rpki/aspa_verify.go` | verifyASPAPath / `rpki.aspaMode` | C | Configured strings are mapped to one of three internal algorithm choices before this dispatch. |
+| D013 | `internal/component/bgp/plugins/rpki/rpki.go` | rpkiOriginASFromASPath / `attribute.ASPathSegmentType` | O | Origin computation consumes received path content; conservatively retain unknown-segment safety rather than infer every AttributesWire producer is validated. |
+| D014 | `internal/component/bgp/plugins/rpki/rpki_config.go` | actionSource.String / `rpki.actionSource` | C | This enum records Ze's precedence decision, not the operator's raw enum. |
+| S050 | `internal/component/bgp/plugins/rr/rr.go` | runRouteReflector.OnStructuredEvent callback / `rpc.EventKind` | P | Reflector consumes Update/State/Open subset. |
+| S051 | `internal/component/bgp/plugins/rr/rr.go` | routeReflector.handleStructuredState / `rpc.SessionState` | C | Up and Down are all real typed lifecycle states; 'connected' default comment is stale. |
+| S052 | `internal/component/bgp/plugins/rs/server.go` | RunRouteServer.OnStructuredEvent callback / `rpc.EventKind` | P | Route-server consumes route/lifecycle/negotiation/refresh subset of RPC events. |
+| S053 | `internal/component/bgp/reactor/filter/loop.go` | LoopIngress [actual internal/component/bgp/reactor/filter/loop.go] / `attribute.AttributeCode` | P | Loop-check predicate selects AS_PATH, ORIGINATOR_ID and CLUSTER_LIST. |
+| D015 | `internal/component/bgp/reactor/filter_chain.go` | formatFilterAttrs / `reactor.filterAttrID` | P | Formatting exceptions for NLRI and flag-only attributes sit above a generic name/value formatter. |
+| D016 | `internal/component/bgp/reactor/forward_body.go` | fwdReencodeMPAttributes / `attribute.AttributeCode` | P | Only MP_REACH and MP_UNREACH carry the NLRI framing this pass changes. |
+| D017 | `internal/component/bgp/reactor/forward_validation.go` | validationBuildWire / `attribute.AttributeCode` | P | Selective replacement of NLRI-bearing attributes, not complete attribute dispatch. |
+| D018 | `internal/component/bgp/reactor/peer.go` | Peer.resolveNextHop / `types.NextHopPolicy` | C | Ze constructs the policy discriminator separately from the externally supplied address. |
+| D019 | `internal/component/bgp/reactor/peer.go` | rfc8950Family / `family.SAFI` | P | Helper intentionally identifies a fixed subset for the existing next-hop gate. |
+| D020 | `internal/component/bgp/reactor/peer.go` | handshakeInFlight / `fsm.State` | P | Only OpenSent/OpenConfirm represent the bounded pending handshake this helper counts. |
+| D021 | `internal/component/bgp/reactor/reactor_api_batch.go` | reactorAPIAdapter.sendStaleReadvertiseUnit / `reactor.staleOutcome` | C | Internal decision helper constructs every outcome after translating filter results. |
+| D022 | `internal/component/bgp/reactor/reactor_api_relay.go` | reactorAPIAdapter.buildRelayUpdate / `rpc.NLRIFraming` | O | Stored-route metadata comes from a plugin, including older or forked producers. |
+| S054 | `internal/component/bgp/reactor/reactor_dynamic_inherit_test.go` | fillDistinctValue [actual internal/component/bgp/reactor/reactor_dynamic_inherit_test.go] / `reflect.Kind` | P | Test-only generator deliberately supports PeerSettings field kinds and errors on unsupported kinds. |
+| S055 | `internal/component/bgp/reactor/reactor_notify.go` | Reactor.notifyMessageReceiver receive counters [actual internal/component/bgp/reactor/reactor_notify.go] / `msgtype.MessageType` | P | Metric projection for UPDATE/KEEPALIVE, not dispatch. |
+| S056 | `internal/component/bgp/reactor/reactor_notify.go` | Reactor.notifyMessageReceiver sent counters [actual internal/component/bgp/reactor/reactor_notify.go] / `msgtype.MessageType` | P | Metric projection for UPDATE/KEEPALIVE only. |
+| D023 | `internal/component/bgp/reactor/rfc8277_label_rsrv.go` | mpReachLabeledNLRI / `family.SAFI` | P | This pass operates only on the two selected label-bearing SAFIs. |
+| D024 | `internal/component/bgp/reactor/session_accept_own.go` | discardNonVPNAcceptOwn / `family.SAFI` | P | Selected route-distinguisher-bearing families are exceptions to the nonRD classification. |
+| S057 | `internal/component/bgp/reactor/session_bfd_strict.go` | Session.bfdTeardown [actual internal/component/bgp/reactor/session_bfd_strict.go] / `fsm.Event` | P | Teardown predicate selects three BFD events; other events do not owe teardown here. |
+| S058 | `internal/component/bgp/reactor/session_handlers.go` | fsmErrorNotifies / `fsm.State` | P | Boolean predicate selecting states that send an FSM-error notification. |
+| S059 | `internal/component/bgp/reactor/session_handlers.go` | updateIsUnexpected / `fsm.State` | P | Boolean predicate selecting pre-established read states. |
+| S060 | `internal/component/bgp/reactor/session_read.go` | Session.processMessage / `msgtype.MessageType` | O | Full received-message wire dispatch. |
+| D025 | `internal/component/bgp/redistribute/producer.go` | convertBestChange / `routeaction.Action` | P | Best-change bridge deliberately maps Add/Update/Withdraw, not the separate command-level Del vocabulary. |
+| S061 | `internal/component/bgp/rib/commit.go` | CommitService.packAttributesWithASPath / `attribute.AttributeCode` | P | Attribute transformation intercepts ORIGIN/LOCAL_PREF and substitutes AS_PATH/NEXT_HOP, preserving remaining attributes generically. |
+| S062 | `internal/component/bgp/server/events.go` | messageTypeToEventKind / `msgtype.MessageType` | O | Full wire-type-to-event mapping with unsupported input sentinel. |
+| S063 | `internal/component/bgp/server/events.go` | formatMessageForSubscription / `msgtype.MessageType` | O | Full formatter; claimed caller narrowing is not established for every batch element. |
+| D026 | `internal/component/bgp/wireu/aspath_collapse.go` | CollapseAS4Family / `attribute.AttributeCode` | P | Rewrites only the four AS-path-family attributes and copies every unrelated attribute. |
+| D027 | `internal/component/bgp/wireu/aspath_collapse.go` | as4FamilySpans.scan / `attribute.AttributeCode` | P | Collector locates only the four attributes needed by the collapse. |
+| D028 | `internal/component/bgp/wireu/aspath_transcode.go` | TranscodeASPath / `attribute.AttributeCode` | P | Width conversion specializes the AS-path family; unrelated attributes remain byte-identical. |
+| S064 | `internal/component/bgp/wireu/split.go` | separateMPAttributes / `attribute.AttributeCode` | P | Partitions MP-bearing attributes from ordinary byte-preserved attributes. |
+| S103 | `internal/core/bgp/attribute/rfc6793_reconcile_test.go` | reconcileSection / `AttributeCode` | P | Fixture projection extracts four inputs to AS-path reconciliation. |
+| D131 | `internal/core/bgp/capability/capability.go` | Code.String / `capability.Code` | O | Capability codes are received bytes; the reported missing member is a test-only typed declaration for code 75. |
+| S104 | `internal/core/bgp/capability/capability.go` | parseCapability / `capability.Code` | O | Complete wire decoder with deliberately opaque plugin-owned and unknown capabilities. |
+| D132 | `internal/core/bgp/capability/capability.go` | AddPathMode.Label / `capability.AddPathMode` | O | Direction values are cast directly from received capability tuples without vocabulary validation in the parser. |
+| S105 | `internal/core/bgp/capability/negotiated_test.go` | TestNegotiateMismatches / `capability.Code` | P | Assertion checks selected mismatch categories, not complete negotiation dispatch. |
+| D133 | `internal/core/bgp/routeaction/routeaction.go` | Action.Verb / `routeaction.Action` | O | Shared action mapping sits on wire/plugin and forwarding boundaries; retain safe no-op absent proof that every caller only receives validated internal actions. |
+| D136 | `internal/core/family/family.go` | Family.LegacyNextHop / `family.SAFI` | P | Predicate deliberately identifies the family subset receiving the existing legacy-next-hop treatment. |
+| D137 | `internal/core/family/family.go` | Family.NeedsNextHop / `family.SAFI` | P | FlowSpec families specialize the generic requirement for a next hop. |
+| S107 | `internal/core/family/registry.go` | afiSlot / `family.AFI` | P | Cache-admission specialization, not protocol-family support dispatch. |
+| D149 | `internal/exabgp/bridge/bridge_encoder.go` | Encoder.String / `bridge.Encoder` | C | Encoder text is validated and converted into Ze's three-value vocabulary. |
+| D164 | `internal/plugins/exabgp/bridgerun/fleet.go` | Fleet.render / `bridge.Encoder` | C | Current production construction sites use validated config results or the literal JSON encoder; discriminator is not a raw script/peer byte. |
+
+### RoutingPlugins
+
+| ID | File | Function / enum | Class | Basis |
+|----|------|-----------------|-------|-------|
+| D165 | `internal/plugins/fib/kernel/mplsentry.go` | (*fibKernel).handleMPLSEntry / `mplsfib.Action` | O | Unvalidated plugin-event payload; not a private FSM value. |
+| D166 | `internal/plugins/fib/kernel/mplsentry.go` | (*fibKernel).addMPLSEntryLocked / `mplsfib.Op` | O | Operation comes from the same unvalidated plugin-event entry. |
+| D167 | `internal/plugins/fib/kernel/mplsentry.go` | (*fibKernel).delMPLSEntryLocked / `mplsfib.Op` | O | Operation is an unchecked plugin-event field, including on removal. |
+| S108 | `internal/plugins/fib/vpp/fibvpp.go` | fibVPP.processMPLSChange / `routeaction.Verb` | C | Complete forwarding dispatcher omits explicit no-op verb. |
+| S109 | `internal/plugins/fib/vpp/srv6.go` | fibVPP.processSRv6Change / `routeaction.Verb` | C | Complete SRv6 operation dispatcher omits explicit no-op verb. |
+| D170 | `internal/plugins/flowspec-firewall/transport.go` | transportProtocols / `flowspec.FlowComponentType` | P | This pass only derives transport constraints; it is not the component translator. |
+| D171 | `internal/plugins/flowspec-firewall/transport.go` | tcpFlagsMatch / `flowspec.FlowOperator` | P | Bitmask interpretation intentionally excludes numeric and encoding-control flags of the shared flag type. |
+| D178 | `internal/plugins/isis/adjacency/adjacency.go` | State.String / `adjacency.State` | C | Local adjacency state is derived by the FSM, not cast from the peer's three-way state. |
+| D179 | `internal/plugins/isis/auth_wiring.go` | isIIHType / `packet.PDUType` | P | Hello-membership predicate, deliberately not a complete PDU dispatch. |
+| D180 | `internal/plugins/isis/circuits.go` | circuitLevels / `isis.Level` | C | Config boundary normalizes arbitrary input into three named levels. |
+| D181 | `internal/plugins/isis/config.go` | Level.String / `isis.Level` | C | Formatting normalized local config level, not raw configuration token. |
+| D182 | `internal/plugins/isis/config.go` | Level.TransportLevel / `isis.Level` | C | Complete conversion of a normalized config level. |
+| D183 | `internal/plugins/isis/flooding_wiring.go` | (*engine).handleLSP / `lsdb.Freshness` | C | Complete outcome handling; the no-event Older outcome deserves an explicit case rather than a subset exemption. |
+| D184 | `internal/plugins/isis/lsdb/flooding.go` | levelOf / `packet.PDUType` | P | Database-level classifier intentionally handles only LSP and SNP classes, not Hellos. |
+| D185 | `internal/plugins/isis/lsdb/flooding.go` | (*Flooder).ReceiveLSP / `lsdb.Freshness` | C | Full mapping of internally computed freshness to flooding actions. |
+| D186 | `internal/plugins/isis/lsdb/lsdb.go` | (*LSDB).Receive / `lsdb.Freshness` | C | Comparison outcome is manufactured locally from incoming fields, not read as an enum from wire. |
+| D187 | `internal/plugins/isis/lsdb_wiring.go` | originationLevels / `isis.Level` | C | Complete mapping of normalized node configuration. |
+| D188 | `internal/plugins/isis/packet/auth_types.go` | authTypeFor / `packet.AuthAlgorithm` | C | Algorithm enum is a local key-store choice, not the received authentication type byte. |
+| D189 | `internal/plugins/isis/packet/auth_types.go` | digestLen / `packet.AuthAlgorithm` | C | Complete algorithm-property mapping, with named non-digest outcomes currently hidden in default. |
+| D190 | `internal/plugins/isis/packet/auth_types.go` | newHash / `packet.AuthAlgorithm` | C | Complete algorithm-to-hash mapping, not arbitrary wire algorithm dispatch. |
+| D191 | `internal/plugins/isis/packet/auth_verify.go` | authLayoutForReceived / `packet.pduClass` | C | Complete layout selection over a validated local class, not a wire type. |
+| D192 | `internal/plugins/isis/packet/header.go` | PDUType.Level / `packet.PDUType` | O | Method classifies a protocol code with an explicit unknown-code contract; P2P has no implied level. |
+| D193 | `internal/plugins/isis/server.go` | spfLevelsFor / `isis.Level` | C | Complete config-to-SPF mapping after level normalization. |
+| D194 | `internal/plugins/isis/transport/multicast.go` | Level.String / `transport.Level` | C | Transport level is selected locally, not cast from incoming PDU bytes. |
+| D195 | `internal/plugins/isis/transport/multicast.go` | MulticastMACForLevel / `transport.Level` | C | Send-target selector consumes locally selected transport levels; named zero means no target. |
+| D196 | `internal/plugins/ldp/session.go` | (*Session).processMessages / `ldp.SessionState` | P | Guard applies only to two initialization states before normal message dispatch. |
+| D198 | `internal/plugins/mrt/dump.go` | updateAddPath / `attribute.AttributeCode` | P | ADD-PATH detection deliberately inspects only attributes carrying address-family fields. |
+| D232 | `internal/plugins/rsvpte/peer_identity.go` | (*engine).updatePeerIdentity / `linkstateevents.Protocol` | P | Security-relevant native-IGP allowlist, not general protocol dispatch. |
+
+### OSPF
+
+| ID | File | Function / enum | Class | Basis |
+|----|------|-----------------|-------|-------|
+| D200 | `internal/plugins/ospf/afstrategy_v6.go` | v6BuildRoutes / `v3/types.LSType` | O | Reference type is an unvalidated 16-bit body field, not an internally selected vertex kind. |
+| D201 | `internal/plugins/ospf/afstrategy_v6.go` | v6SummaryReader / `v3/types.LSType` | P | This reader selects only inter-area prefix and router summaries from the whole LSDB. |
+| D202 | `internal/plugins/ospf/bgpls_export.go` | (*bgplsArea).indexV2 / `types.LSType` | P | Topology correlation index deliberately selects Router and Network LSAs; opaque TE indexing is separate above the switch. |
+| D203 | `internal/plugins/ospf/bgpls_export.go` | (*bgplsArea).v2 / `types.LSType` | O | This is the top-level v2 export dispatch over LSDB data, not just a selected index. |
+| D204 | `internal/plugins/ospf/bgpls_export.go` | (*bgplsArea).v3 / `v3/types.LSType` | O | Complete native export dispatch receives arbitrary native LS types; RI processing currently lives in default. |
+| D205 | `internal/plugins/ospf/bgpls_export.go` | (*bgplsArea).extendedV3 / `v3/types.LSType` | P | Offset specialization: only three extended types have a nonzero fixed header before the TLV stream. |
+| D206 | `internal/plugins/ospf/bgpls_export.go` | (*bgplsArea).resolveV3Links / `v3/types.LSType` | P | Collects interface addresses and opaque link information only from Link and ELink LSAs. |
+| S110 | `internal/plugins/ospf/cli/decode.go` | v3OfflineTypedBody / `ospfv3types.LSType` | P | Optional typed-body specialization: six base types decoded, other known/unknown types retain generic bytes. |
+| D207 | `internal/plugins/ospf/decode_view.go` | opaqueScopeCommand / `ospf.OpaqueScope` | C | The command dispatcher supplies one of three literal scope constants. |
+| D208 | `internal/plugins/ospf/decode_view_v3.go` | v3ScopeName / `types.LSType (masked expression)` | P | The switch classifies scope bits, not complete LSType values; its actual domain is 0x0000, 0x2000, 0x4000 and 0x6000. |
+| D209 | `internal/plugins/ospf/instance.go` | (*engine).handleNeighborPacket / `ospf.PacketType` | P | Dedicated common handler for DBDesc and LSReq; other packet kinds have different handlers. |
+| D210 | `internal/plugins/ospf/ipsec_install.go` | (*ipsecInstaller).setGauges / `dataplane.SADir` | C | rec.sas contains Ze-created SA records, not directions returned by the backend; zero has intentional shared-state meaning. |
+| D211 | `internal/plugins/ospf/lsdb/lsdb.go` | (*LSDB).publishSizeMetricLocked / `types.LSType` | P | Two exact v2 type codes override the ordinary per-area metric-counting path; this is a scope/storage specialization, not complete protocol-body dispatch. |
+| D212 | `internal/plugins/ospf/neighbor/table.go` | (*Table).setStateLocked / `neighbor.state` | P | State transition itself is already performed; this switch only applies state-specific retransmission cleanup. |
+| D213 | `internal/plugins/ospf/origination_v6_ri.go` | v6RILSType / `ospf.OpaqueScope` | C | Origination code selects literal scope constants after configuration policy checks. |
+| D214 | `internal/plugins/ospf/origination_v6_summary.go` | v6SummaryNetworks / `v3/types.LSType` | O | References read from received IntraAreaPrefix bodies are not validated to Router/Network. |
+| D215 | `internal/plugins/ospf/packet/json.go` | lsaToJSON / `types.LSType` | P | Body-rendering specialization for implemented v2 body codecs; generic header/checksum representation is already constructed. |
+| D216 | `internal/plugins/ospf/redistribute/consumer.go` | (*Consumer).injectorFor / `family.AFI` | O | Redistribution boundary accepts a family supplied by another component/plugin; IPv4 and IPv6 are the only supported injector domains. |
+| D217 | `internal/plugins/ospf/rfc7474_replay_test.go` | rfc7474Packet / `packet.PacketType` | P | Test fixture intentionally constructs only Hello and LSAck packets. |
+| D218 | `internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go` | rfc8665IntraInstall / `mplsfib.Op` | P | Transit-only classification after a separate OpPush branch has already consumed and continued past pushes. |
+| D219 | `internal/plugins/ospf/rfc8665_mapped_sid_php_test.go` | rfc8665MappedInstall / `mplsfib.Op` | C | Complete classification of the three operations emitted by the internal installer, with invalid zero currently caught only by default. |
+| D220 | `internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go` | rfc8665SPFRead / `mplsfib.Op` | C | Complete operation classifier for captured internal SR output. |
+| D221 | `internal/plugins/ospf/rfc8666_sr_reception_v6_test.go` | TestOSPFv3PrefixSIDInstallsPush / `mplsfib.Op` | P | Selects Push and Swap entries for assertions rather than classifying every captured event. |
+| D222 | `internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go` | TestRFC9552ExtendedPrefixResolvesRouteType / `types.LSType` | P | Finite fixture table deliberately uses Router, SummaryNetwork, ASExternal and NSSA base advertisements. |
+| D223 | `internal/plugins/ospf/spf/graph.go` | BuildGraph / `types.LSType` | P | Transit graph intentionally uses only Router and Network bodies; source-origin observation happens before filtering. |
+| D224 | `internal/plugins/ospf/sr/install.go` | OutgoingLabel / `sr.OutgoingAction` | C | An internal decision result, not a decoded wire action number; zero is the valid named ActionKeep. |
+| D225 | `internal/plugins/ospf/sr_fib_test.go` | TestSRFIBInstallPrefixSIDPush / `mplsfib.Op` | P | Selects the two entry kinds this assertion examines. |
+| D226 | `internal/plugins/ospf/sr_install_test.go` | TestSRInstallPrefixSIDPushAndSwap / `mplsfib.Op` | P | Selects ingress Push and transit Swap for label/next-hop assertions. |
+| D227 | `internal/plugins/ospf/sr_install_test.go` | TestSRInstallHeterogeneousSRGB / `mplsfib.Op` | P | Selects Push/Swap from transit-case output; the penultimate PHP scenario is asserted separately later. |
+| D228 | `internal/plugins/ospf/types/lstype.go` | LSType.inScope / `types.LSType` | P | Membership predicate deliberately identifies the six implemented base v2 body types. |
+| D229 | `internal/plugins/ospf/types/lstype.go` | LSType.IsOpaque / `types.LSType` | P | Membership predicate for exactly the three opaque v2 carrier codes. |
+| D230 | `internal/plugins/ospf/types/lstype.go` | LSType.String / `types.LSType` | O | Human rendering of shared wire-valued types; type declaration also includes typed scope masks that are not LSAs. |
+| D231 | `internal/plugins/ospf/v3/types/lsa.go` | LSType.Known / `v3/types.LSType` | O | Boundary recognition function must accept unrestricted wire codes as input and preserve masked RI recognition. |
+
