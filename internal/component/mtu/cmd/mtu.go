@@ -88,6 +88,8 @@ func (s runStatus) String() string {
 		return "nothing-measured"
 	case runStatusDFGateFailed:
 		return "df-gate-failed"
+	case runStatusUnspecified:
+		panic("BUG: runStatus written to the payload before it was set")
 	default:
 		panic("BUG: runStatus written to the payload before it was set")
 	}
@@ -123,6 +125,8 @@ func (v runVerdict) String() string {
 		return "action-needed"
 	case runVerdictNoTunnels:
 		return "no-tunnels"
+	case runVerdictUnspecified:
+		panic("BUG: runVerdict written to the payload before it was set")
 	default:
 		panic("BUG: runVerdict written to the payload before it was set")
 	}
@@ -149,6 +153,8 @@ func (s noteSeverity) String() string {
 		return "caution"
 	case noteSeverityFault:
 		return "fault"
+	case noteSeverityUnspecified:
+		panic("BUG: noteSeverity written to the payload before it was set")
 	default:
 		panic("BUG: noteSeverity written to the payload before it was set")
 	}

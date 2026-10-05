@@ -51,8 +51,10 @@ func (s AnswerShape) String() string {
 		return "map"
 	case ShapeTab:
 		return "tab"
-	default:
+	case ShapeDoc:
 		return "doc"
+	default:
+		panic("BUG: unknown answer shape")
 	}
 }
 
@@ -120,8 +122,10 @@ func (c PipeClass) String() string {
 		return "global"
 	case ClassStream:
 		return "stream"
-	default:
+	case ClassData:
 		return "data"
+	default:
+		panic("BUG: unknown pipe class")
 	}
 }
 
@@ -165,8 +169,10 @@ func (a PipeArgKind) String() string {
 		return "fields"
 	case ArgPath:
 		return "path"
-	default:
+	case ArgNone:
 		return "none"
+	default:
+		panic("BUG: unknown pipe argument kind")
 	}
 }
 
@@ -194,8 +200,10 @@ func (r PipeRepeat) String() string {
 		return "idempotent"
 	case RepeatRefuse:
 		return "refuse"
-	default:
+	case RepeatCompose:
 		return "compose"
+	default:
+		panic("BUG: unknown pipe repetition rule")
 	}
 }
 
@@ -255,8 +263,10 @@ func (op PipeOperator) ArgHint() string {
 		return "<field>..."
 	case ArgPath:
 		return "<path>"
-	default:
+	case ArgNone:
 		return ""
+	default:
+		panic("BUG: unknown pipe argument kind")
 	}
 }
 
@@ -369,6 +379,8 @@ func RenderOperatorReference() string {
 		case RepeatRefuse:
 			repeat = "refused"
 		case RepeatCompose:
+		default:
+			panic("BUG: unknown pipe repetition rule")
 		}
 		class := "acts on any answer"
 		switch op.Class {
@@ -377,6 +389,8 @@ func RenderOperatorReference() string {
 		case ClassStream:
 			class = "acts on a stream of updates"
 		case ClassGlobal:
+		default:
+			panic("BUG: unknown pipe class")
 		}
 		surface := "all"
 		if op.LocalOnly {

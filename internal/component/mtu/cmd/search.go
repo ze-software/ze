@@ -181,6 +181,8 @@ func (o probeOutcome) String() string {
 		return "silent"
 	case probeTooBig:
 		return "too-big"
+	case probeOutcomeUnspecified:
+		panic("BUG: probeOutcome written to the payload before it was set")
 	default:
 		panic("BUG: probeOutcome written to the payload before it was set")
 	}

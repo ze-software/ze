@@ -549,6 +549,8 @@ func (s tableStyle) fillKeys(keys, rest []string) []string {
 		filled = slices.Concat(declared, undeclared)
 	case fillNone:
 		// Unreachable: orderKeys answers before it calls this.
+	default:
+		panic("BUG: unknown column fill order")
 	}
 
 	if s.request.reverse {

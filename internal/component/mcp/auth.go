@@ -26,18 +26,21 @@ import (
 type AuthMode uint8
 
 const (
-	AuthUnspecified AuthMode = 0
-	AuthNone        AuthMode = 1
-	AuthBearer      AuthMode = 2
-	AuthBearerList  AuthMode = 3
-	AuthOAuth       AuthMode = 4
+	AuthUnspecified AuthMode = iota
+	AuthNone
+	AuthBearer
+	AuthBearerList
+	AuthOAuth
+
+	// authModeCount is untyped: it bounds the declaration, not another mode.
+	authModeCount = iota
 )
 
 // ErrAuthModeInvalid wraps ParseAuthMode errors for typed detection.
 var ErrAuthModeInvalid = errors.New("auth-mode: invalid value")
 
-// String returns the YANG-string form of a mode; unknown values return
-// "unspecified" so log messages never panic on a corrupted enum.
+// String returns the YANG-string form of a mode.
+// A value outside the declared modes is an internal programming error.
 func (m AuthMode) String() string {
 	// enumeration: gated by TestAuthModesMatchTheModel
 	switch m {
@@ -49,8 +52,10 @@ func (m AuthMode) String() string {
 		return "bearer-list"
 	case AuthOAuth:
 		return "oauth"
-	default:
+	case AuthUnspecified:
 		return "unspecified"
+	default:
+		panic("BUG: unknown MCP authentication mode")
 	}
 }
 

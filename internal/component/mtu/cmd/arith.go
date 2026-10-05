@@ -45,6 +45,8 @@ func (f ipFamily) String() string {
 		return "ipv4"
 	case ipFamilyV6:
 		return "ipv6"
+	case ipFamilyUnspecified:
+		panic("BUG: ipFamily written to the payload before it was set")
 	default:
 		panic("BUG: ipFamily written to the payload before it was set")
 	}
@@ -150,8 +152,10 @@ func minimumMTU(inner ipFamily) (uint16, error) {
 		return ipv4MinimumMTU, nil
 	case ipFamilyV6:
 		return ipv6MinimumLinkMTU, nil
-	default:
+	case ipFamilyUnspecified:
 		return 0, errors.New("mtu: the inner address family is not specified")
+	default:
+		panic("BUG: unknown inner address family")
 	}
 }
 
@@ -166,8 +170,10 @@ func mss(mtu uint16, inner ipFamily) (uint16, error) {
 		header = ipv4HeaderOctets
 	case ipFamilyV6:
 		header = ipv6HeaderOctets
-	default:
+	case ipFamilyUnspecified:
 		return 0, errors.New("mtu: the inner address family is not specified")
+	default:
+		panic("BUG: unknown inner address family")
 	}
 	if mtu <= header+tcpHeaderOctets {
 		return 0, fmt.Errorf("%w: an MTU of %d leaves no room for a %s TCP segment", errNoUsableMTU, mtu, inner)

@@ -76,6 +76,47 @@ func newLeafListSessionEditor(t *testing.T, seed string) (*Editor, string) {
 	return ed, configPath
 }
 
+// TestMemberReplayIgnoresNonmemberKinds preserves the no-op result of named
+// nonmember operations and the zero value without changing the tree.
+func TestMemberReplayIgnoresNonmemberKinds(t *testing.T) {
+	for _, kind := range []config.StructuralOpType{
+		"", config.StructuralOpRename, config.StructuralOpDeleteEntry,
+		config.StructuralOpDeleteContainer, config.StructuralOpDeleteList,
+	} {
+		t.Run(string(kind), func(t *testing.T) {
+			ed, _ := newLeafListSessionEditor(t, leafListSeedConfig)
+			before := config.Serialize(ed.tree, ed.schema)
+			op := config.StructuralOp{
+				Type: kind, ParentPath: "system", ListName: "name-server", NewKey: "9.9.9.9",
+			}
+			require.NoError(t, applyMemberOp(ed.tree, ed.schema, op, false))
+			assert.Equal(t, before, config.Serialize(ed.tree, ed.schema))
+		})
+	}
+}
+
+// TestMemberWriteThroughRejectsNonmemberKinds keeps unsupported named
+// operations and zero from reaching the file-writing and dirty-state suffix.
+func TestMemberWriteThroughRejectsNonmemberKinds(t *testing.T) {
+	for _, kind := range []config.StructuralOpType{
+		"", config.StructuralOpRename, config.StructuralOpDeleteEntry,
+		config.StructuralOpDeleteContainer, config.StructuralOpDeleteList,
+	} {
+		t.Run(string(kind), func(t *testing.T) {
+			ed, configPath := newLeafListSessionEditor(t, leafListSeedConfig)
+			before := config.Serialize(ed.tree, ed.schema)
+			ed.draftSaved = true
+			err := ed.writeThroughMemberOp([]string{"system"}, kind, "name-server", "9.9.9.9", "", "")
+			require.ErrorContains(t, err, "unsupported member op")
+			assert.Equal(t, before, config.Serialize(ed.tree, ed.schema))
+			assert.False(t, ed.dirty.Load())
+			assert.True(t, ed.draftSaved)
+			_, readErr := ed.store.ReadFile(ChangePath(configPath, "thomas"))
+			require.Error(t, readErr, "rejected operation must not create a change file")
+		})
+	}
+}
+
 // TestSessionLeafListSetCommits is the AC-1 regression for Bug B: a session
 // `set system name-server 8.8.8.8` used to report "0 change(s) applied"
 // because writeThroughSet stored the value in the scalar map while every

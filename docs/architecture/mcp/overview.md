@@ -375,6 +375,14 @@ accepts every request with a zero `Identity`. That is why `le chaos run`, which
 configures no token and no auth mode, reaches the same uniform path as every
 other caller. It is not a carve-out.
 
+`AuthMode.String` renders every declared mode, including `AuthUnspecified`;
+an unnamed internal value raises a BUG assertion. `NewStreamable` still
+infers `none` or `bearer` for an unspecified configuration. Unknown
+caller-supplied modes are rejected with an error by `buildAuthForMode`, before
+the server is constructed.
+<!-- source: internal/component/mcp/auth.go -- AuthMode.String -->
+<!-- source: internal/component/mcp/streamable.go -- NewStreamable -->
+
 An unknown auth mode prevents construction. An absent authenticator fails
 closed rather than acting as `none`. Failed bearer authentication records an
 audit event with the remote address and denied outcome but no actor: an

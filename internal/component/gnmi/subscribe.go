@@ -129,10 +129,11 @@ func (s *Server) Subscribe(stream gpb.GNMI_SubscribeServer) error {
 	case gpb.SubscriptionList_POLL:
 		s.recordError("Subscribe", codes.Unimplemented)
 		return status.Error(codes.Unimplemented, "POLL subscribe mode not supported")
+	default:
+		// The set is open: a peer's protobuf enum may contain unknown numbers.
+		s.recordError("Subscribe", codes.InvalidArgument)
+		return status.Errorf(codes.InvalidArgument, "unknown subscribe mode %v", sub.GetMode())
 	}
-
-	s.recordError("Subscribe", codes.InvalidArgument)
-	return status.Errorf(codes.InvalidArgument, "unknown subscribe mode %v", sub.GetMode())
 }
 
 func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.SubscriptionList) error {

@@ -1050,7 +1050,7 @@ func (c *Completer) TypeHint(t *gyang.YangType) string {
 	if t == nil {
 		return typeHintAny
 	}
-	//nolint:exhaustive // fallthrough uses type name for unlisted YANG kinds
+	//exhaustive:ignore // Compact hints cover selected types; other kinds use their type names below.
 	switch t.Kind {
 	case gyang.Ystring:
 		return "string"

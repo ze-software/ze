@@ -127,7 +127,10 @@ func deriveESPOverhead(t *ipsecinventory.Tunnel) (espOverhead, error) {
 	switch t.Mode {
 	case ipsecinventory.ModeTunnel, ipsecinventory.ModeTransport:
 		o.mode = t.Mode
+	case ipsecinventory.ModeUnspecified:
+		return espOverhead{}, fmt.Errorf("%w: peer %s has an unspecified mode", errOverheadRefused, t.Peer)
 	default:
+		// The inventory mode set is open; refuse values this arithmetic does not know.
 		return espOverhead{}, fmt.Errorf("%w: peer %s has an unspecified mode", errOverheadRefused, t.Peer)
 	}
 	o.outerHeader = ipv4HeaderOctets

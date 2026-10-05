@@ -234,8 +234,9 @@ func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardStat
 		return ds.peerRate(p.Address)
 	case numSortColumns:
 		return ""
+	default:
+		panic("BUG: invalid dashboard column")
 	}
-	return ""
 }
 
 // stateColor returns the color a peer state is shown in, and whether it has one.

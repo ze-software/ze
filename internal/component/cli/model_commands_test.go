@@ -1405,6 +1405,54 @@ func TestFormatChangeEntryDelete(t *testing.T) {
 	assert.NotContains(t, line, "set")
 }
 
+// TestFormatChangeEntryKinds preserves each named rendering and the legacy
+// zero-kind set rendering, including the member-delete early return.
+func TestFormatChangeEntryKinds(t *testing.T) {
+	tests := []struct {
+		name   string
+		change config.PendingChange
+		want   string
+	}{
+		{
+			name:   "zero",
+			change: config.PendingChange{Path: "system name-server", Value: "9.9.9.9"},
+			want:   "  + set system name-server 9.9.9.9  (new)\n",
+		},
+		{
+			name:   "set",
+			change: config.PendingChange{Kind: config.PendingChangeSet, Path: "system name-server", Value: "9.9.9.9"},
+			want:   "  + set system name-server 9.9.9.9  (new)\n",
+		},
+		{
+			name:   "delete member",
+			change: config.PendingChange{Kind: config.PendingChangeDelete, Path: "system name-server", Member: "9.9.9.9", Previous: "ignored"},
+			want:   "  - delete system name-server 9.9.9.9\n",
+		},
+		{
+			name:   "rename",
+			change: config.PendingChange{Kind: config.PendingChangeRename, OldPath: "old", NewPath: "new"},
+			want:   "  ~ rename old to new\n",
+		},
+		{
+			name:   "deactivate",
+			change: config.PendingChange{Kind: config.PendingChangeDeactivate, Path: "system name-server", Member: "9.9.9.9"},
+			want:   "  ~ deactivate system name-server 9.9.9.9\n",
+		},
+		{
+			name:   "activate",
+			change: config.PendingChange{Kind: config.PendingChangeActivate, Path: "system name-server", Member: "9.9.9.9"},
+			want:   "  ~ activate system name-server 9.9.9.9\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b textbuf.Buffer
+			formatChangeEntry(&b, tt.change)
+			assert.Equal(t, tt.want, b.String())
+		})
+	}
+}
+
 // TestFilterOutSessionCommands verifies session-dependent command filtering.
 //
 // VALIDATES: who, disconnect are removed; other commands preserved.

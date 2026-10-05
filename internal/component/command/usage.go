@@ -495,6 +495,7 @@ func usageToken(def *ArgDef, kind UsageKind) UsageToken {
 // A union states the member forms: each enumerated member contributes its own
 // values, and every other member contributes the leaf's name, once.
 func usageValues(def *ArgDef) []string {
+	//exhaustive:ignore // Only enum and union argument types contribute usage alternatives.
 	switch def.Kind {
 	case ArgEnum:
 		return def.EnumValues

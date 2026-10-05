@@ -22,10 +22,6 @@ import (
 
 const authModeLeaf = "environment/mcp/auth-mode"
 
-// authModeMax bounds the walk over the typed modes: String answers
-// "unspecified" past the last one, and the walk stops there.
-const authModeMax = 16
-
 // TestAuthModesMatchTheModel holds AuthMode to the model in both directions.
 func TestAuthModesMatchTheModel(t *testing.T) {
 	model, err := configyang.EnumValues(authModeLeaf)
@@ -45,11 +41,11 @@ func TestAuthModesMatchTheModel(t *testing.T) {
 	}
 
 	typed := []string{}
-	for mode := AuthMode(1); mode < authModeMax; mode++ {
-		word := mode.String()
-		if word == AuthUnspecified.String() {
-			break
+	for mode := range AuthMode(authModeCount) {
+		if mode == AuthUnspecified {
+			continue
 		}
+		word := mode.String()
 		typed = append(typed, word)
 	}
 	slices.Sort(typed)

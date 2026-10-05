@@ -252,6 +252,7 @@ func parseWBOption(tc *WBTestCase, rest string, line int) error {
 
 			return nil
 		default:
+			// The set is open: the server kind comes directly from a .wb file.
 			return fmt.Errorf("line %d: server kind %q is not one of web, lg, lg-no-engine, chaos", line, kv["kind"])
 		}
 	case "env":

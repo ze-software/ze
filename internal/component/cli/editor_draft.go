@@ -28,8 +28,8 @@ var draftLogger = slogutil.Logger("cli.editor.draft")
 // ConflictType is a type alias of contract.ConflictType.
 type ConflictType = contract.ConflictType
 
-// Re-export contract conflict constants for backward compatibility.
-var (
+// Conflict kinds use the authoritative contract constants.
+const (
 	ConflictLive  = contract.ConflictLive
 	ConflictStale = contract.ConflictStale
 )
@@ -467,8 +467,10 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 			if err := applyMemberOp(tree, schema, ops[i], allowAlreadyApplied); err != nil {
 				return err
 			}
-		default:
+		case "":
 			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
+		default:
+			panic("BUG: invalid structural operation")
 		}
 	}
 	return nil
@@ -489,7 +491,7 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 	}
 
 	present, inactive := target.MultiValueMemberState(op.ListName, op.NewKey)
-	switch op.Type { //nolint:exhaustive // callers dispatch only member op types here
+	switch op.Type {
 	case config.StructuralOpInsertMember:
 		if present {
 			return nil
@@ -528,8 +530,11 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 			return fmt.Errorf("%q not found in %s", op.NewKey, op.ListName)
 		}
 		return target.ActivateMultiValue(op.ListName, op.NewKey)
+	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList:
+		return nil
+	default:
+		panic("BUG: invalid structural member operation")
 	}
-	return nil
 }
 
 func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) error {
@@ -566,8 +571,10 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 			// Member ops reorder or toggle values inside one leaf; the
 			// metadata tree structure is unaffected.
 			continue
-		default:
+		case "":
 			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
+		default:
+			panic("BUG: invalid structural metadata operation")
 		}
 	}
 	return nil
@@ -959,10 +966,9 @@ func parseConfigWithFormat(content string, schema *config.Schema) (*config.Tree,
 	case config.FormatHierarchical:
 		tree, err := config.NewParser(schema).Parse(content)
 		return tree, config.NewMetaTree(), err
+	default:
+		panic("BUG: invalid detected config format")
 	}
-
-	tree, err := config.NewParser(schema).Parse(content)
-	return tree, config.NewMetaTree(), err
 }
 
 // parseConfigLenient retries parsing with unknown fields skipped.
@@ -983,8 +989,7 @@ func parseConfigLenient(content string, schema *config.Schema) (*config.Tree, *c
 	case config.FormatHierarchical:
 		tree, err := config.NewParser(schema).Parse(content)
 		return tree, config.NewMetaTree(), err
+	default:
+		panic("BUG: invalid detected config format")
 	}
-
-	tree, err := config.NewParser(schema).Parse(content)
-	return tree, config.NewMetaTree(), err
 }

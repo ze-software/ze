@@ -179,6 +179,8 @@ func (v *ConfigValidator) validateCore(content string) (ConfigValidationResult, 
 				Severity: severityWarning,
 			})
 		}
+	default:
+		panic("BUG: invalid detected config format")
 	}
 
 	yangErrs, yangWarns := v.validateWithYANG(tree, content)

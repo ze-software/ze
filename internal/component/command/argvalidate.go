@@ -30,7 +30,7 @@ func ValidateArgString(arg string, def *ArgDef) error {
 		// A flag is its own keyword. No token is ever its value.
 		return fmt.Errorf("%s takes no value", def.Name)
 	default:
-		return nil
+		panic("BUG: invalid command argument kind")
 	}
 }
 
@@ -164,7 +164,9 @@ func Constraint(def *ArgDef) ArgConstraint {
 			return ConstraintAny
 		}
 		return weakest
-	default:
+	case ArgFlag:
 		return ConstraintAny
+	default:
+		panic("BUG: invalid command argument kind")
 	}
 }

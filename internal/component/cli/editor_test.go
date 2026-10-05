@@ -4575,11 +4575,13 @@ func TestCmdCommitSessionConflictFormatting(t *testing.T) {
 	// but we already have the result -- test the formatting logic).
 	var b strings.Builder
 	for _, c := range commitResult.Conflicts {
-		switch c.Type { //nolint:exhaustive // only two conflict types exist
+		switch c.Type {
 		case ConflictLive:
 			fmt.Fprintf(&b, "  LIVE %s: you=%s, %s=%s\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue) //nolint:errcheck // buffer output
 		case ConflictStale:
 			fmt.Fprintf(&b, "  STALE %s: you=%s, committed=%s (was %s)\n", c.Path, c.MyValue, c.OtherValue, c.PreviousValue) //nolint:errcheck // buffer output
+		default:
+			panic("BUG: invalid commit conflict type")
 		}
 	}
 	output := b.String()

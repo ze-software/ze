@@ -34,7 +34,10 @@ func buildAuthForMode(mode AuthMode, cfg StreamableConfig) (authBuildResult, err
 		return authBuildResult{auth: buildAuthenticator(mode, cfg)}, nil
 	case AuthOAuth:
 		// Discovery below constructs the OAuth authenticator before serving.
+	case AuthUnspecified:
+		return authBuildResult{}, errors.New("mcp: unsupported authentication mode")
 	default:
+		// The set is open: caller-supplied configuration may contain unknown modes.
 		return authBuildResult{}, errors.New("mcp: unsupported authentication mode")
 	}
 	metadataURL := resourceMetadataURL(cfg.OAuth)

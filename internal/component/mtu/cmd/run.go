@@ -108,6 +108,8 @@ func (k proberKind) String() string {
 		return "icmp"
 	case proberIKE:
 		return "ike"
+	case proberUnspecified:
+		panic("BUG: proberKind written to the payload before it was set")
 	default:
 		panic("BUG: proberKind written to the payload before it was set")
 	}
@@ -136,6 +138,8 @@ func (s inventoryState) String() string {
 		return "registered"
 	case inventoryNotRegistered:
 		return "not-registered"
+	case inventoryUnspecified:
+		panic("BUG: inventoryState written to the payload before it was set")
 	default:
 		panic("BUG: inventoryState written to the payload before it was set")
 	}
@@ -578,6 +582,8 @@ func (r *mtuRun) measure(m *measurement) {
 	case searchDFGateFailed:
 		r.dfGateFailed = true
 		r.note(noteSeverityFault, m.target.String()+" answered a "+probesText(sanityPayload)+" payload with Don't Fragment set, so this box does not honor DF and no figure can be believed")
+	case searchOutcomeUnspecified:
+		panic("BUG: searchPathMTU answered with an unset outcome")
 	default:
 		panic("BUG: searchPathMTU answered with an unset outcome")
 	}

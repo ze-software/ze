@@ -800,6 +800,8 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 					Steps: steps,
 				}
 			}
+		default:
+			panic("BUG: unknown web browser test step type")
 		}
 	}
 

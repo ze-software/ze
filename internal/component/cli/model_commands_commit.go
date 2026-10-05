@@ -301,11 +301,13 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 		var b textbuf.Buffer
 		b.Str("Commit blocked by conflicts:\n")
 		for _, c := range commitResult.Conflicts {
-			switch c.Type { //nolint:exhaustive // only two conflict types exist
+			switch c.Type {
 			case ConflictLive:
 				b.Str("  LIVE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", ").Str(c.OtherUser).Byte('=').Str(c.OtherValue).Byte('\n')
 			case ConflictStale:
 				b.Str("  STALE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", committed=").Str(c.OtherValue).Str(" (was ").Str(c.PreviousValue).Str(")\n")
+			default:
+				panic("BUG: invalid commit conflict type")
 			}
 		}
 		b.Str("Re-set conflicting values to resolve.")

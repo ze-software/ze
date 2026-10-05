@@ -115,7 +115,7 @@ func (o inputOutcome) String() string {
 	case inputMalformed:
 		return "malformed"
 	default:
-		return "unknown"
+		panic("BUG: unknown execute input outcome")
 	}
 }
 

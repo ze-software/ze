@@ -559,7 +559,8 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 // reference. Other op types have no commit-time staleness to detect.
 func appendStructuralOpConflict(conflicts []Conflict, committedTree *config.Tree, schema *config.Schema, op config.StructuralOp) []Conflict {
 	var conflict *Conflict
-	switch op.Type { //nolint:exhaustive // remaining op types have no stale check
+	//exhaustive:ignore // Only rename and ordered insert operations have independent stale checks.
+	switch op.Type {
 	case config.StructuralOpRename:
 		conflict = renameStaleConflict(committedTree, schema, op)
 	case config.StructuralOpInsertMember:

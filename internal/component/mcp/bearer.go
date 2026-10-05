@@ -134,10 +134,8 @@ const mcpRealm = "ze-mcp"
 
 // buildAuthenticator returns the authenticator implementing mode.
 //
-// AuthOAuth requires runtime plumbing (AS metadata + JWKS cache) that the
-// caller wires separately; pass a pre-built oauthAuthenticator via
-// buildAuthenticatorWithOAuth when AuthMode=OAuth. This function covers the
-// simple modes that need only the static config.
+// buildAuthForMode handles AuthOAuth separately, discovering AS metadata and
+// signing keys before it serves requests. This helper builds the static modes.
 func buildAuthenticator(mode AuthMode, cfg StreamableConfig) authenticator {
 	switch mode {
 	case AuthBearer:
@@ -148,10 +146,10 @@ func buildAuthenticator(mode AuthMode, cfg StreamableConfig) authenticator {
 			entries[i] = bearerListEntry{name: id.Name, hash: hashToken(id.Token), scopes: id.Scopes}
 		}
 		return bearerListAuthenticator{entries: entries}
-	default:
-		// AuthNone / AuthUnspecified fall back to the permissive no-op so
-		// the dispatcher attaches an anonymous identity. AuthOAuth is
-		// handled by the caller (Phase H wires AS metadata + JWKS).
+	case AuthNone, AuthUnspecified, AuthOAuth:
+		// OAuth is dispatched separately by buildAuthForMode in production.
 		return noneAuthenticator{}
+	default:
+		panic("BUG: unknown MCP authentication mode")
 	}
 }

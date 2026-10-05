@@ -102,11 +102,13 @@ func TestVerdictZeroValuesNeverRender(t *testing.T) {
 	expectPanic("underlayOutcome severity", func() { _ = underlayUnspecified.severity() })
 	expectPanic("ipFamily", func() { _ = ipFamilyUnspecified.String() })
 	expectPanic("tcpMTUProbing", func() { _ = tcpMTUProbingUnspecified.String() })
+	expectPanic("tcpMTUProbing finding", func() { _, _ = tcpMTUProbingUnspecified.finding() })
 	expectPanic("runVerdictOf", func() { _ = runVerdictOf([]tunnelVerdict{tunnelVerdictUnspecified}, false) })
 	expectPanic("runStatus", func() { _ = runStatusUnspecified.String() })
 	expectPanic("runVerdict", func() { _ = runVerdictUnspecified.String() })
 	expectPanic("noteSeverity", func() { _ = noteSeverityUnspecified.String() })
 	expectPanic("inventoryState", func() { _ = inventoryUnspecified.String() })
+	expectPanic("proberKind", func() { _ = proberUnspecified.String() })
 	expectPanic("probeOutcome", func() { _ = probeOutcomeUnspecified.String() })
 	expectPanic("underlayOutcome text", func() { _ = underlayUnspecified.text(&underlayInput{}, 0) })
 	expectPanic("adviseUnderlay without a measured path", func() { _ = adviseUnderlay(&underlayInput{iface: "eth0", current: 1500}) })
@@ -207,5 +209,15 @@ func TestUnderlayAdviceMatrix(t *testing.T) {
 	known := underlayInput{iface: "eth0", kind: "ethernet", current: 1500, tightest: 1400, reference: 1400, hasReference: true, referenceHost: ref}
 	if text := underlayCircuitClamped.text(&known, 1400); strings.Contains(text, "no configuration command") {
 		t.Errorf("circuit-clamped note for an ethernet underlay disclaims a command it lists: %q", text)
+	}
+}
+
+// TestNeedsCommandSubset calls the predicate with unspecified and unknown verdicts
+// to preserve their false answer: neither earns a command.
+func TestNeedsCommandSubset(t *testing.T) {
+	for _, verdict := range []tunnelVerdict{tunnelVerdictUnspecified, tunnelVerdict(255)} {
+		if verdict.needsCommand() {
+			t.Errorf("verdict %d unexpectedly earned a command", verdict)
+		}
 	}
 }

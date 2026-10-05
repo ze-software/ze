@@ -185,6 +185,7 @@ func TestESPOverheadUnknownTransformRefuses(t *testing.T) {
 		{"child down", func(tunnel *ipsecinventory.Tunnel) { tunnel.Up = false }},
 		{"no installed endpoint", func(tunnel *ipsecinventory.Tunnel) { tunnel.InstalledRemote = netip.Addr{} }},
 		{"mode unspecified", func(tunnel *ipsecinventory.Tunnel) { tunnel.Mode = ipsecinventory.ModeUnspecified }},
+		{"mode unknown", func(tunnel *ipsecinventory.Tunnel) { tunnel.Mode = ipsecinventory.Mode(255) }},
 	}
 	for _, c := range cases {
 		tunnel := base

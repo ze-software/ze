@@ -96,6 +96,8 @@ func renderDiffLines(diffs []diffLine) (string, map[int]int) {
 			workingLine++
 			lineMapping[displayLine] = workingLine
 		case diffRemoved: // removed lines have no working content counterpart
+		default:
+			panic("BUG: invalid diff marker")
 		}
 	}
 

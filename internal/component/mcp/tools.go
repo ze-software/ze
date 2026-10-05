@@ -45,8 +45,10 @@ func (t TaskSupportLevel) String() string {
 		return taskSupportWireRequired
 	case TaskSupportForbidden:
 		return taskSupportWireForbidden
-	default:
+	case TaskSupportOptional:
 		return taskSupportWireOptional
+	default:
+		panic("BUG: unknown MCP task support level")
 	}
 }
 
@@ -928,6 +930,8 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 			return ErrResult(tb.Reset().Str("no command was supplied: ").Err(ErrElicitCanceled).String())
 		case inputMalformed:
 			return ErrResult(tb.Reset().Str("could not read the supplied command: ").Err(ErrElicitMalformed).String())
+		default:
+			panic("BUG: unknown execute input outcome")
 		}
 		rendered, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 		s.completion = rendered

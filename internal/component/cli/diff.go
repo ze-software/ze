@@ -95,6 +95,8 @@ func annotateContentWithGutter(original, modified string) (string, map[int]int) 
 			workingLine++
 			lineMapping[displayLine] = workingLine
 		case diffRemoved:
+		default:
+			panic("BUG: invalid diff marker")
 		}
 	}
 

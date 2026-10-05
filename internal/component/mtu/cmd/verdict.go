@@ -51,6 +51,8 @@ func (v tunnelVerdict) String() string {
 		return "under-utilized"
 	case tunnelVerdictOK:
 		return "ok"
+	case tunnelVerdictUnspecified:
+		panic("BUG: tunnelVerdict written to the payload before it was set")
 	default:
 		panic("BUG: tunnelVerdict written to the payload before it was set")
 	}
@@ -60,6 +62,7 @@ func (v tunnelVerdict) String() string {
 // command in the remediation list: the three verdicts where a recommended
 // value exists and the current one differs from it.
 func (v tunnelVerdict) needsCommand() bool {
+	//exhaustive:ignore // Only verdicts with a remediation command belong to this predicate.
 	switch v {
 	case tunnelVerdictOversized, tunnelVerdictTight, tunnelVerdictUnderUtilized:
 		return true
@@ -132,6 +135,8 @@ func runVerdictOf(verdicts []tunnelVerdict, faultOutsideTable bool) runVerdict {
 		case tunnelVerdictTight, tunnelVerdictDown:
 			tight = true
 		case tunnelVerdictUnderUtilized, tunnelVerdictOK:
+		case tunnelVerdictUnspecified:
+			panic("BUG: runVerdictOf given an unset tunnel verdict")
 		default:
 			panic("BUG: runVerdictOf given an unset tunnel verdict")
 		}
@@ -204,6 +209,8 @@ func (o underlayOutcome) String() string {
 		return "circuit-clamped"
 	case underlayTwoClamps:
 		return "two-clamps"
+	case underlayUnspecified:
+		panic("BUG: underlayOutcome written to the payload before it was set")
 	default:
 		panic("BUG: underlayOutcome written to the payload before it was set")
 	}
@@ -216,6 +223,8 @@ func (o underlayOutcome) severity() noteSeverity {
 		return noteSeverityInfo
 	case underlayUnreadable, underlayCappedByInterface, underlayUndecidable, underlayCircuitClamped, underlayTwoClamps:
 		return noteSeverityCaution
+	case underlayUnspecified:
+		panic("BUG: severity of an unset underlayOutcome")
 	default:
 		panic("BUG: severity of an unset underlayOutcome")
 	}
@@ -250,6 +259,8 @@ func (o underlayOutcome) text(in *underlayInput, mtu uint16) string {
 		b.Str(", so the circuit and the peer paths are clamped in series; set ").Str(in.iface).Str(" to ").Uint16(mtu)
 		b.Str(" and confirm with a third address")
 		noCommandClause(&b, in)
+	case underlayUnspecified:
+		panic("BUG: text of an unset underlayOutcome")
 	default:
 		panic("BUG: text of an unset underlayOutcome")
 	}

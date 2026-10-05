@@ -1014,6 +1014,7 @@ func (e *Editor) readChangeFileContent(reader pendingChangeReader, path string) 
 
 func pendingChangeKey(change config.PendingChange) string {
 	var tb textbuf.Buffer
+	//exhaustive:ignore // Rename identity needs both paths; other kinds use the generic key.
 	switch change.Kind {
 	case config.PendingChangeRename:
 		return tb.Str(change.SessionID).Str("|rename|").Str(change.OldPath).Byte('|').Str(change.NewPath).String()

@@ -390,6 +390,8 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 			result.Steps = append(result.Steps, trace.StepResult{
 				Step: stepNum, Kind: etWait, Passed: true,
 			})
+		default:
+			panic("BUG: invalid editor test step type")
 		}
 	}
 

@@ -177,6 +177,8 @@ func (p tcpMTUProbing) String() string {
 		return "on-blackhole"
 	case tcpMTUProbingAlways:
 		return "always"
+	case tcpMTUProbingUnspecified:
+		panic("BUG: tcpMTUProbing written to the payload before it was set")
 	default:
 		panic("BUG: tcpMTUProbing written to the payload before it was set")
 	}
@@ -224,6 +226,8 @@ func (p tcpMTUProbing) finding() (stateNote, bool) {
 		return stateNote{noteSeverityInfo, "tcp_mtu_probing is 0, the Linux default: TCP stalls rather than backs off if a path blackholes"}, true
 	case tcpMTUProbingOnBlackhole, tcpMTUProbingAlways:
 		return stateNote{}, false
+	case tcpMTUProbingUnspecified:
+		panic("BUG: finding of an unread tcpMTUProbing")
 	default:
 		panic("BUG: finding of an unread tcpMTUProbing")
 	}

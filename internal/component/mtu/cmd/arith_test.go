@@ -156,3 +156,37 @@ func TestMSSAbsentWhenNoRoom(t *testing.T) {
 		}
 	}
 }
+
+// TestArithmeticFamilyBoundary distinguishes the supported unspecified-family
+// error from an unknown value that only an internal programming error can create.
+// It calls both arithmetic consumers with each boundary value.
+func TestArithmeticFamilyBoundary(t *testing.T) {
+	cases := []struct {
+		name string
+		call func(ipFamily) (uint16, error)
+	}{
+		{"minimum", minimumMTU},
+		{"mss", func(inner ipFamily) (uint16, error) { return mss(1400, inner) }},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.call(ipFamilyUnspecified)
+			if got != 0 {
+				t.Errorf("unspecified family answered %d, want 0", got)
+			}
+			if err == nil {
+				t.Fatal("unspecified family answered without an error")
+			}
+			if err.Error() != "mtu: the inner address family is not specified" {
+				t.Errorf("unspecified family error = %q", err)
+			}
+			defer func() {
+				if recovered := recover(); recovered != "BUG: unknown inner address family" {
+					t.Errorf("unknown family panic = %v", recovered)
+				}
+			}()
+			got, err = c.call(ipFamily(255))
+			t.Errorf("unknown family returned %d, %v instead of panicking", got, err)
+		})
+	}
+}

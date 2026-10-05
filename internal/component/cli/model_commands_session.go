@@ -71,7 +71,7 @@ func formatChangeEntry(b *textbuf.Buffer, change config.PendingChange) {
 		b.Str("  ~ deactivate ").Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
 	case config.PendingChangeActivate:
 		b.Str("  ~ activate ").Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
-	default:
+	case "", config.PendingChangeSet:
 		marker := byte('+')
 		annotation := "(new)"
 		if change.Previous != "" {
@@ -80,6 +80,8 @@ func formatChangeEntry(b *textbuf.Buffer, change config.PendingChange) {
 			annotation = tb.Str("(was: ").Str(change.Previous).Byte(')').String()
 		}
 		b.Str("  ").Byte(marker).Str(" set ").Str(change.Path).Byte(' ').Str(change.Value).Str("  ").Str(annotation).Byte('\n')
+	default:
+		panic("BUG: invalid pending change kind")
 	}
 }
 

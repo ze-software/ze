@@ -81,7 +81,8 @@ func applyPipesRecords(
 			continue
 		}
 		if ndjsonRendered {
-			switch op.kind { //nolint:exhaustive // only operators whose NDJSON line semantics differ.
+			//exhaustive:ignore // Only line transforms override their record semantics after NDJSON rendering.
+			switch op.kind {
 			case pipeMatch:
 				records = recordsMatchingRenderedJSON(records, op.arg)
 				continue
@@ -152,13 +153,13 @@ func applyRecordOp(records iter.Seq[rpc.Record], op pipeOp) iter.Seq[rpc.Record]
 		// one at a time. Collecting them here would spend the same memory one
 		// stage earlier and hide where it goes.
 		return records
-	default:
-		// Every remaining kind leaves the data alone: the five formats, raw,
-		// fill, log and no-more. The default arm is what keeps that true for a
-		// kind nobody thought of here, and passing the records through is the
-		// answer a reader of the chain expects from an operator that shapes
-		// nothing.
+	case pipeCount, pipeNoMore, pipeJSON, pipeNDJSON, pipeYAML, pipeRaw,
+		pipeLog, pipeFill, pipeSave, pipeUnknown, pipeInvalid:
+		// These operators leave records unchanged here: their work or refusal
+		// belongs to the surrounding chain or the final renderer.
 		return records
+	default:
+		panic("BUG: unknown record pipe operator")
 	}
 }
 
@@ -567,7 +568,8 @@ func positionalAddressFields(fields []string, op pipeOp) ([]positionalAddressTra
 			continue
 		}
 		var suffixes []string
-		switch op.kind { //nolint:exhaustive // recordsPositionalAddressTransformed passes only resolve or origin.
+		//exhaustive:ignore // Only address-enrichment operators contribute derived positional columns.
+		switch op.kind {
 		case pipeResolve:
 			suffixes = []string{"-name"}
 		case pipeOrigin:
@@ -614,7 +616,8 @@ func transformPositionalAddressItem(
 	}
 	for _, transform := range transforms {
 		address, _ := values[transform.sourceIndex].(string)
-		switch kind { //nolint:exhaustive // positionalAddressFields produces transforms only for resolve or origin.
+		//exhaustive:ignore // Only resolve and origin enrich the selected positional address fields.
+		switch kind {
 		case pipeResolve:
 			name := ""
 			if address != "*" {

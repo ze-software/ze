@@ -143,7 +143,7 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 	if target == nil {
 		return errPathNotFound
 	}
-	switch opType { //nolint:exhaustive // only member op types reach this method
+	switch opType {
 	case config.StructuralOpInsertMember:
 		if err := target.InsertMultiValue(leafListName, member, position, ref); err != nil {
 			return err
@@ -156,8 +156,10 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 		if err := target.ActivateMultiValue(leafListName, member); err != nil {
 			return err
 		}
-	default:
+	case "", config.StructuralOpRename, config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList:
 		return fmt.Errorf("unsupported member op %q", opType)
+	default:
+		panic("BUG: invalid structural member operation")
 	}
 
 	changePath := ChangePath(e.originalPath, e.session.User)

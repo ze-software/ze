@@ -75,7 +75,7 @@ func sortDashboardPeers(peers []dashboardPeer, col dashboardSortColumn, ascendin
 // before 10.0.0.10, and an uptime of 59s belongs before one of 1m0s. Both come
 // out of the daemon as strings, and both order backwards when compared as text.
 func comparePeers(a, b dashboardPeer, col dashboardSortColumn, rate rateLookup) int {
-	order := 0
+	var order int
 	switch col {
 	case sortColumnASN:
 		order = cmp.Compare(a.RemoteAS.Value(), b.RemoteAS.Value())
@@ -91,6 +91,8 @@ func comparePeers(a, b dashboardPeer, col dashboardSortColumn, rate rateLookup) 
 		order = compareRate(a.Address, b.Address, rate)
 	case sortColumnAddress, numSortColumns:
 		order = 0 // the address is the tie-break below, so the column needs no case
+	default:
+		panic("BUG: invalid dashboard sort column")
 	}
 	if order != 0 {
 		return order

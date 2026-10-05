@@ -172,3 +172,15 @@ func TestValidateArgStringSanity(t *testing.T) {
 		t.Errorf("plain string rejected: %v", err)
 	}
 }
+
+// TestValidateArgStringRejectsInvalidKind proves a malformed internal argument
+// definition cannot authorize an arbitrary raw token.
+func TestValidateArgStringRejectsInvalidKind(t *testing.T) {
+	defer func() {
+		if got := recover(); got != "BUG: invalid command argument kind" {
+			t.Fatalf("panic = %v, want invalid argument kind assertion", got)
+		}
+	}()
+	err := ValidateArgString("anything", &ArgDef{Kind: ArgKind(255)})
+	t.Fatalf("invalid argument kind returned %v instead of asserting", err)
+}

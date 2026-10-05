@@ -347,6 +347,11 @@ func hashBytes(h crypto.Hash, input []byte) []byte {
 	case crypto.SHA512:
 		d := sha512.Sum512(input)
 		return d[:]
+	case crypto.MD4, crypto.MD5, crypto.SHA1, crypto.SHA224, crypto.MD5SHA1,
+		crypto.RIPEMD160, crypto.SHA3_224, crypto.SHA3_256, crypto.SHA3_384,
+		crypto.SHA3_512, crypto.SHA512_224, crypto.SHA512_256, crypto.BLAKE2s_256,
+		crypto.BLAKE2b_256, crypto.BLAKE2b_384, crypto.BLAKE2b_512, crypto.MLDSAMu:
+		panic("BUG: unsupported hash")
 	default:
 		// Unreachable given verifySignature's dispatch table.
 		panic("BUG: unsupported hash")

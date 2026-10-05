@@ -43,13 +43,23 @@ func TestAuthModeString(t *testing.T) {
 		{AuthBearer, "bearer"},
 		{AuthBearerList, "bearer-list"},
 		{AuthOAuth, "oauth"},
-		{AuthMode(99), "unspecified"},
 	}
 	for _, tc := range cases {
 		if got := tc.mode.String(); got != tc.want {
 			t.Fatalf("AuthMode(%d).String() = %q, want %q", tc.mode, got, tc.want)
 		}
 	}
+}
+
+// TestAuthModeStringRejectsInvalid proves an internal invalid mode cannot print
+// as a legitimate unspecified configuration.
+func TestAuthModeStringRejectsInvalid(t *testing.T) {
+	defer func() {
+		if got := recover(); got != "BUG: unknown MCP authentication mode" {
+			t.Fatalf("panic = %v, want invalid authentication mode assertion", got)
+		}
+	}()
+	_ = AuthMode(99).String()
 }
 
 func TestAuthModeRoundtripParseString(t *testing.T) {
