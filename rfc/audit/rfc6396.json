@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-05",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -23,15 +23,21 @@
       "verdict": "enforced"
     },
     "RFC6396-4.2-2": {
-      "note": "Forbidden: emitting a TABLE_DUMP (type 12) record for a 4-byte peer AS or a peer/prefix AFI mismatch. internal/plugins/mrt/dump_test.go::TestRibSubtype asserts only that ribSubtype maps AFIs to TABLE_DUMP_V2 subtype numbers; it never asserts the record Type field is TypeTableDumpV2 and never drives a 4-byte peer AS or a differing peer AFI through the dump, so stamping TypeTableDump on those records stays green.",
+      "code": {
+        "internal/plugins/mrt/dump.go::writePeerIndexTable": "da34b9b1022fee07",
+        "internal/plugins/mrt/dump.go::writeTableDumpV2": "e3e18fdb3216d3a8"
+      },
+      "note": "Independent MRTDirectionJudge reread RFC6396 Section 4.2, both current carriers and the periodic/CLI dump producers. The RFC states: 'The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field. The TABLE_DUMP_V2 Type MUST be used in these situations.' TestDumpV2PeerWidthAndPrefixFamily drives the actual writeTableDumpV2 and writePeerIndexTable functions through a RIB visitor and file writer/reader. Its eight cases cross IPv4/IPv6 peers, IPv4/IPv6 prefixes and ASN 65001/0x01020304, including isolated triggers and ordinary controls. It asserts both common-header Types before reader dispatch, exact PIT flags/address/ASN/BGP ID and RIB prefix/index/attributes. TestRibSubtype remains supplementary. The unconditional V2 writer justifies the existing single-positive annotation; no legacy-writer rejection is invented. Main observed all eight cases pass under race detection. Independent PIT and RIB Type-to-12 substitutions fail at record 0 and record 1 respectively. The native cover separately records producer dependence. The actual mrt routes CLI also decoded an independent V2 file as prefix 198.51.100.0/24, next-hop 192.0.2.1, AS path and peer ASN 16909060, and IPv6 peer 2001:db8::2; the captured output is scratch/mrt-v2-cli-observation.log.",
       "requirement_sha": "bc7aa97ad7fbe9e2",
       "tests": {
-        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "1aea1dbe6eeaa629"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "1aea1dbe6eeaa629",
+        "internal/plugins/mrt/rfc6396_dump_width_test.go::TestDumpV2PeerWidthAndPrefixFamily": "f7c5300a38910f01"
       },
       "units": {
-        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "afc6c2958382fedb"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "afc6c2958382fedb",
+        "internal/plugins/mrt/rfc6396_dump_width_test.go::TestDumpV2PeerWidthAndPrefixFamily": "1a34a96de2fd774f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6396-4.3.1-1": {
       "note": "Independent MRTJudge 2026-10-02, rejudged changed checked-encoder call. RFC6396 section 4.3.1: The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. TestPeerIndexTableEmptyViewName asserts the actual encoded two octets at offset 4 are zero and decoded name empty; errors from the migrated encoder are checked. The production writePeerIndexTable passes an empty string; the additional dump-producer test inspected under 4.3.1-2 pins the entire emitted empty-name PIT body. Single-positive annotation is valid because no independently supplied absent-name length exists. Native record disables WritePeerIndexTable; enforcement rests on the zero-field assertion, not the panic.",

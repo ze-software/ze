@@ -93,6 +93,15 @@ copy borrowed bytes if retaining them beyond their owner's lifetime.
 <!-- source: internal/mrt/bgp.go — BGPMessage, ParseBGPMessage -->
 <!-- source: internal/mrt/context.go — SessionContexts, BGPMessage.AddPathFor -->
 
+The no-OPEN decoder regression matrix reads each record in a fresh invocation:
+all eight ordinary/ADD-PATH message subtypes under BGP4MP and BGP4MP_ET, classic
+announcements and withdrawals, and isolated IPv4/IPv6 MP_REACH and MP_UNREACH.
+It checks two exact prefixes per location, ADD-PATH identifiers `0` and
+`0x01020304`, no identifiers for ordinary NLRI, and unchanged complete bytes.
+Matching-OPEN mixed-family tests remain separate; they cannot establish the
+subtype-only branch's behavior.
+<!-- source: internal/mrt/rfc8050_no_open_test.go — TestRFC8050NoOPENSubtypeDecodesExactNLRI -->
+
 An empty MP_REACH or MP_UNREACH field still names a family and can cause the
 recorder to select an ADD-PATH subtype. The reader includes that family when
 checking ambiguity, even though the field carries no prefixes. For example,
@@ -194,6 +203,14 @@ enable/disable state.
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
 - On-demand CLI dump (BIRD)
 - Buffered writes with configurable flush
+
+The live collision regression also sends isolated classic and MP announcements
+and withdrawals in both directions. Its OPENs negotiate IPv4 ADD-PATH only
+outbound and IPv6 ADD-PATH only inbound. Each isolated packet therefore changes
+between ordinary and ADD-PATH subtype if the observer uses the opposite
+direction's context. Mixed-family packets alone cannot make that distinction:
+the recorder's family OR can select ADD-PATH under either context.
+<!-- source: internal/component/bgp/reactor/rfc8050_collision_epoch_test.go — TestMRTWinningCollisionPreservesOPEN, mrtCollisionIsolatedUpdates -->
 
 ## Analysis Tooling (`internal/analyze`)
 

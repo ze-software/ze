@@ -24,8 +24,12 @@ import (
 // TestMRTWinningCollisionPreservesOPEN follows a live Peer's collision handoff,
 // not acceptWithOpen in isolation. Two TCP connections send different actual
 // capabilities. The winner must establish, retain its noncanonical OPEN bytes,
-// and supply the context for mixed-family UPDATEs in both directions.
-// RFC requirement: RFC8050-x-1 positive -- a live collision-winning session records its mixed classic/MP withdrawals under received subtype 9 and LOCAL subtype 11, with exactly one unchanged packet in each direction.
+// and supply the context for mixed-family and isolated-family UPDATEs.
+// MUTATION: observeReceivedWire using sendCtxID instead of recvCtxID flips every
+// isolated inbound subtype; observedBGPWriter.observe using the receive context
+// flips every isolated outbound subtype. Mixed-family OR alone cannot detect this.
+// RFC requirement: RFC8050-x-1 positive -- a live collision-winning session records unchanged mixed withdrawals and isolated classic/MP announcements and withdrawals; ADD-PATH families use received subtype 9 or LOCAL subtype 11.
+// RFC requirement: RFC8050-x-1 negative -- isolated ordinary-family announcements and withdrawals use received subtype 4 or LOCAL subtype 7 despite ADD-PATH negotiation for the other family and opposite direction.
 // RFC requirement: RFC8050-x-4 positive -- the live collision winner retains its original directional OPENs and the same TCP connection; its mixed withdrawals decode to the exact classic and MP prefixes and Path Identifiers in both directions.
 func TestMRTWinningCollisionPreservesOPEN(t *testing.T) {
 	testMRTWinningCollision(t, "")
@@ -258,6 +262,26 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 	if !found {
 		t.Fatal("winning socket never received the exact outbound UPDATE")
 	}
+	// Each packet names exactly one family. Unlike the mixed withdrawals,
+	// opposite directional context therefore selects the opposite AP/base mode.
+	isolated := mrtCollisionIsolatedUpdates()
+	receivedTotal := uint32(1)
+	for _, update := range isolated {
+		if update.sent {
+			if err := peer.SendRawMessage(0, update.wire); err != nil {
+				t.Fatal(err)
+			}
+			if wire := readMRTTestPacket(t, winner); !bytes.Equal(wire, update.wire) {
+				t.Fatalf("%s: outbound bytes=%x, want %x", update.name, wire, update.wire)
+			}
+			continue
+		}
+		write(winner, update.wire)
+		receivedTotal++
+		mrtCollisionWait(t, func() bool {
+			return peer.Stats().UpdatesReceived == receivedTotal
+		}, update.name)
+	}
 	stopPeer()
 	stopRecorder()
 
@@ -274,6 +298,20 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 		if wire[18] != 2 {
 			return nil
 		}
+		for i := range isolated {
+			update := &isolated[i]
+			if !bytes.Equal(wire, update.wire) {
+				continue
+			}
+			update.records++
+			if h.Type != mrt.TypeBGP4MP {
+				t.Fatalf("%s: MRT type=%d, want BGP4MP", update.name, h.Type)
+			}
+			if h.Subtype != update.subtype {
+				t.Fatalf("%s: subtype=%d, want %d", update.name, h.Subtype, update.subtype)
+			}
+			return nil
+		}
 		parsed, err := mrt.ParseBGPMessage(record.BGPMessage)
 		if err != nil {
 			return err
@@ -281,7 +319,7 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 		u := parsed.Update
 		if !bytes.Equal(wire, incoming) && !bytes.Equal(wire, outgoing) {
 			// Only harmless initial EOR messages are allowed in addition to
-			// the two discriminating UPDATEs supplied above.
+			// mixed and isolated UPDATEs supplied above.
 			if len(u.WithdrawnPrefixes)+len(u.AnnouncedPrefixes) != 0 {
 				t.Fatalf("unexpected recorded routes: %x", wire)
 			}
@@ -319,6 +357,79 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 	if received != 1 || sent != 1 {
 		t.Fatalf("winning UPDATE records received/sent=%d/%d, want 1/1", received, sent)
 	}
+	for _, update := range isolated {
+		if update.records != 1 {
+			t.Fatalf("%s: unchanged complete UPDATE records=%d, want 1", update.name, update.records)
+		}
+	}
+}
+
+type mrtCollisionUpdate struct {
+	name    string
+	wire    []byte
+	subtype uint16
+	sent    bool
+	records int
+}
+
+// mrtCollisionIsolatedUpdates keeps each location independent of the other
+// family's ADD-PATH negotiation. Literal IDs include zero, not an absent ID.
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+func mrtCollisionIsolatedUpdates() []mrtCollisionUpdate {
+	cases := []struct {
+		name     string
+		sent     bool
+		mp       bool
+		announce bool
+		subtype  uint16
+		nlri     []byte
+	}{
+		{"received-classic-announcement", false, false, true, 4, []byte{24, 10, 3, 0}},
+		{"received-classic-withdrawal", false, false, false, 4, []byte{24, 10, 4, 0}},
+		{"received-MP_REACH", false, true, true, 9, []byte{0, 0, 0, 0, 32, 0x20, 1, 0x0d, 0xbb}},
+		{"received-MP_UNREACH", false, true, false, 9, []byte{1, 2, 3, 4, 32, 0x20, 1, 0x0d, 0xbc}},
+		{"sent-classic-announcement", true, false, true, 11, []byte{0, 0, 0, 0, 24, 10, 5, 0}},
+		{"sent-classic-withdrawal", true, false, false, 11, []byte{1, 2, 3, 4, 24, 10, 6, 0}},
+		{"sent-MP_REACH", true, true, true, 7, []byte{32, 0x20, 1, 0x0d, 0xbd}},
+		{"sent-MP_UNREACH", true, true, false, 7, []byte{32, 0x20, 1, 0x0d, 0xbe}},
+	}
+	updates := make([]mrtCollisionUpdate, 0, len(cases))
+	for _, tc := range cases {
+		var withdrawn, attrs, announced []byte
+		if tc.announce {
+			asn := byte(0xe9)
+			if tc.sent {
+				asn = 0xe8
+			}
+			attrs = []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, asn}
+		}
+		if tc.mp {
+			code := byte(15)
+			value := []byte{0, 2, 1}
+			if tc.announce {
+				code = 14
+				value = append(value, 16, 0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0)
+			}
+			value = append(value, tc.nlri...)
+			attrs = append(attrs, 0x80, code, byte(len(value)))
+			attrs = append(attrs, value...)
+		} else if tc.announce {
+			attrs = append(attrs, 0x40, 3, 4, 192, 0, 2, 1)
+			announced = tc.nlri
+		} else {
+			withdrawn = tc.nlri
+		}
+		body := append([]byte{0, byte(len(withdrawn))}, withdrawn...)
+		body = append(body, 0, byte(len(attrs)))
+		body = append(body, attrs...)
+		body = append(body, announced...)
+		updates = append(updates, mrtCollisionUpdate{
+			name: tc.name, wire: buildUpdateMsg(body), subtype: tc.subtype, sent: tc.sent,
+		})
+	}
+	return updates
 }
 
 // mrtCollisionOPEN uses multiple capability parameters and an unknown capability

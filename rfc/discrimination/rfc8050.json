@@ -17,11 +17,22 @@
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
       "unit-sha": "e118c0e8e689999d",
-      "claim-sha": "d45b3e5256a182e7",
+      "claim-sha": "855a1a5b16f19a44",
       "route": "revert",
       "producer": "internal/plugins/mrt/dump.go::updateAddPath",
       "producer-sha": "1b4e8976a3b4fed1",
       "break": "body of updateAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
+      "unit-sha": "e118c0e8e689999d",
+      "claim-sha": "026ce51ae6946543",
+      "route": "revert",
+      "producer": "internal/plugins/mrt/dump.go::bgp4mpTypeSubtype",
+      "producer-sha": "54961866cf24192a",
+      "break": "body of bgp4mpTypeSubtype replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8050-x-1",
@@ -235,24 +246,24 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
-      "unit": "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections",
-      "unit-sha": "fcc5d91a806b137a",
-      "claim-sha": "df15f1b6d60576e0",
+      "unit": "internal/mrt/rfc8050_no_open_test.go::TestRFC8050NoOPENSubtypeDecodesExactNLRI",
+      "unit-sha": "777f387595fa553c",
+      "claim-sha": "273d49d5a66ae894",
       "route": "revert",
-      "producer": "internal/mrt/context.go::ObserveMessage",
-      "producer-sha": "e11c53466d6d5aee",
-      "break": "body of ObserveMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/mrt/context.go::AddPathFor",
+      "producer-sha": "67a6f406895f7d0d",
+      "break": "body of AddPathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8050-x-4",
       "polarity": "negative",
-      "unit": "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections",
-      "unit-sha": "fcc5d91a806b137a",
-      "claim-sha": "10da43c66af2a432",
+      "unit": "internal/mrt/rfc8050_no_open_test.go::TestRFC8050NoOPENSubtypeDecodesExactNLRI",
+      "unit-sha": "777f387595fa553c",
+      "claim-sha": "932d27f318bd6b61",
       "route": "revert",
-      "producer": "internal/mrt/context.go::updateContext",
-      "producer-sha": "f3641475a2b64c95",
-      "break": "body of updateContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/mrt/context.go::AddPathFor",
+      "producer-sha": "67a6f406895f7d0d",
+      "break": "body of AddPathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8050-x-4",
@@ -275,6 +286,28 @@
       "producer": "internal/mrt/context.go::openASNMatches",
       "producer-sha": "84ffe992b55871f4",
       "break": "body of openASNMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "positive",
+      "unit": "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections",
+      "unit-sha": "fcc5d91a806b137a",
+      "claim-sha": "df15f1b6d60576e0",
+      "route": "revert",
+      "producer": "internal/mrt/context.go::ObserveMessage",
+      "producer-sha": "e11c53466d6d5aee",
+      "break": "body of ObserveMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "negative",
+      "unit": "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections",
+      "unit-sha": "fcc5d91a806b137a",
+      "claim-sha": "10da43c66af2a432",
+      "route": "revert",
+      "producer": "internal/mrt/context.go::updateContext",
+      "producer-sha": "f3641475a2b64c95",
+      "break": "body of updateContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

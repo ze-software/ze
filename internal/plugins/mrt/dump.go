@@ -278,6 +278,7 @@ func updateAddPath(body []byte, ctxID bgpctx.ContextID) bool {
 	}
 	iter := attribute.NewAttrIterator(attrs)
 	for code, _, value, ok := iter.Next(); ok; code, _, value, ok = iter.Next() {
+		//exhaustive:ignore // Only MP_REACH_NLRI and MP_UNREACH_NLRI carry extra family fields for ADD-PATH detection.
 		switch code {
 		case attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI:
 			if len(value) < 3 {

@@ -24,6 +24,17 @@
       "break": "body of WritePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6396-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/mrt/rfc6396_dump_width_test.go::TestDumpV2PeerWidthAndPrefixFamily",
+      "unit-sha": "590743a1e70b3067",
+      "claim-sha": "43d6e092c3ca09fe",
+      "route": "revert",
+      "producer": "internal/plugins/mrt/dump.go::writeTableDumpV2",
+      "producer-sha": "c36d65611ec8ad5d",
+      "break": "body of writeTableDumpV2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6396-4.3.1-1",
       "polarity": "positive",
       "unit": "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName",
