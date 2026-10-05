@@ -134,6 +134,19 @@ malformed cases vary only the advertised address length.
 
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types_test.go -- evpnT2Body, TestEVPNMACAddressLength, TestEVPNIPAddressLength -->
 
+The short-IP octet fixtures instead end the framed body inside the advertised
+IP field, so the IP decoder rejects them with `ErrEVPNTruncated`. The header
+length matches the supplied body; these are not common-header truncation tests.
+They also retain variants with the helper's three label octets appended.
+For an address short by one octet, the IP decoder consumes the first label
+octet and the label decoder rejects the two remaining octets with
+`nlri.ErrShortRead`. Both variants must yield neither a route nor a remainder.
+RFC 7432 Sections 7.2 and 9.2.1 fix the IP field's width; no delimiter identifies
+an early label independently of that width.
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go -- TestRFC7432Type2IPAddressOctetsShort -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- ParseEVPN, parseEVPNType2 -->
+
 ### Route Key (for equality)
 
 Per RFC 7432 Section 7.2, key components are:

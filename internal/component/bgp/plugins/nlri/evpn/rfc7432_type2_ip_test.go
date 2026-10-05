@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 )
 
 // type2IPFieldOffset is where the IP Address Length byte sits in a MAC/IP
@@ -78,39 +80,56 @@ func TestRFC7432Type2IPAddressOctets(t *testing.T) {
 
 // TestRFC7432Type2IPAddressOctetsShort verifies a MAC/IP Advertisement route
 // whose IP Address field holds fewer octets than its IP Address Length
-// announces is refused, instead of being read as a shorter address or as
-// label octets.
+// announces is refused. It tests both a body ending inside the IP field and
+// a short address followed by the fixture's label.
 //
 // VALIDATES: RFC 7432 Section 9.2.1 - the IP Address field is 4 or 16 octets.
 // PREVENTS: A short IP Address field being accepted, with the missing octets
 // read from the label stack or from the next NLRI.
+// MUTATION: Removing either IP octet-count guard must break its short-body
+// cases; accepting the partial trailing label must break the labeled cases.
 //
 // RFC requirement: RFC7432-9.2.1-6 negative -- an IP Address Length of 32 followed by fewer than 4 octets, or of 128 followed by fewer than 16 octets, is rejected with ErrEVPNTruncated and yields no route.
 func TestRFC7432Type2IPAddressOctetsShort(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name    string
-		ipLen   byte
-		ipBytes []byte
+		name     string
+		ipLen    byte
+		ipBytes  []byte
+		labelErr error
 	}{
-		{"ipv4_three_octets", 32, []byte{10, 0, 0}},
-		{"ipv4_no_octets", 32, nil},
-		{"ipv6_fifteen_octets", 128, []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-		{"ipv6_four_octets", 128, []byte{10, 0, 0, 1}},
+		{"ipv4_three_octets", 32, []byte{10, 0, 0}, nlri.ErrShortRead},
+		{"ipv4_no_octets", 32, nil, ErrEVPNTruncated},
+		{"ipv6_fifteen_octets", 128, []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, nlri.ErrShortRead},
+		{"ipv6_four_octets", 128, []byte{10, 0, 0, 1}, ErrEVPNTruncated},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			body := evpnT2Body(48, tc.ipLen, tc.ipBytes)
-			data := buildEVPNData(EVPNRouteType2, byte(len(body)), body)
+			// End the framed body at the short IP field, before the helper's
+			// mandatory label, so the IP guard is the rejecting layer.
+			shortBody := body[:type2IPFieldOffset+1-evpnHeaderLen+len(tc.ipBytes)]
+			data := buildEVPNData(EVPNRouteType2, byte(len(shortBody)), shortBody)
+			require.Len(t, data, type2IPFieldOffset+1+len(tc.ipBytes))
 
 			parsed, remaining, err := ParseEVPN(data, false)
 			require.ErrorIs(t, err, ErrEVPNTruncated,
 				"IP Address Length %d over %d octets must be refused", tc.ipLen, len(tc.ipBytes))
 			assert.Nil(t, parsed, "a refused NLRI must yield no route")
 			assert.Nil(t, remaining, "a refused NLRI must yield no remainder")
+
+			// Keep the labeled malformed shape covered too. With only one
+			// IP octet missing, the decoder consumes a label octet as IP
+			// and rejects the two-octet remainder in ParseLabelStack.
+			labeled := buildEVPNData(EVPNRouteType2, byte(len(body)), body)
+			parsed, remaining, err = ParseEVPN(labeled, false)
+			require.ErrorIs(t, err, tc.labelErr,
+				"short IP followed by label octets must be refused")
+			assert.Nil(t, parsed, "a refused labeled NLRI must yield no route")
+			assert.Nil(t, remaining, "a refused labeled NLRI must yield no remainder")
 		})
 	}
 }

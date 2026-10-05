@@ -214,7 +214,7 @@
       "rid": "RFC7432-9.2.1-6",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go::TestRFC7432Type2IPAddressOctetsShort",
-      "unit-sha": "611a0c6ebdae729a",
+      "unit-sha": "ab22580f941ca365",
       "claim-sha": "94d1d19df586ae46",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType2",
