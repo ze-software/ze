@@ -77,12 +77,17 @@ func existsRel(root, rel string) bool {
 	return err == nil
 }
 
-// treeDigest fingerprints every file under root outside .git, so a refusal can
-// be shown to have written nothing at all.
-func treeDigest(t *testing.T, root string) map[string][32]byte {
+type renameEntrySnapshot struct {
+	kind   os.FileMode
+	digest [sha256.Size]byte
+}
+
+// treeDigest fingerprints file contents, symlink targets and their entry kinds
+// outside .git, without following links outside the fixture.
+func treeDigest(t *testing.T, root string) map[string]renameEntrySnapshot {
 	t.Helper()
 
-	out := map[string][32]byte{}
+	out := map[string]renameEntrySnapshot{}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -93,11 +98,21 @@ func treeDigest(t *testing.T, root string) map[string][32]byte {
 			}
 			return nil
 		}
-		raw, err := os.ReadFile(path) // #nosec G304 -- this test's own fixture tree
-		if err != nil {
-			return err
+		var digest [sha256.Size]byte
+		if entry.Type()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			digest = sha256.Sum256([]byte(target))
+		} else {
+			raw, err := os.ReadFile(path) // #nosec G304 -- this test's own fixture tree
+			if err != nil {
+				return err
+			}
+			digest = sha256.Sum256(raw)
 		}
-		out[path] = sha256.Sum256(raw)
+		out[path] = renameEntrySnapshot{kind: entry.Type(), digest: digest}
 		return nil
 	})
 	if err != nil {

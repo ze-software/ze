@@ -43,6 +43,19 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 		}
 	}
 
+	// A module fixture uses the same content-addressed Go build cache as the
+	// checkout. The toolchain still derives its environment from the fixture;
+	// only cache storage is shared, never a Check verdict or source tree.
+	if _, module := files["go.mod"]; module {
+		cache := filepath.Join(checkoutRoot(t), "cache")
+		if err := os.MkdirAll(cache, 0o750); err != nil {
+			t.Fatalf("prepare the shared fixture Go cache: %v", err)
+		}
+		if err := os.Symlink(cache, filepath.Join(root, "cache")); err != nil {
+			t.Fatalf("link the fixture Go cache: %v", err)
+		}
+	}
+
 	// Every enrolled RFC owes an extraction sign-off (02b164de51, owner directive
 	// 2026-09-21), so a tree whose only violation is the planted one carries a valid
 	// artifact. A caller that plants its own artifact keeps it.

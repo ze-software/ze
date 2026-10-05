@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -23,7 +24,7 @@ type selftestStage struct {
 }
 
 // selftestStages declares the complete RFC engine concern population.
-func selftestStages() []selftestStage {
+func selftestStages(tree string) []selftestStage {
 	return []selftestStage{
 		{name: "summary", run: func() ([]leroot.SelftestResult, error) {
 			return runSummarySelftest(summarySelftestFixture())
@@ -38,17 +39,29 @@ func selftestStages() []selftestStage {
 		{name: "baseline", run: runBaselineSelftest},
 		{name: "check", run: runCheckSelftest},
 		{name: "quote", run: runQuoteSelftest},
-		{name: "real-tree", run: runRealTreeSelftest},
+		{name: "real-tree", run: func() ([]leroot.SelftestResult, error) {
+			return runRealTreeSelftest(tree)
+		}},
 	}
 }
 
-// Selftest runs every RFC engine fixture stage in-process.
+// Selftest runs every RFC engine fixture stage and checks the current checkout.
 //
 // A fixture write or engine error is returned separately. A property that the
 // engine gets wrong is a failed report row.
 func Selftest() (leroot.SelftestReport, error) {
+	tree, err := lepath.Root()
+	if err != nil {
+		return leroot.SelftestReport{}, err
+	}
+	return selftest(tree)
+}
+
+// selftest keeps the checked tree explicit so unit fixtures exercise the full
+// suite without repeatedly checking the launching checkout.
+func selftest(tree string) (leroot.SelftestReport, error) {
 	var results []leroot.SelftestResult
-	for _, stage := range selftestStages() {
+	for _, stage := range selftestStages(tree) {
 		rows, err := stage.run()
 		if err != nil {
 			return leroot.SelftestReport{}, err

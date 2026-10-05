@@ -22,18 +22,22 @@ import (
 const quotedCompilerMessages = 5
 const vetTimeout = 15 * time.Minute
 
-// buildTags answers the `-tags` value the type-check compiles with.
-//
-// gotoolchain reads feature-gates.txt and refuses an empty gate set, so a
-// manifest this check cannot classify stops the run. A reduced tag set would
-// drop every gated file out of the type-check, which then reports clean over
-// code it never read.
-func buildTags(tree string) (string, error) {
+// checkCompileCommand derives both the tags and child environment from tree.
+// An unreadable manifest must stop the check, not silently exclude gated code.
+func checkCompileCommand(ctx context.Context, tree string, packages []string) (*exec.Cmd, error) {
 	toolchain, err := gotoolchain.New(tree)
 	if err != nil {
-		return "", baselineParseError("derive native Go test tags: " + err.Error())
+		return nil, baselineParseError("derive native Go test toolchain: " + err.Error())
 	}
-	return toolchain.TestTags(), nil
+	// -trimpath lets identical source at another checkout path reuse compiled
+	// dependencies. The shared toolchain environment selects that checkout's
+	// cache and pin rather than the launching process's ambient Go settings.
+	args := toolchain.GoVet(gotoolchain.TestOptions{}, "-trimpath", "-framepointer")
+	args = append(args, packages...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // toolchain argv and checkout-derived package paths
+	cmd.Dir = tree
+	cmd.Env = toolchain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true})
+	return cmd, nil
 }
 
 func modulePath(tree string) (string, error) {
@@ -139,20 +143,12 @@ func checkTagPackagesCompile(tree string, tags []Tag, carriers []Carrier) ([]str
 	if len(packages) == 0 {
 		return nil, nil
 	}
-	tagsArg, err := buildTags(tree)
+	ctx, cancel := context.WithTimeout(context.Background(), vetTimeout)
+	defer cancel()
+	cmd, err := checkCompileCommand(ctx, tree, packages)
 	if err != nil {
 		return nil, err
 	}
-	// -trimpath drops the package directory from the compile cache key, so a
-	// tree at another path with the same content (an export of HEAD, a second
-	// worktree) reuses the checkout's compiled dependencies. Without it every
-	// new path recompiled them all: 104s and ten CPU-minutes against 12s,
-	// measured on one export on 2026-09-24.
-	args := append([]string{"vet", "-trimpath", "-framepointer", "-tags", tagsArg}, packages...)
-	ctx, cancel := context.WithTimeout(context.Background(), vetTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", args...) //nolint:gosec // package paths are derived from files in the checkout
-	cmd.Dir = tree
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

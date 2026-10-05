@@ -42,9 +42,14 @@ func TestRFCActionsCarryDiscriminateVerb(t *testing.T) {
 		}
 	}
 
-	// The whole path, from the typed words to the corpus reader. The checkout is the
-	// tree, so this also proves the answer survives the real artifact directory,
-	// whether or not it holds anything yet.
+	// The whole path, from the typed words to the corpus reader, over an
+	// owned artifact tree. The real-record replay separately walks the corpus.
+	files, proof := discriminationFixture(t)
+	files[selftestWorkflowRel] = selftestWorkflow
+	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	t.Setenv("ZE_REPO_ROOT", discriminationTree(t, files))
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 	answer, code := Answer([]string{"discriminate", keyStem, selftestStem})
 	if code != 0 {
 		t.Fatalf("a well-formed selector answered %d, want 0", code)
@@ -55,6 +60,9 @@ func TestRFCActionsCarryDiscriminateVerb(t *testing.T) {
 	}
 	if status.Selector != selftestStem {
 		t.Errorf("the answer names selector %q, want the one that was typed", status.Selector)
+	}
+	if len(status.Records) != 1 || status.Records[0].RID != proof.RID {
+		t.Fatalf("the action did not read its fixture's proof: %+v", status.Records)
 	}
 }
 
@@ -112,6 +120,10 @@ func TestDiscriminationStatusSeparatesProvenFromUnproven(t *testing.T) {
 // The interface is spelled structurally rather than imported, for the reason leaction spells
 // its own copy that way: the action package must not depend on the dispatcher that runs it.
 func TestCheckAnswerRendersItsOwnPage(t *testing.T) {
+	// Rendering owns a fixture; the full real-checkout check has its own test.
+	t.Setenv("ZE_REPO_ROOT", checkFixtureTree(t, nil))
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 	answer, _ := Answer([]string{"check"})
 	page, renders := answer.(interface{ Text() string })
 	if !renders {

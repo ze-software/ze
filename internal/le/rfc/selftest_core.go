@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"strings"
 
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -433,11 +432,7 @@ func runCheckSelftest() ([]leroot.SelftestResult, error) {
 
 // runRealTreeSelftest preserves the legacy suite's final property: the public
 // check over the checkout must be clean before the selftest can succeed.
-func runRealTreeSelftest() ([]leroot.SelftestResult, error) {
-	root, err := lepath.Root()
-	if err != nil {
-		return nil, err
-	}
+func runRealTreeSelftest(root string) ([]leroot.SelftestResult, error) {
 	report, code := Check(root, nil)
 	return []leroot.SelftestResult{
 		selftestResult("real-tree/public-check", code == 0, realTreeCheckDetail(&report)),

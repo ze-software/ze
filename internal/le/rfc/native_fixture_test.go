@@ -1,494 +1,70 @@
-// VALIDATES: every production byte of this package is the byte its author
-// sealed, so a behavior change here is deliberate and reviewed.
-// PREVENTS: an edit to a table, an edge case or a closed set that no behavioral
-// test reaches, landing with nobody stating whether an audit verdict moved.
+// Design: docs/contributing/rfc-conformance-gates.md -- native observation isolation.
 
 package rfc
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"slices"
-	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/env"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-// TestNativeImplementationFixture replaces the retired cross-runtime oracle.
-// The digest pins every production byte that supplied its tables and edge-case
-// decisions, while the behavioral tests in this package pin their outcomes.
+// TestNativeImplementationFixture runs a real child with the observation
+// environment and poisoned launcher identities. Root must discover the child's
+// checkout, while the toolchain's cache and process limit must still reach it.
 func TestNativeImplementationFixture(t *testing.T) {
-	// The digest changes on EVERY non-test byte of this package, so each edit owes
-	// a re-seal. What the re-seal owes back is one line saying whether any VERDICT
-	// moved, which is the only thing this test cannot see for itself. The change
-	// itself is in its commit message, and repeating it here made this comment a
-	// changelog nobody reads.
-	//
-	// Re-sealed 2026-09-27 for 76fcaae9c0. Row-quote verdicts moved, deliberately:
-	// a quote is now matched with wrapped hyphens joined, under column-0 headings,
-	// and against the verified erratum its row cites. That commit re-walked the
-	// extraction artifacts whose sections moved. No discrimination verdict moved.
-	//
-	// Re-sealed 2026-09-27 for a07a7307c1. The audit and extraction ratchets now
-	// compare against HEAD^, so they judge the commit under test in the detached
-	// verify worktree. No verdict over an unchanged record moved.
-	//
-	// Re-sealed 2026-08-31, for spec-rfc-tag-claim-discrimination. Three verdicts
-	// moved, all on the ESCAPE, and all deliberately: it is tied to the claim it
-	// discharges rather than to any file an author names, its producer must be
-	// code the tagged unit reaches, and a producer key naming a function its file
-	// does not declare is refused. A record staled by an edit nobody has committed
-	// is reported rather than refused (owner decision, 2026-08-31).
-	//
-	// Over this tree no verdict moved: no record in it carries an escape, and the
-	// violations `./le rfc check` reports are other sessions' corpus and tag work.
-	//
-	// Re-sealed 2026-08-31 for the feature-out-of-scope exclusion kind. No verdict
-	// moved: the change adds one entry to the closed exclusion vocabulary that
-	// parseExtractionArtifact accepts, and rfc/audit/ records no exclusion kind.
-	//
-	// Re-sealed 2026-09-01, for plan/spec-publish-the-rfc-requirement-ledger.md.
-	// No verdict moved. The change is an EXPORT pass: the polarities, the
-	// annotation kinds, the audit verdicts, the discrimination routes, the proof
-	// states, the site dispositions, the cover key, the discrimination verdict,
-	// the per-RFC coverage row and the markdown cell escape are renamed to their
-	// exported spellings so internal/le/site can publish them, `Audit.Record`
-	// answers one verdict typed, the audit vocabulary carries the sentence each
-	// word means, `RequirementRows` becomes the ONE producer of a shard's six
-	// cells with `RenderShards` formatting what it answers, `parseEnrolled` keeps
-	// the enrolment reason, and a summary's Meta `| Title |` row becomes a parsed
-	// fact. Verified by regenerating: `ai/RFC-REQUIREMENTS.md` and 189 shards
-	// re-rendered byte-identical apart from `rfc/requirements/rfc4724.md`, which
-	// was stale against a tag committed before this work.
-	//
-	// The digest covers every non-test byte of this package, so it also carries
-	// the uncommitted edits other sessions hold in this shared checkout.
-	//
-	// Re-sealed 2026-09-01, for the two baselines the discrimination obligation
-	// reads (owner decision). Two verdicts moved. A tag owes its proof where the
-	// TIP COMMIT added it against HEAD^, so a tag only in somebody's working tree
-	// is nobody's violation and the author meets it inside the detached verify
-	// worktree. A stale record's drift is judged at the granularity the record
-	// fingerprints, so an unrelated uncommitted edit elsewhere in the producer's
-	// file no longer downgrades a committed drift to a report.
-	//
-	// Re-sealed 2026-09-01, for the escape's reach test. One verdict moved: a
-	// carrier that runs the daemon is no longer exempt from reach. The exemption
-	// read that a .ci or an interop scenario reaches every compiled file, which is
-	// true and is why it had to go: a predicate every file satisfies ties the
-	// escape to no claim, so the route shut for unit tags stayed open for the 94
-	// .ci and 37 interop ones. Those two reasons are now unreachable on that
-	// carrier by construction.
-	// Re-sealed 2026-09-01, for the second publication pass over
-	// plan/spec-publish-the-rfc-requirement-ledger.md. No verdict moved. Three
-	// edits, all uncommitted work of that spec: `ExtractionSection.Title`
-	// derives a section's own name from the opening sentence of its reason so a
-	// published row can print "3 - Constructing the Next Hop field" rather than
-	// "3"; `Verified` and `Proves` move to sit under the types they receive;
-	// and one comment takes the US spelling. None reads a record, changes a
-	// verdict, or moves a requirement into or out of a bucket.
-	// Re-sealed again on 2026-09-01. The value moved twice for two reasons and
-	// only the first is this session's. This session's edits are the three
-	// above and no verdict moved for them. The rest of the move is three
-	// commits other sessions landed on this package between the two seals --
-	// 803f1b696, 3a7bca913 and 99483ef93 -- and NONE of them re-sealed, so the
-	// digest was already red at HEAD before this working tree touched it. This
-	// note does not vouch for those three: each carries its own verdict review
-	// in its own commit message, and a shared checkout gives no way to seal one
-	// change without absorbing another (the paragraph above says so).
-	// Re-sealed 2026-09-01 for the exclusion-kind meanings. No verdict moved.
-	// `exclusionKinds` changes from a set to a map of kind to the sentence the
-	// kind says, which is the shape `auditVerdicts` already has and for the
-	// same reason: internal/le/site aggregates these counts across the corpus
-	// and a reader who meets `binds-another-role` cannot act on the word alone.
-	// `ExclusionKindMeaning` and `ExclusionPresumedWrong` are readers of that
-	// table. The membership of the closed set is byte-identical, and the one
-	// call site that tested it now tests the map for presence.
-	// Re-sealed 2026-09-01 for the exclusion GROUP and the structured finding.
-	// No verdict moved for either. `exclusionKinds` gains a group beside each
-	// meaning, so a published page can tell an obligation that never bound Ze
-	// from one Ze owes; the membership of the closed set is byte-identical.
-	// `Finding` carries the parts a check held before it formatted its line,
-	// `CheckReport.Findings` becomes the one accumulator and `Violations` is
-	// rendered from it, and `Text` takes a pointer receiver because the struct
-	// passed the linter's size floor. Every message the gate prints is
-	// byte-identical: the checks author them exactly as before and the finding
-	// carries them.
-	//
-	// Re-sealed 2026-09-01 for the fixture half of the meta migration: every
-	// fixture summary in this package's tests now carries the `## Meta` table
-	// its enrolment and its public row are declared in. No verdict moved for
-	// that work and none could, because it added no production byte -- the
-	// digest covers no test file.
-	//
-	// Re-sealed 2026-09-01 for the migration itself, which the paragraph above
-	// had only absorbed. Enrolment and the public support claim are declared in
-	// each summary's `## Meta` table and the three ledger files are generated
-	// from it; `parseEnrolled`, `parseDispositions`, `parseStatusLedger` and
-	// their loaders are gone, `checkStatusCompleteness` with them, and three
-	// refusals of `checkSummaryDisposition` are unrepresentable rather than
-	// retired. Two dispositions are new -- `source-restricted` for a standard
-	// whose text may not be redistributed, and `out-of-scope` for one whose
-	// extraction is done and whose feature the owner declined -- and each
-	// carries its own guard. No AUDIT verdict moved: the audit schema, its
-	// freshness and its ratchet are untouched by this work, and the gate's
-	// findings differ only where a message names the summary rather than a
-	// retired file.
-	//
-	// That value already covers the carrier reading order, sealed by the same
-	// hash: `editor` and `unknown` become named constants beside the three
-	// kinds that already were, and `carrierKindOrder`, `carrierTierOrder`,
-	// `CarrierKinds`, `CarrierTiers`, `CarrierRank` and `CarrierLabelRank`
-	// declare the order evidence reads in beside the vocabulary it orders. No
-	// verdict moved: the carrier table is byte-identical in Name, Kind, Tier,
-	// Prefix and Suffix, the two literals replaced spelled the same words, and
-	// the rank has no reader inside this package.
-	// Re-sealed 2026-09-01 for the published disposition vocabulary and for
-	// three exported functions with no production caller. `dispositionKinds`
-	// states what each un-enrolled kind MEANS, beside `exclusionKinds` and for
-	// the same reason: a page printing `source-restricted` and stopping has
-	// told a reader nothing, and the sixth kind, `out-of-scope`, landed the
-	// same day. `DispositionKinds` and `DispositionKindMeaning` publish it.
-	// `CarrierKinds`, `CarrierTiers` and `ExclusionGroups` are gone: each was
-	// called by tests alone, which `./le doc wiring` refuses, and each test now
-	// reads the vocabulary it was wrapping. No verdict moved and no behavior
-	// with it -- the kinds, their order and their groups are unchanged, and
-	// nothing in this package read the three deleted wrappers.
-	//
-	// The digest is over the TREE, so it was computed with another session's
-	// `checkPublicRowMonotonic` present in check.go and check_status.go. Two
-	// commits changing one package cannot each carry a standalone value:
-	// whichever lands second re-seals, and this note says which two changes the
-	// value here already covers.
-	// Re-sealed 2026-09-01 for the findings of an independent review of the
-	// ledger migration, and one of them was a real hole rather than a polish.
-	// `checkPublicRowMonotonic` restores the guard `checkStatusCompleteness`
-	// carried: a public row that DISAPPEARS while its RFC stays enrolled is a
-	// representable state, not an unrepresentable one, and the commit message
-	// that retired the check claimed `checkRetiredRequirements` covered it when
-	// that ratchet reads requirement ids and never a `Support` cell. With it,
-	// `out-of-scope` must declare the extraction its premise rests on,
-	// `source-restricted` may not be written over a source text that is in the
-	// tree, an unescaped pipe in a Meta value is refused rather than truncating
-	// it, the generated remainder counts every kind the parser accepts rather
-	// than a hand-written five, and `summaryMetas` COLLECTS its parse errors so
-	// one summary mid-edit no longer stops the gate for every session sharing
-	// this checkout. No audit verdict moved: the audit schema, its freshness and
-	// its ratchets are untouched, and what changed is which trees the gate
-	// refuses.
-	// Re-sealed 2026-09-02, and the value moved for a reason the reader itself
-	// changed rather than for anything this package now does differently: the
-	// digest is taken over HEAD's committed blobs, so it no longer describes
-	// whatever any session happened to have uncommitted. A third review round
-	// caught the first version of this note attributing the new value to the
-	// round-2 fixes, which by construction are not in it.
-	//
-	// What the round-2 round found, recorded here because the next re-seal is
-	// where a reader looks for it: two of the FIRST round's fixes were wrong
-	// rather than incomplete.
-	// `checkPublicRowMonotonic` was keyed on enrolment and the checks it
-	// protects iterate the ROWS, so a support-promising row on a non-enrolled
-	// summary could still be retired in silence -- `rfc/short/rfc9384.md` is the
-	// live instance, `non-normative` with a row reading "Supported within BFD".
-	// It is keyed on the row now. And `NewRenderInput`'s refusal on an
-	// unparsable Meta table sat inside a branch no production caller takes,
-	// because `Collect` always returns a non-nil map; `Collected` carries its
-	// `MetaProblems` and the refusal runs on every path. The generated
-	// remainder's kind meanings are derived from the closed set beside its
-	// counts, since a header describing kinds by ordinal is a claim about a
-	// sorted order. No audit verdict moved: what changed is which trees the gate
-	// refuses and what one generated file says about itself.
-	//
-	// Re-sealed 2026-09-02, for four commits: the second refusal arm on
-	// checkUnprovenSupport and the Proof cell it publishes beside every public
-	// row, ProvenShareOf as the one producer of the published proof share, the
-	// textbuf conversion of check_audit.go, and one dead Reset in meta.go.
-	//
-	// No verdict moved, and `./le rfc reseal` says so independently: nothing is
-	// in the shifted state. What the gate reports is other sessions' work and
-	// predates these commits -- two RFC 7606 audit verdicts stale against a
-	// func-scoped change in check_rfc.go, which reseal REFUSES because a human
-	// must re-read them; three discrimination records whose tagged units moved;
-	// an rfc8671 extraction sign-off that bounds nothing; and MUST-level rows in
-	// rfc5798 and rfc8671 carrying neither a test nor an annotation.
-	//
-	// The new arm is what makes the last of those visible rather than green: a
-	// row promising Supported over a checklist with zero both-polarity proofs is
-	// refused now, where the old arm only refused a row over an EMPTY checklist.
-	// Seven summaries said Supported over zero proofs and now say Partial.
-	//
-	// Re-sealed 2026-09-03, for two commits, and both WIDEN the closed
-	// annotation vocabulary rather than change what any check decides:
-	// {lower-layer}, for an obligation a layer under Ze performs, and
-	// {feature-declined}, for one whose condition is false because Ze declined
-	// the OPTIONAL feature it hangs on. Each arrives with its own refusal,
-	// checkLowerLayerProducer and checkFeatureDeclined, and the corpus test
-	// beside this one now reads its population from AnnotationKinds(), so both
-	// were held to the share rule on the day they were written.
-	//
-	// One published verdict moved, and the commit that moved it says so: rfc4552
-	// reads Partial, because two RFC 4552 obligations Ze does not meet are
-	// disclosed now rather than absent.
-	//
-	// `./le rfc reseal` re-stamped five RFC 7606 verdicts on this run and
-	// refused two. None of the five is this package's doing: each is mechanical,
-	// the unit fingerprints are byte-identical, and what moved is the file hash
-	// of session_validate_test.go under another session's edit. The two
-	// refusals are the same pair the 2026-09-02 note names, still waiting on the
-	// human RFC re-read that reseal will not do for them.
-	// Resealed 2026-09-12 for the RFC ledger family leaving git. What moved in
-	// this package: checkLedgerFresh and the per-shard byte comparison deleted
-	// with the committed copies they compared, PrunableShards unexported,
-	// writePage and writeExact routed through derived.WriteAtomic, the five
-	// derived.Register calls and feedsRFCLedger added, StatusPage exported for
-	// the site to render the status page live, and two hand-maintained pins
-	// moved for other sessions' summary edits. The digest is over HEAD's own
-	// blobs, so it is resealed in the commit AFTER the one that changes them.
-	//
-	// This seal also ABSORBS six commits that changed production bytes here
-	// since c95fe8301f set the previous one and did not reseal: 456bf8fc13,
-	// 33a7876b29, 6fb9cd8814, 5837fd3247, 5d497dcc9f and 2bea012491. This note
-	// does not vouch for those six. It records that they are inside the value,
-	// so a reader who bisects a behavior change through this constant knows the
-	// seal moved for more than the work its subject names.
-	// Resealed 2026-09-13 for two commits. Neither changes what an rfc action
-	// decides.
-	//
-	// 73861cc6c5 published this area's grammar. Every value-carrying parameter
-	// states leaction.Required or leaction.Optional. register.go calls
-	// leroot.RegisterActions. The five answer bodies read their keywords
-	// through args.Has and args.One rather than indexing the Arguments map.
-	// 5f9bcd0219 put a page reference in the provenshare.go Design header.
-	//
-	// The digest was recomputed over HEAD's own blobs before this value was
-	// written.
-	//
-	// Re-sealed 2026-09-17 over 381b43c652 for four commits: b300575504 (the
-	// functional binary set), 006ed9afe4 (a {rollup} row derives its ledger
-	// state from the rows it names, which is the one verdict that moved),
-	// b57ec4ab6b (ze:help wording) and 7c2119b63d (the approval lives in the
-	// commit trailer, no verdict). The value is the one this test computed
-	// over HEAD's blobs in a clean worktree.
-	// Re-sealed 2026-09-19 over 678b2f144d for ONE production commit, 52debc3400,
-	// which reworded the `Why` string on the approve action and changes no
-	// verdict: the action's parameters, its refusals and what it writes are
-	// untouched, and the words moved because the old ones read as a prohibition
-	// on RUNNING the command rather than on manufacturing a ruling the owner had
-	// not given. Two other commits reached this package in the same span and are
-	// NOT in the value, because the digest skips `_test.go`: fbb0ba2905 (lint
-	// findings in approve_test.go) and e78411042c (check_test.go and this file).
-	// The value was recomputed over HEAD's own blobs and matched what this test
-	// reported, independently, before it was written here.
-	// Re-sealed 2026-09-21, for the closure of spec-rfc-implementation-classification.
-	// No audit verdict moved. Three edits: Meta.Disposition answers the
-	// implementation kind for a summary that declares `enrolled` and is still
-	// not gated, dispositionKinds publishes the sentence those two kinds mean,
-	// and the division between a kind that counts and one that does not becomes
-	// implementationCounts, which Meta.CountsAgainstZe wrapped for no caller
-	// outside this package. Ten summaries were reaching the declined index
-	// carrying the literal word `enrolled` as the reason they are not enrolled,
-	// which the vocabulary does not know. The value was computed over the blobs
-	// this commit seals, which the package's own status showed were this
-	// session's files and nothing else.
-	// Re-sealed 2026-09-21 for fixture.go, which adds no behavior and moves the
-	// digest because the digest covers the package's FILES. Three packages
-	// drove the RFC gate over a synthetic tree and each spelled the same
-	// summary itself; when `Implementation` became a required Meta row all
-	// three went red on one sentence, so FixtureFiles is now the one
-	// declaration and they read it. No verdict, check or vocabulary moved, and
-	// the summary it holds is byte-identical to the copies it replaces.
-	//
-	// This seal was taken while another session had render.go and two
-	// extraction files open. Those are not in HEAD, so they are not in this
-	// value, and whichever of us commits into this package next re-seals over
-	// the other's bytes -- which is the note two paragraphs up saying the same
-	// thing about a different pair.
-	// Re-sealed 2026-09-21 for 84263332c9, which spells "analyzed" in
-	// render.go where misspell (locale US) read the UK spelling. Three comment and
-	// string bytes moved and no verdict, check or vocabulary did. The value
-	// was already red at HEAD before that commit, for commits other sessions
-	// landed on this package without re-sealing; this seal absorbs those
-	// bytes and does not vouch for them, as the paragraphs above say.
-	//
-	// Re-sealed 2026-09-24 for 1584e5bd93 (a "management" support area) and
-	// 1ea11bee3a (cmd/ as a tag root, requirement ids keep their allocation,
-	// and a checklist id is no longer refused for disagreeing with its
-	// section). 58f6154746 added a verification-archive exclusion and
-	// b9779d6fbb removed it again. Each is an intended change its commit states.
-	//
-	// Re-sealed 2026-09-24 for 68b2070c69, which makes a discrimination
-	// record's red come from the tagged unit itself (discriminate_observe.go),
-	// and 976436f9a6, which runs the checker's go vet with -trimpath
-	// (check_compile.go). Each is an intended change its commit states.
-	//
-	// Re-sealed 2026-09-24 for 114d7e99b5, which publishes index-update's
-	// pages as one unsynced batch through derived.WriteAtomicAll (write.go).
-	// It is an intended change its commit states.
-	//
-	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree: the
-	// package's imports and command words moved to the subject-first tree
-	// (2bdd55e01c and the commits before it). No decision moved.
-	//
-	// Re-sealed 2026-09-25 for e43f0aa939, which reads a scheduled interop
-	// action through workflowCommand (carriers.go): a binary that links only
-	// part of le now reads `test integration interop` by its declared tree.
-	// It is an intended change its commit states.
-	//
-	// Re-sealed 2026-09-26 for 3387d4bab0, which splits compound || guards in
-	// check_quote.go and quote_backfill.go into one guard per fact, in the
-	// original order. No verdict moved.
-	//
-	// Re-sealed 2026-09-26 for 9a8e154780. Three verdicts moved, all
-	// deliberately. rfc905 is cut at its indented headings, so its citations
-	// now resolve. The six heading-less texts are one citable section. A
-	// deleted id is accepted when a Retired paragraph names it, and a retired id
-	// is refused wherever a row carries it. No corpus verdict moved except rfc905's.
-	//
-	// Re-sealed 2026-09-26 for b6ad657bf2, which adds `./le rfc audit-stamp`
-	// (audit_stamp.go), splits writeAudit so the stamp writes through
-	// replaceAudit without a reaudit_note, and names the audit field literals as
-	// constants. It adds a writer of new verdicts and changes no existing
-	// verdict. No corpus verdict moved.
-	//
-	// Re-sealed 2026-09-27 for 4ac5be6ecb, which runs a unit the host cannot
-	// compile in the QEMU guest when recording. It changes where an observation
-	// runs, never how a record is judged. No verdict moved.
-	//
-	// Re-sealed 2026-09-27 for 10edacdc5c and eb63fc5813. Row-quote verdicts
-	// moved, deliberately: a two-line running header is stripped, "B.1 Title"
-	// opens a section, and every row is judged rather than only the changed
-	// ones, so an unquoted row is refused. The unquoted ratchet is gone. The
-	// corpus was quoted and its moved extraction artifacts re-walked first. No
-	// discrimination verdict moved.
-	//
-	// Re-sealed 2026-09-28 for 2d078935e3, which adds `mode rejudge` to
-	// `./le rfc audit-stamp` and extracts the unchanged-units upgrade predicate
-	// that checkAuditFindings and the stamp share. The gate's refusal is the
-	// same test in a function of its own. No verdict moved.
-	//
-	// Re-sealed 2026-10-02 over three commits, each of which named this seal as
-	// owed. 0bde29b2db: importName reads a major-version suffix ("math/rand/v2")
-	// as the element before it, so the discrimination prune keeps that import.
-	// c0bf1de71f: the keyword register no longer bills unsourced ids, and a
-	// prose sign-off is judged against the prose sites it walked. 03036dc006:
-	// the coverage ratchet accepts a lost polarity only for an owner-ruled tag
-	// move (OWNER RULING 6(b)), and Check takes the session's approval rows.
-	// No other non-test byte of the package moved since b12b55da47.
-	//
-	// Re-sealed 2026-10-02 in the commit that makes the change, computed over
-	// the bytes it commits: the coverage ratchet also accepts a row losing both
-	// polarities when it now carries a {gap} citing the owner ruling every lost
-	// unit's approval cites (OWNER RULING 8(g)). No verdict over an unchanged
-	// record moved: only a row that carries such a {gap} is judged differently.
-	//
-	// Re-sealed 2026-10-03 for e87b8bb205 and for the review fixes that follow
-	// it, computed over the bytes this fix commit commits. It also absorbs
-	// 4576f2ee8d, another session's commit, which named no re-seal; this value
-	// covers its bytes and does not vouch for them. One verdict moved, as
-	// intended: the HEAD^ and origin/main baselines follow a byte-pure rename,
-	// so the covers of a renamed file are owed only when its bytes changed. The
-	// rest is `./le rfc rename`, which judges no record. No record verdict moved.
-	//
-	// Re-sealed 2026-10-03 for review round 2 of 150892523b, over the bytes that
-	// fix commit commits. No verdict moved: the change is `./le rfc rename`
-	// alone, which now refuses an evidence file holding anything but one JSON
-	// value, plus a comment on its race-only arm. It judges no record.
-	//
-	// Re-sealed 2026-10-03 for the three Phase 2 defects in `./le rfc rename`,
-	// over the bytes that fix commit commits. No verdict moved: a proposed name
-	// drops the inner stem spelling, and the citation rewrite skips the files
-	// the link sweep exempts. Neither judges a record.
-	//
-	// Re-sealed 2026-10-03 for the review fixes to fd31c539ce, over the bytes
-	// that fix commit commits. No verdict moved: a proposed name keeps the bare
-	// stem target when it is taken, so propose reports the collision, and a
-	// draft's rfc_<word> abbreviation counts as a spelling of its stem. Neither
-	// judges a record.
-	//
-	// Re-sealed 2026-10-03 for the commit that arms the test file naming rule,
-	// over the bytes that commit commits. One check was added: `./le rfc check`
-	// now runs checkTestFileNames over the whole tree, and a finding whose repair
-	// the rename would refuse asks for a hand-chosen topic instead. Only naming
-	// findings moved; no record, audit or ledger verdict moved.
-	//
-	// Re-sealed 2026-10-03 for the review fixes to b3ff2855fb, over the bytes
-	// that fix commit commits. The rename a naming finding offers an untagged
-	// stem-named file now passes the same refusals as a repair, so a taken,
-	// shared or platform-changing name asks for a hand-chosen topic. Only the
-	// wording of naming findings moved; no record, audit or ledger verdict moved.
-	//
-	// Re-sealed 2026-10-03 for review round 7 of the naming rule, over the bytes
-	// that fix commit commits. A naming finding and `./le rfc rename` now judge
-	// a target through one predicate, judgeRenameTarget, so an offered name the
-	// naming rule refuses for the source's tags asks for a hand-chosen topic.
-	// Only the wording of naming findings moved; no record, audit or ledger
-	// verdict moved.
-	//
-	// Re-sealed 2026-10-03 for review round 8 of the naming rule, over the bytes
-	// that fix commit commits. `./le rfc rename propose` now judges each target
-	// through judgeRenameTarget, by way of repairBlocked, so a plan never holds
-	// a pair whose moved build suffix or naming refusal refuses the batch. Only
-	// the propose report moved; no record, audit or ledger verdict moved.
-	//
-	// Re-sealed 2026-10-03 for review round 9 of the naming rule, over the bytes
-	// that fix commit commits. `./le rfc rename`, its propose and a naming
-	// finding now judge a pair through one predicate, pairRefusals, so propose
-	// leaves out a source the rename refuses, such as one edited in the working
-	// tree, and its report names the field left-out. Only the propose report
-	// moved; no record, audit or ledger verdict moved.
-	//
-	// Re-sealed 2026-10-04 for review round 10 of the naming rule, over the bytes
-	// that fix commit commits. Only doc comments in names.go and rename.go moved:
-	// they now say which refusals pairRefusals sees, and that a refusal judged on
-	// an evidence record is seen only by the batch's rewrite. No behavior moved.
-	const want = "d5e1ac74ead54551f9ebfda198b0be95a9ae628963989985b2456ee4a1bc9cfd"
-	// HEAD's committed bytes, never the working tree. A seal taken over the
-	// working tree states a fact about one transient moment: it passed for the
-	// session that minted it and was RED on a clean clone, because the value it
-	// recorded had absorbed whatever every other session happened to have
-	// uncommitted at that instant. This test was in that state at 8267f3e52,
-	// found by an independent review on 2026-09-02, and it is the same
-	// shared-checkout hazard the discrimination records fingerprint against
-	// HEAD to avoid (docs/contributing/rfc-conformance-gates.md, owner
-	// decision 2026-08-31).
-	//
-	// The cost is that the seal trails its own change by one commit: the author
-	// commits, this goes red on the next run, and the re-seal rides in the
-	// following commit. That is the right way round. A tripwire that fires for
-	// the author after they commit is doing its job; one that is red for
-	// everybody who did not make the change is not.
-	root, err := lepath.Root()
+	const marker = "RFC_OBSERVATION_CHILD_ROOT"
+	identities := []string{
+		"ZE_REPO_ROOT", "ze.repo.root", "Ze.RePo_Root",
+		"ZE_LE_BUILD_NAME", "ze.le.build.name", "Ze.Le_Build.Name",
+	}
+	if root := os.Getenv(marker); root != "" {
+		env.ResetCache()
+		got, err := lepath.Root()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != root {
+			t.Fatalf("child checkout = %q, want %q", got, root)
+		}
+		for _, key := range identities {
+			if value, held := os.LookupEnv(key); held {
+				t.Errorf("child inherited launcher identity %s=%q", key, value)
+			}
+		}
+		if got := os.Getenv("GOCACHE"); got != gotoolchain.GoCache(root) {
+			t.Errorf("child cache = %q, want %q", got, gotoolchain.GoCache(root))
+		}
+		if got := os.Getenv("GOMAXPROCS"); got != "2" {
+			t.Errorf("child process limit = %q, want 2", got)
+		}
+		return
+	}
+
+	root := checkoutRoot(t)
+	for _, key := range identities {
+		t.Setenv(key, filepath.Join(t.TempDir(), "launcher"))
+	}
+	t.Cleanup(env.ResetCache)
+	t.Setenv("GOCACHE", filepath.Join(t.TempDir(), "wrong-cache"))
+	t.Setenv("GOMAXPROCS", "7")
+	binary, err := os.Executable()
 	if err != nil {
-		t.Skipf("resolve checkout: %v", err)
+		t.Fatal(err)
 	}
-	paths, ok := gitTreePaths(root, headRevision, "internal/le/rfc", ".go")
-	if !ok {
-		t.Skip("git cannot list HEAD, so there is no committed state to seal")
+	runner := observationRunner{
+		toolchain: gotoolchain.Toolchain{Root: root, Procs: 2},
+		carrier:   Carrier{Kind: kindUnit},
 	}
-	blobs, known := gitCatBlobs(root, headRevision, paths)
-	if !known {
-		t.Skip("git cannot read HEAD's blobs, so there is no committed state to seal")
-	}
-	slices.Sort(paths)
-	digest := sha256.New()
-	for _, path := range paths {
-		if strings.HasSuffix(path, "_test.go") {
-			continue
-		}
-		content, held := blobs[path]
-		if !held {
-			t.Fatalf("HEAD lists %s and holds no blob for it", path)
-		}
-		digest.Write([]byte(filepath.Base(path)))
-		digest.Write([]byte{0})
-		digest.Write([]byte(content))
-		digest.Write([]byte{0})
-	}
-	if got := hex.EncodeToString(digest.Sum(nil)); got != want {
-		t.Fatalf("native RFC fixture digest = %s, want %s; review the behavior change and update the owned fixture", got, want)
+	cmd := exec.CommandContext(t.Context(), binary, "-test.run=^TestNativeImplementationFixture$")
+	cmd.Dir = root
+	cmd.Env = append(runner.environment(""), marker+"="+root)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("native observation child: %v\n%s", err, output)
 	}
 }
 

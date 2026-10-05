@@ -9,6 +9,48 @@ Every check named here is a function in `internal/le/rfc/`. The package was
 ported from a Python tool, so older prose and older commit messages spell these
 names in snake_case. The Go names below are the current ones.
 
+The gate's own tests assert decisions over fixture trees: accepted and refused
+coverage changes, published partial scope, and audit and discrimination records
+that stay valid through a rename. `selftest_test.go` also checks that a failed
+fixture produces a named failure and a nonzero result. A hash of the package's
+Go source is not a behavioral test: a comment or equivalent rewrite changes it
+without changing a verdict. It is not a substitute for those assertions.
+
+`./le rfc selftest` runs its engine fixtures and makes a fresh public `Check`
+call over the current checkout. Its unit tests pass owned fixture roots through
+the same stage runner and assert a clean tree, a planted coverage violation and
+an unreadable tag. Comparing repeated checks of the developer's whole checkout
+would make those plumbing tests depend on its changing conformance state and
+repeat the tagged-package compilation.
+
+The action grammar and page-rendering tests use owned fixture roots too. The
+real-checkout check, every in-scope tag and every recorded discrimination proof
+remain corpus-wide assertions. Function boundaries are found in one line walk;
+each operation's scope index builds its recorded-key name lookup once per
+distinct source text. It retains every match, so an ambiguous name still refuses
+a fingerprint.
+These indexes hold source structure, not check verdicts, and do not survive the
+operation.
+
+The public check still type-checks every package carrying a Go requirement tag.
+Its `go vet` child uses the checked tree's feature tags, Go version pin and cache
+with the shared toolchain's process cap and isolated test environment. Module
+fixtures link their cache storage to the checkout's content-addressed Go cache,
+so each temporary root does not rebuild the same dependencies. Check verdicts
+are never cached: a fixture changes gated source from compilable to a type error
+and back, and asserts each result with the inherited Go settings poisoned.
+Refused-rename checks fingerprint regular-file contents and symlink targets,
+including their entry kinds; they do not traverse the shared cache.
+
+Native unit observations remove the launching tool's checkout-root and
+build-name environment aliases before starting the child. The child discovers
+its own checkout from its working directory; the toolchain still supplies its
+cache and process limit. The child-process regression in
+`internal/le/rfc/native_fixture_test.go` exercises that boundary. Neither these
+engine fixtures nor a green `rfc check` mean a protocol proof was executed:
+the gate reads stored evidence, while `rfc discriminate-record` runs the
+claimed test with and without its break.
+
 ## The artifacts
 
 | Path | Holds |

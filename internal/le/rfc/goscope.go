@@ -12,6 +12,7 @@ package rfc
 import (
 	"path/filepath"
 	"regexp"
+	"regexp/syntax"
 	"sort"
 	"strings"
 )
@@ -27,15 +28,10 @@ const (
 	ScopeFile ScopeKind = "file"
 )
 
-// The three shapes the span finder reads. Go is the only carrier with a
-// machine-readable unit boundary cheap enough to trust, so every other shape is
-// file-scoped BY DECLARATION: file scope is strictly MORE sensitive than
-// function scope, so declaring it can only over-trigger a re-read.
-var (
-	goFuncStartRE = regexp.MustCompile(`(?m)^func\b`)
-	goFuncEndRE   = regexp.MustCompile(`(?m)^\}`)
-	goFuncDeclRE  = regexp.MustCompile(`(?m)^func\s+(?:\([^)]*\)\s*)?([A-Za-z_][A-Za-z0-9_]*)`)
-)
+// Go is the only carrier with a machine-readable unit boundary cheap enough to
+// trust, so every other shape is file-scoped BY DECLARATION: file scope is
+// strictly MORE sensitive and can only over-trigger a re-read.
+var goFuncDeclRE = regexp.MustCompile(`(?m)^func\s+(?:\([^)]*\)\s*)?([A-Za-z_][A-Za-z0-9_]*)`)
 
 // goScoped reports whether this path's unit is a Go function span.
 func goScoped(path string) bool { return strings.HasSuffix(path, ".go") }
@@ -121,23 +117,39 @@ func docCommentStart(content string, at int) int {
 // Column 0 for the closing brace is gofmt's guarantee for a top-level func. A
 // one-line func has none, so the cap keeps its span at the safe boundary.
 func goFuncSpans(content string) []span {
-	starts := goFuncStartRE.FindAllStringIndex(content, -1)
-	ends := goFuncEndRE.FindAllStringIndex(content, -1)
+	// The old ^func\b and ^} patterns only inspect line starts. Walking those
+	// starts together avoids two regexp scans of every function body.
+	var starts, ends []int
+	offset := 0
+	for line := range strings.SplitAfterSeq(content, "\n") {
+		if strings.HasPrefix(line, "func") {
+			// Go regexp's \b uses ASCII word characters, even before UTF-8.
+			if len(line) == 4 || !syntax.IsWordChar(rune(line[4])) {
+				starts = append(starts, offset)
+			}
+		}
+		if strings.HasPrefix(line, "}") {
+			ends = append(ends, offset)
+		}
+		offset += len(line)
+	}
 	out := make([]span, 0, len(starts))
-	for i, match := range starts {
-		at := match[0]
+	closing := 0
+	for i, at := range starts {
 		limit := len(content)
 		if i+1 < len(starts) {
-			limit = docCommentStart(content, starts[i+1][0])
+			limit = docCommentStart(content, starts[i+1])
 		}
 		end := limit
-		for _, closing := range ends {
-			if closing[0] > at {
-				// +2 to run past the brace and its newline.
-				if closing[0]+2 < limit {
-					end = closing[0] + 2
-				}
-				break
+		// Both boundary lists are ordered; no later function can use an
+		// earlier closing brace, so each closing offset is visited once.
+		for closing < len(ends) && ends[closing] <= at {
+			closing++
+		}
+		if closing < len(ends) {
+			// +2 to run past the brace and its newline.
+			if ends[closing]+2 < limit {
+				end = ends[closing] + 2
 			}
 		}
 		if end < at+1 {
@@ -161,15 +173,22 @@ func funcNameIn(text string) string {
 	return match[1]
 }
 
-// scopeIndex memoises the span walk for one command run.
+// scopeIndex memoizes source structure for one command run.
 //
-// The same content is queried once per tag, and the checkout carries 3602 of
-// them. The Python holds a 128-entry LRU for the same reason; this is keyed by
-// the exact content string, so an edited file can never inherit stale spans,
-// and it is discarded when the run ends.
-type scopeIndex struct{ spans map[string][]span }
+// Tags and recorded keys repeatedly query the same content. Exact content keys
+// prevent edited files inheriting stale spans or names, and both indexes are
+// discarded when the run ends. Callers MUST NOT modify the returned slices.
+type scopeIndex struct {
+	spans map[string][]span
+	names map[string]map[string][]string
+}
 
-func newScopeIndex() *scopeIndex { return &scopeIndex{spans: map[string][]span{}} }
+func newScopeIndex() *scopeIndex {
+	return &scopeIndex{
+		spans: map[string][]span{},
+		names: map[string]map[string][]string{},
+	}
+}
 
 func (s *scopeIndex) of(content string) []span {
 	found, held := s.spans[content]
@@ -212,14 +231,17 @@ func (s *scopeIndex) funcNameAt(path, content string, line int) string {
 // name in one file) are both refusals: picking either of two same-named
 // functions would fingerprint text nobody chose.
 func (s *scopeIndex) funcTexts(content, name string) []string {
-	var found []string
-	for _, one := range s.of(content) {
-		text := content[one.begin:one.end]
-		if funcNameIn(text) == name {
-			found = append(found, text)
+	names, held := s.names[content]
+	if !held {
+		names = make(map[string][]string)
+		for _, one := range s.of(content) {
+			text := content[one.begin:one.end]
+			name := funcNameIn(text)
+			names[name] = append(names[name], text)
 		}
+		s.names[content] = names
 	}
-	return found
+	return names[name]
 }
 
 // FunctionUnit is one top-level Go function, including its contiguous doc

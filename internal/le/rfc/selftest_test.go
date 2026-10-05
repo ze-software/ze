@@ -4,19 +4,19 @@ import (
 	"strings"
 	"testing"
 
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // VALIDATES: The RFC selftest runs every declared in-process fixture stage.
 // PREVENTS: A registered selftest whose report silently omits an RFC engine concern.
 func TestRFCSelftestEveryStageContributesAResult(t *testing.T) {
-	stages := selftestStages()
-	if len(stages) < 10 {
-		t.Fatalf("selftest has %d stages, want at least 10", len(stages))
-	}
+	root := checkFixtureTree(t, map[string]string{
+		"test/plugin/widget.ci": "# RFC requirement: " + selftestRIDSend + " positive\n" +
+			"# RFC requirement: " + selftestRIDSend + " negative\n",
+	})
+	stages := selftestStages(root)
 
-	report, err := Selftest()
+	report, err := selftest(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,56 +43,66 @@ func TestRFCSelftestEveryStageContributesAResult(t *testing.T) {
 		}
 	}
 	for _, failure := range report.Failures() {
-		if failure.Case != "real-tree/public-check" {
-			t.Errorf("fixture property failed: %+v", failure)
-		}
+		t.Errorf("fixture property failed: %+v", failure)
+	}
+	if code := report.Code(1); code != 0 {
+		t.Fatalf("green fixture produced selftest code %d", code)
+	}
+	if text := report.Text(); text != "rfc_requirements selftest OK\n" {
+		t.Fatalf("green selftest output %q", text)
 	}
 }
 
-// VALIDATES: The legacy live-tree property and the Go selftest read the same public Check result.
-// PREVENTS: Fixture success hiding a red RFC gate over the checkout.
-func TestRFCSelftestRealTreeRowMirrorsPublicCheck(t *testing.T) {
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatal(err)
-	}
-	check, checkCode := Check(root, nil)
-	report, err := Selftest()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var realTree leroot.SelftestResult
-	for _, row := range report.Results {
-		if row.Case == "real-tree/public-check" {
-			realTree = row
-			break
-		}
-	}
-	if realTree.Case == "" {
-		t.Fatal("real-tree/public-check row is absent")
-	}
-	if realTree.Passed != (checkCode == 0) {
-		t.Fatalf("real-tree row passed=%v, public Check code=%d", realTree.Passed, checkCode)
-	}
-	if checkCode == 0 {
-		if code := report.Code(1); code != 0 {
-			t.Fatalf("green public Check produced selftest code %d", code)
-		}
-		if text := report.Text(); text != "rfc_requirements selftest OK\n" {
-			t.Fatalf("green selftest output %q", text)
-		}
-		return
-	}
-	if code := report.Code(1); code != 1 {
-		t.Fatalf("red public Check produced selftest code %d", code)
-	}
-	if check.CannotRun != "" && !strings.Contains(realTree.Detail, check.CannotRun) {
-		t.Fatalf("real-tree detail %q omits cannot-run %q", realTree.Detail, check.CannotRun)
-	}
-	for _, violation := range check.Violations {
-		if !strings.Contains(realTree.Detail, violation) {
-			t.Errorf("real-tree detail omits violation %q", violation)
-		}
+// VALIDATES: The real-tree stage reports actual violations and scanner refusals.
+// METHOD: Owned trees plant each failure; the entire suite runs the public Check
+// once, without asking a second Check invocation to be its oracle.
+// PREVENTS: Fixture success hiding a red RFC gate or losing its diagnostics.
+func TestRFCSelftestRealTreeRowReportsOwnedCheckFailures(t *testing.T) {
+	for _, one := range []struct {
+		name  string
+		files map[string]string
+		wants []string
+	}{
+		{
+			name:  "unproven requirement",
+			wants: []string{selftestSummaryRel, selftestRIDSend, "[MUST]", "no test and no annotation"},
+		},
+		{
+			name: "unreadable tag",
+			files: map[string]string{
+				"test/plugin/broken.ci": "# RFC requirement: " + selftestRIDSend + "\n",
+			},
+			wants: []string{"test/plugin/broken.ci", "polarity"},
+		},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			root := checkFixtureTree(t, nil)
+			if err := writeSelftestFiles(root, one.files); err != nil {
+				t.Fatal(err)
+			}
+			report, err := selftest(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			failures := report.Failures()
+			if len(failures) != 1 {
+				t.Fatalf("want one failed real-tree row, got %+v", failures)
+			}
+			if failures[0].Case != "real-tree/public-check" {
+				t.Fatalf("wrong failed row: %+v", failures[0])
+			}
+			if code := report.Code(1); code != 1 {
+				t.Fatalf("red fixture produced selftest code %d", code)
+			}
+			for _, want := range one.wants {
+				if !strings.Contains(failures[0].Detail, want) {
+					t.Errorf("real-tree detail %q omits %q", failures[0].Detail, want)
+				}
+				if !strings.Contains(report.Text(), want) {
+					t.Errorf("selftest output %q omits %q", report.Text(), want)
+				}
+			}
+		})
 	}
 }
 
@@ -142,7 +152,7 @@ func TestRFCSelftestBrokenFixtureYieldsNamedFailure(t *testing.T) {
 // other RFC engine concern is kept honest.
 func TestSelftestCoversDiscriminationProperties(t *testing.T) {
 	var stage selftestStage
-	for _, one := range selftestStages() {
+	for _, one := range selftestStages(t.TempDir()) {
 		if one.name == "discrimination" {
 			stage = one
 			break
