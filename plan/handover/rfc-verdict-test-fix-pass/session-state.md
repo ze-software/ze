@@ -1,5 +1,8 @@
 # Session state: spec-rfc-verdict-test-fix-pass
 
+The historical VRRP shell recorder cited below is preserved in
+[the archived source](data/vrrp-closure-records.md), not as an executable tool.
+
 VRRP closure author (2026-09-30), hit the 100-call cap. Full table: scratch/children/vrrp/closure-author.md. AC-C1 listing empty; AC-C7 none. All AC-C3/AC-C6 edits DONE (rows, extraction, corrections, tags, new test): new rows RFC9568-8.1.2-6, 8.2.2-8, 5.2.8-3; RFC3768-8.2-4; RFC5798-8.1.2-6, 8.2.2-8, 8.1.1-2, 8.2.1-2 {gap}, A.2-3; RFC3768-6.4.3-9 stands (correction); RFC9568-7.1-4 split already by 850eb41b66. Race green, lint 0 issues, 5.2.8-3 records OBSERVED. RUNNING in background at cutoff: 22 guest records (scratch/vrrp-closure-records.sh SKIP_HOST=1, results scratch/vrrp-closure-records.txt, logs scratch/vrrp-closure-rec-*.log): continuation must read that txt, rerun any rc!=0 line. NOT RUN: `./le rfc check` (owed for rfc3768/5798/9568). rfc/short/rfc5798.md Meta counts were edited with sed -i (content checked: 85 rows, 59 MUST).
 VRRP closure, guest records finished: 20 of 22 OBSERVED red and written. 2 wrote nothing: RFC5798-8.1.2-6 negative and RFC3768-8.2-4 positive, both on vmac_state TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly. Cause: the guest `le` build failed on another session's half-finished OSPF edit (internal/plugins/ospf/instance.go:279, e.spfRouterReachable undefined), not on VRRP. Continuation: once ospf builds, rerun just those two with `kernel tmp/kernel/build/vmlinuz`, producer internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls, then run `./le rfc check`.
 

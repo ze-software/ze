@@ -1,3 +1,10 @@
+# Historical VRRP closure recording script
+
+Archived at Thomas's request on 2026-10-05. The original script is preserved
+verbatim below as historical evidence, not as a runnable repository tool.
+Its paths and commands describe the original recording attempt.
+
+```bash
 #!/usr/bin/env bash
 # vrrp closure author: discrimination records for every tag added 2026-09-30.
 cd /home/thomas/Code/github.com/ze-software/ze/main || exit 1
@@ -54,3 +61,4 @@ R=$V/redirect_integration_linux_test.go
 rec RFC5798-8.1.1-2 positive $R TestVRRPRedirectSourceFollowsVirtualMAC $V/dataplane_linux.go::applyDataplaneSysctls
 rec RFC5798-8.1.1-2 negative $R TestVRRPRedirectSourceFollowsVirtualMAC $V/dataplane_linux.go::applyDataplaneSysctls
 echo done >> "$OUT"
+```

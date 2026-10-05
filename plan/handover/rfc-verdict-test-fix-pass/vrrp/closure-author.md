@@ -24,6 +24,7 @@ rfc5798 Meta counts updated: 85 requirements, 59 MUST-level, 53 restated, 42 +/-
 - RFC9568-5.2.8-3 records: + (pseudoSumV6) and - (verifyReceived) written, OBSERVED red (scratch/vrrp-closure-rec-RFC9568-5.2.8-3-*.log).
 - go test -race ./internal/plugins/vrrp/... green (scratch/vrrp-closure-race.log). golangci-lint --build-tags integration ./internal/plugins/vrrp/... 0 issues after one godot fix (scratch/vrrp-closure-lint.log).
 - Guest records (22, kernel tmp/kernel/build/vmlinuz) running: scratch/vrrp-closure-records.sh with SKIP_HOST=1, results scratch/vrrp-closure-records.txt. First run without kernel refused ("compiles only in the Linux guest"), wrote nothing.
+- Historical recorder source: [archived script](../data/vrrp-closure-records.md), preserved verbatim on 2026-10-05.
 
 # Missing 9568 rows
 
