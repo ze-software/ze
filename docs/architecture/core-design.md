@@ -57,6 +57,14 @@ that function directly, and repository workflows invoke
 `./le <area> <action>`. A package must return structured answers through the
 shared renderer rather than add a private JSON mode.
 
+Pipe declarations resolve at the area plus its declared action verb, so an
+action returning rows can override a document-shaped area's declaration.
+Argument values stay as the original argv, outside that metadata path; a
+value containing spaces or a pipe character is not reinterpreted as a command
+or pipe. Command-owned pipe filters append only their new argument words.
+<!-- source: internal/le/le/root/leroot.go -- Run -->
+<!-- test: internal/le/le/root/dispatch_test.go TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments -->
+
 An area that needs a turn before every le command, native hooks included,
 registers it through `leroot.RegisterBeforeDispatch` from the same `init()`,
 and the le root handler runs every such hook ahead of the dispatch. The scratch

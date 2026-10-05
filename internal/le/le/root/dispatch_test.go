@@ -56,6 +56,84 @@ func TestRegisterShapeDistinguishesFullToolPaths(t *testing.T) {
 	}
 }
 
+// VALIDATES: action declarations reach the real dispatch/pipe path, while
+// values remain argv and command-owned filters append only their own words.
+// PREVENTS: a document-shaped area refusing its row-shaped selftest's count,
+// or fixing that refusal by dropping the area's document guard.
+func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.T) {
+	const name = "action-shape probe"
+	report := NewSelftestReport("passed", "failed", Pass("accepted"), Fail("rejected", "owned failure"))
+	area := leaction.New(name,
+		leaction.Action{
+			Verb: "selftest", Why: "answer per-case rows",
+			Parameters: []leaction.Parameter{
+				{Keyword: "path", Value: "text", Requirement: leaction.Optional},
+				{Keyword: "select", Value: "text", Requirement: leaction.Optional},
+			},
+			AnswerArgs: func(leaction.Arguments) (any, int) { return report, 3 },
+		},
+		leaction.Action{
+			Verb: "report", Why: "answer a document holding two finding sets",
+			Answer: func() (any, int) {
+				return map[string]any{"first": []string{"one"}, "second": []string{"two"}}, 0
+			},
+		},
+	)
+	var got []string
+	Register(name, GroupReport, func(args []string) (any, int) {
+		got = slices.Clone(args)
+		return area.Answer(args)
+	}, registry.Meta{ShortHelp: "action shape dispatch probe", Mode: "offline", Section: registry.SectionTest})
+	RegisterActions(name, area.Actions)
+	RegisterShape(name, command.ShapeDoc)
+	RegisterShape(name+" selftest", command.ShapeMap)
+	command.RegisterPipeFilters([]string{CommandPath(name + " selftest")},
+		command.PipeFilter{Name: "select", Description: "owned selector", TakesArg: true})
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"cases", []string{"selftest", "|", "count"}, []string{"selftest"}},
+		{"opaque value", []string{"selftest", "path", "a | json value", "|", "count"}, []string{"selftest", "path", "a | json value"}},
+		{"folded filter", []string{"selftest", "path", "a | json value", "|", "select", "owned", "|", "count"}, []string{"selftest", "path", "a | json value", "select", "owned"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got = nil
+			code := 0
+			var stderr string
+			out := captureStdout(t, func() {
+				stderr = captureStderr(t, func() {
+					code = Dispatch("le", append([]string{"action-shape", "probe"}, tc.args...))
+				})
+			})
+			if code != 3 || out != "2\n" || stderr != "" {
+				t.Errorf("count answered code=%d stdout=%q stderr=%q, want verdict 3 and two rows", code, out, stderr)
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("handler received %q, want %q exactly once", got, tc.want)
+			}
+		})
+	}
+	for _, args := range [][]string{{"|", "count"}, {"report", "|", "count"}, {"selftest | json", "|", "count"}} {
+		got = nil
+		code := 0
+		var stderr string
+		out := captureStdout(t, func() {
+			stderr = captureStderr(t, func() {
+				code = Dispatch("le", append([]string{"action-shape", "probe"}, args...))
+			})
+		})
+		if code != 1 || out != "" || !strings.Contains(stderr, "count cannot apply here") || !strings.Contains(stderr, "one document") {
+			t.Errorf("%q answered code=%d stdout=%q stderr=%q, want document refusal", args, code, out, stderr)
+		}
+		if got != nil {
+			t.Errorf("refused chain invoked its handler with %q", got)
+		}
+	}
+}
+
 func TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload(t *testing.T) {
 	const name = "dispatch-local-data-probe"
 	var got []string

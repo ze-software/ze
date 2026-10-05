@@ -29,7 +29,12 @@ guarantee that you cannot add an inert test or strand a test file.
 
 `./le test sensitivity check` runs the native AST detectors in
 `internal/le/test/sensitivity`. Its `selftest` action proves each detector on
-known-bad fixtures before the live-tree check is trusted.
+known-bad fixtures before the live-tree check is trusted. The selftest answers
+one row per case, so row operators such as `| count` apply to those cases.
+The scanning actions still answer one document containing both finding sets;
+row operators cannot select a set implicitly.
+<!-- source: internal/le/test/sensitivity/register.go -- init -->
+<!-- source: internal/le/le/root/leroot.go -- Run -->
 
 ### assert-nothing
 

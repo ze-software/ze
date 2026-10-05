@@ -29,6 +29,9 @@ func init() {
 	// `| json`, `| yaml` and `| table` render it
 	// (internal/component/command/answer_shape.go).
 	leroot.RegisterShape(area, command.ShapeDoc)
+	// The selftest is rows, not either scanning document. Run carries this
+	// declared action verb to the shared pipe layer before checking operators.
+	leroot.RegisterShape(area+" selftest", command.ShapeMap)
 
 	// The census counts both gates as ported from here, in the same init() that
 	// registers the command. A claim whose command never registered is red, so

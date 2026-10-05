@@ -276,15 +276,40 @@ func RegisterShape(name string, shape command.AnswerShape) {
 func Run(name string, answer Answer, args []string, out, errOut io.Writer) int {
 	toolArgs, pipeStr := splitChain(args)
 
-	input := CommandPath(name)
-	if pipeStr != "" {
+	// The action can declare a different answer from its area. Only a verb
+	// in the area's grammar joins the metadata path: argument values stay
+	// opaque argv, even when they contain spaces or pipe characters.
+	var actionVerb string
+	if len(toolArgs) != 0 {
+		if actions, declared := ActionsOf(name); declared {
+			for i := range actions.Actions {
+				if actions.Actions[i].Verb == toolArgs[0] {
+					actionVerb = actions.Actions[i].Verb
+					break
+				}
+			}
+		}
+	}
+	path := CommandPath(name)
+	input := path
+	if actionVerb != "" || pipeStr != "" {
 		var tb textbuf.Buffer
-		input = tb.Str(input).Str(" | ").Str(pipeStr).String()
+		tb.Str(path)
+		pathLength := len(path)
+		if actionVerb != "" {
+			tb.Byte(' ').Str(actionVerb)
+			pathLength += 1 + len(actionVerb)
+		}
+		if pipeStr != "" {
+			tb.Str(" | ").Str(pipeStr)
+		}
+		input = tb.String()
+		path = input[:pathLength]
 	}
 
-	// A command-owned pipe filter folds its arguments back into the command
-	// path. Resolve that path through the same local-data registry rather than
-	// assuming how many command words precede those arguments.
+	// Command-owned filters append words to the metadata path. Append only
+	// that suffix to the original argv; resolving the whole path again would
+	// deliver the action twice, and reparsing argv would split opaque values.
 	resolved, format, errMsg := command.ProcessPipesDefaultFormatLocal(input, "")
 	if errMsg != "" {
 		// textbuf rather than Fprintf: `errOut` is injectable so tests can
@@ -295,8 +320,8 @@ func Run(name string, answer Answer, args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(errMsg).String()) //nolint:errcheck // CLI output
 		return 1
 	}
-	if _, foldedArgs := registry.LookupLocalData(strings.Fields(resolved)); len(foldedArgs) != 0 {
-		toolArgs = append(toolArgs, foldedArgs...)
+	if folded, ok := strings.CutPrefix(resolved, path); ok && folded != "" {
+		toolArgs = append(toolArgs, strings.Fields(folded)...)
 	}
 
 	payload, code := answer(toolArgs)
