@@ -6,8 +6,8 @@
 | Owner | Thomas |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/10 |
-| Handoff | - |
+| Phase | 4/11 |
+| Handoff | plan/handover/enum-switch-exhaustiveness-checkpoint.md |
 | Updated | 2026-10-05 |
 
 ## Task
@@ -31,12 +31,33 @@ Make enum coverage explicit without turning unexpected input into silent success
 
 The table is Thomas's requirement, verbatim. The inventory uses C, O and P for these classes. P is the explicit subset exception, not permission to hide an incomplete complete-dispatch function. A complete state/event transition table is C or O even when some named events intentionally do nothing; independent event observers can be P.
 
+### Owner completion requirement, 2026-10-05
+
+Thomas expanded completion after the implementation checkpoint:
+
+> Make sure that we end by ensuring the full linting and fixing of the bugs identified.
+
+The identified defects are now repair scope, not journal-only closure items.
+Completion requires the complete native lint matrix to pass, regression and
+real-entry-point evidence for the identified bugs, and renewal of affected RFC
+proofs and audit judgments. This overrides the earlier preservation-only
+boundary where repairing an identified defect changes existing behavior.
+Thomas also requested additional parallel agents to accelerate these repairs.
+Thomas subsequently included the VPP SRv6 SR-policy and local binding-SID
+lifecycle, with real VPP forwarding proof required before closure. This is the
+specific exception to the unrelated-feature boundary; it does not authorize
+SRPM, remote decapsulation or a new BGP tenant-table producer.
+
+Thomas also authorized preserving the historical VRRP shell recorder verbatim
+as non-executable Markdown, updating its references, and leaving the
+no-interpreted-source guard unchanged.
+
 ### Scope boundaries
 
 | Included | Excluded |
 |----------|----------|
-| First-party enum value switches, including old code, tests, platform builds and existing exhaustive suppressions | Third-party vendor rewrites, string-to-enum migrations, map exhaustiveness and sealed-interface type-switch tooling |
-| Named zero values, sentinels, bit fields, aliases and test-only enum members | New algorithm, protocol, family or plugin support |
+| First-party enum value switches, including old code, tests, platform builds and existing exhaustive suppressions | Hand-written third-party analyzer changes, string-to-enum migrations, map exhaustiveness and sealed-interface type-switch tooling; the owner separately authorized the supported tool upgrade recorded below |
+| Named zero values, sentinels, bit fields, aliases and test-only enum members; the separately authorized VPP SRv6 policy lifecycle | New algorithm, protocol, family or plugin support outside that explicit authorization |
 | Existing named-value behavior; safe unknown-input behavior; BUG assertions for proven internal impossible values | Changes to wire formats, supported algorithms, routing policy or authentication policy |
 | Style-guide correction and global linter cutover | A new bespoke switch checker or opt-in enforcement mode |
 
@@ -55,7 +76,7 @@ The table is Thomas's requirement, verbatim. The inventory uses C, O and P for t
 
 **Key insights:** an unknown wire number is not an internal invariant violation. A named zero is not necessarily invalid. A useful default must not exempt missing named values. A reasoned subset switch is different from a complete dispatcher.
 
-## Current Behavior
+## Initial Behavior (analysis snapshot)
 
 | Producer read | Observed behavior |
 |---------------|-------------------|
@@ -86,6 +107,129 @@ Research artifacts are under `tmp/session/2026-10-02-ba93202e-6f62-48a4-9b4e-c0a
 - `internal/component/bgp/cli/encode.go`, `cmdEncode`, deliberately uses an untagged switch to avoid exhaustive checking. Replace this bypass with a typed SAFI switch and a reasoned P annotation; preserve the registry fallback.
 - Type switches, untyped constant families and arbitrary boolean switches are outside this analyzer. Do not claim that this setting enforces sealed-interface completeness. Do not introduce casts or untagged switches to evade enum checks.
 - Missing-case diagnostics cannot find a bad default on an already-exhaustive switch. `internal/component/command/argvalidate.go`, `ValidateArgString`, names every ArgKind but returns nil for an unknown kind. G001 records this verified policy gap. Before editing batches, perform a type-aware census of all first-party enum switches across the same build populations, including complete switches. Assign each a class and inspect its default and post-switch behavior. Use scratch analysis, not a new permanent checker. The measured inventory and commit sizes below are lower bounds until that census is reconciled.
+
+### Implementation checkpoint, 2026-10-05
+
+The native type-aware census found **822 enum identities in 514 files and 204
+packages**, including 474 already-complete representative observations. It
+analyzed 19 populations from the real lint plan; the plan skipped linux-arm64
+because it was already covered. The collector's raw `incomplete-see-errors`
+status is retained: two excluded-source lexical candidates needed supplemental
+typing. Source and LSP establish both as built-in string switches. Generated
+sources likewise contain two built-in string switches, not enum switches.
+
+All 356 seed rows and all 117 actual `nolint:exhaustive` directives were
+reconciled. The implementation packets contain 825 identities: the 822 typed
+switches, the SAFI avoidance and two marker false positives. Their returned
+classifications, after the independent IS-IS correction, are **458 C, 202 O,
+163 P and 2 outside-enum**. BGP also converted the existing `encoderSlot`
+conditional to a typed C switch and removed two BMP non-enum suppressions.
+The durable [per-switch inventory](enum-switch-exhaustiveness-inventory.json)
+now reconciles **825 typed identities: 459 C, 202 O and 164 P**, including
+the concurrent OSPF interop subset. Its two original marker false positives
+and two BMP non-enum cleanups are separate. JSON parsing, unique identities
+and class totals pass; a stable final census remains owed before AC-1 closes.
+
+| Batch | Assigned identities | Independent static review | Runtime verification |
+|-------|---------------------|---------------------------|----------------------|
+| Commands | 81 | No actionable finding | Landed in `93bb60878ad8`; 7 owning packages passed race; boundary probes and all 5 committed flavors passed |
+| ConfigPlatform | 160 | No actionable finding; parent traced both production kernelcap enrollments and all probe results | 47 owning packages passed race; 1 has no tests |
+| Tools | 143 | No actionable finding | 38 owning packages passed race; 1 has no tests; 5 red packages, qualified below |
+| SecuritySubscriber | 109 | No actionable finding | 16 owning packages passed race; 1 has no tests; DH boundary probes passed; RFC proof renewal open |
+| BGP | 191 | No actionable finding | 43 owning packages passed race; RR/RS VPN inventory tests red; capability and ADD-PATH probes passed |
+| RoutingPlugins | 77 | Complete `configFormsLevel` dispatch reclassified P→C; independent correction review cleared | 23 owning packages passed race; separately scoped VPP SRv6 probe remains red |
+| OSPF | 62 | No actionable finding | All 12 owning packages passed race |
+| Parent setup sites | 2 | Reviewed with Tools; no actionable finding | Setup package passed race |
+
+The original installed linter detected a direct omission but missed its alias
+through the normal native action. Thomas chose the scoped supported dependency
+upgrade. **`d0bf51e9af43`** lands golangci-lint v2.14.0, exhaustive v0.13.0,
+their required module/vendor graph and the aligned setup pin. Existing direct
+dependency annotations were preserved and both canonical vendor patches
+reapplied. Setup/vendor-patch race packages and all five committed build flavors
+pass. No custom analyzer or launcher adapter was introduced.
+
+The working-tree root setting is now false and the guide states global
+enforcement. The **normal native scoped action** passed all five strict probe
+phases for direct and aliased inputs: omission despite `default` fails with the
+exact missing-member diagnostic; adding the case passes; adding a member fails;
+justified subsets pass; adjacent unmarked omissions still fail. Both actual
+scoped passes reported each expected omission. The disposable package was
+removed, and watched source/config/tool hashes did not drift. This is not a
+whole-tree lint certificate.
+
+Evidence is under
+`tmp/session/2026-10-04-01a10694-3795-71f2-8250-25e3a877f4cf/scratch/`:
+`enum-census/{census-reconciliation,seed-reconciliation,marker-reconciliation}.json`,
+`enum-implementation/{results,review}/`,
+`enum-implementation/integration-corrections.json`, and
+`enum-census/alias-probe/strict-e00c79db7a884f1a84a5fcb41dbaed82/result.json`.
+All 825 assigned identities reconcile against their returned reports; 601
+runtime/test/doc paths are in the scoped review manifest. Parent formatted the
+579 Go paths. The full native race command reported 637 passing packages,
+218 packages with no tests and 11 failing packages. Independent source triage
+found no enum-caused failure: the reds concern live-tree parity, two existing
+synchronization gaps, concurrent VPN inventory work, hook fixture/HEAD state,
+selector/build deadlines, cache-fixture accounting and already-recorded
+publication, historical-script and VPP gaps. This is not a green full-suite result.
+
+All seven runtime boundary probes passed: unknown capability bytes and named
+unsupported capability bytes round-trip unchanged; unsupported DH and encoder
+inputs retain their errors; CLI enum/string acceptance, ADD-PATH labels and
+cleared DH state retain their contracts. The disposable fixture was removed
+and its watched inputs did not drift.
+
+The first post-edit census observed all 822 original typed identities, the
+typed SAFI replacement, `encoderSlot`, and one concurrent OSPF interop switch.
+It refused completion with 712 recorded errors, including source drift and
+ill-typed platform populations. The native plan had selected additional BGP
+packages for FreeBSD, DragonFly and WASI; those roots expose existing platform
+gaps, not an exhaustive-version regression. Concurrent VPN test references
+also preceded their producer declaration. The subsequent native collection
+retained 825 typed identities but reported 70 errors: the two known excluded
+string candidates, concurrent VPN test type errors and source drift. Neither
+run is a stable final census. The immutable-export collection then completed
+every native population without those type/drift failures and retained only
+the two known excluded lexical string candidates. It preserves the native
+plan and all errors; it is not a lint certificate and predates the repair pass.
+
+The first full native strict lint completed and was red. Its only exhaustive
+finding was the new OSPF interop subset, now explicitly justified. Parent
+corrected the owned new-tool diagnostics, including discarded panic-test
+results, the typed MCP range and the private IS-IS `classOf` return contract.
+Focused race runs passed; independent review cleared the integration delta.
+The next complete native lint was also red: 136 distinct diagnostics remained,
+but none was exhaustive. The owner's expanded requirement makes those lint
+findings and the identified runtime and proof defects repair scope.
+
+Canonical RFC collection identified 284 existing-record candidates and three
+changed claims without records. The primary native recorder completed all
+272 approved entries. Seven additional native records and two actual QEMU
+guest records completed, for 281 records. Twelve original owned audit rows were
+independently rejudged and stamped; the canonical resealer refreshed 168
+mechanically shifted rows and refused changed units. Foreign audit scope,
+including whole-set MED, remains untouched.
+
+Correcting false RFC8654 minimum-Length prose and EAP wrong-role assertions
+required three further independent rejudgments. They are now `weak`, with
+the actual evidence limits recorded; the RFC8654 and RFC3748 public support
+claims were corrected to partial. The corrected EAP unit passes under the
+native race detector. The owner then authorized repair of the identified
+bugs. Native probes reproduced wrong-role EAP Failure output, termination
+after 21 undefined EAP Codes, and rejection of a locally advertised extended
+UPDATE when the peer did not advertise the capability. Behavioral regressions
+also reproduced the AS_PATH section overrun, BGP start-event teardown, PPP
+transition defects, invalid IS-IS neighbor creation, and blocked callback
+waiters during shutdown. JSON engine-step probes reached TLS setup for
+unknown kinds instead of refusing them at the file/stdin boundary.
+
+Ten independent repair owners cover EAP/crypto, reactor, RIB/wire consumers,
+build tooling, harness fixtures, interop lint, remaining lint, protocol
+transitions, platform contracts, and lint-plan coherence. They do not run
+competing build or lint jobs; the parent owns integration and verification.
+Their implementation reports are not verification results. Final census,
+complete lint, affected runtime/interop proof, renewed RFC evidence,
+independent review and six enum package commits remain open.
 
 ## Data Flow
 
@@ -161,7 +305,9 @@ Research artifacts are under `tmp/session/2026-10-02-ba93202e-6f62-48a4-9b4e-c0a
 | AC-7 | Existing suppressions, marker/check footprint | No first-party nolint:exhaustive workaround or enforce marker; replace the known untagged avoidance; remove a bespoke checker only if one actually exists at implementation time |
 | AC-8 | Test-only unknown values and mask/alias cases | No new protocol support, duplicate cases, changed unknown rendering, or lost masked-code recognition |
 | AC-9 | Documentation | Guide states the three classes and global old/new-code coverage; it does not claim exhaustive checks sealed-interface type switches |
-| AC-10 | Final whole-tree analysis and runtime smoke | Exhaustive clean across the existing matrix; fixture omission trips through le; changed external-input paths keep their observed safe outcomes |
+| AC-10 | Final whole-tree analysis and runtime smoke | The complete native lint matrix is clean across all enabled linters and build populations, not merely exhaustive; fixture omission trips through le; changed external-input paths keep their safe outcomes |
+| AC-11 | Identified runtime and tooling defects | Repair the identified causes, retain discriminating regressions and real-entry-point evidence, exercise affected race/lifecycle boundaries, and provide named-peer interoperability for protocol changes |
+| AC-12 | Identified proof and documentation defects | Correct invalid fixtures and overstated claims without weakening valid obligations; renew affected RFC discrimination and independent judgments; derive published indexes from their current producers |
 
 ## TDD Test Plan
 
@@ -184,7 +330,7 @@ No permanent tests that merely duplicate case lists or configuration text. Add a
 | Open enum | Unsupported but named code | Unknown protocol/kernel/plugin code | Existing safe rejection/preservation path; no new support |
 | Aliases/masks | Equal-valued aliases and flag combinations | Unnamed value matching an existing mask | One case per value; keep existing masked behavior |
 
-Functional/interoperability requirement: no wire-visible behavior change is planned. Existing protocol regression scenarios remain applicable. If a batch changes wire behavior, it leaves this preservation plan and needs the applicable peer scenario, RFC review and discrimination evidence before landing. A lint success is not proof of protocol conformance.
+Functional/interoperability requirement: the enum edits preserve wire behavior, but the owner-authorized defect repairs can change it. Each such repair requires the applicable named-peer scenario, RFC review and discrimination evidence before landing. A lint success is not proof of protocol conformance.
 
 ## Files to Modify
 
@@ -255,7 +401,8 @@ Only this spec is created during analysis. Implementation adds no permanent chec
 2. **Apply the package batches below.** One owner per file. Read the enum, producer, caller/mutation references and post-switch code; apply C/O/P to the full census, not just the seed rows. Keep safe external defaults and explicit sentinels. Migrate existing exhaustive suppressions in the same package batch, not in a separate overlapping pass.
 3. **Resolve declaration edges in their owning batch.** Move the test-only unsupported capability/algorithm declarations once, without enabling them. Replace variable aliases used as constant cases with the owning declared constants. Preserve hidden/unnamed zero contracts explicitly.
 4. **Cut over globally.** After all batches, set the root setting false and update the guide's enforcement statement. Run EnumSwitchLintContract and EnumSwitchSubsetContract through the normal scoped le action using the final root config, with direct and aliased enum inputs. Require the expected missing-member diagnostic, not merely a nonzero exit. After removing those disposable probes, reconcile the inventory and run the full lint matrix once. No transient enforce markers, permanent adapter or bespoke checker.
-5. **Prove preservation and review.** Run the relevant boundary probes and owning regression tests. Independent review checks closed provenance, safe open defaults, subset reasons, all final diagnostic/suppression locations and source-linked docs. Stop with implementation evidence; do not claim protocol support from lint.
+5. **Repair the identified defects.** Execute the owner's expanded requirement with separate producer ownership. Preserve before-fix evidence, correct runtime and proof defects at their causes, and update affected consumers and documentation. New repair switches join the same C/O/P inventory.
+6. **Verify and review.** Run the relevant boundary probes, owning regressions, lifecycle race checks and named-peer scenarios. Renew changed RFC evidence. Independent review checks closed provenance, safe open defaults, subset reasons, repair correctness, proof discrimination and source-linked docs. Close only after the complete native lint matrix and all agreed acceptance criteria are satisfied.
 
 ### Alternatives and decision
 
@@ -289,14 +436,14 @@ Simplicity: existing cases/defaults and upstream linter only. Uniformity: one th
 
 ### Review Gate
 
-No implementation review has run. Phase 1 establishes the policy and census; the implementation closure adds the standard closure template and its independent review evidence.
+Seven independent package reviews have run over the complete assigned scopes. One P2 finding was corrected and independently cleared: `configFormsLevel` dispatches every LSDB level and must remain checked. Runtime verification and final census/lint reconciliation remain open; static review does not close the spec.
 
 | Run | Scope | Result | Evidence |
 |-----|-------|--------|----------|
 
 ## Analysis Disposition
 
-At the end of analysis on 2026-10-04, implementation had not been authorized and no switch had been fixed. The analyzed seed inventory has 356 sites in 243 files and 113 packages: 153 C, 42 O and 161 P. It combines 237 diagnostics, 117 suppression sites, one deliberate analyzer avoidance and one verified policy gap in an already-complete switch. These are lower bounds, not the population of all enum switches; step 1 completes that census before code edits. The suppression inventory includes stale directives over plain integer switches; those need directive removal, not new enum machinery. The global config remains true until the implementation's final cutover.
+At the end of analysis on 2026-10-04, implementation had not been authorized and no switch had been fixed. The analyzed seed inventory has 356 sites in 243 files and 113 packages: 153 C, 42 O and 161 P. It combines 237 diagnostics, 117 suppression sites, one deliberate analyzer avoidance and one verified policy gap in an already-complete switch. These are dated lower bounds, not the population of all enum switches. The full census and implementation checkpoint above supersede them for implementation scope. The global config was true at that analysis stage.
 
 ## Measured Package Counts
 
