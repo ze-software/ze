@@ -1,11 +1,12 @@
 ---
 title: Go Standards
-when: writing Go in Ze: naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim
+when: writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim
 severity: blocking
 related: config, cli, performance, repo-maintenance, architecture
 ---
 directives ## Directives
   read-the-ze-style-guide-before-the-first-go-edit
+  preserve-validity-from-construction-through-use
   guard-with-early-returns-one-fact-per-guard
   never-write-these-forbidden-go-patterns
   log-through-slog-never-printf

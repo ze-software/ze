@@ -100,32 +100,50 @@ type Candidate struct {
 
 Full rule: `ai/rules/go-standards.md`, "Prefer Typed Numeric Over String".
 
-The sum-type, construction and lifecycle rules below apply to code written from
-2026-10-04. Older code does not need a rewrite to meet those rules. Enum switch
-coverage applies to both old and new code.
+The construction, sum-type and lifecycle contract, including its new-code scope
+and legacy migration limits, lives in
+[`preserve-validity-from-construction-through-use`](../../ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md).
+The sections below explain the Go mechanisms and their limits. Enum switch
+coverage has its own scope and applies to both old and new code.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- construction and representation scope -->
 
 #### One state, one variant
 
 A struct whose fields are valid only in some combinations is a sum type in
 disguise. With `done bool`, `result *T` and `reason string`, a caller can build
-"done with a reason" or "not done with a result", and each of those is a defect
-nobody wrote on purpose. Write one type for each state. Each type holds only the
-data that its state has, and a sealed interface joins them:
+"done with a reason" or "not done with a result". Separate variants remove those
+combinations because each variant holds only its own payload. This example
+illustrates that separation; payload validity follows the construction contract
+below.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- incompatible payload combinations -->
 
 ```go
-type Outcome interface{ outcome() } // sealed: only this package can add a state
+type Outcome interface{ outcome() } // package marker; see the limits below
 
 type Pending struct{}
-type Done struct{ Result Route }
-type Failed struct{ Reason error }
+type Done struct{ result Route }
+type Failed struct{ reason error }
 
 func (Pending) outcome() {}
 func (Done) outcome()    {}
 func (Failed) outcome()  {}
 ```
 
-The consumer uses a type switch with one arm for each state, and each arm reads
-only that state's data.
+This pattern is often called a sealed interface. An unexported method prevents
+another package from declaring that method directly, but embedding an existing
+implementation or the interface can promote it into another type's method set.
+The interface also admits nil, and pointer implementations can carry typed nils.
+A boundary that accepts an `Outcome` therefore needs an admission contract for
+these cases before an internal consumer relies on the known variants. The
+[Go specification on struct types](https://go.dev/ref/spec#Struct_types) defines
+method promotion; its [variables section](https://go.dev/ref/spec#Variables)
+explains dynamic types, including typed nils.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- marker interfaces and nil contract -->
+
+Within that contract, a consumer reads only the payload of the selected variant.
+The type-switch coverage policy below remains a reader check; the interface
+declaration alone proves neither exhaustive handling nor payload validity.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- representation validity -->
 
 #### Every enum switch has a coverage policy
 
@@ -172,11 +190,29 @@ remains a reader check.
 
 #### Validated at construction
 
-A type that carries a validation has an unexported field and one constructor
-that returns `(T, error)`. A plain named type such as `type Email string` lets
-any package write `Email("junk")`, so it guarantees nothing. When the
-constructor is the only way to build a value, the code that receives the value
-does not check it again:
+Validation at creation rejects invalid input before it becomes a domain value.
+Encapsulation then protects that value: private fields prevent a caller in
+another package from replacing data that the constructor checked. A raw
+configuration or wire DTO can still contain invalid input until a parser or
+constructor converts it to the validated type. An unconstrained data struct has
+no such invariant to protect and needs no constructor ceremony.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- raw input and validated domain values -->
+
+`NewX` and `ParseX` are ordinary function names. Go does not call them when a
+caller declares a variable or uses a composite literal. The built-in `new(T)`
+returns a pointer to a zero-initialized `T`; it performs no domain validation.
+Even an exported struct with only private fields admits `var x T`, `T{}` and
+`new(T)`. A named scalar such as `type Email string` also admits the conversion
+`Email("junk")`. These are language rules, described under
+[allocation](https://go.dev/ref/spec#Allocation),
+[composite literals](https://go.dev/ref/spec#Composite_literals) and
+[conversions](https://go.dev/ref/spec#Conversions).
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- constructor names and zero contract -->
+
+A validated type can make its zero a legitimate value, as in this illustrative
+API. Its parser rejects the values 1 and 2; a successful result or a zero value
+then meets the same domain constraint.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- valid zero semantics -->
 
 ```go
 type HoldTime struct{ seconds uint16 } // zero, or 3 and above
@@ -184,25 +220,63 @@ type HoldTime struct{ seconds uint16 } // zero, or 3 and above
 func ParseHoldTime(seconds uint16) (HoldTime, error)
 ```
 
-This is not the paired check in "Assertions, in a language that has none". That
-check pairs the read from the wire with the write back to it. It does not
-validate again a value that a type can only hold when the value is valid.
+When zero cannot be valid, the type's contract describes it as uninitialized
+and gives operations a safe way to reject it. Nil pointers and typed-nil
+interfaces need the same decision. This prevents the existence of a constructor
+from being mistaken for proof that every value passed to an API used it. Existing
+valid zeros and sentinel meanings remain unchanged by this guidance.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- zero and nil contract -->
+
+Private fields alone do not protect referenced data. Go copies a slice, map or
+pointer without copying the data it references, so a caller can still change
+that data after validation. The ownership contract covers constructor inputs
+and accessor results: immutable values, controlled ownership transfer, or a copy
+where sharing cannot be made safe. Setters check a proposed change before
+publishing it. Decoders can populate a raw value and publish the validated value
+only after success, so a failed decode cannot corrupt an existing valid object.
+The [representation rules](https://go.dev/ref/spec#Representation_of_values)
+describe how values share underlying data.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- mutation decoder and ownership contract -->
+
+Repeated internal checks become unnecessary only after the callers and all
+producers establish that contract, including same-package writes and aliases.
+Input types that already prove a constructor's preconditions need no repeated
+validation either. This proof does not replace the paired wire-boundary checks
+in "Assertions, in a language that has none", or the error handling for raw
+external input.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- producer proof and boundary checks -->
 
 #### One type per lifecycle state
 
-When Ze itself moves a value through a lifecycle, give each state its own type,
-and put an operation only on the state where it is permitted. `Dial` returns a
-`*Conn`. Only `*Conn` has `Send`, so a call to `Send` before `Dial` does not
-compile. A transition takes the old value and returns the new one, so the old
-state cannot be used after the transition.
+Distinct state types restrict which operations a caller can name. For example,
+a `ParsedConfig` has validation operations, while an apply API accepts only a
+`ValidatedConfig`. This separates raw data from data that passed validation.
+Go's method sets and parameter types enforce that distinction; the construction
+contract above determines whether the accepted value is valid.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- state-specific operations -->
 
-Go cannot attach a method to one instance of a generic type, so `Conn[Open]` is
-not a choice. Use distinct types.
+A transition that returns a new type does not consume the old value. Go leaves
+old values and aliases usable, and resource handles can still refer to the same
+mutable resource. An immutable builder can leave its old snapshot valid. A
+resource with a one-way lifecycle instead needs controlled ownership and, where
+aliases remain possible, shared runtime state that rejects stale operations.
+The [Go value representation rules](https://go.dev/ref/spec#Representation_of_values)
+explain the aliasing that a type transition cannot revoke.
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- transitions and aliases -->
 
-This rule is only for transitions that Ze controls: setup, builders, and config
-that goes from parsed to validated. A state that a peer changes, for example the
-BGP FSM, is runtime data. A peer can send any message in any state, so the code
-must check the state at runtime and the type cannot carry it.
+Distinct named types also give each state its own method set. A generic type
+such as `Conn[State]` cannot specialize receiver methods for only the `Open`
+instantiation: receiver type parameters are declarations, as specified under
+[method declarations](https://go.dev/ref/spec#Method_declarations).
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- state-specific operations -->
+
+These API types describe transitions Ze controls, such as setup and the move
+from parsed to validated configuration. A peer-driven protocol state machine
+still decides at runtime whether an event is permitted. A valid message can
+arrive in the wrong state, so construction validation cannot replace that
+decision or the safe error handling described under "Assertions, in a language
+that has none".
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- peer-driven runtime validation -->
 
 ### A limit on everything
 

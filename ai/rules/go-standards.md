@@ -1,12 +1,18 @@
 # Go Standards
 
-**When:** writing Go in Ze: naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim
+**When:** writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim
 **Severity:** blocking
 **Related:** config, cli, performance, repo-maintenance, architecture
 
 ## Directives
 
 **`docs/contributing/ze-go-style.md` MUST be read in full before a session's first Go edit.** `writeStyleGuideRead` in `internal/le/hookruntime/writeedit.go` refuses a Go Write, Edit or MultiEdit from a session or a subagent with no record of that read; Go written through a Bash heredoc never reaches it. The guide names every place Ze diverges from standard Go, and it carries the one obligation no rule file repeats: a peer MUST NOT be able to panic the daemon, so `panic("BUG:")` marks only a state a Ze defect reaches and a malformed message from a socket returns an error. Where the guide and a rule file disagree, the rule file wins.
+
+**Invariant-bearing Go code written from 2026-10-04 MUST establish validity at construction and preserve it through representation and use.** Raw input MUST pass a validating constructor or parser before it becomes a validated domain value; inputs whose types already prove the preconditions need no repeated check. Invariant-bearing fields MUST be private, incompatible payload combinations MUST use distinct variants, and Ze-controlled lifecycle operations MUST accept only the state types where they are permitted. Mutations and decoders MUST preserve the invariant on success and failure, and APIs MUST control ownership of referenced mutable data. Each type MUST declare its zero and nil contract, including typed nils where applicable. Constructor names, named scalar conversions and marker interfaces MUST NOT be treated as proof of validity, and a transition MUST NOT be treated as revoking old values or aliases. Peer-driven protocol state MUST retain runtime validation. Invalid external input follows the error policy in `docs/contributing/ze-go-style.md`, "Assertions, in a language that has none".
+
+**An internal hot path MUST NOT repeat a validity check once all producers, mutation paths and ownership prove the invariant through the use.** When that proof is incomplete, the boundary or runtime check MUST remain. Wire read/write checks retain their separate boundary obligations. Plain unconstrained data structs and raw external DTOs MUST NOT acquire constructor ceremony solely to satisfy this rule. Designs MUST avoid unnecessary abstractions, allocations and copies; the Go guarantees and their limits are explained in `docs/contributing/ze-go-style.md`, "Types that cannot lie".
+
+**This rule MUST NOT trigger an unrequested rewrite of older code or change existing valid-zero or sentinel semantics.** Migration of older code requires the separately approved scope of `plan/spec-validated-construction-and-state-types.md`; the enum coverage sweep does not authorize constructor or lifecycle API migration.
 
 **Guard with early returns, state the invariant positively, and test one fact per guard: a compound `if a || b` or `if a && b && !c` MUST be split.** A happy path MUST NOT be wrapped in an `else`, `if index < length` MUST be preferred to its negation, and a compound test that earns a name MUST get one rather than sit inline.
 

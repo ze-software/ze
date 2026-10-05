@@ -17,7 +17,7 @@ full before acting on a topic it covers.
 | Documentation First | before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes | blocking | `ai/rules/documentation.md` |
 | Evidence and Guards | stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds | blocking | `ai/rules/evidence.md` |
 | Git Safety | before any git operation, and when writing or running a commit script | blocking | `ai/rules/git-safety.md` |
-| Go Standards | writing Go in Ze: naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim | blocking | `ai/rules/go-standards.md` |
+| Go Standards | writing Go in Ze: constructors, invariants, state types, naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim | blocking | `ai/rules/go-standards.md` |
 | Goroutine Lifecycle | before writing `go func()` anywhere | blocking | `ai/rules/goroutine-lifecycle.md` |
 | Interop Testing and Goal Validation | implementing or changing protocol behavior, and when validating that a spec's stated goals are met | blocking | `ai/rules/interop-and-goal-validation.md` |
 | Never Destroy Uncommitted Work | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work | blocking | `ai/rules/never-destroy-work.md` |
