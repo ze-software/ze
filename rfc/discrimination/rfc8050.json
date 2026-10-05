@@ -15,7 +15,7 @@
     {
       "rid": "RFC8050-x-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/mrt_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
+      "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
       "unit-sha": "e118c0e8e689999d",
       "claim-sha": "d45b3e5256a182e7",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
-      "unit": "internal/analyze/mrt_boundary_test.go::TestMRTEmptyMPFamilyRequiresContext",
+      "unit": "internal/analyze/rfc8050_boundary_test.go::TestMRTEmptyMPFamilyRequiresContext",
       "unit-sha": "8643e6872f03c875",
       "claim-sha": "4b433b70417c1281",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "negative",
-      "unit": "internal/analyze/mrt_boundary_test.go::TestMRTEmptyMPFamilyRequiresContext",
+      "unit": "internal/analyze/rfc8050_boundary_test.go::TestMRTEmptyMPFamilyRequiresContext",
       "unit-sha": "8643e6872f03c875",
       "claim-sha": "36914711ebd2827c",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/mrt_collision_epoch_test.go::TestMRTCollisionWinnerReservation",
+      "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTCollisionWinnerReservation",
       "unit-sha": "ed969ebe4d11b72a",
       "claim-sha": "3028973f8619c3e8",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/mrt_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
+      "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
       "unit-sha": "e118c0e8e689999d",
       "claim-sha": "f7c5bc15d7cc62b3",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/mrt_migration_epoch_test.go::TestMRTMigrationEpochUsesActualLocalOPEN",
+      "unit": "internal/component/bgp/reactor/rfc8050_migration_epoch_test.go::TestMRTMigrationEpochUsesActualLocalOPEN",
       "unit-sha": "38fa2dbf10d3fc1d",
       "claim-sha": "5eb0c1eb7e748237",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
-      "unit": "internal/mrt/session_context_boundaries_test.go::TestMRTContextCapabilityASNBoundaries",
+      "unit": "internal/mrt/rfc8050_session_context_boundaries_test.go::TestMRTContextCapabilityASNBoundaries",
       "unit-sha": "8982c2726bb1b40c",
       "claim-sha": "cf2e918929c3f11b",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "negative",
-      "unit": "internal/mrt/session_context_boundaries_test.go::TestMRTContextCapabilityASNBoundaries",
+      "unit": "internal/mrt/rfc8050_session_context_boundaries_test.go::TestMRTContextCapabilityASNBoundaries",
       "unit-sha": "8982c2726bb1b40c",
       "claim-sha": "d7d49075750bf772",
       "route": "revert",

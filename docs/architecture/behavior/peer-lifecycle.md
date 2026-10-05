@@ -491,11 +491,11 @@ always either reconnects or is stopped via context cancellation.
 - `internal/component/bgp/reactor/session_test.go` — end-to-end session
   tests that exercise peer + session + FSM together.
   <!-- source: internal/component/bgp/reactor/session_test.go -->
-- `internal/component/bgp/reactor/mrt_collision_epoch_test.go` — two real TCP
+- `internal/component/bgp/reactor/rfc8050_collision_epoch_test.go` — two real TCP
   connections drive the live Peer collision lifecycle; the winning socket
   establishes and its unchanged directional OPENs decode mixed-family MRT
   UPDATEs with exact prefixes and Path Identifiers.
-  <!-- source: internal/component/bgp/reactor/mrt_collision_epoch_test.go — TestMRTWinningCollisionPreservesOPEN -->
+  <!-- source: internal/component/bgp/reactor/rfc8050_collision_epoch_test.go — TestMRTWinningCollisionPreservesOPEN -->
 - `TestMRTCollisionWinnerReservation` in the same file pauses the actual
   replacement epoch at publication and after taking the winner. A third TCP
   connection must be refused before OPEN; releasing the barrier then completes
