@@ -22,9 +22,10 @@ const StaticcheckVersion = "2026.2.1"
 // GolangCIVersion is the one release of golangci-lint this repository runs.
 // The linter type-checks with its own copy of go/types, so a release older
 // than the Go directive in go.mod cannot read the export data the ambient
-// toolchain writes and reports every package as a typecheck failure. Raising
-// that directive therefore raises this constant with it.
-const GolangCIVersion = "v2.13.1"
+// toolchain writes and reports every package as a typecheck failure. The pinned
+// release also includes exhaustive's type-alias support; older analyzers can
+// silently miss an incomplete switch through an alias.
+const GolangCIVersion = "v2.14.0"
 
 // PackageManager is the one package manager this host installs system packages
 // with.
