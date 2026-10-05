@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/types"
 	"io"
 	"log"
 	"maps"
@@ -45,6 +46,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 func (s *server) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (any, error) {
@@ -87,7 +89,25 @@ func (s *server) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCom
 		s:      s,
 		params: params,
 	}
-	return command.Dispatch(ctx, params, handler)
+	result, err := command.Dispatch(ctx, params, handler)
+	if err != nil {
+		if errors.Is(err, command.ErrPendingAnswer) {
+			// Pending error indicates the command needs additional information
+			// from the language client which should never happen as the answers
+			// should be collected before reaching here through "command/resolve".
+			return nil, fmt.Errorf("internal error, command requires additional information: %w", err)
+		}
+		return nil, err
+	}
+
+	// A command produces either a value, which is reported to the client as
+	// the command's result, or a [command.Action], the effect it computed but
+	// did not perform. Perform it now and report nothing, since an Action is
+	// of no use to the client.
+	if action, ok := result.(command.Action); ok {
+		return nil, action.Perform(ctx)
+	}
+	return result, nil
 }
 
 type commandHandler struct {
@@ -425,6 +445,11 @@ func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run command
 			switch {
 			case errors.Is(err, context.Canceled):
 				deps.work.End(ctx, CommandCanceled)
+			case errors.Is(err, command.ErrPendingAnswer):
+				// The command asked the user a question and did nothing
+				// else. That is not a failure: it runs again, and reports
+				// its outcome, once the answer arrives.
+				deps.work.End(ctx, CommandCompleted)
 			case err != nil:
 				event.Error(ctx, "command error", err)
 				deps.work.End(ctx, CommandFailed)
@@ -984,6 +1009,7 @@ func computeEditChange(ctx context.Context, snapshot *cache.Snapshot, uri protoc
 	return protocol.DocumentChangeEdit(fh, textedits), nil
 }
 
+// TODO(hxjiang): hide from command bodies; effects belong in an Action.
 func applyChanges(ctx context.Context, cli protocol.Client, changes []protocol.DocumentChange) error {
 	if len(changes) == 0 {
 		return nil
@@ -998,6 +1024,19 @@ func applyChanges(ctx context.Context, cli protocol.Client, changes []protocol.D
 		return fmt.Errorf("edits not applied because of %s", response.FailureReason)
 	}
 	return nil
+}
+
+// applyEdits is the deferred form of [applyChanges]: a command returns one to
+// have the edits applied once it has completed successfully.
+type applyEdits struct {
+	cli     protocol.Client
+	changes []protocol.DocumentChange
+}
+
+var _ command.Action = applyEdits{}
+
+func (a applyEdits) Perform(ctx context.Context) error {
+	return applyChanges(ctx, a.cli, a.changes)
 }
 
 func runGoGetModule(invoke func(...string) (*bytes.Buffer, error), addRequire bool, args []string) error {
@@ -1559,6 +1598,8 @@ func (c *commandHandler) invokeGoWork(ctx context.Context, viewDir, gowork strin
 //
 // It reports whether it succeeded. If it fails, it writes an error to
 // the server log, so most callers can safely ignore the result.
+//
+// TODO(hxjiang): hide from command bodies; effects belong in an Action.
 func showMessage(ctx context.Context, cli protocol.Client, typ protocol.MessageType, message string) bool {
 	err := cli.ShowMessage(ctx, &protocol.ShowMessageParams{
 		Type:    typ,
@@ -1576,6 +1617,8 @@ func showMessage(ctx context.Context, cli protocol.Client, typ protocol.MessageT
 //
 // If the client does not support window/showDocument, a window/showMessage
 // request is instead used, with the format "$title: open your browser to $url".
+//
+// TODO(hxjiang): hide from command bodies; effects belong in an Action.
 func openClientBrowser(ctx context.Context, cli protocol.Client, title string, url protocol.URI, opts *settings.Options) {
 	if opts.ShowDocumentSupported {
 		showDocumentImpl(ctx, cli, url, nil, opts)
@@ -1595,6 +1638,8 @@ func openClientBrowser(ctx context.Context, cli protocol.Client, title string, u
 //
 // Note that VS Code 1.87.2 doesn't currently raise the window; this is
 // https://github.com/microsoft/vscode/issues/207634
+//
+// TODO(hxjiang): hide from command bodies; effects belong in an Action.
 func openClientEditor(ctx context.Context, cli protocol.Client, loc protocol.Location, opts *settings.Options) {
 	if !opts.ShowDocumentSupported {
 		return // no op
@@ -1602,6 +1647,7 @@ func openClientEditor(ctx context.Context, cli protocol.Client, loc protocol.Loc
 	showDocumentImpl(ctx, cli, protocol.URI(loc.URI), &loc.Range, opts)
 }
 
+// TODO(hxjiang): hide from command bodies; effects belong in an Action.
 func showDocumentImpl(ctx context.Context, cli protocol.Client, url protocol.URI, rangeOpt *protocol.Range, opts *settings.Options) {
 	if !opts.ShowDocumentSupported {
 		return // no op
@@ -1814,56 +1860,85 @@ func optionsStringToMap(options string) (map[string][]string, error) {
 	return optionsMap, nil
 }
 
-func (c *commandHandler) ImplementInterface(ctx context.Context, args command.ImplementInterfaceArgs, params *protocol.InteractiveParams) error {
-	return c.run(ctx, commandConfig{
+func (c *commandHandler) ImplementInterface(ctx context.Context, args command.ImplementInterfaceArgs, params *protocol.InteractiveParams) (action command.Action, err error) {
+	err = c.run(ctx, commandConfig{
 		progress: "Implement interface X",
 		forURI:   args.Location.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		iface, err := golang.FormAnswer[string](params, "interface")
-		if err != nil {
+		// TODO(hxjiang): consider passing ctx and snapshot to convert functions during
+		// initialization (e.g. via NewDialog), as question conversion often needs file info.
+		d := golang.NewDialog(c.s.options.ClientOptions, params)
+		iface := d.Ask(golang.InterfaceQuestion.WithConvert(golang.ConvertInterface(ctx, deps.snapshot)))
+		if err := d.Check(); err != nil {
 			return err
 		}
+
+		// Uninstantiated interface, ask user the type params.
+		var typeArgs []types.Type
+		for range iface.TypeParams().Len() {
+			typ := d.Ask(golang.TypeParamQuestion.WithConvert(golang.ConvertTypeParam(ctx, deps.snapshot)))
+			typeArgs = append(typeArgs, typ)
+		}
+		if err := d.Check(); err != nil {
+			return err
+		}
+
+		if len(typeArgs) > 0 {
+			inst, err := types.Instantiate(nil, iface, typeArgs, true)
+			if err != nil {
+				return err
+			}
+			iface = inst.(typesinternal.NamedOrAlias)
+		}
+
+		// iface is a valid (and instantiated, if generic) interface.
 
 		edits, err := golang.ImplementInterface(ctx, deps.snapshot, args.Location, iface)
 		if err != nil {
 			return err
 		}
-		return applyChanges(ctx, c.s.client, edits)
+		action = applyEdits{c.s.client, edits}
+		return nil
 	})
+	return action, err
 }
 
-func (c *commandHandler) ModifyTags(ctx context.Context, args command.ModifyTagsArgs, params *protocol.InteractiveParams) error {
-	return c.run(ctx, commandConfig{
+func (c *commandHandler) ModifyTags(ctx context.Context, args command.ModifyTagsArgs, params *protocol.InteractiveParams) (action command.Action, err error) {
+	err = c.run(ctx, commandConfig{
 		progress: "Modifying tags",
 		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		if len(params.FormAnswers) > 0 {
-			switch args.Modification {
-			case "add":
-				tags, err := golang.FormAnswer[string](params, "tags")
-				if err != nil {
+		// Ask the user which tags to modify, unless the arguments already say
+		// (as they do when the client cannot present a dialog: the code action
+		// then bakes its choice into them; see [golang.CodeActions]).
+		switch args.Modification {
+		case "add":
+			if args.Add == "" && args.AddOptions == "" { // not sure what to add
+				d := golang.NewDialog(c.s.options.ClientOptions, params)
+				tags := d.Ask(golang.AddTagsQuestion)
+				transform := d.Ask(golang.TransformQuestion)
+				if err := d.Check(); err != nil {
 					return err
 				}
-				args.Add, err = golang.SanitizeTags(tags)
-				if err != nil {
-					return err
-				}
-				args.Transform, err = golang.FormAnswer[string](params, "transform")
-				if err != nil {
-					return err
-				}
-			case "remove":
-				tags, err := golang.FormAnswer[string](params, "tags")
-				if err != nil {
-					return err
-				}
-				args.Remove, err = golang.SanitizeTags(tags)
-				if err != nil {
-					return err
-				}
-			default:
-				return fmt.Errorf("unsupported modify tags operation: %s", args.Modification)
+
+				// tags and transform are provided and valid.
+
+				args.Add, args.Transform = tags, transform
 			}
+		case "remove":
+			if args.Remove == "" && args.RemoveOptions == "" && !args.Clear { // not sure what to remove
+				d := golang.NewDialog(c.s.options.ClientOptions, params)
+				tags := d.Ask(golang.RemoveTagsQuestion)
+				if err := d.Check(); err != nil {
+					return err
+				}
+
+				// tags is provided and valid.
+
+				args.Remove = tags
+			}
+		default:
+			return fmt.Errorf("unsupported modify tags operation: %s", args.Modification)
 		}
 
 		m := &modifytags.Modification{
@@ -1912,8 +1987,55 @@ func (c *commandHandler) ModifyTags(ctx context.Context, args command.ModifyTags
 		if err != nil {
 			return err
 		}
-		return applyChanges(ctx, c.s.client, changes)
+		action = applyEdits{c.s.client, changes}
+		return nil
 	})
+	return action, err
+}
+
+func (c *commandHandler) DragonSlayer(ctx context.Context, args command.DragonSlayerArgs, params *protocol.InteractiveParams) (command.Action, error) {
+	d := golang.NewDialog(c.s.Options().ClientOptions, params)
+	won, msg, err := golang.DragonSlayer(d)
+	if err != nil {
+		return nil, err
+	}
+	if won {
+		return openURIAction{c.s.client, msg, "https://www.google.com/search?udm=2&q=slain+dragon", c.s.Options()}, nil
+	}
+	return showMessageAction{c.s.client, protocol.Info, msg}, nil
+}
+
+// TODO(hxjiang): find a better place for these [command.Action]
+// implementations (openURIAction, showMessageAction, and applyEdits), such as a
+// dedicated file or alongside [command.Action] itself.
+
+var _ command.Action = openURIAction{}
+
+// openURIAction is the deferred form of [openClientBrowser].
+type openURIAction struct {
+	cli   protocol.Client
+	title string
+	url   protocol.URI
+	opts  *settings.Options
+}
+
+func (a openURIAction) Perform(ctx context.Context) error {
+	openClientBrowser(ctx, a.cli, a.title, a.url, a.opts)
+	return nil
+}
+
+var _ command.Action = showMessageAction{}
+
+// showMessageAction is the deferred form of [showMessage].
+type showMessageAction struct {
+	cli protocol.Client
+	typ protocol.MessageType
+	msg string
+}
+
+func (a showMessageAction) Perform(ctx context.Context) error {
+	showMessage(ctx, a.cli, a.typ, a.msg)
+	return nil
 }
 
 func parseTransform(input string) (modifytags.Transform, error) {
@@ -1955,14 +2077,56 @@ func (c *commandHandler) MoveType(ctx context.Context, args command.MoveTypeArgs
 	return err
 }
 
-func (c *commandHandler) MoveDeclaration(ctx context.Context, args command.MoveDeclarationArgs, params *protocol.InteractiveParams) error {
-	return c.run(ctx, commandConfig{
+func (c *commandHandler) MoveDeclaration(ctx context.Context, args command.MoveDeclarationArgs, params *protocol.InteractiveParams) (action command.Action, err error) {
+	var movingLoc protocol.Location
+	err = c.run(ctx, commandConfig{
 		forURI: args.Location.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		changes, _, err := golang.MoveDeclaration(ctx, deps.fh, deps.snapshot)
+		d := golang.NewDialog(c.s.options.ClientOptions, params)
+		destURI := d.Ask(golang.MoveDeclarationFileQuestion)
+		if err := d.Check(); err != nil {
+			return err
+		}
+
+		changes, loc, err := golang.MoveDeclaration(ctx, deps.snapshot, deps.fh, destURI, args.Location)
 		if err != nil {
 			return err
 		}
-		return applyChanges(ctx, c.s.client, changes)
+		movingLoc = loc
+		action = applyEdits{c.s.client, changes}
+		showDocumentImpl(ctx, c.s.client, protocol.URI(movingLoc.URI), &movingLoc.Range, c.s.options)
+		// Open the file where the declaration was moved to. TODO(hxjiang): This
+		// only works for moves to existing files. For a new file, the edits haven't
+		// been applied yet so the file hasn't been created. How to fix this?
+		return nil
 	})
+	return action, err
+}
+
+func (c *commandHandler) ResolveTarget(ctx context.Context, args command.ResolveTargetParams) (command.ResolveTargetResult, error) {
+	var result command.ResolveTargetResult
+	err := c.run(ctx, commandConfig{
+		forURI: args.TextDocument.URI,
+	}, func(ctx context.Context, deps commandDeps) error {
+		res, err := golang.ResolveTarget(ctx, deps.snapshot, args)
+		if err != nil {
+			return err
+		}
+		result = res
+		return nil
+	})
+
+	// sort matches for determinism
+	sort.SliceStable(result.Matches, func(i, j int) bool {
+		iv, jv := result.Matches[i], result.Matches[j]
+		// In order of precedence, sort by name, then URI, then line number.
+		if iv.Name != jv.Name {
+			return iv.Name < jv.Name
+		} else if iv.Location.URI != jv.Location.URI {
+			return iv.Location.URI < jv.Location.URI
+		}
+		return iv.Location.Range.Start.Line < jv.Location.Range.Start.Line
+	})
+
+	return result, err
 }

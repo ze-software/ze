@@ -161,7 +161,7 @@ func toProtocolCompletionItems(candidates []completion.CompletionItem, surroundi
 			doc = &protocol.Or_CompletionItem_documentation{Value: value}
 		}
 		var edits *protocol.Or_CompletionItem_textEdit
-		if options.InsertReplaceSupported {
+		if options.CompletionInsertReplaceSupported {
 			insertRng := insertRng0
 			if suffix == "" || strings.Contains(insertText, suffix) {
 				insertRng = replaceRng
@@ -205,6 +205,9 @@ func toProtocolCompletionItems(candidates []completion.CompletionItem, surroundi
 			Documentation: doc,
 			Tags:          protocol.NonNilSlice(candidate.Tags),
 			Deprecated:    candidate.Deprecated,
+		}
+		if options.CompletionLabelDetailsSupported {
+			item.LabelDetails = candidate.LabelDetails
 		}
 		items = append(items, item)
 	}
