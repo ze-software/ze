@@ -48,6 +48,13 @@ The verify runner resolves the selection once and publishes its package and feat
 
 <!-- source: internal/le/verify/engine/scope.go -- publishChangeScope -->
 
+Tests overriding a published scope must keep its dotted and uppercase
+environment spellings consistent before resetting the environment cache.
+Clearing one spelling while assigning the other makes the fixture depend on
+their inherited order: both normalize to the same cache key.
+<!-- source: internal/core/env/env.go -- ensureCache -->
+<!-- source: internal/le/repo/changed/baseline_test.go -- TestRaceSelectionHonorsPublishedFullScope -->
+
 `internal/le/go/staticcheck.Answer` retains the all-features and core-only rows, plus the feature-omission rows the selected tags can affect. A negated build constraint counts as a use of the tag because that file compiles in the omission row.
 
 The retained rows are then cut across six stages, `check part 1 of 6` through `check part 6 of 6`. The scope decides WHICH rows a run judges; the cut decides WHICH STAGE judges each of them. `Matrix.Part` deals the rows round robin, so a scoped run of three rows puts one row in each of three pieces and the other three pieces report that they were dealt none.

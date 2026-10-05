@@ -86,6 +86,9 @@ func TestRaceSelectionHonorsPublishedFullScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv(ScopeFileKey, file)
+	// The verifier can supply either spelling before this process starts.
+	// Keep both equal so their inherited environment order cannot hide the file.
+	t.Setenv("ZE_VERIFY_SCOPE_PACKAGES", file)
 	env.ResetCache()
 	rec := &recorder{answers: map[string]string{"git cat-file -t verified": "commit\n"}}
 	selection, err := (Selector{Root: root, Run: rec.run}).Select()
