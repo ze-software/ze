@@ -165,12 +165,22 @@ does not raise another family's level.
 
 ### Restart Timer Expiry
 
-If the peer does not reconnect within `restart-time` seconds, all stale routes are purged. A safety margin of 5 seconds is added to account for processing delays.
+Without LLGR, Ze releases the peer's retained routes when the received
+`restart-time` expires. Expiry runs only after the session-down retention and
+stale marking finish. That processing time counts toward the restart deadline.
+A zero Restart Time therefore releases routes before the DOWN handler returns,
+rather than leaving an observable GR retention window.
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, startRestartTimer, handleTimerExpired -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent, onTimerExpired, releaseRoutes -->
 
 ### Fail-Safe
 
-If the GR plugin crashes or fails to issue `purge-stale`, the RIB automatically expires stale routes after `restart-time + 5s`.
-<!-- source: internal/component/bgp/plugins/gr/ -- GR state machine, retain-routes/purge-stale commands -->
+For a nonzero Restart Time, the RIB also starts a safety timer at
+`restart-time + 5s`. This margin belongs to the safety timer, not the GR
+plugin's restart deadline. A zero Restart Time arms no RIB safety timer:
+the GR plugin releases routes immediately or enters the negotiated LLGR period.
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- markStaleCommand, grTimerMargin -->
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, startRestartTimer -->
 
 ## Plugin Bindings
 
@@ -264,6 +274,13 @@ peers can therefore expire at different times even when their local
 configuration is identical. Retention means routes in the received RIB:
 replaying a locally configured static route after reconnect does not demonstrate
 that a received route survived either restart period.
+
+Each family's LLST deadline is the original GR deadline plus that family's
+received Long-Lived Stale Time. Time spent dispatching the DOWN commands does
+not extend either period. After retention and stale marking finish, Ze removes
+families whose deadlines already elapsed. Other families enter LLGR only for
+the time that remains. This also applies when Restart Time is zero.
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, enterLLGRLocked -->
 
 The timer fixture `llgr-peer-stale-time-drives-timer.ci` gives the source a
 3-second LLST and a control peer 60 seconds, against Ze's local 3600. Its

@@ -15,7 +15,7 @@ import (
 
 // codeGROutOfProcess is raised when bgp-gr is configured to run as a separate
 // process. LLGREgressFilter lives in the daemon and reads state that only
-// RunGRPlugin stores, so an out-of-process engine leaves the filter blind
+// runGRPlugin stores, so an out-of-process engine leaves the filter blind
 // (gr_egress.go, egressState).
 const codeGROutOfProcess = "doctor-bgp-gr-out-of-process"
 
@@ -49,9 +49,9 @@ var grDoctorCheck = diagnostic.DoctorCheck{
 //
 // The LLGR egress filter is registered from init() (register.go), so it is live
 // in every daemon that links the BGP build group, while setEgressState is called
-// only from RunGRPlugin's OnConfigure callback (gr.go). When the operator runs
+// only from runGRPlugin's OnConfigure callback (gr.go). When the operator runs
 // bgp-gr with `run` rather than `use`, the engine forks it
-// (process.startExternal) and RunGRPlugin executes in the CHILD, so the daemon's
+// (process.startExternal) and runGRPlugin executes in the CHILD, so the daemon's
 // filter answers every destination from a nil state. Failing closed is correct
 // with no state loaded, but it is the wrong answer for a peer that did negotiate
 // LLGR, and the filter's own WARN speaks only once the first stale route reaches

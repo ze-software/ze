@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-05",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -12,8 +13,8 @@
       "note": "Forbidden: declaring code 71 without code 64. TestRFC9494_LLGRCapDeclaredWithGRCap fails unless extractGRCapabilities returns one code-64 declaration for the same peer as the code-71 one (require.Len grCaps 1, Code 64, same Peers). Negative: TestRFC9494_NoLLGRCapWithoutGRContainer places long-lived-stale-time outside the graceful-restart container and fails if either code 71 or code 64 is declared, so no config shape yields 71 alone.",
       "requirement_sha": "2d01c5620e858194",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRCapDeclaredWithGRCap": "53201cebd4f22233",
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLGRCapWithoutGRContainer": "53201cebd4f22233"
+        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRCapDeclaredWithGRCap": "12d6878120b58188",
+        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLGRCapWithoutGRContainer": "12d6878120b58188"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRCapDeclaredWithGRCap": "dddf83e9bd42ed3a",
@@ -25,8 +26,8 @@
       "note": "Two clauses, both asserted. Sender: TestRFC9494_FlagsReservedBitsZeroOnSend fails unless the encoded Flags octet is exactly 0x80 (any reserved bit set goes red). Receiver: TestRFC9494_FlagsReservedBitsIgnoredOnReceive fails if a 0xFF Flags octet errors or decodes differently from 0x80, and if 0x7F leaks into the F bit.",
       "requirement_sha": "e0ad66d4bf961ace",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsIgnoredOnReceive": "53201cebd4f22233",
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsZeroOnSend": "53201cebd4f22233"
+        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsIgnoredOnReceive": "12d6878120b58188",
+        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsZeroOnSend": "12d6878120b58188"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsIgnoredOnReceive": "9ed2c95dddedfb3b",
@@ -61,32 +62,34 @@
       "verdict": "enforced"
     },
     "RFC9494-4.2-1": {
-      "note": "RFC 9494 \u00a74.2: \"After the session goes down, and before the session is re-established, the stale routes for an AFI/SAFI MUST be retained.\" Context: \"The interval for which they are retained is limited by the sum of the Restart Time in the received Graceful Restart Capability and the Long-Lived Stale Time in the received Long-Lived Graceful Restart Capability.\" The same section specifies zero/nonzero periods and GR then LLGR when both are nonzero. Read all five tagged carriers: internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily and TestOnTimerExpired_WithoutLLGR; internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, TestRFC9494RestartTimeThenLongLivedStaleTime and TestRFC9494BothTimesZeroRetainsNothing. Three positive and two negative tags. Real-RIB cases now check actual received-route level 1 -> level 2 -> deletion, both DOWN event rails for RT=0/LLST>0 and both-zero, plus no-LLGR GR expiry. These assertions are correctly isolated for those inputs and stronger than dispatch-only evidence. Whole obligation is not proven: every positive includes its family in GR; \u00a74.2 also says \"If the Graceful Restart Capability that was received does not list all AFIs/SAFIs supported by the session, then the GR Restart Time shall be deemed zero for those AFIs/SAFIs that are not listed.\" gr_state.go::onSessionDownDeferred builds staleFamilies solely from cap.Families and returns false on the empty set; gr.go::retainPeerFamilies likewise limits the RIB to GR-listed families. Source-traced valid GR-empty/LLGR-IPv4 input reaches that branch and rib.go::handleState deletes routes on DOWN: a reachable implemented-LLGR transition defect [INFERENCE from source, not runtime-observed], not an absent-feature authorization. Further, 1s/1s tagged Eventually checks establish stage order and eventual removal but not full elapsed duration or remote versus local timer provenance. Untagged test/plugin/llgr-peer-stale-time-drives-timer.ci and internal/test/fixture/plugin_fixture_llgr_lifecycle.go::llgrLifecycle add remote 3s versus 60s controls with local 3600s and real wire withdrawal fences, but are supplementary source evidence, not fingerprinted tags for this row. Existing LLGR synchronization/consecutive-restart gaps remain. No runtime renewal performed. Post-lint independent source rejudgment of all five tagged carriers: received/down now bind the same testPeer internally, and checked mux.Close adds cleanup-error reporting only. Both JSON and structured zero-RT cases still require actual level-2 retained storage; both-zero still requires empty storage and inactive state; the serial timer case still requires level 1, then level 2 with community, then absence. No assertion establishes omitted-GR-family retention or exact elapsed LLST. Current onSessionDownDeferred still returns false for empty GR Families and enterLLGRLocked still iterates only GR staleFamilies. Therefore the prior weak judgment and GR-empty/LLGR-family source-inferred gap remain unchanged. No implementation or scope expansion is authorized, and a native producer halt will not close this semantic gap.",
+      "note": "Preserve the prior weak verdict. RFC 9494 \u00a74.2 states, \"After the session goes down, and before the session is re-established, the stale routes for an AFI/SAFI MUST be retained.\" All six current tagged units were read: gr_state_test.go::TestLLSTTimerExpiry_LastFamily and TestOnTimerExpired_WithoutLLGR; rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, TestRFC9494BothTimesZeroRetainsNothing, TestRFC9494RestartTimeThenLongLivedStaleTime and TestRFC9494DelayedDownPreservesLLSTDeadlines, under internal/component/bgp/plugins/gr/. Zero/nonzero, both-zero and serial tests observe actual registered RIB retention, stale levels and deletion. The new synctest test distinguishes the original GR+received-LLST bounds from timers restarted after DOWN dispatch, on JSON and structured paths with both families live, one expired, both expired and zero GR. However, all positive inputs include their retained families in GR. Section 4.2 also states, \"If the Graceful Restart Capability that was received does not list all AFIs/SAFIs supported by the session, then the GR Restart Time shall be deemed zero for those AFIs/SAFIs that are not listed.\" gr_state.go::onSessionDownDeferred still builds staleFamilies solely from cap.Families, and gr.go::retainPeerFamilies supplies that same restriction to the RIB. LLGR-only-family support remains absent and outside the agreed implementation scope; the repair does not authorize implementing it. Whole-row retention remains unproven. There is no partial annotation on this row, so preserve weak rather than manufacture a partial verdict.",
       "requirement_sha": "8760148f130249ac",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "02aa7fa5713f0caa",
-        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "02aa7fa5713f0caa",
-        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "02aa7fa5713f0caa"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "cf2845d2e52807df",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "cf2845d2e52807df",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "afaa2760ff0780fd",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "afaa2760ff0780fd",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "afaa2760ff0780fd",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "afaa2760ff0780fd"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "e2533bf5e08b7686",
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "d2d59c18e2f649d9",
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "6e3b080b5b842c4b",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "cb90a46186196799",
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "7916063e0abfe63d",
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "4d735a27f3177ed5"
       },
       "verdict": "weak"
     },
     "RFC9494-4.2-2": {
-      "note": "RFC 9494 \u00a74.2: \"For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long-Lived Stale Time.\" Precondition: \"Once the Restart Time period ends (including the case in which the Restart Time is zero), the LLGR period is said to have begun and the following procedures MUST be performed:\" Read all four tagged carriers: internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR observes LLGR callback and active state but ignores callback llst; TestOnSessionDown_ZeroGR_ZeroLLST observes no active state; internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime sees a timer-map key and actual retained route followed by deletion, while TestRFC9494BothTimesZeroRetainsNothing requires immediate route removal and inactive state on both event rails. Two positive, two negative tags, genuinely distinct nonzero versus zero LLST inputs. Producers gr.go::extractGRCaps/handleOpenEvent -> gr_llgr.go::decodeLLGR/llgrResultToPeerCap -> gr_llgr_exchange.go::exchangedLLGRLocked preserve the RECEIVED LLST; local configuration controls advertised family membership, not the received duration. gr_state.go::enterLLGRLocked uses that duration in time.AfterFunc. Nevertheless the tagged 1-second case can pass for another short positive duration and covers only IPv4 with a matching GR tuple; no tagged assertion distinguishes received LLST from a substituted local value or requires a timer for an LLGR-only family. The latter is a source-traced reachable defect: onSessionDownDeferred never adds families absent from GR, and enterLLGRLocked iterates only staleFamilies. The untagged live peer-timer .ci has remote 3s/60s versus local 3600s and fences observed route states and exact expiry withdrawals, but is supplementary rather than native tagged proof, and does not cover missing-GR families. Whole for-each/duration obligation remains unproven, not repaired by a producer halt record. No runtime renewal performed. Post-lint independent source rejudgment of all four tagged carriers: the same nonzero/zero LLST inputs and current testPeer reach onSessionDownDeferred, handleTimerExpired and enterLLGRLocked after constant-argument removal. The eventual deletion check and family-map membership remain exact for the tested transition, but do not pin the received duration against another short duration or start timers for LLGR-only families omitted from GR. The prior weak judgment, omitted-GR-family finding and timer-provenance limitations remain. Cleanup Close errors are now reported, not hidden, and no feature implementation was made.",
+      "note": "Preserve the prior weak verdict. RFC 9494 \u00a74.2 states, \"For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long-Lived Stale Time.\" All four tagged units were read: gr_state_test.go::TestOnTimerExpired_WithLLGR and TestOnSessionDown_ZeroGR_ZeroLLST; rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime and TestRFC9494BothTimesZeroRetainsNothing. Their nonzero/zero inputs are genuinely distinct. The callback positive ignores its LLST argument; the serial real-RIB positive requires a timer-map key and eventual removal but does not pin the received one-second duration. The zero negative checks immediate removal and inactive state. decodeLLGR, llgrResultToPeerCap and exchangedLLGRLocked preserve the received LLST, and enterLLGRLocked now uses the remaining duration until original restartDeadline plus received LLST. The new delayed-DOWN synctest provides strong supplementary two-family exact-deadline evidence, but is not tagged for this row. More importantly, enterLLGRLocked still iterates only GR-derived staleFamilies and cannot start an LLST timer for an LLGR-only family omitted from GR. The whole for-each obligation remains unproven; preserve the absent-feature scope and weak finding.",
       "requirement_sha": "1f2696c1a36dff3c",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "02aa7fa5713f0caa",
-        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "02aa7fa5713f0caa"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "cf2845d2e52807df",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "cf2845d2e52807df",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "afaa2760ff0780fd",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "afaa2760ff0780fd"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "f58c4b8954ec7213",
@@ -97,17 +100,19 @@
       "verdict": "weak"
     },
     "RFC9494-4.2-3": {
-      "note": "Forbidden: keeping a family's stale routes after its LLST elapsed with the session down. TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes runs the production callbacks and fails unless 'request bgp rib purge-stale <peer> ipv4/unicast' is dispatched, and fails if the ipv6 purge (LLST 3600) is; TestLLSTTimerExpiry_SingleFamily asserts the per-family expiry with ipv6 still active. Negative: TestRFC9494_NoLLSTExpiryAfterReestablish fails if a family expiry fires after re-establishment. The purge command's own deletion is proven by TestRIBPurgeStaleFamilyCommand, which carries no tag for this row.",
+      "note": "RFC 9494 \u00a74.2 states, \"If the timer for the Long-Lived Stale Time for a given AFI/SAFI expires before the session is re-established, the helper MUST delete all stale routes of that AFI/SAFI from the neighbor that it is retaining.\" Re-read all current tagged carriers: internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily, internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes and internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines. The first observes family expiry and continued peer retention; the second verifies that production wireStateCallbacks dispatches the expired family's purge and not the still-live family's purge. The third reaches the registered RIB on both JSON and structured DOWN paths and checks received IPv4 LLST=2 and IPv6 LLST=4 against the original GR deadline, including both-live, IPv4-expired, both-expired and zero-GR cases. Its positive assertions require actual route absence and no family retention at each elapsed deadline, including immediate cleanup after delayed stale marking; its distinct negative assertions require a level-2 route with LLGR_STALE and active family retention before that family's deadline, including one nanosecond before expiry and after the other family's expiry. These are different observable outcomes under different expiry conditions, not the same assertion wearing two polarity labels. The inspected consumer chain is handleLLSTExpired or pending.purged -> wireStateCallbacks.onLLGRFamilyExpired -> registered purge-stale command -> RIBManager.purgeStaleCommand -> PurgeFamilyStale; the last expiry releases the peer. This proves the row's session-still-down deletion obligation without asserting that reconnect cancels LLST. The old contradictory reconnect test and its tag are removed. Section 4.2 separately states, \"However, the timer continues to run once the session has re-established.\" This rejudgment does not certify that behavior: production reconnect still stops LLST timers, and the explicit synchronization gap RFC9494-4.2-10 and other consecutive-restart gaps remain unchanged. Nor does this verdict claim LLGR-only-family creation or retention, whose absent-feature scope continues to limit rows 4.2-1 and 4.2-2. Changed/new polarity discrimination maintenance remains parent-owned and was not executed here.",
       "requirement_sha": "3f738c50ccd28c69",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "acb2a99cf07536f1",
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLSTExpiryAfterReestablish": "53201cebd4f22233"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "cf2845d2e52807df",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "b30d8061cbaf579c",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "afaa2760ff0780fd",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "afaa2760ff0780fd"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "15bfa5baa205a4ca",
         "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "f18f8f81a9f85dd0",
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLSTExpiryAfterReestablish": "d781d78fb4ffbb0d"
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "cb90a46186196799",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "cb90a46186196799"
       },
       "verdict": "enforced"
     },
@@ -115,7 +120,7 @@
       "note": "RFC 9494 \u00a74.2: \"The helper router MUST attach the LLGR_STALE community to the stale routes being retained.\" Read all three tagged carriers: internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod exercises production wireStateCallbacks on JSON and structured DOWN, real registered RIB commands, and requires retained received route 198.51.100.0/24 at level 2 with community 0xffff0006. internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity checks the actual stored bundle contains that exact value; internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale requires zero attachments, unchanged fresh level and no community for a fresh route. Two positive and one negative tags. gr.go::wireStateCallbacks dispatches deletion of NO_LLGR before attach-community, then raises stale level and triggers per-family readvertisement; rib_commands_community.go::attachCommunityCommand filters fresh entries and attachCommunity updates the bundle and clears the original-wire fingerprint. Removing marker attachment or attaching it to fresh routes breaks different assertions. The RFC note \"Note that this requirement implies that the routes would need to be readvertised in order to disseminate the modified community\" is traced to wireStateCallbacks::onLLGREntryDone; tagged units establish the attachment obligation at storage, not a destination-wire guarantee. Supplementary untagged test/plugin/llgr-peer-stale-time-drives-timer.ci waits for a destination LLGR_STALE UPDATE before acknowledging the phase. This verdict does not erase RFC9494-4.3-2 further-advertisement protection gap or claim every LLGR activation case is implemented (see 4.2-1/-2). No runtime renewal performed. Post-lint independent source rejudgment: the changed zero-Restart-Time tagged unit still compares the retained route community to literal 0xffff0006 on both event rails after real RIB DOWN; removing testPeer helper arguments leaves bytes and peer identity identical. Re-read TestAttachCommunity and the fresh-route negative as well as wireStateCallbacks: delete NO_LLGR, attach LLGR_STALE, raise level, then readvertise. The distinct fresh-route input must remain unmarked. Enforced attachment judgment is unchanged; cleanup now reports mux.Close failures. Destination-wire dissemination and missing-GR-family activation are not newly proven by this lint repair.",
       "requirement_sha": "22bb80e0584de1a8",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "02aa7fa5713f0caa",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "afaa2760ff0780fd",
         "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "86fd60e2db71589a",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "e5d6319873861ae8"
       },
@@ -130,7 +135,7 @@
       "note": "RFC 9494 \u00a74.2: \"If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271].\" Read all seven tagged carriers (four positive, three negative): internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod deletes a real received NO_LLGR route while its otherwise eligible sibling survives on both DOWN rails; internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity checks exact storage deletion; internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained retains an LLGR_STALE-only route. internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath additionally requires exactly one best-change batch, IPv4/unicast, exactly one Withdraw for 10.0.0.0/24; TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR uses a nonmatching real community 65001:100 and requires unchanged route count and no event. Both tags in test/plugin/llgr-import-no-llgr.ci are distinct route outcomes: wire UPDATEs initially lack communities, only marked receives import modify:NO-LLGR; internal/test/fixture/plugin_fixture_llgr_import.go::llgrImportNoLLGR checks policy-added 65535:7 on 10.0.0.0/24 and its absence from 10.0.1.0/24 before releasing TCP closes, then requires marked absent and plain retained with 65535:6. The stderr success fence is emitted only after these checks. The previous configured-policy evidence hole is therefore closed in current source. Producer chain: filter_modify config.go::parseCommOps and modify.go::buildDynamicDelta, GR wireStateCallbacks, then rib_commands_community.go::deleteWithCommunityCommand removes matching stale routes, reconciles sent-source state and recomputes/publishes best-path changes. Peer-added and policy-added clauses plus normal best-path removal are covered compositionally; the import fixture itself reads received RIB, not a downstream socket, and no destination-wire observation or runtime green is claimed here. Distinct matching/nonmatching community inputs isolate the rule. Existing unrelated LLGR gaps remain. Native red records over changed unit/producer require parent renewal before stamping. Post-lint independent source rejudgment: the same changed zero-RT unit supplies a received 0xffff0007 route and an otherwise eligible sibling, requires the marked route absent and the sibling retained with 0xffff0006 after actual DOWN on both rails. Re-read all other carriers, including the .ci and its llgrImportNoLLGR observer: policy attachment is checked before a wire fence releases TCP closes; marked absence and unmarked LLGR_STALE precede the success fence. The RIB best-change pair requires one exact withdrawal versus no event for nonmatching community. Constant-peer removal and checked cleanup preserve these assertions. Preserve enforced and every prior planned producer-change renewal, including functional citations; no new functional run is claimed.",
       "requirement_sha": "fac8847e101227fd",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "02aa7fa5713f0caa",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "afaa2760ff0780fd",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "e60d254188c8f1f0",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "e60d254188c8f1f0",
         "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a",
@@ -166,8 +171,8 @@
       "note": "Three listed cases. Only the third (neither GR nor LLGR received) is asserted: onSessionReestablished(nil,nil) returns IPv4Unicast for purge and the peer leaves LLGR. The negative (F=1 in both caps, nothing purged) is the control. Neither the F bit clear for a family in the new LLGR capability nor a family absent from it has an assertion.",
       "requirement_sha": "2136b71bc93919d1",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "0c7f565215e037ef"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "cf2845d2e52807df",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "cf2845d2e52807df"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "0fd5f019aadf5f89",
@@ -189,19 +194,19 @@
       "verdict": "weak"
     },
     "RFC9494-4.3-3": {
-      "note": "Forbidden: advertising the stale route to a neighbor whose LLGR capability was not received. TestLLGREgressFilter_NilStateWithdrawsEBGP fails unless mods.IsWithdraw() for an external destination with no capability recorded; llgr-egress-state-unloaded.ci proves the Section 4.6 exception in the daemon (the internal neighbor receives the route only with FFFFFF01). Negative: a destination in peerLLGRCaps gets no withdraw and zero mods.",
+      "note": "RFC 9494 \u00a74.3 states, \"The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received.\" It immediately adds, \"The exception is described in Section 4.6.\" Section 4.6 permits the internal-neighbor exception while requiring both NO_EXPORT and LOCAL_PREF zero. Re-read all three current carriers: internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP, the same file's TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer, and test/plugin/llgr-egress-state-unloaded.ci, including its driver internal/test/fixture/plugin_fixture_09_bgp.go::llgrReadvertise09. The RunGRPlugin-to-runGRPlugin change in the first carrier is explanatory prose only; neither its assertions nor its tag claim changed. The unloaded-state positive correctly requires mods.IsWithdraw for an external destination with stale metadata, and the loaded-capable negative correctly requires acceptance, no withdrawal and no modifications. The functional carrier runs GR externally, marks an existing route stale at level 2, triggers clear-rib-out and requires the internal neighbor's second UPDATE to contain NO_EXPORT (FFFFFF01). It does not assert LOCAL_PREF=0 or exercise an external destination.\n\nThe current producers were traced through gr_egress.go::LLGREgressFilter/hasLLGR, register.go's Egress and Readvertise registration, reactor_api_forward.go and forward_rs.go's filter loops and withdrawal conversion, and reactor_api_batch.go::decideStaleReadvertise/sendStaleReadvertiseUnit. These consumers explicitly realize SetWithdraw as withdrawal and attribute modifications as modified announcements; the source does not silently discard those decisions. Nevertheless, the requirement's tagged evidence leaves the ordinary loaded-state/non-LLGR-neighbor case untested: every tagged positive uses unloaded state, while the only loaded-state tagged unit gives the destination an LLGR capability. A change from hasLLGR = s.hasLLGR(dest.Address.String()) to hasLLGR = true whenever s != nil would advertise stale routes to ordinary non-LLGR external neighbors and leave all three tagged carriers' assertions satisfied [INFERENCE from source; no mutation executed]. Existing untagged-for-this-row tests, including TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState and TestLLGREgressFilter_EBGPWithdraw, exercise that missing condition, but they are not fingerprinted evidence for this row. The functional carrier also checks only NO_EXPORT, not both \u00a74.6 obligations, and none of these three carriers tests receipt of an actual LLGR_STALE-marked UPDATE: the units supply stale metadata directly and the functional driver uses mark-stale. Therefore the earlier enforced verdict overstates what this row's tags discriminate; record weak, not a new claim of a patch-introduced production bug. No partial annotation exists, so partial is unavailable. Existing LLGR-only-family, synchronization and other absent-feature scopes remain unchanged, with no implementation authorized.",
       "requirement_sha": "76231582d0f155d2",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "7d335dd9bc1f5663",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "7d335dd9bc1f5663",
         "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "b406251374d69f4f",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "68c4f279fd7eceac",
         "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "967976e8d70ce683",
         "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC9494-4.4-1": {
       "note": "Forbidden: a least-preferred route beating one that is not. TestSelectBest_LLGRStaleDepreference gives the stale candidate LOCAL_PREF 300 against 100 and fails, in both input orders, unless the normal route wins, so removing Step 0 goes red. Negative: TestSelectBest_BothLLGRStale fails unless two stale candidates fall through to LOCAL_PREF, so the rule orders only across the least-preferred boundary.",
@@ -233,8 +238,8 @@
       "note": "Forbidden: applying the partial-deployment delivery to a non-internal neighbor. TestLLGREgressFilter_EBGPNonLLGR (PeerAS!=LocalAS, no LLGR) fails unless mods.IsWithdraw(). Positive: the internal neighbor (PeerAS==LocalAS) keeps the announce with NO_EXPORT 0xFFFFFF01 added and LOCAL_PREF set to 0, each value asserted.",
       "requirement_sha": "e7ee81b6b57096e6",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "7d335dd9bc1f5663",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "7d335dd9bc1f5663"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "84dc8716c970c2bd",
@@ -246,9 +251,9 @@
       "note": "Forbidden: a stale route delivered on the partial-deployment branch without NO_EXPORT. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a COMMUNITIES AttrModAdd with value 0xFFFFFF01 is emitted for an internal non-LLGR neighbor (hasCommunityAdd asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if any modification is emitted for an LLGR-capable neighbor.",
       "requirement_sha": "bc3c13cb72f95a87",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "27afa9d1b8ebacc9"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "7d335dd9bc1f5663",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "7d335dd9bc1f5663",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "7d335dd9bc1f5663"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
@@ -261,9 +266,9 @@
       "note": "Forbidden: a stale route delivered on the partial-deployment branch with its LOCAL_PREF kept. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a LOCAL_PREF AttrModSet with value 0 is emitted (hasLocalPrefSet asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if an LLGR-capable neighbor receives any modification.",
       "requirement_sha": "310c89079f9c8e98",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "27afa9d1b8ebacc9"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "7d335dd9bc1f5663",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "7d335dd9bc1f5663",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "7d335dd9bc1f5663"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
@@ -278,8 +283,8 @@
       "tests": {
         "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig": "9441ce41d77c3f99",
         "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOnPerConfiguredFamily": "9441ce41d77c3f99",
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGREnabledByExplicitConfig": "53201cebd4f22233",
-        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRNotEnabledByDefault": "53201cebd4f22233"
+        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGREnabledByExplicitConfig": "12d6878120b58188",
+        "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRNotEnabledByDefault": "12d6878120b58188"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig": "47d02a28f58f3783",

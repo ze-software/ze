@@ -67,9 +67,16 @@ func newGRWithRealRIB(t *testing.T) (*grPlugin, *realGRRIB) {
 	require.NoError(t, mux.SendOK(ctx, request.ID))
 	go func() {
 		for request := range mux.Requests() {
-			// No transport destination is installed in this received-store test.
-			// Runtime notifications can be acknowledged; route state is read below.
-			_ = mux.SendOK(ctx, request.ID)
+			// Peer-UP reports initial replay completion through dispatch-command.
+			// Command answers need a record terminator, not an RPC "ok" line.
+			if request.Method != "ze-plugin-engine:dispatch-command" {
+				t.Errorf("unexpected RIB host RPC %q", request.Method)
+				_ = mux.SendError(ctx, request.ID, "unexpected RIB host RPC")
+				continue
+			}
+			if err := rpc.WriteDocumentAnswer(mux.AnswerWriter(ctx), request.ID, rpc.AnswerTail{}, nil); err != nil && ctx.Err() == nil {
+				t.Errorf("answer RIB host command: %v", err)
+			}
 		}
 	}()
 	gp, _ := newRecordedGRPlugin()

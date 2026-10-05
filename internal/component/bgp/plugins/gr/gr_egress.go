@@ -57,7 +57,7 @@ func (s *egressFilterState) hasLLGR(peerAddr string) bool {
 }
 
 // egressState is the package-level pointer to the filter's shared state.
-// Stored atomically: nil before RunGRPlugin, non-nil after.
+// Stored atomically: nil before runGRPlugin, non-nil after.
 //
 // A nil state is the ABSENCE of an answer about every peer's LLGR capability,
 // never the answer "no peer is stale". LLGREgressFilter therefore reads nil as
@@ -90,7 +90,7 @@ func egressWarnLogger() *slog.Logger {
 }
 
 // setEgressState sets the package-level egress filter state.
-// Called by RunGRPlugin on startup and by tests.
+// Called by runGRPlugin on startup and by tests.
 func setEgressState(s *egressFilterState) {
 	egressState.Store(s)
 }

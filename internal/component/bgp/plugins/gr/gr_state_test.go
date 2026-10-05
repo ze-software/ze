@@ -3,6 +3,7 @@ package gr
 import (
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -74,19 +75,17 @@ func TestGRStateManagerTimerExpiry(t *testing.T) {
 		mu.Unlock()
 	})
 
-	// The restart time must be long enough that the real timer never fires while
-	// the test runs. onSessionDown arms time.AfterFunc unconditionally, so a
-	// restart time of 0 puts a second caller into handleTimerExpired concurrently
-	// with the simulated one below. Whichever call wins clears the peer, the loser
-	// takes the not-found early return without firing the callback, and the winner
-	// fires it only after releasing the lock. The assertion below can therefore
-	// read `expired` while it is still nil. That raced 4 times in 30 runs.
+	// Keep the deadline in the future so the explicit expiry below owns the
+	// transition. A zero deadline expires before onSessionDown returns.
 	cap := testCap(120, famIPv4)
 	mgr.onSessionDown(testPeer, cap, nil, false)
 	require.True(t, mgr.peerActive(testPeer))
 
-	// handleTimerExpired is called by time.AfterFunc — simulate it directly
-	mgr.handleTimerExpired(testPeer)
+	// The callback carries the cycle that armed it, not just the peer address.
+	mgr.mu.Lock()
+	owner := mgr.peers[testPeer]
+	mgr.mu.Unlock()
+	mgr.handleTimerExpired(testPeer, owner)
 
 	assert.False(t, mgr.peerActive(testPeer), "GR state should be cleared after timer expiry")
 	mu.Lock()
@@ -321,19 +320,134 @@ func TestGRStateManagerEORForNonGRPeer(t *testing.T) {
 	assert.False(t, shouldPurge, "EOR for non-GR peer should not trigger purge")
 }
 
-// TestGRStateManagerRestartTimeZero verifies zero restart time behavior.
+// TestGRStateManagerRestartTimeZero observes activation before completing DOWN,
+// then checks that a zero deadline releases the peer and fires expiry exactly once.
 //
-// VALIDATES: Restart time of 0 still creates GR state with timer.
-// PREVENTS: Division by zero or special-casing of zero restart time.
+// VALIDATES: Zero is accepted, but its GR period ends after stale marking.
+// PREVENTS: Expiry racing retention, or zero-time stale routes remaining retained.
 // BOUNDARY: restart-time=0 is the minimum valid value.
 func TestGRStateManagerRestartTimeZero(t *testing.T) {
-	mgr := newGRStateManager(nil)
+	synctest.Test(t, func(t *testing.T) {
+		var expired []string
+		mgr := newGRStateManager(func(peer string) {
+			expired = append(expired, peer)
+		})
 
-	cap := testCap(0, famIPv4)
-	activated := mgr.onSessionDown(testPeer, cap, nil, false)
+		activated, completeDown := mgr.onSessionDownDeferred(testPeer, testCap(0, famIPv4), nil, false)
+		require.True(t, activated)
+		require.NotNil(t, completeDown)
 
-	assert.True(t, activated)
-	assert.True(t, mgr.peerActive(testPeer))
+		// Drain runnable callbacks before observing the pending DOWN state.
+		synctest.Wait()
+		assert.True(t, mgr.peerActive(testPeer))
+		assert.Empty(t, expired, "expiry must wait for retention and stale marking")
+
+		completeDown()
+		synctest.Wait()
+		assert.False(t, mgr.peerActive(testPeer), "zero Restart Time has no remaining GR period")
+		assert.Equal(t, []string{testPeer}, expired, "expiry must release this peer exactly once")
+	})
+}
+
+// TestGRStateManagerRestartDeadlineIncludesDispatch advances the virtual clock
+// while DOWN is pending, then verifies that completion does not restart the period.
+func TestGRStateManagerRestartDeadlineIncludesDispatch(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var expired []string
+		mgr := newGRStateManager(func(peer string) {
+			expired = append(expired, peer)
+		})
+
+		activated, completeDown := mgr.onSessionDownDeferred(testPeer, testCap(1, famIPv4), nil, false)
+		require.True(t, activated)
+		require.NotNil(t, completeDown)
+		<-time.After(time.Second)
+		synctest.Wait()
+		assert.True(t, mgr.peerActive(testPeer), "expiry cannot precede stale marking")
+		assert.Empty(t, expired)
+
+		completeDown()
+		assert.False(t, mgr.peerActive(testPeer), "dispatch time must count toward Restart Time")
+		assert.Equal(t, []string{testPeer}, expired)
+	})
+}
+
+// TestGRStateManagerRestartExpiryRejectsOldCycle delivers an old cycle's callback
+// after a replacement DOWN, then verifies that only the current owner can expire.
+//
+// RFC requirement: RFC4724-4.2-7 negative -- a previous restart's callback cannot purge or enter LLGR for a new restart whose Restart Time has not elapsed.
+func TestGRStateManagerRestartExpiryRejectsOldCycle(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		cap  *llgrPeerCap
+	}{{"gr", nil}, {"llgr", llgrCapIPv4}} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var expired, entries int
+				mgr := newGRStateManager(func(string) { expired++ })
+				mgr.onLLGREnter = func(string, family.Family, uint32) { entries++ }
+				defer mgr.removePeer(testPeer)
+				// RFC 4724 Section 4.2.
+				require.True(t, mgr.onSessionDown(testPeer, testCap(120, famIPv4), tc.cap, false))
+				mgr.mu.Lock()
+				oldOwner := mgr.peers[testPeer]
+				mgr.mu.Unlock()
+
+				// RFC 4724 Section 4.2.
+				require.True(t, mgr.onSessionDown(testPeer, testCap(120, famIPv4), tc.cap, false))
+				mgr.mu.Lock()
+				currentOwner := mgr.peers[testPeer]
+				// The current expiry is delivered explicitly below, not by wall time.
+				currentOwner.restartTimer.Stop()
+				mgr.mu.Unlock()
+				// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
+				mgr.handleTimerExpired(testPeer, oldOwner)
+				assert.True(t, mgr.peerActive(testPeer))
+				assert.True(t, mgr.familyRetained(testPeer, family.IPv4Unicast))
+				assert.Zero(t, expired)
+				assert.Zero(t, entries)
+
+				// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
+				mgr.handleTimerExpired(testPeer, currentOwner)
+				if tc.cap == nil {
+					assert.Equal(t, 1, expired)
+					assert.False(t, mgr.peerActive(testPeer))
+				} else {
+					assert.Equal(t, 1, entries)
+					assert.True(t, mgr.peerActive(testPeer))
+				}
+			})
+		})
+	}
+}
+
+// TestGRStateManagerRestartExpiryAfterReconnect delivers a canceled callback
+// after reestablishment and verifies that the retained family still waits for EOR.
+//
+// RFC requirement: RFC4724-4.2-7 negative -- reconnection before expiry cancels the restart callback even when it has already started, preserving stale state until EOR.
+func TestGRStateManagerRestartExpiryAfterReconnect(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var expired int
+		mgr := newGRStateManager(func(string) { expired++ })
+		defer mgr.removePeer(testPeer)
+		// RFC 4724 Section 4.2.
+		require.True(t, mgr.onSessionDown(testPeer, testCap(120, famIPv4), nil, false))
+		mgr.mu.Lock()
+		owner := mgr.peers[testPeer]
+		mgr.mu.Unlock()
+
+		// RFC 4724 Section 4.2.
+		purged, wasLLGR := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4), nil)
+		require.Empty(t, purged)
+		require.False(t, wasLLGR)
+		// RFC 4724 Section 4.2.
+		mgr.handleTimerExpired(testPeer, owner)
+		assert.Zero(t, expired)
+		assert.True(t, mgr.familyRetained(testPeer, family.IPv4Unicast))
+		// RFC 4724 Section 4.2.
+		assert.True(t, mgr.onEORReceived(testPeer, family.IPv4Unicast))
+		assert.False(t, mgr.peerActive(testPeer))
+	})
 }
 
 // TestGRStateManagerRestartTimeMax verifies maximum restart time.

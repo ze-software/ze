@@ -1,8 +1,7 @@
 // RFC: rfc/short/rfc9494.md -- Long-Lived Graceful Restart requirement bindings.
 //
 // These tests bind RFC 9494 MUST-level requirements to the producing functions in
-// this package: capability declaration (gr_llgr.go), capability decode (gr_llgr.go)
-// and the LLST state machine (gr_state.go).
+// this package: capability declaration and decoding (gr_llgr.go).
 
 package gr
 
@@ -10,12 +9,9 @@ import (
 	"encoding/hex"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/core/family"
 )
 
 // configWithLLST is a peer config carrying both restart-time and long-lived-stale-time.
@@ -161,43 +157,4 @@ func TestRFC9494_LLGREnabledByExplicitConfig(t *testing.T) {
 	require.Len(t, payload, 7)
 	llst := uint32(payload[4])<<16 | uint32(payload[5])<<8 | uint32(payload[6])
 	assert.Equal(t, uint32(3600), llst, "configured LLST reaches the wire")
-}
-
-// TestRFC9494_NoLLSTExpiryAfterReestablish verifies a re-established session cancels the
-// pending LLST deletion.
-//
-// VALIDATES: reconnecting inside the LLST window stops the per-family timer.
-// PREVENTS: stale routes being deleted after the peer is back and resynchronizing.
-//
-// RFC requirement: RFC9494-4.2-3 negative -- the deletion is conditional on the session NOT
-// being re-established: onSessionReestablished stops every LLST timer through
-// stopLLSTTimersLocked (internal/component/bgp/plugins/gr/gr_state.go:194, :476-481), so
-// handleLLSTExpired never runs and no family purge is requested.
-func TestRFC9494_NoLLSTExpiryAfterReestablish(t *testing.T) {
-	t.Parallel()
-
-	familyExpired := &safeCollector{}
-	mgr := newGRStateManager(nil)
-	mgr.onLLGREnter = func(peer string, fam family.Family, llst uint32) {}
-	mgr.onLLGRFamilyExpired = func(peer string, fam family.Family) {
-		familyExpired.add(fam.String())
-	}
-
-	llgrCap := &llgrPeerCap{
-		Families: []llgrCapFamily{
-			{Family: family.IPv4Unicast, ForwardState: true, LLST: 1},
-		},
-	}
-	// restart-time=0 enters LLGR immediately, so the 1s LLST timer is armed now.
-	mgr.onSessionDown(testPeer, testCap(0, famIPv4), llgrCap, false)
-	require.True(t, mgr.peerActive(testPeer), "peer is in LLGR")
-
-	// Session comes back before the LLST elapses.
-	purged, wasInLLGR := mgr.onSessionReestablished(testPeer, testCap(120, famIPv4), llgrCap)
-	assert.True(t, wasInLLGR, "reconnect happened during LLGR")
-	assert.Empty(t, purged, "F bit set in both capabilities, nothing purged on reconnect")
-
-	// Well past the original LLST: no family deletion may have fired.
-	time.Sleep(1500 * time.Millisecond)
-	assert.Empty(t, familyExpired.get(), "a re-established session cancels the LLST deletion")
 }

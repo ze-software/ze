@@ -95,7 +95,7 @@ func SetLogger(l *slog.Logger) {
 }
 
 // grPlugin holds runtime state for the GR plugin during the event loop.
-// Created in RunGRPlugin after the 5-stage handshake completes.
+// Created in runGRPlugin after the 5-stage handshake completes.
 type grPlugin struct {
 	sdk *sdk.Plugin
 
@@ -122,12 +122,12 @@ type grPlugin struct {
 	dispatchHook func(command string, args ...string)
 }
 
-// RunGRPlugin runs the GR plugin using the SDK RPC protocol.
+// runGRPlugin runs the GR plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 // It receives per-peer GR config during Stage 2, registers per-peer
 // GR capabilities (code 64) during Stage 3, and runs RFC 4724
 // Receiving Speaker procedures during the event loop.
-func RunGRPlugin(conn net.Conn) int {
+func runGRPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-gr", conn)
 	defer func() { _ = p.Close() }()
 
@@ -235,7 +235,7 @@ func RunGRPlugin(conn net.Conn) int {
 // neighbor" when the Long-Lived Stale Time expires, and onLLGRFamilyExpired is
 // what performs that deletion.
 //
-// It is a method rather than inline setup in RunGRPlugin so a test can install
+// It is a method rather than inline setup in runGRPlugin so a test can install
 // the production callbacks without a plugin connection.
 func (gp *grPlugin) wireStateCallbacks() {
 	gp.state = newGRStateManager(func(peerAddr string) {
@@ -439,18 +439,16 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		llgrCap := gp.exchangedLLGRLocked(peerAddr)
 		gp.mu.Unlock()
 
-		activated, llgrEntry := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
+		activated, completeDown := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
 			gp.retainPeerFamilies(peerAddr, cap)
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
-		// RFC 9494 Section 4.2: "After the session goes down, and before the session
-		// is re-established, the stale routes for an AFI/SAFI MUST be retained."
-		// A Restart Time of zero begins the LLGR period now: enter it only after the
-		// sequence above, whose purge-stale would otherwise delete the LLGR-stale routes.
-		if llgrEntry != nil {
-			llgrEntry.fire()
+		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
+		// Retain and mark stale before GR expiry or immediate LLGR entry.
+		if completeDown != nil {
+			completeDown()
 		}
 
 	case rpc.SessionStateUp:
@@ -615,7 +613,7 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		llgrCap := gp.exchangedLLGRLocked(peerAddr)
 		gp.mu.Unlock()
 
-		activated, llgrEntry := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
+		activated, completeDown := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
 			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
@@ -625,12 +623,10 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 			// 3. Mark remaining routes as stale for new GR cycle
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
-		// RFC 9494 Section 4.2: "After the session goes down, and before the session
-		// is re-established, the stale routes for an AFI/SAFI MUST be retained."
-		// A Restart Time of zero begins the LLGR period now: enter it only after the
-		// sequence above, whose purge-stale would otherwise delete the LLGR-stale routes.
-		if llgrEntry != nil {
-			llgrEntry.fire()
+		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
+		// Retain and mark stale before GR expiry or immediate LLGR entry.
+		if completeDown != nil {
+			completeDown()
 		}
 
 	case "up":

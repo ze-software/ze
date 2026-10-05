@@ -22,7 +22,7 @@ import (
 // The config path is real: ExtractPluginsFromTree (config/loader.go) leaves
 // PluginConfig.Internal false for a `run` command that is not the "ze.<name>"
 // spelling, and Process.StartWithContext then takes startExternal, so
-// RunGRPlugin -- the only caller of setEgressState -- runs in the child.
+// runGRPlugin -- the only caller of setEgressState -- runs in the child.
 func TestCheckGRInProcessFlagsAnExternalGR(t *testing.T) {
 	diags := checkGRInProcess(diagnostic.DoctorCheckContext{
 		Plugins: []zeplugin.PluginConfig{
@@ -45,7 +45,7 @@ func TestCheckGRInProcessAcceptsTheSupportedArrangements(t *testing.T) {
 		name   string
 		plugin zeplugin.PluginConfig
 	}{
-		// `use bgp-gr`: RunGRPlugin runs in the daemon and stores the state.
+		// `use bgp-gr`: runGRPlugin runs in the daemon and stores the state.
 		{"internal use", zeplugin.PluginConfig{Name: "gr", Internal: true, Run: "bgp-gr"}},
 		// `run "ze.bgp-gr"`: MarkInternalPlugin resolves it to the same thing.
 		{"internal run", zeplugin.PluginConfig{Name: "gr", Internal: true, Run: "ze.bgp-gr"}},

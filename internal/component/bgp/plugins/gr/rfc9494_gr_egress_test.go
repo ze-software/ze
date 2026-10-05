@@ -142,7 +142,7 @@ func TestLLGREgressFilter_StaleEBGPWithdrawsRegardlessOfRestartState(t *testing.
 // The window is real and is not closed by ordering. filterapi.Register puts
 // LLGREgressFilter into the egress pipeline from init() (register.go), so it is
 // callable the moment the ze_bgp build group is linked, while the only store of
-// egressState is setEgressState from RunGRPlugin's OnConfigure callback (gr.go).
+// egressState is setEgressState from runGRPlugin's OnConfigure callback (gr.go).
 // If the GR plugin engine never runs in this process, the state is nil for its
 // whole lifetime and the filter is still registered and still called.
 //
@@ -273,7 +273,7 @@ func withGRLoggerRestored(t *testing.T) {
 func TestLLGREgressWarnLoggerIsLiveWhenEngineNeverStarted(t *testing.T) {
 	withGRLoggerRestored(t)
 
-	// Simulate a process where RunGRPlugin never ran: init()'s discard logger,
+	// Simulate a process where runGRPlugin never ran: init()'s discard logger,
 	// and SetLogger never called.
 	loggerPtr.Store(slogutil.DiscardLogger())
 	loggerConfigured.Store(false)

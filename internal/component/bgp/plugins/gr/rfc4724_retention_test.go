@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -103,6 +104,51 @@ func TestRFC4724SessionDownWithoutCapabilityRetainsNothing(t *testing.T) {
 	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
 	rib.down()
 	require.Empty(t, rib.routes("198.51.100.0/24"))
+}
+
+// TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking lets every runnable timer
+// finish before the first DOWN command, then checks command order and the real RIB.
+//
+// RFC 4724 Section 4.2: "If the session does not get re-established within the
+// "Restart Time" that the peer advertised previously, the Receiving Speaker MUST
+// delete all the stale routes from the peer that it is retaining."
+//
+// RFC requirement: RFC4724-4.2-7 positive -- a zero received Restart Time releases the retained routes after stale marking on both event paths, leaving no received route or active GR state.
+func TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking(t *testing.T) {
+	for _, path := range rfc9494Paths {
+		t.Run(path.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				gp, rib := newGRWithRealRIB(t)
+				gp.peerCaps[testPeer] = testCap(0, famIPv4)
+				rib.received("18c63364", grReceivedAttrs)
+
+				var rec dispatchRecorder
+				record := rec.hook()
+				gp.dispatchHook = func(command string, args ...string) {
+					if command == "request bgp rib purge-stale" {
+						// A prematurely armed zero timer would finish before retain.
+						synctest.Wait()
+					}
+					record(command, args...)
+					rib.command(command, args...)
+				}
+
+				// RFC 4724 Section 4.2.
+				rfc9494Down(gp, path.structured)
+				synctest.Wait()
+				require.Equal(t, []string{
+					"request bgp rib purge-stale " + testPeer,
+					"request bgp rib retain-routes " + testPeer + " ipv4/unicast",
+					"request bgp rib mark-stale " + testPeer + " 0",
+					"request bgp rib release-routes " + testPeer,
+				}, rec.all())
+				require.Empty(t, rib.routes("198.51.100.0/24"), "GR expiry must delete the retained route")
+				assert.False(t, gp.state.peerActive(testPeer))
+				rib.down()
+				require.Empty(t, rib.routes("198.51.100.0/24"), "RIB DOWN must not restore retention")
+			})
+		})
+	}
 }
 
 // TestRFC4724RetentionCoversEveryAdvertisedFamily reads the family set the state

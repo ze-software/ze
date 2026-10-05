@@ -69,7 +69,7 @@ func TestGRCapabilityEmptyFamilyContainerNamesNoFamily(t *testing.T) {
 // and SAFI", so the tuple would promise the peer that Ze retains routes the
 // session cannot carry.
 //
-// The error leaves OnConfigure (RunGRPlugin, gr.go) and fails the Stage 2
+// The error leaves OnConfigure (runGRPlugin, gr.go) and fails the Stage 2
 // configure RPC. deliverConfigRPC (internal/component/plugin/server/startup.go)
 // then calls proc.Stop, and the gr registration's FatalOnConfigError stops the
 // daemon rather than running it without Graceful Restart.

@@ -207,7 +207,7 @@
       "claim-sha": "7fdd301c390b6a6a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
-      "producer-sha": "234fea99bea959c6",
+      "producer-sha": "c62e0d8e99dbe47a",
       "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -218,7 +218,7 @@
       "claim-sha": "a1e534ed89d0149c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "7655eb537449ccc6",
+      "producer-sha": "19e0c4e4119ffdad",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "c9f832ee1e2df9e3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "7655eb537449ccc6",
+      "producer-sha": "19e0c4e4119ffdad",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -290,12 +290,45 @@
     {
       "rid": "RFC4724-4.2-7",
       "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryAfterReconnect",
+      "unit-sha": "6dee6507706416a6",
+      "claim-sha": "db55055a27606844",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
+      "producer-sha": "2fc84132078eb41d",
+      "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRestartExpiryRejectsOldCycle",
+      "unit-sha": "c91e3519dce6902c",
+      "claim-sha": "d18aff580e25dc34",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
+      "producer-sha": "2fc84132078eb41d",
+      "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry",
+      "unit-sha": "2c66de4516cf40bf",
+      "claim-sha": "06139191e407f386",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
+      "producer-sha": "2fc84132078eb41d",
+      "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-7",
+      "polarity": "negative",
       "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes",
       "unit-sha": "eda5d2fa6459bb7b",
       "claim-sha": "cb0b653665d1c218",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
-      "producer-sha": "5af649f2bce5e6f6",
+      "producer-sha": "7b973cd7e34234b9",
       "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -308,6 +341,17 @@
       "producer": "internal/component/bgp/plugins/gr/gr.go::onTimerExpired",
       "producer-sha": "80d310ef185f745b",
       "break": "body of onTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking",
+      "unit-sha": "0aff4523f33ff0f3",
+      "claim-sha": "c5537451d7826a11",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
+      "producer-sha": "2fc84132078eb41d",
+      "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4724-4.2-8",
@@ -328,7 +372,7 @@
       "claim-sha": "c0e1839ae4d92e79",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
-      "producer-sha": "5af649f2bce5e6f6",
+      "producer-sha": "7b973cd7e34234b9",
       "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

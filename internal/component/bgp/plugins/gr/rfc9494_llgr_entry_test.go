@@ -8,6 +8,7 @@ package gr
 
 import (
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -160,4 +161,93 @@ func TestRFC9494RestartTimeThenLongLivedStaleTime(t *testing.T) {
 
 	require.Eventually(t, func() bool { return len(rib.routes("198.51.100.0/24")) == 0 },
 		5*time.Second, 10*time.Millisecond, "the Long-Lived Stale Time elapsed and the received route was never purged")
+}
+
+// TestRFC9494DelayedDownPreservesLLSTDeadlines delays the first DOWN command with
+// virtual time, then observes both families in the registered RIB at their bounds.
+//
+// RFC 9494 Section 4.2: "The interval for which they are retained is limited by the
+// sum of the Restart Time in the received Graceful Restart Capability and the
+// Long-Lived Stale Time in the received Long-Lived Graceful Restart Capability."
+//
+// RFC requirement: RFC9494-4.2-1 positive -- DOWN dispatch time does not extend either family's combined GR and LLGR retention bound, including a zero Restart Time.
+// RFC requirement: RFC9494-4.2-3 positive -- each received family is deleted at its original LLST deadline; a family already expired during DOWN dispatch is deleted immediately after stale marking.
+// RFC requirement: RFC9494-4.2-3 negative -- before a family's received LLST deadline, its stale route remains in the real RIB; expiry of the other family does not delete it.
+func TestRFC9494DelayedDownPreservesLLSTDeadlines(t *testing.T) {
+	for _, path := range rfc9494Paths {
+		for _, tc := range []struct {
+			name    string
+			restart uint16
+			delay   time.Duration
+		}{
+			{"both-live", 1, 2 * time.Second},
+			{"ipv4-expired", 1, 3 * time.Second},
+			{"both-expired", 1, 5 * time.Second},
+			{"zero-gr", 0, 2 * time.Second},
+		} {
+			t.Run(path.name+"/"+tc.name, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					gp, rib := newGRWithRealRIB(t)
+					gp.peerCaps[testPeer] = testCap(tc.restart, famIPv4, famIPv6)
+					gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
+						{Family: family.IPv4Unicast, ForwardState: true, LLST: 2},
+						{Family: family.IPv6Unicast, ForwardState: true, LLST: 4},
+					}}
+					declareLocalLLGR(gp, family.IPv4Unicast, family.IPv6Unicast)
+					rib.received("18c63364", grReceivedAttrs)
+					rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
+					require.Len(t, rib.routes("2001:db8::/32"), 1)
+					gp.dispatchHook = func(command string, args ...string) {
+						if command == "request bgp rib purge-stale" {
+							if len(args) == 1 {
+								// Advance the fake clock while the initial DOWN dispatch is pending.
+								<-time.After(tc.delay)
+							}
+						}
+						rib.command(command, args...)
+					}
+
+					restartDeadline := time.Now().Add(time.Duration(tc.restart) * time.Second)
+					families := []struct {
+						prefix   string
+						family   family.Family
+						deadline time.Time
+					}{
+						{"198.51.100.0/24", family.IPv4Unicast, restartDeadline.Add(2 * time.Second)},
+						{"2001:db8::/32", family.IPv6Unicast, restartDeadline.Add(4 * time.Second)},
+					}
+					checkRoutes := func() {
+						t.Helper()
+						for _, entry := range families {
+							if time.Now().Before(entry.deadline) {
+								rib.requireStale(entry.prefix, 2)
+								require.Contains(t, rib.communities(entry.prefix), uint32(0xffff0006))
+								assert.True(t, gp.state.familyRetained(testPeer, entry.family))
+							} else {
+								require.Empty(t, rib.routes(entry.prefix), "the original LLST deadline elapsed")
+								assert.False(t, gp.state.familyRetained(testPeer, entry.family))
+							}
+						}
+					}
+
+					// RFC 9494 Section 4.2.
+					rfc9494Down(gp, path.structured)
+					synctest.Wait()
+					rib.down()
+					checkRoutes()
+					for _, entry := range families {
+						if remaining := time.Until(entry.deadline); remaining > 0 {
+							<-time.After(remaining - time.Nanosecond)
+							synctest.Wait()
+							checkRoutes()
+							<-time.After(time.Nanosecond)
+							synctest.Wait()
+							checkRoutes()
+						}
+					}
+					assert.False(t, gp.state.peerActive(testPeer), "the last absolute LLST deadline releases the peer")
+				})
+			})
+		}
+	}
 }

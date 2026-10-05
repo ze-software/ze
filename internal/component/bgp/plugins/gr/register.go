@@ -36,7 +36,7 @@ func init() {
 		}
 	}
 
-	// The LLGR egress filter answers from state only RunGRPlugin stores, so an
+	// The LLGR egress filter answers from state only runGRPlugin stores, so an
 	// out-of-process engine leaves it blind. doctor.go reports that arrangement.
 	for _, m := range grDiagnosticCodes {
 		_ = diagnostic.Register(m)
@@ -80,7 +80,7 @@ func init() {
 		// leaves ze running (configRefusalIsFatal,
 		// internal/component/plugin/server/startup.go).
 		FatalOnConfigError: true,
-		RunEngine:          RunGRPlugin,
+		RunEngine:          runGRPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)
 		},
@@ -99,7 +99,7 @@ func init() {
 		}
 		cfg.RunCLIDecode = RunCLIDecode
 		cfg.RunDecode = RunDecodeMode
-		cfg.RunEngine = RunGRPlugin
+		cfg.RunEngine = runGRPlugin
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

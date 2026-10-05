@@ -219,7 +219,7 @@ func grAdvertisedFamilies(grData map[string]any, sessionFamilies []string) []str
 // refuseUncarriedGRSections runs the graceful-restart family check over every
 // bgp section of one delivery. It is the whole of what this plugin refuses,
 // and both config-verify and Stage 2 call it so that the two answer alike
-// (RunGRPlugin, gr.go).
+// (runGRPlugin, gr.go).
 func refuseUncarriedGRSections(sections []sdk.ConfigSection) error {
 	for _, section := range sections {
 		if section.Root != configRootBGP {
