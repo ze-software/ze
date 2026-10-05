@@ -26,6 +26,25 @@ payload file was restored there without collision and compared byte-for-byte.
 This validates recovery, not compilation or protocol correctness of the snapshot.
 Binaries, caches, VM images and the complete process transcript are not included.
 
+## Offline transfer
+
+The resume document, recovery archive and `bgp-checkpoint-0c516ea8fb.bundle`
+are saved in `plan/handover/rfc-verdict-test-fix-pass/`, not `tmp/`.
+The bundle carries checkpoint commit `0c516ea8fb` and requires existing commit
+`ae727e4ff19d44d3d2b6328d1725251a59a0b4df` in the destination repository.
+Bundle verification passed, and the saved copy matches its verified SHA-256:
+`f67bc67a398384124f2bd72bb5c66d36c0320e8ac033f949a547f9cf5603bdd9`.
+
+Copy the bundle to the other machine. In its clean repository, run:
+
+```sh
+git pull --ff-only /path/to/bgp-checkpoint-0c516ea8fb.bundle main
+```
+
+If fast-forward fails, stop rather than overwrite divergent work. The bundle
+carries the original checkpoint instructions; this transfer section was added
+after that checkpoint. Then follow the recovery steps below.
+
 ## Restore after pulling
 
 Start with a clean checkout and no other writer. Extract into a separate empty
