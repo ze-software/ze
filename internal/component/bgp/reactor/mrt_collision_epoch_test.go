@@ -25,6 +25,8 @@ import (
 // not acceptWithOpen in isolation. Two TCP connections send different actual
 // capabilities. The winner must establish, retain its noncanonical OPEN bytes,
 // and supply the context for mixed-family UPDATEs in both directions.
+// RFC requirement: RFC8050-x-1 positive -- a live collision-winning session records its mixed classic/MP withdrawals under received subtype 9 and LOCAL subtype 11, with exactly one unchanged packet in each direction.
+// RFC requirement: RFC8050-x-4 positive -- the live collision winner retains its original directional OPENs and the same TCP connection; its mixed withdrawals decode to the exact classic and MP prefixes and Path Identifiers in both directions.
 func TestMRTWinningCollisionPreservesOPEN(t *testing.T) {
 	testMRTWinningCollision(t, "")
 }
@@ -33,6 +35,7 @@ func TestMRTWinningCollisionPreservesOPEN(t *testing.T) {
 // session is published and after it has taken the winner but cannot install it.
 // Existing Peer callbacks and the actual Session mutex provide the barriers;
 // every subtest then completes the same socket and exact MRT assertions.
+// RFC requirement: RFC8050-x-4 positive -- competing arrivals at both collision-handoff barriers leave the selected socket's original OPEN evidence intact, and its recorded mixed withdrawals retain the exact directional prefixes and Path Identifiers.
 func TestMRTCollisionWinnerReservation(t *testing.T) {
 	for _, phase := range []string{"published", "taken"} {
 		t.Run(phase, func(t *testing.T) {

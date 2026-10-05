@@ -23,6 +23,8 @@ import (
 
 // The recorder legitimately selects AP from the empty IPv6 family. These five
 // classic octets also decode as an invented Path ID followed by a default route.
+// RFC requirement: RFC8050-x-4 positive -- both directional OPENs let the recorded ADD-PATH-subtype UPDATE with empty IPv6 MP_UNREACH decode its ordinary classic NLRI as 10.0.0.0/24 and 0.0.0.0/0 with no Path Identifiers.
+// RFC requirement: RFC8050-x-4 negative -- without those OPENs, the identical UPDATE's empty MP family makes its ADD-PATH subtype ambiguous; parsing returns ErrContextUnavailable and all six exercised semantic commands return nonzero.
 func TestMRTEmptyMPFamilyRequiresContext(t *testing.T) {
 	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xe8, 0x40, 3, 4, 192, 0, 2, 1, 0x80, 15, 3, 0, 2, 1}
 	wire := framedUpdate(buildUpdate(nil, attrs, []byte{24, 10, 0, 0, 0}))

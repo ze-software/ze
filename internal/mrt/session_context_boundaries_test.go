@@ -16,6 +16,8 @@ import (
 // TestMRTContextCapabilityASNBoundaries passes literal OPEN capabilities through
 // the public writer/reader, then distinguishes real AS4 identities from AS_TRANS
 // and truncated low words in both directions. No negotiated context is injected.
+// RFC requirement: RFC8050-x-4 positive -- matching OPEN identities, including four-octet ASNs and their narrow AS_TRANS representation, preserve exact directional classic/MP prefixes and Path Identifiers through the public MRT writer and reader.
+// RFC requirement: RFC8050-x-4 negative -- mismatched OPEN and record identities do not lend negotiation to a mixed-family ADD-PATH UPDATE; both directions return ErrContextUnavailable for the tested capability, AS_TRANS and low-word aliases.
 func TestMRTContextCapabilityASNBoundaries(t *testing.T) {
 	cases := []struct {
 		name                 string

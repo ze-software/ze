@@ -23,6 +23,7 @@ import (
 	mrtplugin "github.com/ze-software/ze/internal/plugins/mrt"
 )
 
+// RFC requirement: RFC8050-x-4 positive -- actual migration-fallback OPENs supply the recorded local ASN and mixed withdrawal decoding context in both directions; original packets, exact prefixes and Path Identifiers survive, including through a retained outbound writer after the Session transport changes.
 func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("127.0.0.1"), migrationLocalAS, migrationLocalAS, 0x0a000002)
 	require.NoError(t, setMigrationAS(settings, migrationLegacyAS))

@@ -15,6 +15,17 @@
     {
       "rid": "RFC8050-x-1",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/mrt_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
+      "unit-sha": "e118c0e8e689999d",
+      "claim-sha": "d45b3e5256a182e7",
+      "route": "revert",
+      "producer": "internal/plugins/mrt/dump.go::updateAddPath",
+      "producer-sha": "1b4e8976a3b4fed1",
+      "break": "body of updateAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-1",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming",
       "unit-sha": "0f5e800b3e19bf83",
       "claim-sha": "af73fda6d7651742",
@@ -81,6 +92,28 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
+      "unit": "internal/analyze/mrt_boundary_test.go::TestMRTEmptyMPFamilyRequiresContext",
+      "unit-sha": "8643e6872f03c875",
+      "claim-sha": "4b433b70417c1281",
+      "route": "revert",
+      "producer": "internal/mrt/context.go::AddPathFor",
+      "producer-sha": "67a6f406895f7d0d",
+      "break": "body of AddPathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "negative",
+      "unit": "internal/analyze/mrt_boundary_test.go::TestMRTEmptyMPFamilyRequiresContext",
+      "unit-sha": "8643e6872f03c875",
+      "claim-sha": "36914711ebd2827c",
+      "route": "revert",
+      "producer": "internal/mrt/context.go::updateContext",
+      "producer-sha": "f3641475a2b64c95",
+      "break": "body of updateContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "positive",
       "unit": "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext",
       "unit-sha": "75897d8ac624cc52",
       "claim-sha": "5d6f8ecb8827d8e8",
@@ -110,6 +143,39 @@
       "producer": "internal/mrt/context.go::updateContext",
       "producer-sha": "f3641475a2b64c95",
       "break": "body of updateContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/mrt_collision_epoch_test.go::TestMRTCollisionWinnerReservation",
+      "unit-sha": "ed969ebe4d11b72a",
+      "claim-sha": "3028973f8619c3e8",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_connection.go::takeInboundConnection",
+      "producer-sha": "b637784b52f995a0",
+      "break": "body of takeInboundConnection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/mrt_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
+      "unit-sha": "e118c0e8e689999d",
+      "claim-sha": "f7c5bc15d7cc62b3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_connection.go::acceptWithOpen",
+      "producer-sha": "70c0dcdd3bd34737",
+      "break": "body of acceptWithOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/mrt_migration_epoch_test.go::TestMRTMigrationEpochUsesActualLocalOPEN",
+      "unit-sha": "38fa2dbf10d3fc1d",
+      "claim-sha": "5eb0c1eb7e748237",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_wire.go::dispatchObservedWire",
+      "producer-sha": "8bbbf71818bda0a9",
+      "break": "body of dispatchObservedWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8050-x-4",
@@ -171,7 +237,7 @@
       "polarity": "positive",
       "unit": "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections",
       "unit-sha": "fcc5d91a806b137a",
-      "claim-sha": "55a54d30e01bb5f4",
+      "claim-sha": "df15f1b6d60576e0",
       "route": "revert",
       "producer": "internal/mrt/context.go::ObserveMessage",
       "producer-sha": "e11c53466d6d5aee",
@@ -187,6 +253,28 @@
       "producer": "internal/mrt/context.go::updateContext",
       "producer-sha": "f3641475a2b64c95",
       "break": "body of updateContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "positive",
+      "unit": "internal/mrt/session_context_boundaries_test.go::TestMRTContextCapabilityASNBoundaries",
+      "unit-sha": "8982c2726bb1b40c",
+      "claim-sha": "cf2e918929c3f11b",
+      "route": "revert",
+      "producer": "internal/mrt/context.go::openASNMatches",
+      "producer-sha": "84ffe992b55871f4",
+      "break": "body of openASNMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "negative",
+      "unit": "internal/mrt/session_context_boundaries_test.go::TestMRTContextCapabilityASNBoundaries",
+      "unit-sha": "8982c2726bb1b40c",
+      "claim-sha": "d7d49075750bf772",
+      "route": "revert",
+      "producer": "internal/mrt/context.go::openASNMatches",
+      "producer-sha": "84ffe992b55871f4",
+      "break": "body of openASNMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

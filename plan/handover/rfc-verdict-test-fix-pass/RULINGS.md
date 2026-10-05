@@ -271,7 +271,7 @@ Evidence below is under
 |---------|------------------------------------------|
 | Failed-await diagnostics | `job-stable-lifecycle-proof-d0d75fa5.log`: both fence forms and unfinished lingering peer save all four streams, received frames and shutdown-only bytes under `-race`. Independent source review accepted the repair. |
 | GR/LLGR stored state | The same log passes all seven migrated RFC4724/RFC9494 carriers, including no-capability deletion and serial GR/LLGR expiry. Native records for changed claims still need renewal; this is not four-workflow acceptance. |
-| MRT lifecycle | The same log passes the original live collision and deterministic third-arrival `published`/`taken` reservations. Independent review accepted C1/C2/C3 and the reservation repair. RFC8050 x-1/x-4 remain weak because the decisive existing session, boundary and capacity proofs still need accurate tags and native discrimination links, not because those implementations or tests are absent. |
+| MRT lifecycle | The same log passes the original live collision and deterministic third-arrival `published`/`taken` reservations. Independent review accepted C1/C2/C3 and the reservation repair. Enrollment and native links were still owed at the checkpoint. The later rejudgment below also identifies semantic proof gaps; enrollment alone does not establish whole-row conformance. |
 | EVPN | The same log passes the repaired IPv4/IPv6 sender with mandatory Label1. The single-positive ruling is independently defensible for the declared BGP control-plane role. Five native records, audit stamps and the shifted-row reseal remain owed; no full EVPN PE claim is made. |
 | Generic forwarding | `job-generic-forward-policy-proof-499402fc.log` is red under `-race`: `TestRFC7947AllAttributesReachClient` and `TestRouteServerTransparencyStopsAtOrdinaryPeer` expose startup synchronization races, including `SetAPIProcessCount` against `signalStartupComplete`. Mixed-treatment cache assertions pass. Independent review also found avoidable payload allocation in `forwardWire`; neither finding is fixed at this checkpoint. |
 | Accounting | The UDP deadline regression passed in `job-accounting-fixture-smoke-919d5de0.log`; its repair is `e39d58afe7`. Native `rfc discriminate-record` completed on QEMU Linux 7.2 in 757.53 seconds and wrote RFC2866-4.1-1 positive for `test/l2tp/radius-acct-wire.ci`. The clean workflow passed; disabling `onSessionIPAssigned` produced the observed `Accounting-Start did not arrive within 30s` failure. The recorded citation is the IPCP-negotiated address `10.99.7.10`. |
@@ -320,3 +320,28 @@ This continuation leaves the parent and BGP child open. The other session owns
 verification-tooling, site, UI-fixture and command-dispatch repairs and
 test-health regeneration; those files and full-suite runs are not part of this
 evidence pass.
+
+#### MRT and refresh proofs
+
+Eight bounded MRT claims now have native clean-run and producer-disabled
+observations. The existing mixed-direction claim was corrected to describe its
+prefix and Path Identifier assertions, without claiming unasserted full-byte
+preservation; its two records were renewed. No assertion or protocol behavior
+changed.
+
+Independent rejudgments retain `weak` for RFC8050-x-1 and RFC8050-x-4.
+The live subtype proof does not distinguish the received context from the sent
+context when both would select ADD-PATH for the mixed withdrawal. The exact
+decoding matrix always supplies matching OPENs and does not cover the full
+no-OPEN prefix and Path Identifier matrix. These are remaining proof gaps, not
+newly established implementation defects. The parent and child stay open.
+
+The two RFC7313 helper-dependent positives were re-observed after the assertion
+helper migration. All eight historical forwarding tuples already had current
+records and were not repeated. GR/LLGR judgments and four-workflow acceptance
+are unchanged.
+
+Evidence is in the same session scratch directory:
+`job-rfc-step4-mrt-aac0f32b.log`,
+`job-rfc-step4-mrt-claim-b5e3b917.log`, and
+`job-rfc-step4-gr-cf6e5d61.log`.

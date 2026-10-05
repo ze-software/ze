@@ -69,7 +69,7 @@ func mixedUpdate(classicAP bool) []byte {
 
 // TestRFC8050SessionContextDecodesMixedDirections walks actual directional OPENs
 // then UPDATEs in opposite modes, checking all four prefixes and all Path IDs.
-// RFC requirement: RFC8050-x-4 positive -- both captured OPENs select ordinary classic plus ADD-PATH MP and the reverse in opposite directions; all four distinct prefixes and their exact Path Identifiers survive without rewriting the complete original messages.
+// RFC requirement: RFC8050-x-4 positive -- both captured OPENs select ordinary classic plus ADD-PATH MP and the reverse in opposite directions; all four distinct prefixes and their exact Path Identifiers decode exactly, while ordinary families have no Path Identifiers.
 // RFC requirement: RFC8050-x-4 negative -- missing, one-sided, repeated OPENs, teardown, identity reuse, opposite-file context and unrelated peers cannot decode a mixed-family ADD-PATH UPDATE; they return explicit context-unavailable errors instead of partial prefixes.
 func TestRFC8050SessionContextDecodesMixedDirections(t *testing.T) {
 	prelude := append(sessionOpenRecord(16, false, 1, 2), sessionOpenRecord(16, true, 2, 1)...)
