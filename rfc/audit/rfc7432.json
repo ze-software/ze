@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-05",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -97,6 +97,28 @@
         "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "200485f8562d9e9b",
         "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "832ed4025d173fd6",
         "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "2c1235c4d2a7c555",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "c572ee169d6adc54"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7432-8.2.1-2": {
+      "code": {
+        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination": "dc8d03ac09d4d978",
+        "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "c8122a695ccd58ef",
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute": "d091614f13d0caa2"
+      },
+      "note": "RFC 7432 Section 8.2.1: The MPLS label in the NLRI MUST be set to 0. Independently read all four current config/command carriers. TestConfiguredEVPNPerESRoute compares the complete Type1 MAX-ET NLRI including three zero label octets; TestOriginEthernetADPerESUsesTypeOneRD checks the zero label in the NLRI carried by MP_REACH. TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack reject a nonzero label with a Type1 RD, RT and ESI Label community already supplied. ValidateEVPNOrigination rejects any nonzero label octet for MAX-ET Type1 and is reached by both parseConfigRoute and EncodeRoute through BuildEVPN. The second-label subcase and malformed-width ingress cases remain framing calibration, not support-negative evidence. Four discrimination tuples exist in the canonical rfc/discrimination/rfc7432.json; this read-only judgment makes no new execution or native freshness claim.",
+      "requirement_sha": "a29ed15edaf2387c",
+      "tests": {
+        "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8605ce648899c68f",
+        "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "8605ce648899c68f",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "4621c06037bf4489",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "4621c06037bf4489"
+      },
+      "units": {
+        "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "200485f8562d9e9b",
+        "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "832ed4025d173fd6",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "6bd346ce6e968518",
         "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "c572ee169d6adc54"
       },
       "verdict": "enforced"

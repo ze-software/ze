@@ -301,3 +301,22 @@ the live suite. Their exact checkpoint bytes are also preserved in
 in each patch header. This records the requested work without promoting
 unproven tests or changing the draft-ignore policy. Do not apply that snapshot
 over newer draft edits.
+
+### Evidence continuation (2026-10-05)
+
+The EVPN evidence work from the checkpoint is complete. Eight missing scoped
+records now carry native clean-run and producer-disabled observations.
+RFC7432-8.2.1-2 has its first independent `enforced` judgment for the zero MPLS
+label on per-ES Ethernet A-D routes. The earlier sender renewal, support/RD
+rejudgments and IMET reseal had already landed and were not repeated.
+
+The native observations are in
+`tmp/session/2026-10-05-01a0fdb1-2ee3-7297-adf9-cd21f70400f0/scratch/job-rfc-step4-evpn-d6d3196f.log`.
+Producer halts prove that the selected tests reach those producers; they do not
+independently prove every semantic clause. The source judgment remains bounded
+to the implemented EVPN BGP control-plane role, not a complete EVPN PE.
+
+This continuation leaves the parent and BGP child open. The other session owns
+verification-tooling, site, UI-fixture and command-dispatch repairs and
+test-health regeneration; those files and full-suite runs are not part of this
+evidence pass.
