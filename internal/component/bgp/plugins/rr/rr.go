@@ -214,7 +214,7 @@ func (rr *routeReflector) forwardUpdate(msgID uint64) {
 	if rr.stopping.Load() {
 		return
 	}
-	rr.updateRoute("*", rr.buf.Reset().Str("cache ").Uint(msgID).Str(" forward *").String())
+	rr.updateRoute("*", rr.buf.Reset().Str("cached ").Uint(msgID).String())
 }
 
 // updateRoute sends a route update command to matching peers via the engine.

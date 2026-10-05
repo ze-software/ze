@@ -141,6 +141,16 @@ on the destination's sent UPDATE count; the receiving peer checks the actual
 VPN bytes, not those counters.
 <!-- source: internal/test/fixture/register_vpn_withdrawal.go -- vpnWithdrawalInventory, vpnWithdrawalWaitSent -->
 
+The reflector forwards each received UPDATE through `UpdateRoute` with the
+`cached <id>` command. The engine adds `send bgp <selector>` and dispatches
+the registered cache command. Inventory-only tests do not exercise this
+dispatch boundary; the VPN peer exchanges check both forwarding and withdrawal.
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- forwardUpdate -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- opUpdateRoute -->
+<!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- send bgp cached -->
+<!-- source: test/draft/plugin/vpn-withdrawal-inventory-rr-ipv4.ci -- complete VPNv4 MP attributes -->
+<!-- source: test/draft/plugin/vpn-withdrawal-inventory-rr-ipv6.ci -- complete VPNv6 MP attributes -->
+
 ### Zero-Copy Forwarding
 
 When two peers negotiate identical capabilities (same ADD-PATH mode, same ASN format, same extended message support), they share the same encoding context. If no destination-specific rewrite is needed, their routes are forwarded as raw wire bytes without decoding attribute values, rebuilding the UPDATE, or allocating a new payload.
