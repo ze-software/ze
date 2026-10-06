@@ -91,19 +91,24 @@ func (p *Peer) sendInitialRoutes() {
 	// connection these frames were written on.
 	wireSession := p.currentSession()
 
-	p.staticMu.Lock()
-	routes := p.staticRoutes()
-	peerLogger().Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(routes))
+	func() {
+		p.staticMu.Lock()
+		// The static phase MUST release its hold before default routes or the
+		// peer-up barrier, including panic unwinding through a route writer.
+		defer p.staticMu.Unlock()
 
-	// Mark static config routes so the RIB plugin skips ribOut storage.
-	// These routes are always re-sent from config on reconnection; storing
-	// them in ribOut would cause duplicates (config + replay).
-	// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
-	p.sendingConfigStatic.Store(true)
+		routes := p.staticRoutes()
+		peerLogger().Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(routes))
 
-	sent := p.sendStaticRoutes(wireSession, routes, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
-	p.staticWire = staticWireSet{session: wireSession, routes: sent}
-	p.staticMu.Unlock()
+		// Mark static config routes so the RIB plugin skips ribOut storage.
+		// These routes are always re-sent from config on reconnection; storing
+		// them in ribOut would cause duplicates (config + replay).
+		// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
+		p.sendingConfigStatic.Store(true)
+
+		sent := p.sendStaticRoutes(wireSession, routes, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
+		p.staticWire = staticWireSet{session: wireSession, routes: sent}
+	}()
 
 	// Send default routes for families with default-originate enabled.
 	// RFC 4271: default route is 0.0.0.0/0 (IPv4) or ::/0 (IPv6).
@@ -150,6 +155,14 @@ func (p *Peer) sendInitialRoutes() {
 	opMaxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 
 	p.mu.Lock()
+	queueLocked := true
+	// The drain MUST release only the lock it owns. Sends run unlocked, so an
+	// unconditional deferred Unlock would panic again when a writer panics.
+	defer func() {
+		if queueLocked {
+			p.mu.Unlock()
+		}
+	}()
 	queueLen := len(p.opQueue)
 	processed := 0
 	connError := false
@@ -184,11 +197,13 @@ func (p *Peer) sendInitialRoutes() {
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
+			queueLocked = false
 			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath, op.Replay)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", sendErr)
 				p.mu.Lock()
+				queueLocked = true
 				processed++
 				// Split errors: skip route. Connection errors: stop processing.
 				if !isRouteScopedSendError(sendErr) {
@@ -197,6 +212,7 @@ func (p *Peer) sendInitialRoutes() {
 				continue
 			}
 			p.mu.Lock()
+			queueLocked = true
 			processed++
 			continue
 
@@ -207,11 +223,13 @@ func (p *Peer) sendInitialRoutes() {
 			wdHandle := getBuildBuf()
 			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
+			queueLocked = false
 			sendErr := p.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
 			putBuildBuf(wdHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
 				p.mu.Lock()
+				queueLocked = true
 				processed++
 				if !isRouteScopedSendError(sendErr) {
 					connError = true
@@ -219,6 +237,7 @@ func (p *Peer) sendInitialRoutes() {
 				continue
 			}
 			p.mu.Lock()
+			queueLocked = true
 			processed++
 			continue
 
@@ -232,8 +251,10 @@ func (p *Peer) sendInitialRoutes() {
 				continue
 			}
 			p.mu.Unlock()
+			queueLocked = false
 			sendErr := p.sendQueuedRefreshMarker(op.Marker, session)
 			p.mu.Lock()
+			queueLocked = true
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued route refresh marker", "peer", addr, "error", sendErr)
 				connError = true
@@ -254,6 +275,7 @@ func (p *Peer) sendInitialRoutes() {
 		p.opQueue = p.opQueue[processed:]
 	}
 	p.mu.Unlock()
+	queueLocked = false
 
 	if queueLen > 0 {
 		routesLogger().Debug("processed queue ops", "peer", addr, "processed", processed, "remaining", len(p.opQueue), "teardown", hasTeardown)
@@ -297,6 +319,7 @@ func (p *Peer) sendInitialRoutes() {
 		// Clear remaining opQueue - these routes were never sent, so shouldn't
 		// be re-sent on reconnection. Persist plugin tracks actually-sent routes.
 		p.mu.Lock()
+		queueLocked = true
 		if len(p.opQueue) > 0 {
 			routesLogger().Debug("clearing unsent queue items after teardown", "peer", addr, "count", len(p.opQueue))
 			p.opQueue = p.opQueue[:0]
@@ -306,6 +329,7 @@ func (p *Peer) sendInitialRoutes() {
 		p.sendingInitialRoutes.Store(0)
 		p.initialSyncEOROwed.Store(false)
 		p.mu.Unlock()
+		queueLocked = false
 		p.wakeForwardOverflow()
 		return // Don't send family-specific routes after teardown
 	}
@@ -340,18 +364,19 @@ func (p *Peer) sendInitialRoutes() {
 	session := p.session
 	p.mu.RUnlock()
 
-	sendFn := p.sendUpdateDirect
-	if session != nil {
-		session.HoldWrites()
-		sendFn = session.SendUpdateHeld
-	}
+	func() {
+		sendFn := p.sendUpdateDirect
+		if session != nil {
+			session.HoldWrites()
+			// This phase MUST release its hold before the queue drain, including
+			// panic unwinding to sendInitialRoutes' recovery boundary.
+			defer session.releaseWrites()
+			sendFn = session.SendUpdateHeld
+		}
 
-	// Send family-specific routes (config-originated)
-	p.sendPluginRoutesVia(session, sendFn)
-
-	if session != nil {
-		session.releaseWrites()
-	}
+		// Send family-specific routes (config-originated).
+		p.sendPluginRoutesVia(session, sendFn)
+	}()
 
 	// Everything this goroutine owns is on the wire, so the queueing gate closes
 	// here rather than after the marker. Drain under the lock until the queue is
@@ -390,68 +415,64 @@ func (p *Peer) sendInitialRoutes() {
 	// from reporting the peer settled while the marker is owed (peer.go,
 	// pendingSync).
 
-	sendFn = p.sendUpdateDirect
-	if session != nil {
-		session.HoldWrites()
-		sendFn = session.SendUpdateHeld
-	}
-
-	// `behavior { manual-eor true }` withholds the AUTOMATIC marker, because
-	// something else decides when this peer's RIB is complete: an API client
-	// that originates every route wants the marker after its last announce, not
-	// after a sync that carried none of them.
-	//
-	// It withholds the SEND and nothing else. Returning here instead cost two
-	// things that have to happen whether or not a marker goes out, and both of
-	// them silently: the write hold below was never released, so writeMu stayed
-	// locked for the life of the session and every later writer blocked on it,
-	// keepalives included; and initialSyncEOROwed stayed true, so AnnounceEOR
-	// went on deferring to a producer that had already finished and suppressed
-	// the operator's own marker -- the one thing this leaf exists to let them
-	// send. api-manual-eor caught both: the peer sent nothing at all, ever.
-	sendEOR := !p.settings.ManualEOR
-	if !sendEOR {
-		routesLogger().Debug("end-of-rib withheld: behavior manual-eor is set",
-			"peer", addr, "phase", "initial-sync")
-	}
-
-	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
-	// RFC 4724: "including the case when there is no update to send"
-	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
-	//
-	// sendFn is session.SendUpdateHeld here (writeMu already held): it writes the
-	// UPDATE AND flushes bufWriter before returning (session_write.go
-	// SendUpdateHeld), so a nil error means the frame left for the socket, not
-	// that it was queued behind the hold. A non-nil error means it did NOT --
-	// SendUpdateHeld returns ErrInvalidState without writing anything once the FSM
-	// has left Established, and the session can go down between the p.session read
-	// above and this call. Counting such an attempt would publish an end-of-RIB
-	// the peer never receives, exactly the barrier the compiled functional
-	// observers wait on.
-	for _, fam := range sendEORFamilies(sendEOR, nc.Families()) {
-		// Claim BEFORE sending. A route server announcing EoR when its replay
-		// finishes reaches the same wire through AnnounceEOR, and RFC 4724
-		// Section 2 allows one End-of-RIB per family per session.
-		if !p.claimInitialSyncEOR(fam) {
-			routesLogger().Debug("end-of-rib already sent for this session, skipping",
-				"peer", addr, "family", fam, "phase", "initial-sync")
-			continue
+	func() {
+		sendFn := p.sendUpdateDirect
+		if session != nil {
+			session.HoldWrites()
+			// This separate phase MUST release its own hold on return or panic;
+			// it MUST NOT cover the queue drain or forwarding wake above.
+			defer session.releaseWrites()
+			sendFn = session.SendUpdateHeld
 		}
-		if err := sendFn(message.BuildEOR(fam)); err != nil {
-			// Hand the claim back: nothing reached the wire, so the other
-			// producer must still be allowed to deliver the marker.
-			p.releaseInitialSyncEOR(fam)
-			routesLogger().Warn("end-of-rib send failed",
-				"peer", addr, "family", fam, "phase", "initial-sync", "error", err)
-			break
-		}
-		p.incrEORSent()
-		routesLogger().Debug("sent EOR", "peer", addr, "family", fam)
-	}
 
-	if session != nil {
-		session.releaseWrites()
-	}
+		// `behavior { manual-eor true }` withholds the AUTOMATIC marker, because
+		// something else decides when this peer's RIB is complete: an API client
+		// that originates every route wants the marker after its last announce, not
+		// after a sync that carried none of them.
+		//
+		// It withholds the SEND and nothing else: this phase still releases its
+		// write hold, and the caller clears initialSyncEOROwed below so AnnounceEOR
+		// can send the operator's marker. api-manual-eor pins those obligations.
+		sendEOR := !p.settings.ManualEOR
+		if !sendEOR {
+			routesLogger().Debug("end-of-rib withheld: behavior manual-eor is set",
+				"peer", addr, "phase", "initial-sync")
+		}
+
+		// Send EOR for ALL negotiated families per RFC 4724 Section 4.
+		// RFC 4724: "including the case when there is no update to send"
+		// Families() returns families in deterministic order (sorted by AFI, then SAFI).
+		//
+		// sendFn is session.SendUpdateHeld here (writeMu already held): it writes the
+		// UPDATE AND flushes bufWriter before returning (session_write.go
+		// SendUpdateHeld), so a nil error means the frame left for the socket, not
+		// that it was queued behind the hold. A non-nil error means it did NOT --
+		// SendUpdateHeld returns ErrInvalidState without writing anything once the FSM
+		// has left Established, and the session can go down between the p.session read
+		// above and this call. Counting such an attempt would publish an end-of-RIB
+		// the peer never receives, exactly the barrier the compiled functional
+		// observers wait on.
+		for _, fam := range sendEORFamilies(sendEOR, nc.Families()) {
+			// Claim BEFORE sending. A route server announcing EoR when its replay
+			// finishes reaches the same wire through AnnounceEOR, and RFC 4724
+			// Section 2 allows one End-of-RIB per family per session.
+			if !p.claimInitialSyncEOR(fam) {
+				routesLogger().Debug("end-of-rib already sent for this session, skipping",
+					"peer", addr, "family", fam, "phase", "initial-sync")
+				continue
+			}
+			if err := sendFn(message.BuildEOR(fam)); err != nil {
+				// Hand the claim back: nothing reached the wire, so the other
+				// producer must still be allowed to deliver the marker.
+				p.releaseInitialSyncEOR(fam)
+				routesLogger().Warn("end-of-rib send failed",
+					"peer", addr, "family", fam, "phase", "initial-sync", "error", err)
+				break
+			}
+			p.incrEORSent()
+			routesLogger().Debug("sent EOR", "peer", addr, "family", fam)
+		}
+	}()
 
 	// The marker is on the wire, or its send failed and said so. Either way this
 	// session owes no other one, so pendingSync settles and AnnounceEOR stops
@@ -473,6 +494,14 @@ func (p *Peer) sendInitialRoutes() {
 // address is formatted once per sync rather than once per operation.
 func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 	p.mu.Lock()
+	queueLocked := true
+	// As in the first drain, unwind MUST unlock p.mu only while this drainer
+	// owns it, never during the unlocked send intervals.
+	defer func() {
+		if queueLocked {
+			p.mu.Unlock()
+		}
+	}()
 	finalProcessed := 0
 	for finalProcessed < len(p.opQueue) {
 		op := p.opQueue[finalProcessed]
@@ -497,11 +526,13 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
+			queueLocked = false
 			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath, op.Replay)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued route", "peer", addr, "error", sendErr)
 				p.mu.Lock()
+				queueLocked = true
 				finalProcessed++
 				// Every remaining operation is attempted, a connection error
 				// included, so this is the one drain that does not sort the two
@@ -514,6 +545,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 				continue
 			}
 			p.mu.Lock()
+			queueLocked = true
 			finalProcessed++
 
 		case PeerOpWithdraw:
@@ -522,17 +554,20 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			wdHandle := getBuildBuf()
 			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
+			queueLocked = false
 			sendErr := p.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
 			putBuildBuf(wdHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
 				p.mu.Lock()
+				queueLocked = true
 				finalProcessed++
 				// Attempted to the end, for the reason the announce case above
 				// states.
 				continue
 			}
 			p.mu.Lock()
+			queueLocked = true
 			finalProcessed++
 
 		case PeerOpRefreshMarker:
@@ -545,8 +580,10 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 				continue
 			}
 			p.mu.Unlock()
+			queueLocked = false
 			sendErr := p.sendQueuedRefreshMarker(op.Marker, session)
 			p.mu.Lock()
+			queueLocked = true
 			if sendErr != nil {
 				// Attempted to the end, for the reason the announce case states.
 				routesLogger().Debug("send error for a queued route refresh marker", "peer", addr, "error", sendErr)
@@ -566,7 +603,6 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 		routesLogger().Debug("drained queued ops before the end-of-rib", "peer", addr, "count", finalProcessed)
 	}
 	p.sendingInitialRoutes.Store(0)
-	p.mu.Unlock()
 }
 
 // sendUpdateDirect is the default send callback when writeMu is not held.

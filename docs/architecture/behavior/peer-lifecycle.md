@@ -458,17 +458,44 @@ This is a deliberate architectural choice documented in the
 
 ## Panic recovery summary
 
-Two independent `recover()` boundaries in the peer lifecycle:
+Three independent `recover()` boundaries in the peer lifecycle:
 
 | Boundary | Scope | Recovery behavior |
 |----------|-------|-------------------|
 | `safeRunOnce` | Entire session lifecycle (connect, FSM, message handling, timer callbacks, plugin callbacks that run synchronously from the session goroutine) | Log panic with stack, convert to error, return to `run()` for normal backoff |
 | Delivery worker goroutine | Async message delivery to the reactor's message receiver | Log panic with stack, close `deliveryDone`, exit worker (remaining buffered items are dropped intentionally) |
+| Initial-sync goroutine | Static routes, queued operations, plugin routes and automatic End-of-RIB | Log panic with stack, clear the queueing and marker-owed flags, wake forwarded overflow, and return |
 
-Neither boundary ever kills the peer goroutine permanently. The peer
-always either reconnects or is stopped via context cancellation.
+Recovery does not itself kill the peer goroutine. A session failure still follows
+the normal reconnect path unless the peer is stopped.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — safeRunOnce, runOnce delivery goroutine recover -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go — sendInitialRoutes -->
+
+Initial sync takes two separate session write holds: one for plugin routes and
+one for automatic End-of-RIB. Each held phase MUST defer its own release before
+calling an encoder or writer, so panic unwinding releases `writeMu` before the
+outer recovery runs. The queue drain and forwarding wake between the phases MUST
+remain outside either hold; merging the holds would block writers the drain
+needs. Recovery leaves teardown able to acquire the session writer.
+
+The static-route phase likewise defers `staticMu` release at its existing
+boundary. Both queued RIB drains track their `p.mu` ownership: a codec panic
+unwinds a held mutex, while a socket-write panic must not unlock a mutex already
+released for the send. Every send retains its unlocked interval, allowing new
+operations to enter the queue. These releases happen before initial-sync recovery
+clears its flags and wakes forwarding.
+
+`TestInitialSyncPanicReleasesWriteHolds` injects a one-shot connection panic at
+each phase's first write, then uses `TryLock` to assert release without allowing
+cleanup to hang a failing test. Existing exact-wire tests retain the protocol
+ordering assertions.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync_unwind_test.go — TestInitialSyncPanicReleasesWriteHolds -->
+`TestInitialSyncPanicReleasesPeerLocks` covers a static write fault and an NLRI
+codec fault in each real queue drain. `TestInitialSyncQueuedWritePanicRunsUnlocked`
+checks the opposite ownership state by faulting each drain's socket write and
+asserting `p.mu` is free at that boundary.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync_unwind_test.go — TestInitialSyncPanicReleasesPeerLocks, TestInitialSyncQueuedWritePanicRunsUnlocked -->
 
 ## Code map
 
@@ -480,6 +507,7 @@ always either reconnects or is stopped via context cancellation.
 | Outer run loop and backoff | `internal/component/bgp/reactor/peer_run.go` | `run`, `safeRunOnce` |
 | Per-attempt session lifecycle | `internal/component/bgp/reactor/peer_run.go` | `runOnce` |
 | FSM state-change callback | `internal/component/bgp/reactor/peer_run.go` | `SetCallback` closure inside `runOnce` |
+| Initial route synchronization and panic unwind | `internal/component/bgp/reactor/peer_initial_sync.go` | `sendInitialRoutes`, `drainAndCloseQueueGate` |
 | Cleanup on peer stop | `internal/component/bgp/reactor/peer_run.go` | `cleanup` |
 | Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `setInboundConnection`, `takeInboundConnection` |
 | RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `setPendingConnection`, `resolvePendingCollision`, `storeInboundLocked` |

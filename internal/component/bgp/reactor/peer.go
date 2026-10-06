@@ -2134,10 +2134,8 @@ func (p *Peer) withdrawBehindForwards() bool {
 // the next forward to this peer.
 //
 // p.reactor is read WITHOUT p.mu, like every other reader of it (peer_run.go).
-// One of the call sites is the recover defer in sendInitialRoutes, and the drain
-// loop it guards holds p.mu.Lock across buildRIBRouteUpdate: a panic there
-// reaches this function write-locked, and an RLock would deadlock the peer's
-// goroutine for good.
+// The sendInitialRoutes recovery also calls here; its queue drain MUST release
+// any owned p.mu hold before recovery wakes the forwarded overflow.
 func (p *Peer) wakeForwardOverflow() {
 	r := p.reactor
 	if r == nil || r.fwdPool == nil {
