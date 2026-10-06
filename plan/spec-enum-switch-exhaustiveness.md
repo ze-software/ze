@@ -292,10 +292,32 @@ Final lint, post-lock race proof, canonical renewal, source landing, private
 disclosure derivation and durable evidence/inventory integration are complete.
 The bounded final acceptance review found no new substantive mismatch.
 Thomas approved the five named commits' RFC-tagged test changes; the native
-owner-attestation route discharged their five approval rows. He chose to
-reconcile the existing public sibling checkouts himself, so that comparison
-remains blocked. Historical whole-unit and startup reds, the shared AIGP red
-and unavailable author artifacts remain qualified; the spec stays open.
+owner-attestation route discharged their five approval rows. He reconciled both
+public sibling checkouts, then authorized the remaining documentation repairs.
+Those repairs are now exercised and locally committed. The final native lint
+matrix and documentation gate pass. Public artifact derivation and painted
+browser proof pass; no push or remote deployment is claimed.
+Historical whole-unit and startup reds, the shared AIGP red and unavailable
+author artifacts remain qualified. Formal spec closure is not claimed.
+
+### Publication clearance, 2026-10-06
+
+`plan/handover/enum-switch-exhaustiveness-20261006-publication.json` indexes the
+supplemental archive. It retains the new logs, full review reports, exact test
+partition, source relation, inert overlay inputs and before/after screenshots.
+The earlier census and final-proof archives remain unchanged.
+
+| Obligation | Observed evidence | Limit |
+|------------|-------------------|-------|
+| First-party source counts | `87e967d79a`; old-producer overlay fails, all new counter regressions and the complete `yangcontract` race package pass | Excluded runtime artifacts are pruned before descent; genuine first-party read failures remain findings |
+| Literal command prose | `939786ce71`; renderer regressions preserve placeholders, literal markup and block-start punctuation on reference, LLMS and detail surfaces | Code-span usage remains a separate path; contract readers were not weakened |
+| Valid isolated build inputs | `246980057e`; seven previously failing build cases pass after supplying their required `ai/` directory | Assertions and deadlines unchanged |
+| Complete owning site test population | `enum-publication-site-race-coverage.json`: actual listed population of 358 tests equals 233 + 124 + 1 observed race passes | Original aggregate reds remain recorded; this is partitioned coverage, not one green whole-package invocation |
+| Actual painted reference | `c4fea842f5`; threshold 0 replaces the impossible 1% intersection requirement; `enum-publication-reveal-after.json` and `enum-publication-cli-painted-final.png` show the literal selector at opacity one | Earlier DOM text and blank screenshots did not prove visibility; they remain as failed evidence |
+| Source-aware documentation | `b783523a4c`; four retired anchors repaired, path-weight and retained-handle claims corrected, both indexes regenerated | Final `job-enum-publication-painted-doc-check-29876447.log` ends `Documentation tests PASSED` |
+| Local sibling publication | Wiki `d004de6`: regenerated 473-command catalog. Pages `49988df280`: native build covers all 995 artifacts from 22 producers | Original 22 untracked sibling artifacts retain their bytes and modes; no push authorized |
+| Final lint | `job-enum-publication-landed-native-lint-2c7ef39f.log`: all 19 populations pass on settled source commit `c4fea842f5` | The preceding attempt refused before producing a plan because HEAD changed during planning; it is not a finding-producing lint run |
+| Source and review continuity | `enum-publication-source-relation.json` accounts for 14 later Go files; independent publication, fixture and final acceptance reviews find no substantive AC-1–12 mismatch | Extends, rather than replaces, the frozen census; formal closure and historical qualifications remain distinct |
 
 ## Goal Validation
 
@@ -322,7 +344,7 @@ alias and VRRP observations.
 
 | Blocker | Why it remains open | Required action |
 |---------|---------------------|-----------------|
-| Public documentation reconciliation | Both fetched sibling checkouts are behind upstream and carry retained work; neither can be rebased safely by this session | Thomas selected “Owner reconciles existing checkouts.” Leave both untouched; regenerate and compare after his reconciliation. No push is authorized |
+| Formal spec closure | The agreed qualified implementation and publication baseline is exercised, but it is not the `ze-close` workflow: historical whole-unit red is not a green entry check, and no final closure certificate or two-commit removal sequence is claimed | Keep the spec open. Formal closure still owes its entry verification, populated closure records and hash-pinned review; do not infer a waiver from RFC-test approval or documentation clearance |
 
 Thomas selected “Approve reviewed changes” for the RFC-tagged test changes in
 `d769ff084b`, `8efffa2104`, `22bba5fded`, `bd02b3b5dd` and `36e00133cf`.
@@ -331,8 +353,9 @@ The native `owner` discharge records that attestation in
 session's debt shard. It does not clear other verification or publication debt.
 
 The nine filename/tag debts are retained convention-gate observations, not an
-additional AC or permission to rewrite foreign tests. Current private generation
-does not claim that the default documentation gate or public publication passed.
+additional AC or permission to rewrite foreign tests. The documentation gate
+and local public-artifact derivation now pass; neither is a push or remote
+deployment, nor does either clear unrelated whole-tree verification debt.
 
 ## Data Flow
 
@@ -539,7 +562,7 @@ Simplicity: existing cases/defaults and upstream linter only. Uniformity: one th
 
 ### Review Gate
 
-Seven independent package reviews covered the original assigned scopes; the `configFormsLevel` P2 finding was corrected and cleared. Subsequent bounded reviews below cover the runtime/proof repairs and final integration deltas. Complete native lint, final reactor race20 and the qualified frozen census are observed, not inferred from these reviews. Thomas's RFC-test approval is now recorded separately; owner-led public sibling reconciliation still prevents closure.
+Seven independent package reviews covered the original assigned scopes; the `configFormsLevel` P2 finding was corrected and cleared. Subsequent bounded reviews cover runtime/proof repairs, final integration and publication clearance. The final publication supplement retains complete reports from CommandPublicationReview, SourcePopulationReview and FinalAcceptanceDeltaReview. They found no remaining substantive AC-1–12 mismatch in the inspected deltas. Thomas's RFC-test approval and sibling reconciliation are resolved. Formal `ze-close` eligibility remains separate from this qualified acceptance.
 
 | Run | Scope | Result | Evidence |
 |-----|-------|--------|----------|

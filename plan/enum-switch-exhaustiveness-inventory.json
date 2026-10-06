@@ -3,7 +3,7 @@
   "purpose": "Per-switch C/O/P dispositions preserving author history, reconciled to an explicitly captured frozen census. Supplemental builtin-string qualifications do not rewrite raw collector failures; no lint, runtime, current-tree freshness or final acceptance claim.",
   "spec": "plan/spec-enum-switch-exhaustiveness.md",
   "date": "2026-10-06",
-  "status": "captured-census-reconciled-archived-and-source-integrated-acceptance-blocked",
+  "status": "captured-census-reconciled-archived-publication-cleared-qualified-baseline",
   "classification_legend": {
     "C": "Closed producer domain; explicit named cases and impossible-value assertion.",
     "O": "Open producer boundary; explicit accessible named cases and safe unknown behavior.",
@@ -104380,7 +104380,8 @@
       "suffix_evidence": "\n\treturn nil, fmt.Errorf(\"%w: %d\", errBadMsgType, ch.Type)\n}"
     }
   ],
-  "verification": "Proposal verified programmatically against every retained raw observation/population, source hashes, guard manifests and preservation invariants. No native Go, lint, test, formatter, census or archival command executed by reconciler. Source observations are not runtime proof, final acceptance or current-entire-tree certification. Parent subsequently completed native lint, runtime and canonical proof checks recorded in the linked final artifacts. Final source/commit relation accounts for the two non-enum live-byte deltas, two already-absent carrier retirements and four preserved foreign red probes outside HEAD. All source and archive integration obligations are resolved. Thomas subsequently approved the five named commits' RFC-tagged test changes; their native owner-attestation record is plan/verification-debt/discharged/56e1ee9b.md. He chose to reconcile the existing public sibling checkouts himself; that comparison remains blocked. Neither the evidence nor this approval supplies missing historical author provenance or a green whole-suite result.",
+  "verification": "Proposal verified programmatically against every retained raw observation/population, source hashes, guard manifests and preservation invariants. No native Go, lint, test, formatter, census or archival command executed by reconciler. Source observations are not runtime proof or current-entire-tree certification. Parent completed the native lint, runtime and canonical proof checks linked in the final artifacts. The prior source relation retains the two non-enum deltas, two already-absent carrier retirements and four preserved foreign red probes outside HEAD; the publication supplement records fourteen later Go files without rewriting captured census bytes. Thomas approved the five named commits' RFC-tagged changes through the native owner-attestation record. Both siblings are reconciled and locally committed; the native documentation gate and regenerated public artifact pass, including actual painted-browser proof. All nineteen final native lint populations pass. Every listed site test has a race PASS across retained partitions, not one green aggregate invocation. These observations do not supply missing historical provenance, green whole-suite verification, formal spec closure or an authorized push.",
+  "publication_evidence": "plan/handover/enum-switch-exhaustiveness-20261006-publication.json",
   "history": [
     {
       "date": "2026-10-05",
