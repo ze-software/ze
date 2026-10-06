@@ -164,6 +164,9 @@ func TestBuildStampsEveryPublishedPage(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(source, "labs", "appliance-install"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, "ai"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(source, "labs", "appliance-install", "index.html"), []byte(authoredPage), 0o644); err != nil {
 		t.Fatal(err)
 	}

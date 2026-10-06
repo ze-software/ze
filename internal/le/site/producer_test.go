@@ -47,6 +47,11 @@ func siteFixture(t *testing.T) (root, output string) {
 	if err := os.MkdirAll(source, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// Registered documentation indexes rebuild inside Build, just as they do
+	// in a real checkout. Their destination directory is a required input.
+	if err := os.MkdirAll(filepath.Join(root, "ai"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(source, "CNAME"), []byte("example.test\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

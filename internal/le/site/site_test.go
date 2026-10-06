@@ -190,6 +190,9 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(source, "data"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, "ai"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(filepath.Join(source, "tools"), 0o755); err != nil {
 		t.Fatal(err)
 	}
