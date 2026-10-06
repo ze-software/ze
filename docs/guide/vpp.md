@@ -220,6 +220,14 @@ Use this for:
   stub instead of a real VPP. See `docs/functional-tests.md` for the harness.
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
 
+The real-VPP deployment action, `./le test deployment vpp-test`, stops each Ze
+daemon by signalling its exact command inside the container, not the host
+`docker exec` client. Each replacement must reach its own startup marker before
+the harness inspects retained VPP state. A policer or ACL left by the previous
+daemon therefore cannot make a failed replacement look like a successful restart.
+<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon -->
+<!-- source: internal/le/test/deployment/deployment.go -- running.stop -->
+
 ## Configuring VPP
 
 The `vpp { ... }` container lives in the main ze config. Minimal example:

@@ -233,9 +233,10 @@ func (c *collector) wait() { c.wg.Wait() }
 // stop MUST be called for every running a caller starts, and wait on the
 // collector MUST come after it.
 type running struct {
-	cmd  *exec.Cmd
-	done chan struct{}
-	read *os.File
+	cmd    *exec.Cmd
+	done   chan struct{}
+	read   *os.File
+	signal func(syscall.Signal) error
 }
 
 // startWatched starts cmd with BOTH its output streams going into seen, and
@@ -270,7 +271,10 @@ func startWatched(cmd *exec.Cmd, prefix string, seen *collector, progress io.Wri
 
 	seen.stream(prefix, read, progress)
 
-	proc := &running{cmd: cmd, done: make(chan struct{}), read: read}
+	proc := &running{
+		cmd: cmd, done: make(chan struct{}), read: read,
+		signal: func(signal syscall.Signal) error { return cmd.Process.Signal(signal) },
+	}
 	go func() {
 		defer close(proc.done)
 		cmd.Wait() //nolint:errcheck // the exit status is read through exited, not here
@@ -298,7 +302,7 @@ func (r *running) stop() {
 	if r.exited() {
 		return
 	}
-	r.cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck // a process that refuses SIGTERM is killed below
+	r.signal(syscall.SIGTERM) //nolint:errcheck // a process that refuses SIGTERM is killed below
 
 	select {
 	case <-r.done:
@@ -306,7 +310,7 @@ func (r *running) stop() {
 	case <-time.After(stopGrace):
 	}
 
-	r.cmd.Process.Kill() //nolint:errcheck // nothing further can be done about a process that survives this
+	r.signal(syscall.SIGKILL) //nolint:errcheck // nothing further can be done about a process that survives this
 
 	select {
 	case <-r.done:

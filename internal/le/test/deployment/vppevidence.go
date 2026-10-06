@@ -17,8 +17,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -27,15 +29,16 @@ import (
 )
 
 const (
-	vppPeerWait       = 5 * time.Second
-	vppApplyWait      = 25 * time.Second
-	vppQueryWait      = 15 * time.Second
-	vppWithdrawWait   = 15 * time.Second
-	vppReconcileWait  = 25 * time.Second
-	vppQueryPoll      = 500 * time.Millisecond
-	vppPeerReadyLine  = "listening on"
-	vppTrafficLogLine = "traffic-control config applied"
-	vppFirewallLine   = "firewall config applied"
+	vppPeerWait        = 5 * time.Second
+	vppApplyWait       = 25 * time.Second
+	vppQueryWait       = 15 * time.Second
+	vppWithdrawWait    = 15 * time.Second
+	vppReconcileWait   = 25 * time.Second
+	vppQueryPoll       = 500 * time.Millisecond
+	vppPeerReadyLine   = "listening on"
+	vppTrafficLogLine  = "traffic-control config applied"
+	vppFirewallLine    = "firewall config applied"
+	vppDaemonReadyLine = "Ze running."
 )
 
 // VPP is one run of the eight legacy deployment scenarios. It
@@ -371,12 +374,26 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 	if err := v.stageConfig(container, configFile); err != nil {
 		return nil, nil, err
 	}
-	seen := newCollector(vppTrafficLogLine, vppFirewallLine)
+	seen := newCollector(vppTrafficLogLine, vppFirewallLine, vppDaemonReadyLine)
 	argv := v.evidenceDaemonArgs(container, configFile, port)
 	cmd := exec.CommandContext(context.Background(), "docker", argv...) //nolint:gosec // the argv is package data
 	daemon, err := startWatched(cmd, "ze> ", seen, v.Progress)
 	if err != nil {
 		return nil, nil, err
+	}
+	// docker exec is a client, not the daemon's signal owner. Stop the exact
+	// container command and let its exec client observe the real process exit.
+	pattern := "^" + regexp.QuoteMeta(strings.Join(argv[len(argv)-3:], " ")) + "$"
+	daemon.signal = func(signal syscall.Signal) error {
+		ctx, cancel := context.WithTimeout(context.Background(), stopGrace)
+		defer cancel()
+		return exec.CommandContext(ctx, "docker", dockerExec, container, "pkill",
+			"-"+strconv.Itoa(int(signal)), "-f", pattern).Run()
+	}
+	// Existing VPP state cannot prove that a replacement Ze process started.
+	if !await(seen, vppDaemonReadyLine, daemon, v.vppApplyWait()) {
+		stopVPPProcess(daemon, seen)
+		return nil, nil, errors.New("VPP evidence daemon did not become ready: " + strings.Join(seen.tailLines(), "\n"))
 	}
 	return daemon, seen, nil
 }
