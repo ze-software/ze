@@ -407,17 +407,14 @@ func (f *fibVPP) showInstalled() any {
 	return entries
 }
 
-// run subscribes to (system-rib, best-change) on the EventBus and blocks until
-// ctx is canceled.
+// run requests replay after the plugin has subscribed and restored ownership.
+// The caller MUST cancel ctx when retiring this worker.
 func (f *fibVPP) run(ctx context.Context, flushOnStop bool) {
 	eb := getEventBus()
 	if eb == nil {
 		logger().Warn("fib-vpp: no event bus configured")
 		return
 	}
-
-	unsub := sysribevents.BestChange.Subscribe(eb, f.processEvent)
-	defer unsub()
 
 	// Request full-table replay from sysrib. Broadcast hop: the token addresses
 	// every consumer.

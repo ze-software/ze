@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -87,6 +88,19 @@ func runFibVPPPlugin(conn net.Conn) int {
 	var runCancel context.CancelFunc
 
 	var vppUnsub func() // VPP reconnect subscription cleanup
+	var bestChangeUnsub func()
+	defer func() {
+		fibMu.Lock()
+		defer fibMu.Unlock()
+		if fib != nil {
+			fib.mu.Lock()
+			fib.retired = true
+			fib.mu.Unlock()
+		}
+		if bestChangeUnsub != nil {
+			bestChangeUnsub()
+		}
+	}()
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
@@ -155,12 +169,17 @@ func runFibVPPPlugin(conn net.Conn) int {
 			return f
 		}
 
-		// Retire the old writer before restoring durable ownership. Its event
-		// callback MUST stop mutating resources before the replacement reads
-		// them; the replacement MUST request replay after subscribing.
+		// The plugin-lifetime subscription MUST precede restore and survive
+		// replacement. Its callback shares fibMu so an event arriving during
+		// restore reaches the replacement, never a retired writer.
 		restart := func() {
 			fibMu.Lock()
 			defer fibMu.Unlock()
+			if bestChangeUnsub == nil {
+				if eb := getEventBus(); eb != nil {
+					bestChangeUnsub = subscribeFibVPP(eb, &fibMu, &fib)
+				}
+			}
 
 			if fib != nil {
 				fib.mu.Lock()
@@ -226,6 +245,19 @@ func runFibVPPPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// subscribeFibVPP routes each change to the current writer under the lifecycle
+// lock. The caller MUST hold mu while subscribing and replacing current, and
+// MUST unsubscribe when the plugin stops.
+func subscribeFibVPP(eb ze.EventBus, mu *sync.Mutex, current **fibVPP) func() {
+	return sysribevents.BestChange.Subscribe(eb, func(batch *incomingBatch) {
+		mu.Lock()
+		defer mu.Unlock()
+		if *current != nil {
+			(*current).processEvent(batch)
+		}
+	})
 }
 
 // commandDecls names the commands this plugin serves and states what each

@@ -103,10 +103,14 @@ desired policy is not proof of ownership.
 
 Confirmed live ownership survives process restart; replay does not create
 duplicates. A **Ze-managed VPP restart** emits the reconnect event: reconciliation
-removes absent ownership records and replay recreates policies before steering. The old
-consumer is retired before the replacement restores ownership. VPP offers no
-conditional steering replacement, so external writers must not race Ze's
-ownership checks with CLI changes.
+removes absent ownership records and replay recreates policies before steering. One
+plugin-lifetime best-change subscription precedes initial ownership restore and
+survives backend replacement. Its callback shares the lifecycle lock with restore
+and resolves the current writer only after that lock is acquired. An event
+arriving during restore therefore reaches the replacement, never a retired
+writer. This retains withdrawals that partial sysrib replay cannot recover.
+VPP offers no conditional steering replacement, so external writers must not
+race Ze's ownership checks with CLI changes.
 
 External-VPP mode does not currently emit that event when its separately
 supervised VPP process restarts. Automatic recovery from that external restart
