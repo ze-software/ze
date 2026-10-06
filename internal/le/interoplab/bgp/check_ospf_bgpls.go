@@ -44,21 +44,21 @@ func checkOSPFRouterIDCollector(ctx context.Context, check *interoplab.CheckCont
 	if err := waitContains(ctx, check.Lab, peerFRR, []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, 90*time.Second, ospfStateFull); err != nil {
 		return err
 	}
-	// Keep the existing TED and foreign LSDB assertions: the collector supplements
-	// rather than replaces the native OSPF interoperability evidence.
-	operations := [2]operation{
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf te-database"), contains: []string{frrLabAddress}},
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueArea}, contains: []string{zeLabAddress}},
-	}
+	// Preserve the ordinary TED and foreign LSDB assertions. Inter-AS evidence
+	// binds a decoded link to its source LSA and the same LSA received by FRR.
 	if interAS {
-		operations = [2]operation{
-			{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf database opaque-as"), contains: []string{"inter-as"}},
-			{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf database opaque-as"}, contains: []string{zeLabAddress}},
-		}
-	}
-	for index := range operations {
-		if err := runOperation(ctx, check.Network, check.Lab, &operations[index]); err != nil {
+		if err := checkOSPFInterASDatabase(ctx, check); err != nil {
 			return err
+		}
+	} else {
+		operations := [2]operation{
+			{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf te-database"), contains: []string{frrLabAddress}},
+			{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueArea}, contains: []string{zeLabAddress}},
+		}
+		for index := range operations {
+			if err := runOperation(ctx, check.Network, check.Lab, &operations[index]); err != nil {
+				return err
+			}
 		}
 	}
 	logs, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
