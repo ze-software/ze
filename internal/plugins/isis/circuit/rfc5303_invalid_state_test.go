@@ -13,9 +13,10 @@ import (
 
 // TestRFC5303InvalidStateWireDiscard passes a malformed three-way state through
 // the real packet decoder and circuit consumer, before and after adjacency Up.
+// RFC requirement: RFC5303-3.2-7 positive -- a valid-state control PDU reaches Up through the packet decoder and circuit receiver before invalid-state probes.
 // RFC requirement: RFC5303-3.2-7 negative -- invalid state PDUs create no neighbor and leave an existing Up neighbor, including its hold deadline, unchanged.
 // RFC 5303 Section 3.2: "If the option is present and contains invalid Adjacency
-// Three-Way State, the PDU SHALL be discarded and no further action is taken."
+// Three-Way State, the PDU SHALL be discarded and no further action is taken.".
 func TestRFC5303InvalidStateWireDiscard(t *testing.T) {
 	for _, established := range []bool{false, true} {
 		for _, size := range []int{1, 5, 15} {

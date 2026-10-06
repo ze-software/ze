@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-06",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -66,7 +66,7 @@
       "verdict": "enforced"
     },
     "RFC5303-3.2-11": {
-      "note": "Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions (3.2-7, 3.2-9) stay their own {gap} rows.",
+      "note": "Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions remain separate obligations: invalid-state discard (3.2-7) now has positive and negative tagged coverage; neighbor-mismatch discard (3.2-9) remains a {gap}.",
       "requirement_sha": "8cf2b558704893b3",
       "tests": {
         "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "9dbfe0180a8a24cd",
@@ -141,6 +141,23 @@
         "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHEchoesKnownNeighbor#2": "9411982f0edd93c9",
         "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID": "a4822569450cc072",
         "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID#2": "a4822569450cc072"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5303-3.2-7": {
+      "note": "Independent first judgment against RFC 5303 Section 3.2: \"If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken.\" TestRFC5303InvalidStateWireDiscard now carries a positive tag on its existing valid-state control: Circuit.Receive decodes the valid peer PDU and must reach StateUp before the established-neighbor invalid-state probes. Its negative assertions cover TLV lengths 1, 5 and 15, invalid states 3 and 255, fresh and established neighbors, unchanged neighbor presence and whole-adjacency equality, and no SessionUp, SessionDown or ForwardingChanged flags. TestRFC5303InvalidStateLeavesAdjacencyUntouched additionally covers every unnamed state 3 through 255 against Down, Initializing and Up adjacencies with whole-object equality and rejection; TestRFC5303InvalidStateBeforeValidDuplicate prevents a later valid option from hiding an earlier invalid one. Circuit.Receive routes P2P Hellos to handleP2PHello, which rejects every invalid TLV 240 before neighbor creation; ReceiveHello independently rejects invalid raw HelloInput before identity, hold-timer or adjacency mutation. The positive input is genuinely conforming, not another error; the negative assertions would fail if invalid states were admitted or mutated adjacency state. Canonical records name these producers, including the newly recorded positive cover; their producer-body panic breaks establish execution dependence, not selective semantic mutation. The assertions and producer routing, read against the whole sentence, support this requirement only; neighbor-ID mismatch and restart-event gaps remain separate.",
+      "requirement_sha": "2366803848191473",
+      "tests": {
+        "internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateLeavesAdjacencyUntouched": "aaeb569bec964e11",
+        "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateBeforeValidDuplicate": "e0c2683ac623f48a",
+        "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard": "e0c2683ac623f48a",
+        "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard#2": "e0c2683ac623f48a"
+      },
+      "units": {
+        "internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateLeavesAdjacencyUntouched": "fa449094666f1299",
+        "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateBeforeValidDuplicate": "fb0fa0b28ef05893",
+        "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard": "480bd21d9ab0680f",
+        "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard#2": "480bd21d9ab0680f"
       },
       "verdict": "enforced"
     }
