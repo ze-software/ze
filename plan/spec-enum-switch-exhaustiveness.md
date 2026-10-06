@@ -291,9 +291,11 @@ It is committed with the progress record as `b7a247d066`; the spec stays open.
 Final lint, post-lock race proof, canonical renewal, source landing, private
 disclosure derivation and durable evidence/inventory integration are complete.
 The bounded final acceptance review found no new substantive mismatch.
-Public sibling reconciliation and genuine owner RFC-test approval remain
-unresolved. Historical whole-unit and startup reds, the shared AIGP red and
-unavailable author artifacts remain qualified; the spec stays open.
+Thomas approved the five named commits' RFC-tagged test changes; the native
+owner-attestation route discharged their five approval rows. He chose to
+reconcile the existing public sibling checkouts himself, so that comparison
+remains blocked. Historical whole-unit and startup reds, the shared AIGP red
+and unavailable author artifacts remain qualified; the spec stays open.
 
 ## Goal Validation
 
@@ -320,8 +322,13 @@ alias and VRRP observations.
 
 | Blocker | Why it remains open | Required action |
 |---------|---------------------|-----------------|
-| RFC-tagged test approval | Independent review, semantic discrimination and `rfc-change-ok` debt do not supply Thomas's approval | Genuine owner disposition of the tagged-test changes recorded in `plan/verification-debt/56e1ee9b.md` |
-| Public documentation reconciliation | Both fetched sibling checkouts are behind upstream and carry retained work; neither can be rebased safely by this session | Owner-directed reconciliation of those histories, or an authorized isolated publication checkout; retain existing work and do not infer push authorization |
+| Public documentation reconciliation | Both fetched sibling checkouts are behind upstream and carry retained work; neither can be rebased safely by this session | Thomas selected “Owner reconciles existing checkouts.” Leave both untouched; regenerate and compare after his reconciliation. No push is authorized |
+
+Thomas selected “Approve reviewed changes” for the RFC-tagged test changes in
+`d769ff084b`, `8efffa2104`, `22bba5fded`, `bd02b3b5dd` and `36e00133cf`.
+The native `owner` discharge records that attestation in
+`plan/verification-debt/discharged/56e1ee9b.md`, covering rows 12–16 of the
+session's debt shard. It does not clear other verification or publication debt.
 
 The nine filename/tag debts are retained convention-gate observations, not an
 additional AC or permission to rewrite foreign tests. Current private generation
@@ -532,7 +539,7 @@ Simplicity: existing cases/defaults and upstream linter only. Uniformity: one th
 
 ### Review Gate
 
-Seven independent package reviews covered the original assigned scopes; the `configFormsLevel` P2 finding was corrected and cleared. Subsequent bounded reviews below cover the runtime/proof repairs and final integration deltas. Complete native lint, final reactor race20 and the qualified frozen census are observed, not inferred from these reviews. Owner approval and public sibling reconciliation still prevent closure.
+Seven independent package reviews covered the original assigned scopes; the `configFormsLevel` P2 finding was corrected and cleared. Subsequent bounded reviews below cover the runtime/proof repairs and final integration deltas. Complete native lint, final reactor race20 and the qualified frozen census are observed, not inferred from these reviews. Thomas's RFC-test approval is now recorded separately; owner-led public sibling reconciliation still prevents closure.
 
 | Run | Scope | Result | Evidence |
 |-----|-------|--------|----------|
