@@ -393,6 +393,13 @@ Next-hop is at the **operation level** (same as all other families), not inside 
 ```
 <!-- source: internal/component/bgp/format/text.go -- AppendOpen -->
 
+Capabilities with a structured formatter use that formatter's value, as above.
+Other capabilities use lowercase hexadecimal for the value bytes only, without
+the capability code and length octets. For example, GR wire TLV
+`4006000300010180` has code `64` and value `000300010180`. An empty capability
+has no value bytes. This contract applies to both received and sent OPEN events.
+<!-- source: internal/component/bgp/format/decode.go -- DecodedCapability, formatCapability -->
+
 ---
 
 ## NOTIFICATION Events

@@ -193,6 +193,17 @@ The GR plugin requires:
 The GR plugin depends on `bgp-rib` (declared in its registration). The engine ensures bgp-rib starts first.
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
 
+GR and LLGR capability values in normalized JSON OPEN events contain only the
+payload bytes, encoded as lowercase hex. The capability code and length are
+not part of `value`. JSON and structured OPEN events give the GR plugin the
+same received restart times and native address families. Sent OPEN events
+identify the same locally advertised LLGR families on both paths.
+For example, GR value `000300010180` means three seconds and
+`ipv4/unicast`, with forwarding preserved.
+<!-- source: internal/component/bgp/format/decode.go -- formatCapability -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleOpenEvent, extractGRCaps -->
+<!-- source: internal/component/bgp/plugins/gr/gr_llgr_exchange.go -- handleSentOpenEvent, addSentLLGRFamilies -->
+
 ### Keep the bgp-gr engine in the daemon process
 
 Load the plugin with `internal <name> { use bgp-gr; }`, as every example on this

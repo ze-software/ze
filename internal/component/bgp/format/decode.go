@@ -12,7 +12,8 @@ import (
 )
 
 // DecodedCapability holds structured capability data for API formatting.
-// Used by both text and JSON encoders.
+// Used by both text and JSON encoders. Opaque values contain lowercase payload
+// hex only, without the capability code and length octets.
 type DecodedCapability struct {
 	Code  uint8  // Capability code (e.g., 1 for multiprotocol)
 	Name  string // Capability name (e.g., "multiprotocol")
@@ -107,8 +108,7 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]DecodedCapability, uint
 // formatCapability returns structured capability data.
 // Most capabilities return a single entry, but AddPath/ExtendedNextHop return one per family.
 // The post-switch fallback path covers unknown / plugin-decoded capabilities.
-// All Value strings are built via family.AppendTo into a stack scratch, so only
-// the final string() conversion allocates.
+// Opaque Value strings contain only the payload, not the capability TLV header.
 func formatCapability(cap capability.Capability) []DecodedCapability {
 	code := uint8(cap.Code())
 	var sb [64]byte
@@ -175,7 +175,7 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 	cap.WriteTo(buf, 0)
 	name := append(sb[:0], "unknown-"...)
 	name = strconv.AppendUint(name, uint64(code), 10)
-	return []DecodedCapability{{Code: code, Name: string(name), Value: hex.EncodeToString(buf)}}
+	return []DecodedCapability{{Code: code, Name: string(name), Value: hex.EncodeToString(buf[2:])}}
 }
 
 // DecodedNotification holds parsed NOTIFICATION message contents for API formatting.
