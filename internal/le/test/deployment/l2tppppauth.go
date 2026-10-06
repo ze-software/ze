@@ -60,9 +60,10 @@ func l2tpPPPCHAPRejected(log string) (bool, error) {
 	return false, nil
 }
 
-// The control tunnel may remain while xl2tpd is alive. PPP units, L2TP sessions,
-// and subscriber routes MUST disappear before the proof stops that peer; forced
-// peer cleanup cannot count as rejection by Ze.
+// The control tunnel and its validated zero-ID management session may remain
+// while xl2tpd is alive. PPP units, data sessions and subscriber routes MUST
+// disappear before the proof stops that peer; forced cleanup cannot count as
+// rejection by Ze.
 func l2tpPPPRejectedState(baselines []pppBaseline) (bool, error) {
 	for _, base := range baselines {
 		links, err := pppLinks(base.ns)
@@ -76,7 +77,11 @@ func l2tpPPPRejectedState(baselines []pppBaseline) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if state.session != base.l2tp.session {
+		clean, err := l2tpPPPRejectedSessions(state, base.l2tp)
+		if err != nil {
+			return false, err
+		}
+		if !clean {
 			return false, nil
 		}
 		for _, address := range []string{L2TPPPPLocalAddr, L2TPPPPPeerAddr} {
@@ -90,6 +95,26 @@ func l2tpPPPRejectedState(baselines []pppBaseline) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// Only the kernel's management context may outlive the rejected PPP session.
+// The complete baseline still applies to the later peer-first tunnel cleanup.
+func l2tpPPPRejectedSessions(state, baseline l2tpSnapshot) (bool, error) {
+	if state.session == baseline.session {
+		return true, nil
+	}
+	if baseline.session != "" {
+		return false, nil
+	}
+	identity, err := parseL2TPPPPTunnel(state.tunnel)
+	if err != nil {
+		return false, err
+	}
+	identity, err = parseL2TPPPPSessions(state.session, identity)
+	if err != nil {
+		return false, err
+	}
+	return identity.Management && identity.Session == 0, nil
 }
 
 func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, baselines []pppBaseline) error {

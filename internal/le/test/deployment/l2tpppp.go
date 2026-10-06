@@ -584,14 +584,12 @@ func (l *L2TPPPP) daemonEnv(work string) []string {
 	)
 }
 
-// diagnose writes what each namespace held when the proof failed.
-//
-// This evidence distinguishes a daemon that never bound from a kernel that
-// never created a session. The evidence goes to the progress stream instead of
-// the report. The diagnostics contain several listings. A pipe operator must be
-// able to render the report.
+// diagnose writes residual namespace state after observe's deferred process
+// cleanup. It is not the pre-failure state: a SIGTERM in pppd.log or an empty
+// kernel listing may result from cleanup. assertLCPRestart prints its live
+// transport listings before returning the failing verdict.
 func (l *L2TPPPP) diagnose(work string) {
-	writeProgress(l.Progress, "\n--- diagnostics ---")
+	writeProgress(l.Progress, "\n--- diagnostics after process cleanup ---")
 
 	queries := [][]string{
 		{"ip", ipL2TP, ipShow, tunnelObjectName},

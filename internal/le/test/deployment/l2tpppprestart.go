@@ -28,6 +28,7 @@ type l2tpPPPTransport struct {
 	Peer        string `json:"peer"`
 	LocalPort   uint16 `json:"local_port"`
 	PeerPort    uint16 `json:"peer_port"`
+	Management  bool   `json:"management_session"`
 }
 
 func readL2TPPPPTransport(ns string) (l2tpPPPTransport, string, error) {
@@ -37,35 +38,89 @@ func readL2TPPPPTransport(ns string) (l2tpPPPTransport, string, error) {
 		return identity, "", err
 	}
 	listing := state.tunnel + "\n" + state.session
-	if strings.Count(state.tunnel, "Tunnel ") != 1 || strings.Count(state.session, "Session ") != 1 {
-		return identity, listing, errors.New("LCP restart requires exactly one kernel tunnel and session in " + ns)
+	identity, err = parseL2TPPPPTransport(state)
+	if err != nil {
+		return identity, listing, fmt.Errorf("%s: %w", ns, err)
 	}
-	_, err = fmt.Sscanf(state.tunnel, "Tunnel %d, encap UDP\n  From %s to %s\n  Peer tunnel %d\n  UDP source / dest ports: %d/%d",
+	return identity, listing, nil
+}
+
+func parseL2TPPPPTransport(state l2tpSnapshot) (l2tpPPPTransport, error) {
+	identity, err := parseL2TPPPPTunnel(state.tunnel)
+	if err == nil {
+		identity, err = parseL2TPPPPSessions(state.session, identity)
+	}
+	if err == nil && identity.Session == 0 {
+		err = errors.New("LCP restart requires exactly one kernel data session")
+	}
+	return identity, err
+}
+
+func parseL2TPPPPTunnel(listing string) (l2tpPPPTransport, error) {
+	var identity l2tpPPPTransport
+	if strings.Count(listing, "Tunnel ") != 1 {
+		return identity, errors.New("LCP restart requires exactly one kernel tunnel")
+	}
+	_, err := fmt.Sscanf(listing, "Tunnel %d, encap UDP\n  From %s to %s\n  Peer tunnel %d\n  UDP source / dest ports: %d/%d",
 		&identity.Tunnel, &identity.Local, &identity.Peer, &identity.PeerTunnel, &identity.LocalPort, &identity.PeerPort)
 	if err != nil {
-		return identity, listing, fmt.Errorf("read live L2TP UDP identity in %s: %w", ns, err)
-	}
-	var tunnel, peerTunnel uint16
-	_, err = fmt.Sscanf(state.session, "Session %d in tunnel %d\n  Peer session %d, tunnel %d",
-		&identity.Session, &tunnel, &identity.PeerSession, &peerTunnel)
-	if err != nil || tunnel != identity.Tunnel || peerTunnel != identity.PeerTunnel {
-		return identity, listing, fmt.Errorf("kernel session does not identify its live tunnel in %s: %s", ns, state.session)
+		return identity, fmt.Errorf("read live L2TP UDP identity: %w", err)
 	}
 	for _, addr := range []string{identity.Local, identity.Peer} {
 		ip, err := netip.ParseAddr(addr)
 		if err != nil || !ip.Is4() || ip.IsUnspecified() {
-			return identity, listing, fmt.Errorf("LCP restart requires a concrete IPv4 UDP endpoint, got %q", addr)
+			return identity, fmt.Errorf("LCP restart requires a concrete IPv4 UDP endpoint, got %q", addr)
 		}
 	}
-	if identity.Tunnel == 0 || identity.PeerTunnel == 0 || identity.Session == 0 || identity.PeerSession == 0 || identity.LocalPort == 0 || identity.PeerPort == 0 {
-		return identity, listing, errors.New("live L2TP identity contains an unassigned ID or port")
+	if identity.Tunnel == 0 || identity.PeerTunnel == 0 || identity.LocalPort == 0 || identity.PeerPort == 0 {
+		return identity, errors.New("live L2TP tunnel identity contains an unassigned ID or port")
 	}
-	// This fixture negotiates unsequenced data. Injecting an arbitrary Ns into
-	// a sequenced session would disturb xl2tpd's independent sequence space.
-	if strings.Contains(state.session, "sequence numbering:") {
-		return identity, listing, errors.New("LCP restart injection requires the fixture's unsequenced data session")
+	return identity, nil
+}
+
+// Linux pppol2tp_connect registers a session with both IDs zero for xl2tpd's
+// tunnel management socket; l2tp_nl_cmd_session_dump includes it. It is not a
+// PPP data session. Validate it separately, never discard an arbitrary extra
+// row. Zero data sessions is valid only for the rejected-peer teardown check.
+func parseL2TPPPPSessions(listing string, identity l2tpPPPTransport) (l2tpPPPTransport, error) {
+	var records int
+	for remaining := strings.TrimSpace(listing); remaining != ""; {
+		block, rest, found := strings.Cut(remaining, "\nSession ")
+		remaining = ""
+		if found {
+			remaining = "Session " + rest
+		}
+		records++
+		var session, peerSession, tunnel, peerTunnel uint16
+		_, err := fmt.Sscanf(block, "Session %d in tunnel %d\n  Peer session %d, tunnel %d",
+			&session, &tunnel, &peerSession, &peerTunnel)
+		if err != nil || tunnel != identity.Tunnel || peerTunnel != identity.PeerTunnel {
+			return identity, fmt.Errorf("kernel session does not identify its live tunnel: %s", block)
+		}
+		// This fixture negotiates unsequenced data. An arbitrary Ns would
+		// disturb xl2tpd's independent sequence space.
+		if strings.Contains(block, "sequence numbering:") {
+			return identity, errors.New("LCP restart injection requires the fixture's unsequenced data session")
+		}
+		if session == 0 && peerSession == 0 {
+			if identity.Management {
+				return identity, errors.New("duplicate kernel tunnel management session")
+			}
+			identity.Management = true
+		} else {
+			if session == 0 || peerSession == 0 {
+				return identity, errors.New("kernel data session contains an unassigned ID")
+			}
+			if identity.Session != 0 {
+				return identity, errors.New("LCP restart requires exactly one kernel data session")
+			}
+			identity.Session, identity.PeerSession = session, peerSession
+		}
 	}
-	return identity, listing, nil
+	if records != strings.Count(listing, "Session ") {
+		return identity, errors.New("unparsed kernel session record")
+	}
+	return identity, nil
 }
 
 // Keep the original collector intact for failure diagnostics. Each phase reads
@@ -187,10 +242,12 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 		return l.fail(report, seen, "same-transport LCP restart: "+err.Error()), false
 	}
 	beforeZe, zeListing, err := readL2TPPPPTransport(l.ZeNamespace)
+	writeProgress(l.Progress, l.ZeNamespace+" before LCP restart (before peer cleanup):\n"+zeListing)
 	if err != nil {
 		return fail(err)
 	}
 	beforeLAC, lacListing, err := readL2TPPPPTransport(l.LACNamespace)
+	writeProgress(l.Progress, l.LACNamespace+" before LCP restart (before peer cleanup):\n"+lacListing)
 	if err != nil {
 		return fail(err)
 	}
