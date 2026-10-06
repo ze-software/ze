@@ -551,7 +551,7 @@ func (n *Negotiated) Families() []Family {
 // Returns nil if every required code satisfies its capability-specific rules.
 // Extended Message requires the peer's receive permission, not our advertisement:
 // RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a peer only
-// if the BGP Extended Message Capability was received from that peer."
+// if the BGP Extended Message Capability was received from that peer.".
 func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 	if len(required) == 0 {
 		return nil

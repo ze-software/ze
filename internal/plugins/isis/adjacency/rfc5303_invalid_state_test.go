@@ -13,7 +13,7 @@ import (
 // state to fresh, Initializing and Up adjacencies and compares every field.
 // RFC requirement: RFC5303-3.2-7 negative -- invalid TLV 240 states are rejected without adjacency, neighbor, hold-timer or session-event mutation.
 // RFC 5303 Section 3.2: "If the option is present and contains invalid Adjacency
-// Three-Way State, the PDU SHALL be discarded and no further action is taken."
+// Three-Way State, the PDU SHALL be discarded and no further action is taken.".
 func TestRFC5303InvalidStateLeavesAdjacencyUntouched(t *testing.T) {
 	for _, state := range []State{StateDown, StateInitializing, StateUp} {
 		for invalid := 3; invalid <= 255; invalid++ {

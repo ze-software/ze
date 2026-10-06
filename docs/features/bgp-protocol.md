@@ -33,6 +33,11 @@ The separate [`bgp-ls-export`](../architecture/wire/nlri-bgpls.md#consumer-decod
 plugin originates standard SAFI 71 routes from native IGP or EPE state. It does
 not add generic text/API BGP-LS encoding or SAFI 72 origination.
 
+SR-Policy route encoding leaves the Binding SID's unassigned flag bits clear
+(RFC 9830 Section 2.4.2). It does not request S-Flag or I-Flag behavior.
+
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- buildBindingSIDSubTLV -->
+
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->

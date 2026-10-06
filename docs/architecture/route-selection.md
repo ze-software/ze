@@ -286,6 +286,20 @@ non-RD families still discard the community and all normal loop checks apply.
 <!-- source: internal/component/bgp/reactor/forward_aigp.go -- forwardUpdateSelected, aigpNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
 
+The `bgp-nexthop-self-local-auto-frr` interop scenario uses separate containers
+for its non-loopback source, FRR, GoBGP and byte-recording recipient. A received
+127/8 NEXT_HOP fails syntactic validation; a next hop owned by Ze's host fails
+semantic validation. Neither topology can prove configured source-link cost.
+After all sessions' initial EORs, the checker releases the source with a
+readiness route. The wire recipient requires metric 107, an exact unknown-cost
+withdrawal, and metric 111 after a route-install RPC, without another source
+UPDATE. Further metric 7, zero and 7 transitions retain the original recovery
+controls; GoBGP must keep received metric 100 with unchanged next hops.
+<!-- source: internal/component/bgp/message/rfc7606.go -- validateNextHopAttr -->
+<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop -->
+<!-- source: internal/le/interoplab/bgp/check_aigp_wire.go -- requireAIGPWire -->
+<!-- source: internal/le/interoplab/bgp/check_aigp_source_cost.go -- checkAIGPSourceCostFRR -->
+
 <!-- source: internal/component/bgp/reactor/config_aigp.go -- per-session AIGP policy -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- AIGP receive boundary -->
 

@@ -82,6 +82,16 @@ connections, or standard input and standard output. All transports use the same
 plugin RPC frames.
 <!-- source: pkg/plugin/rpc/conn.go -- Conn, NewConn -->
 
+Recovery's applied-event drain reads known transport failure without sending a
+probe. `PluginConn.Err` reads bridge delivery admission or the mux reader's
+completion; a non-mux connection exposes its reader's terminal error through
+`Conn.Err`. These observations neither restart a reader nor reserve the
+connection's future lifetime. Successful application still comes from the FIFO
+delivery receipt, not from transport liveness alone.
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.Err -->
+<!-- source: pkg/plugin/rpc/conn.go -- Conn.Err -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.DeliveryError -->
+
 ---
 
 ## Wire Format

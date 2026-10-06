@@ -59,6 +59,19 @@ a delivery join: an operation that already loaded the pointer may finish.
 <!-- source: internal/component/bgp/plugins/rib/forward_tracker.go -- onChange, Stop -->
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 
+The shutdown fixture holds the admitted DOWN at its removal hook. Before DOWN
+starts, it pauses the real AIGP reselection worker at candidate extraction, then
+queues DOWN's peer-state writer before releasing that worker. Otherwise a scan
+that already copied the prefix can remove it before DOWN reaches the hook,
+making the fixture fail even though the route was withdrawn. This scheduling
+barrier leaves the SDK drain and all shutdown assertions in place.
+<!-- source: internal/component/bgp/plugins/rib/rib_shutdown_test.go -- TestRIBShutdownDrainsStructuredPeerDown -->
+
+Concurrent mirror publication also checks the surviving lifecycle contract:
+reattachment publishes the requested path, a later detached withdrawal leaves
+that shared RIB untouched, and reattachment permits its removal.
+<!-- source: internal/component/bgp/plugins/rib/rib_shutdown_test.go -- TestLocRIBPublicationConcurrentMirrors -->
+
 ## Measured
 
 `BenchmarkLocribInsert` in its baseline, `ForwardNil` and `ForwardHandle`
