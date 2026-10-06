@@ -235,11 +235,10 @@ system {
 		return err
 	}
 	addr := strings.TrimSpace(string(addrBytes))
-	colon := strings.LastIndexByte(addr, ':')
-	if colon < 0 {
+	host, port, found := strings.CutLast(addr, ":")
+	if !found {
 		return fmt.Errorf("invalid SSH listener address %q", addr)
 	}
-	host, port := addr[:colon], addr[colon+1:]
 	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
 		host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
 	}

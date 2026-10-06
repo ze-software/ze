@@ -98,11 +98,10 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
 	addr := strings.TrimSpace(string(addrBytes))
-	colon := strings.LastIndex(addr, ":")
-	if colon < 0 {
+	host, port, found := strings.CutLast(addr, ":")
+	if !found {
 		return fmt.Errorf("invalid ssh.addr %q", addr)
 	}
-	host, port := addr[:colon], addr[colon+1:]
 	cliEnv := uiCliVerbDaemonDispatchEnvironment(map[string]string{
 		envSSHHost:     host,
 		envSSHPort:     port,

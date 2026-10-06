@@ -324,8 +324,8 @@ func relayWithdrawalExtras(prefix string) []operation {
 	var evidence textbuf.Buffer
 	update := evidence.Str("rcvd UPDATE about ").Str(prefix).String()
 	return []operation{
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdCat, frrLogPath}, contains: []string{update, "withdrawn"}, timeout: 90 * time.Second},
-		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdCat, frrLogPath}, absent: []string{"Missing well-known attribute", "rcvd UPDATE with errors in attr"}, proof: []string{update, "withdrawn"}},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdCat, frrLogPath}, contains: []string{update, frrWithdrawnMarker}, timeout: 90 * time.Second},
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdCat, frrLogPath}, absent: []string{"Missing well-known attribute", "rcvd UPDATE with errors in attr"}, proof: []string{update, frrWithdrawnMarker}},
 	}
 }
 

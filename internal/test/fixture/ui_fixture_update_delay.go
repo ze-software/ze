@@ -170,13 +170,13 @@ func uiUpdateDelayWaitReady(ctx context.Context, work, sshAddressPath, readyPath
 				return nil, fmt.Errorf("read ssh.addr: %w", err)
 			}
 			address := strings.TrimSpace(string(addressBytes))
-			colon := strings.LastIndexByte(address, ':')
-			if colon < 0 {
+			host, port, found := strings.CutLast(address, ":")
+			if !found {
 				return nil, fmt.Errorf("invalid SSH address %q", address)
 			}
 			return uiAliasPeersEnv(os.Environ(), map[string]string{
-				envSSHHost:     address[:colon],
-				envSSHPort:     address[colon+1:],
+				envSSHHost:     host,
+				envSSHPort:     port,
 				envSSHUsername: "ci",
 				envSSHPassword: valueSecret,
 				envConfigDir:   work,

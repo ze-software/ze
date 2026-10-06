@@ -9,6 +9,7 @@ import "testing"
 // OpenSent state." "Any start event (Events 1, 3-7) is ignored in the
 // OpenConfirm state." "Any Start event (Events 1, 3-7) is ignored in the
 // Established state."
+// Each state retains its session and retry history after these events.
 func TestRFC4271AdvancedStartEventsIgnored(t *testing.T) {
 	for _, state := range []State{StateOpenSent, StateOpenConfirm, StateEstablished} {
 		for _, event := range []Event{EventManualStart, EventAutomaticStartWithDampPeerOscillations} {

@@ -217,9 +217,9 @@ func TestInitialSyncQueuedWritePanicRunsUnlocked(t *testing.T) {
 			}
 			route := rib.NewRouteWithASPath(wire, netip.Addr{}, nil, nil)
 			conn := &initialSyncQueuedWritePanicConn{
-				initialSyncQueueConn: initialSyncQueueConn{peer: peer},
-				t:                   t,
-				failAt:              1,
+				peer:   peer,
+				t:      t,
+				failAt: 1,
 			}
 			if phase == "queued-initial" {
 				if err := peer.QueueAnnounce(route, false, false); err != nil {

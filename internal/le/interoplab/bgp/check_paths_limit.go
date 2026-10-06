@@ -203,7 +203,7 @@ func requireFRRPathsLimit(output, address string) error {
 	}
 	peer := peers[address]
 	limit := peer.Capabilities.PathsLimit["ipv4Unicast"]
-	if peer.State != "Established" || !peer.Capabilities.AddPath["ipv4Unicast"].Receive ||
+	if peer.State != stateEstablished || !peer.Capabilities.AddPath["ipv4Unicast"].Receive ||
 		!limit.Negotiated || limit.Advertised != 2 || limit.Received != 10 {
 		return fmt.Errorf("FRR has no established ADD-PATH receive and bidirectional code76 evidence (advertised 2, received 10): %s", output)
 	}
@@ -224,7 +224,7 @@ func requireZePathsLimit(output, address string) error {
 		return fmt.Errorf("decode Ze negotiated capabilities: %w", err)
 	}
 	for _, peer := range peers {
-		if peer.Peer == address && peer.Negotiated.PathsLimit.Send["ipv4/unicast"] == 2 && peer.Negotiated.PathsLimit.Receive["ipv4/unicast"] == 10 {
+		if peer.Peer == address && peer.Negotiated.PathsLimit.Send[zeIPv4Unicast] == 2 && peer.Negotiated.PathsLimit.Receive[zeIPv4Unicast] == 10 {
 			return nil
 		}
 	}

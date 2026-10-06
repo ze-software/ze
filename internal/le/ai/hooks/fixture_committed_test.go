@@ -1,6 +1,7 @@
 package aihooks
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -42,7 +43,7 @@ func TestWeakeningProbeTreesCommitOriginals(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(committed) != string(original) {
+			if !bytes.Equal(committed, original) {
 				t.Fatalf("HEAD differs from original test: %q != %q", committed, original)
 			}
 		})

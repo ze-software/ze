@@ -704,11 +704,11 @@ func suiteOfPrefix(prefix string) string {
 // replaced by a closing bracket, so the collapsed row names the STAGE and lists
 // the suites once.
 func stageOf(pipeline string) string {
-	cut := strings.LastIndex(pipeline, ",")
-	if cut < 0 {
+	stage, _, found := strings.CutLast(pipeline, ",")
+	if !found {
 		var tb textbuf.Buffer
 		return tb.Str(pipeline).Byte(')').String()
 	}
 	var tb textbuf.Buffer
-	return tb.Str(pipeline[:cut]).Byte(')').String()
+	return tb.Str(stage).Byte(')').String()
 }

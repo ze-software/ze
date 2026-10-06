@@ -22,6 +22,7 @@ const (
 	envConfigDir       = "ZE_CONFIG_DIR"
 	envConfigDirDotted = "ze.config.dir"
 	envGitAuthorEmail  = "GIT_AUTHOR_EMAIL"
+	envGitAuthorName   = "GIT_AUTHOR_NAME"
 	envGitCommitEmail  = "GIT_COMMITTER_EMAIL"
 	envGitCommitName   = "GIT_COMMITTER_NAME"
 	envGitConfigGlobal = "GIT_CONFIG_GLOBAL"
@@ -113,6 +114,7 @@ const (
 	fieldLeaf               = "leaf"
 	fieldLocalAS            = "local-as"
 	fieldLocalPreference    = "local-preference" // The LOCAL_PREF name in the filter text protocol.
+	fieldMED                = "med"              // The MED attribute name in the filter and catalog protocols.
 	fieldMessage            = "message"
 	fieldMode               = "mode"
 	fieldName               = "name" // The field in a payload.
@@ -309,11 +311,14 @@ const (
 
 // Files, paths and expected text.
 const (
+	contentCoreFeatureGate          = "ze_core\n"
+	contentEmptyMain                = "package main\n\nfunc main() {}\n"
 	contentFeatureGate              = "fixture\n"
 	contentGitIgnoreTmp             = "tmp/\n"
 	descriptionCountersAlone        = "The counters alone"
 	dirBuilder                      = "builder"
 	dirCommon                       = "common"
+	dirPlan                         = "plan"
 	dirSource                       = "src" // The kernel source directory.
 	expansionVRPCount               = "display kind vrp-count"
 	fileBGPConf                     = "ze-bgp.conf"
@@ -326,6 +331,8 @@ const (
 	fileGoMod                       = "go.mod"
 	fileSampleGo                    = "sample.go"
 	fileTriggersMD                  = "TRIGGERS.md"
+	gitCommitNoSign                 = "commit.gpgsign=false"
+	gitFixtureEmail                 = "fixture@example.invalid"
 	gitFixtureName                  = "Fixture"
 	logBFDConfigured                = "bfd plugin configured"
 	logBFDPinnedSessionCreated      = "bfd pinned session created"

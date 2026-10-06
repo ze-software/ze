@@ -398,11 +398,10 @@ func runZEStrippedSurface(parent context.Context) (retErr error) {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
 	address := strings.TrimSpace(string(addressBytes))
-	colon := strings.LastIndex(address, ":")
-	if colon < 0 {
+	host, port, found := strings.CutLast(address, ":")
+	if !found {
 		return fmt.Errorf("invalid SSH address %q", address)
 	}
-	host, port := address[:colon], address[colon+1:]
 	cliEnv := updateEnvironment(
 		os.Environ(),
 		"ZE_SSH_HOST="+host,

@@ -155,7 +155,8 @@ func llgrSourceOpen(options speakerOptions, zeroLLST bool) ([]byte, error) {
 			64, 6, 0, 20, 0, 2, 1, 0,
 			71, 14, 0, 1, 1, 0, 0, 0, 40, 0, 2, 1, 0, 0, 0, 40)
 	}
-	body := []byte{4, byte(options.asn >> 8), byte(options.asn), 0, 90}
+	body := make([]byte, 0, 12+len(capabilities))
+	body = append(body, 4, byte(options.asn>>8), byte(options.asn), 0, 90)
 	id := routerID.As4()
 	body = append(body, id[:]...)
 	body = append(body, byte(len(capabilities)+2), 2, byte(len(capabilities)))
@@ -180,20 +181,24 @@ func llgrSourceUpdates(local, nextHopV6 netip.Addr, asn uint32, zeroLLST bool) [
 	if zeroLLST {
 		third = 95
 	}
-	body := []byte{0, 0, 0, byte(len(v4attrs))}
+	body := make([]byte, 0, 8+len(v4attrs))
+	body = append(body, 0, 0, 0, byte(len(v4attrs)))
 	body = append(body, v4attrs...)
 	body = append(body, 24, 198, 51, third)
-	frames := [][]byte{speakerMessage(bgpUpdate, body), speakerEOR()}
+	frames := make([][]byte, 0, 4)
+	frames = append(frames, speakerMessage(bgpUpdate, body), speakerEOR())
 	if zeroLLST {
 		return frames
 	}
 	v6next := nextHopV6.As16()
-	mp := []byte{0, 2, 1, 16}
+	mp := make([]byte, 0, 4+len(v6next)+8)
+	mp = append(mp, 0, 2, 1, 16)
 	mp = append(mp, v6next[:]...)
 	mp = append(mp, 0, 48, 0x20, 1, 0x0d, 0xb8, 0, 0x94)
 	v6attrs := append(append([]byte(nil), attributes...), 0x80, 14, byte(len(mp)))
 	v6attrs = append(v6attrs, mp...)
-	body = []byte{0, 0, 0, byte(len(v6attrs))}
+	body = make([]byte, 0, 4+len(v6attrs))
+	body = append(body, 0, 0, 0, byte(len(v6attrs)))
 	body = append(body, v6attrs...)
 	return append(frames, speakerMessage(bgpUpdate, body),
 		speakerMessage(bgpUpdate, []byte{0, 0, 0, 6, 0x80, 15, 3, 0, 2, 1}))

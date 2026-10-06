@@ -27,7 +27,10 @@ func init() {
 
 const (
 	leSpecBucketAfter     = "after"
+	leSpecBucketImmediate = "immediate"
 	leSpecCategoryBacklog = "backlog"
+	leSpecCategoryIdea    = "idea"
+	leSpecCategoryOther   = "other" // The spec category, not an appliance name.
 	leSpecFieldBucket     = "bucket"
 )
 
@@ -216,13 +219,13 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		// wrong record for the answer.
 		wantSection := map[string]string{
 			leSpecCategoryBacklog: "Committed backlog",
-			"idea":                "Idea capture",
-			"other":               "Other",
+			leSpecCategoryIdea:    "Idea capture",
+			leSpecCategoryOther:   "Other",
 		}[category]
 		if wantSection == "" || !strings.Contains(section, wantSection) {
 			return uiLeSpecStatusAnswersFailf("the page files %q under %q, want category %q", name, section, category)
 		}
-		if !slices.Contains([]string{leSpecBucketAfter, "immediate", "pre-release"}, bucket) {
+		if !slices.Contains([]string{leSpecBucketAfter, leSpecBucketImmediate, "pre-release"}, bucket) {
 			return uiLeSpecStatusAnswersFailf("record %q carries bucket %q, which names no release bucket", name, bucket)
 		}
 		for key, value := range map[string]string{
@@ -363,11 +366,11 @@ type leSpecStatusCase struct {
 func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []string, error) {
 	const committed = "2000-01-02"
 	expected := []leSpecStatusCase{
-		{"fixture-ready", "plan/immediate", "immediate", "ready", leSpecCategoryBacklog, committed, committed, false},
-		{"fixture-untracked", "plan/immediate", "immediate", "design", leSpecCategoryBacklog, "2001-02-03", "unknown", false},
-		{"fixture-fresh", "plan", leSpecBucketAfter, "skeleton", "idea", time.Now().UTC().Format("2006-01-02"), committed, false},
-		{"fixture-stale", "plan", leSpecBucketAfter, "skeleton", "idea", "2000-01-01", committed, true},
-		{"fixture-blocked", "plan/pre-release", "pre-release", "blocked", "other", "2000-01-01", committed, false},
+		{"fixture-ready", "plan/immediate", leSpecBucketImmediate, "ready", leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-untracked", "plan/immediate", leSpecBucketImmediate, "design", leSpecCategoryBacklog, "2001-02-03", "unknown", false},
+		{"fixture-fresh", dirPlan, leSpecBucketAfter, "skeleton", leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
+		{"fixture-stale", dirPlan, leSpecBucketAfter, "skeleton", leSpecCategoryIdea, "2000-01-01", committed, true},
+		{"fixture-blocked", "plan/pre-release", "pre-release", "blocked", leSpecCategoryOther, "2000-01-01", committed, false},
 	}
 	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, nil, err
@@ -382,10 +385,10 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		envRepoRoot:          root,
 		envGitConfigGlobal:   os.DevNull,
 		envGitConfigSystem:   "1",
-		"GIT_AUTHOR_NAME":    gitFixtureName,
-		envGitAuthorEmail:    "fixture@example.invalid",
+		envGitAuthorName:     gitFixtureName,
+		envGitAuthorEmail:    gitFixtureEmail,
 		envGitCommitName:     gitFixtureName,
-		envGitCommitEmail:    "fixture@example.invalid",
+		envGitCommitEmail:    gitFixtureEmail,
 		"GIT_AUTHOR_DATE":    committed + "T12:00:00Z",
 		"GIT_COMMITTER_DATE": committed + "T12:00:00Z",
 	})
@@ -406,10 +409,10 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		}
 	}
 	commands := [][]string{
-		{"init", argQuiet, "--template=", "--initial-branch=fixture"},
-		{argAdd, "--", "plan"},
+		{argInit, argQuiet, "--template=", "--initial-branch=fixture"},
+		{argAdd, "--", dirPlan},
 		{"rm", "--cached", "--", "plan/immediate/spec-fixture-untracked.md"},
-		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", argCommit, argQuiet, "-m", "Fixture specs"},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Fixture specs"},
 	}
 	for _, args := range commands {
 		answer, err := uiLeSpecStatusAnswersRunCommand(ctx, root, childEnv, "git", args...)

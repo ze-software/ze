@@ -19,6 +19,7 @@ const (
 	llgrIPv4Prefix        = "198.51.94.0/24"
 	llgrIPv6Prefix        = "2001:db8:94::/48"
 	llgrZeroPrefix        = "198.51.95.0/24"
+	llgrRouteCommunity    = "65004:94"
 	llgrRestartTime       = 20 * time.Second
 	llgrStaleTime         = 40 * time.Second
 	llgrObservationMargin = 3 * time.Second
@@ -30,7 +31,7 @@ const (
 // own graceful-restart retention or session-reset loss cannot satisfy the test.
 // RFC 9494 Section 4.2: "The interval for which they are retained is limited by
 // the sum of the Restart Time in the received Graceful Restart Capability and
-// the Long-Lived Stale Time in the received Long-Lived Graceful Restart Capability."
+// the Long-Lived Stale Time in the received Long-Lived Graceful Restart Capability".
 func checkLLGRIndependentFRR(ctx context.Context, check *interoplab.CheckContext) error {
 	if !check.Network.IPv4.IsValid() {
 		return errors.New("LLGR scenario has no selected IPv4 network")
@@ -38,8 +39,9 @@ func checkLLGRIndependentFRR(ctx context.Context, check *interoplab.CheckContext
 	if !check.Network.IPv6.IsValid() {
 		return errors.New("LLGR scenario has no selected IPv6 network")
 	}
-	for index, baseline := range llgrBaselineOperations() {
-		if err := runOperation(ctx, check.Network, check.Lab, &baseline); err != nil {
+	baseline := llgrBaselineOperations()
+	for index := range baseline {
+		if err := runOperation(ctx, check.Network, check.Lab, &baseline[index]); err != nil {
 			return fmt.Errorf("original GR baseline assertion %d: %w", index+1, err)
 		}
 	}
@@ -67,7 +69,7 @@ func checkLLGRIndependentFRR(ctx context.Context, check *interoplab.CheckContext
 	if _, err := llgrWaitDown(ctx, check, 11); err != nil {
 		return err
 	}
-	if err := llgrWaitRoute(ctx, check, llgrZeroPrefix, "ipv4 unicast", "65001 65005", "65005:94", false, false, 5*time.Second); err != nil {
+	if err := llgrWaitRoute(ctx, check, llgrZeroPrefix, frrIPv4Unicast, "65001 65005", "65005:94", false, false, 5*time.Second); err != nil {
 		return fmt.Errorf("no-LLST control was retained: %w", err)
 	}
 	if err := llgrRequireSession(ctx, check, identity); err != nil {
@@ -78,10 +80,10 @@ func checkLLGRIndependentFRR(ctx context.Context, check *interoplab.CheckContext
 	if err := llgrReceivedFence(ctx, check, 10); err != nil {
 		return err
 	}
-	if err := llgrWaitRoute(ctx, check, llgrIPv4Prefix, "ipv4 unicast", "65001 65004", "65004:94", true, false, 5*time.Second); err != nil {
+	if err := llgrWaitRoute(ctx, check, llgrIPv4Prefix, frrIPv4Unicast, zeInjectorASPath, llgrRouteCommunity, true, false, 5*time.Second); err != nil {
 		return err
 	}
-	if err := llgrWaitRoute(ctx, check, llgrIPv6Prefix, "ipv6 unicast", "65001 65004", "65004:94", true, false, 5*time.Second); err != nil {
+	if err := llgrWaitRoute(ctx, check, llgrIPv6Prefix, "ipv6 unicast", zeInjectorASPath, llgrRouteCommunity, true, false, 5*time.Second); err != nil {
 		return err
 	}
 	loss := time.Now()
@@ -96,7 +98,7 @@ func checkLLGRIndependentFRR(ctx context.Context, check *interoplab.CheckContext
 		return fmt.Errorf("source DOWN fence took %s; cannot establish timer boundaries", down.Sub(loss))
 	}
 	// RFC 9494 Section 4.2: the omitted family enters LLGR immediately.
-	if err := llgrWaitRoute(ctx, check, llgrIPv4Prefix, "ipv4 unicast", "65001 65004", "65004:94", true, true, llgrObservationMargin); err != nil {
+	if err := llgrWaitRoute(ctx, check, llgrIPv4Prefix, frrIPv4Unicast, zeInjectorASPath, llgrRouteCommunity, true, true, llgrObservationMargin); err != nil {
 		return fmt.Errorf("omitted GR family did not enter immediate LLGR: %w", err)
 	}
 	return llgrObserveExpiry(ctx, check, identity, loss, down)
@@ -149,7 +151,7 @@ func llgrParseFRRSession(output, address string) (llgrFRRIdentity, error) {
 	if !ok {
 		return llgrFRRIdentity{}, errors.New("FRR neighbor JSON omits the selected Ze address")
 	}
-	if peer.State != "Established" {
+	if peer.State != stateEstablished {
 		return llgrFRRIdentity{}, fmt.Errorf("FRR session state is %q", peer.State)
 	}
 	if peer.Established == nil {
@@ -226,7 +228,7 @@ func llgrFRRFamilies(output string) error {
 
 func llgrInitialFence(ctx context.Context, check *interoplab.CheckContext, identity llgrFRRIdentity) error {
 	for _, host := range []uint8{10, 11} {
-		if err := waitZePeerState(ctx, check.Lab, networkHostAddress(check.Network, host), peerStateEstablished, 60*time.Second); err != nil {
+		if err := waitZePeerState(ctx, check.Lab, networkHostAddress(check.Network, host), 60*time.Second); err != nil {
 			return err
 		}
 		if err := llgrReceivedFence(ctx, check, host); err != nil {
@@ -234,9 +236,9 @@ func llgrInitialFence(ctx context.Context, check *interoplab.CheckContext, ident
 		}
 	}
 	for _, route := range []struct{ prefix, family, path, community string }{
-		{llgrIPv4Prefix, "ipv4 unicast", "65001 65004", "65004:94"},
-		{llgrIPv6Prefix, "ipv6 unicast", "65001 65004", "65004:94"},
-		{llgrZeroPrefix, "ipv4 unicast", "65001 65005", "65005:94"},
+		{llgrIPv4Prefix, frrIPv4Unicast, zeInjectorASPath, llgrRouteCommunity},
+		{llgrIPv6Prefix, "ipv6 unicast", zeInjectorASPath, llgrRouteCommunity},
+		{llgrZeroPrefix, frrIPv4Unicast, "65001 65005", "65005:94"},
 	} {
 		if err := llgrWaitRoute(ctx, check, route.prefix, route.family, route.path, route.community, true, false, 60*time.Second); err != nil {
 			return err
@@ -247,15 +249,15 @@ func llgrInitialFence(ctx context.Context, check *interoplab.CheckContext, ident
 
 func llgrReceivedFence(ctx context.Context, check *interoplab.CheckContext, host uint8) error {
 	address := networkHostAddress(check.Network, host)
-	want := []llgrReceivedExpectation{{llgrZeroPrefix, "ipv4/unicast", address}}
+	want := []llgrReceivedExpectation{{llgrZeroPrefix, zeIPv4Unicast, address}}
 	if host == 10 {
 		want = []llgrReceivedExpectation{
-			{llgrIPv4Prefix, "ipv4/unicast", address},
+			{llgrIPv4Prefix, zeIPv4Unicast, address},
 			{llgrIPv6Prefix, "ipv6/unicast", networkHostAddress6(check.Network, host)},
 		}
 	}
 	if host == 3 {
-		want = []llgrReceivedExpectation{{"10.20.0.0/24", "ipv4/unicast", address}}
+		want = []llgrReceivedExpectation{{"10.20.0.0/24", zeIPv4Unicast, address}}
 	}
 	command := zeCommand("show bgp rib received")
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 30 * time.Second, Interval: time.Second, Description: "received LLGR source routes"}, func(probe context.Context) (bool, error) {
@@ -286,7 +288,7 @@ func llgrReceivedRoutesPresent(output, peer string, want []llgrReceivedExpectati
 		return false, err
 	}
 	if document.Routes == nil {
-		return false, errors.New("Ze received RIB query omitted routes")
+		return false, errors.New("ze received RIB query omitted routes")
 	}
 	for _, expected := range want {
 		found := false
@@ -304,7 +306,7 @@ func llgrReceivedRoutesPresent(output, peer string, want []llgrReceivedExpectati
 				continue
 			}
 			if route.NextHop != expected.nextHop {
-				return false, fmt.Errorf("Ze received %s with next hop %s, want %s", route.Prefix, route.NextHop, expected.nextHop)
+				return false, fmt.Errorf("ze received %s with next hop %s, want %s", route.Prefix, route.NextHop, expected.nextHop)
 			}
 			found = true
 			break
@@ -419,9 +421,9 @@ func llgrObserveExpiry(ctx context.Context, check *interoplab.CheckContext, iden
 			prefix, family, path, marker string
 			enter, expire                time.Duration
 		}{
-			{llgrIPv4Prefix, "ipv4 unicast", "65001 65004", "65004:94", 0, llgrStaleTime},
-			{llgrIPv6Prefix, "ipv6 unicast", "65001 65004", "65004:94", llgrRestartTime, llgrRestartTime + llgrStaleTime},
-			{llgrZeroPrefix, "ipv4 unicast", "65001 65005", "65005:94", 0, 0},
+			{llgrIPv4Prefix, frrIPv4Unicast, zeInjectorASPath, llgrRouteCommunity, 0, llgrStaleTime},
+			{llgrIPv6Prefix, "ipv6 unicast", zeInjectorASPath, llgrRouteCommunity, llgrRestartTime, llgrRestartTime + llgrStaleTime},
+			{llgrZeroPrefix, frrIPv4Unicast, "65001 65005", "65005:94", 0, 0},
 		} {
 			started := time.Now()
 			present, stale, err := llgrQueryRoute(ctx, check, route.prefix, route.family, route.path, route.marker)
@@ -455,7 +457,7 @@ func llgrObserveExpiry(ctx context.Context, check *interoplab.CheckContext, iden
 		}
 		// A positive baseline route and the same live FRR session prove each
 		// empty per-prefix answer came from a functioning receiver, not teardown.
-		if err := waitFRRRoute(ctx, check.Lab, injectPrefixFirst, "ipv4 unicast", time.Second, true); err != nil {
+		if err := waitFRRRoute(ctx, check.Lab, injectPrefixFirst, frrIPv4Unicast, time.Second, true); err != nil {
 			return err
 		}
 		if err := llgrSampleCurrent(lastSample); err != nil {
@@ -470,7 +472,7 @@ func llgrObserveExpiry(ctx context.Context, check *interoplab.CheckContext, iden
 			}
 			// All observations MUST occur after the final boundary, not merely
 			// finish on its far side while their queries started before it.
-			if err := llgrWaitRoute(ctx, check, llgrIPv6Prefix, "ipv6 unicast", "65001 65004", "65004:94", false, false, time.Second); err != nil {
+			if err := llgrWaitRoute(ctx, check, llgrIPv6Prefix, "ipv6 unicast", zeInjectorASPath, llgrRouteCommunity, false, false, time.Second); err != nil {
 				return err
 			}
 			if err := llgrRequireSession(ctx, check, identity); err != nil {

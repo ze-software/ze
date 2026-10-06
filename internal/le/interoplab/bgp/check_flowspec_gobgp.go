@@ -32,7 +32,7 @@ func checkFlowSpecGoBGP(ctx context.Context, check *interoplab.CheckContext) err
 		return err
 	}
 	source := networkHostAddress(check.Network, 9)
-	if err := waitZePeerState(ctx, check.Lab, source, peerStateEstablished, 30*time.Second); err != nil {
+	if err := waitZePeerState(ctx, check.Lab, source, 30*time.Second); err != nil {
 		return err
 	}
 	// A foreign cover-route observation precedes the only rule input, so the
@@ -60,7 +60,7 @@ func checkFlowSpecGoBGP(ctx context.Context, check *interoplab.CheckContext) err
 	if err != nil {
 		return fmt.Errorf("cover withdrawal: %w", err)
 	}
-	if err := waitZePeerState(ctx, check.Lab, source, peerStateEstablished, 30*time.Second); err != nil {
+	if err := waitZePeerState(ctx, check.Lab, source, 30*time.Second); err != nil {
 		return err
 	}
 	if err := flowSpecReleaseStage(ctx, check, "198.18.0.4/32"); err != nil {
@@ -73,7 +73,7 @@ func checkFlowSpecGoBGP(ctx context.Context, check *interoplab.CheckContext) err
 	if err := waitFlowSpecSourceComplete(ctx, check.Lab); err != nil {
 		return err
 	}
-	if err := waitZePeerState(ctx, check.Lab, source, peerStateEstablished, 30*time.Second); err != nil {
+	if err := waitZePeerState(ctx, check.Lab, source, 30*time.Second); err != nil {
 		return err
 	}
 	return checkFlowSpecBaseline(ctx, check)
@@ -116,7 +116,7 @@ func waitFlowSpecCover(ctx context.Context, check *interoplab.CheckContext) erro
 }
 
 // flowSpecReleaseStage adds a distinct unicast marker at GoBGP. The source's
-// single-session dialogue waits for that exact announced NLRI before proceeding.
+// single-session dialog waits for that exact announced NLRI before proceeding.
 func flowSpecReleaseStage(ctx context.Context, check *interoplab.CheckContext, marker string) error {
 	_, err := check.Lab.Exec(ctx, peerGoBGP, []string{
 		cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, marker,

@@ -522,16 +522,17 @@ func appliancePushEscapeFixture(ctx context.Context, _ []string) error {
 }
 
 func applianceReplaceCertFixture(ctx context.Context, _ []string) error {
+	const otherAppliance = "other"
 	if err := os.Mkdir("appliances", 0o750); err != nil {
 		return err
 	}
-	for _, item := range [][2]string{{"lab-config.json", "lab"}, {"other-config.json", "other"}} {
+	for _, item := range [][2]string{{"lab-config.json", "lab"}, {"other-config.json", otherAppliance}} {
 		if code := applianceCommand(ctx, "--dir", "appliances", "init", "--config", item[0], item[1]); code != 0 {
 			return fmt.Errorf("appliance init %s exited %d", item[1], code)
 		}
 	}
 	lab := filepath.Join("appliances", "lab", "secrets", "tls")
-	other := filepath.Join("appliances", "other", "secrets", "tls")
+	other := filepath.Join("appliances", otherAppliance, "secrets", "tls")
 	cert, err := os.ReadFile(filepath.Join(lab, "cert.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err

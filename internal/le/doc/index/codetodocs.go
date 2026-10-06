@@ -160,8 +160,8 @@ func anchorSegments(content string) []Segment {
 			switch {
 			case hasKnownRoot(part):
 				paths = append(paths, part)
-				if idx := strings.LastIndex(part, "/"); idx >= 0 {
-					lastDir = part[:idx]
+				if dir, _, found := strings.CutLast(part, "/"); found {
+					lastDir = dir
 				}
 			case lastDir != "" && !strings.HasPrefix(part, "/"):
 				var tb textbuf.Buffer
@@ -446,8 +446,8 @@ func packageDir(path string) string {
 	if strings.HasSuffix(path, "/") {
 		return strings.TrimRight(path, "/")
 	}
-	if idx := strings.LastIndex(path, "/"); idx >= 0 {
-		return path[:idx]
+	if dir, _, found := strings.CutLast(path, "/"); found {
+		return dir
 	}
 	return path
 }

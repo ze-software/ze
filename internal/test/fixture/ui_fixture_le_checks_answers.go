@@ -626,13 +626,13 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 	files := map[string]string{
 		"go.mod":                             "module fixture.invalid/compiles\n\ngo 1.26\n",
 		"feature-gates.txt":                  "ze_probe\tinternal/p0\n",
-		"cmd/ze/main.go":                     "package main\n\nfunc main() {}\n",
+		"cmd/ze/main.go":                     contentEmptyMain,
 		"cmd/ze/ze_core_dispatch.go":         "//go:build ze_core\n\npackage main\n",
 		"cmd/ze/setup_features_distro.go":    "//go:build ze_distro\n\npackage main\n",
 		"cmd/ze/setup_features_appliance.go": "//go:build ze_appliance\n\npackage main\n",
 		"cmd/ze/setup_dispatch.go":           "//go:build ze_setup && !ze_core\n\npackage main\n",
 		"cmd/ze/setup_features_setup.go":     "//go:build ze_setup\n\npackage main\n",
-		"cmd/ze-installer/main.go":           "package main\n\nfunc main() {}\n",
+		"cmd/ze-installer/main.go":           contentEmptyMain,
 	}
 	// The two command packages count too: land exactly on the real floor.
 	for i := range repocompiles.DefaultPackageFloor - 2 {
@@ -658,10 +658,10 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 		"GOCACHE":             gotoolchain.GoCache(checkout),
 		envGitConfigGlobal:    os.DevNull,
 		envGitConfigSystem:    "1",
-		"GIT_AUTHOR_NAME":     gitFixtureName,
-		envGitAuthorEmail:     "fixture@example.invalid",
+		envGitAuthorName:      gitFixtureName,
+		envGitAuthorEmail:     gitFixtureEmail,
 		envGitCommitName:      gitFixtureName,
-		envGitCommitEmail:     "fixture@example.invalid",
+		envGitCommitEmail:     gitFixtureEmail,
 		"GIT_AUTHOR_DATE":     "2000-01-02T12:00:00Z",
 		"GIT_COMMITTER_DATE":  "2000-01-02T12:00:00Z",
 		repocompiles.RevKey:   "HEAD",
@@ -669,9 +669,9 @@ func leChecksBuildTree(ctx context.Context, parent, checkout string) (string, []
 		repocompiles.KeepKey:  "false",
 	})
 	for _, args := range [][]string{
-		{"init", argQuiet, "--template=", "--initial-branch=fixture"},
+		{argInit, argQuiet, "--template=", "--initial-branch=fixture"},
 		{argAdd, "--", "."},
-		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", argCommit, argQuiet, "-m", "Build fixture"},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, argQuiet, "-m", "Build fixture"},
 	} {
 		result, err := leChecksRunEnvironment(ctx, root, childEnv, "git", args...)
 		if err != nil {

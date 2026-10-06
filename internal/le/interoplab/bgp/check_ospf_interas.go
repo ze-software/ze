@@ -43,7 +43,7 @@ func checkOSPFInterASDatabase(ctx context.Context, check *interoplab.CheckContex
 	}
 	header, err := ospfInterASSourceVerdict(output, check.Network.IPv4.Addr().Next().Next())
 	if err != nil {
-		return fmt.Errorf("Ze inter-AS database: %w; reply: %s", err, output)
+		return fmt.Errorf("ze inter-AS database: %w; reply: %s", err, output)
 	}
 	command = []string{cmdVtysh, "-c", "show ip ospf database opaque-as json"}
 	output, err = check.Lab.Query(ctx, peerFRR, command, queryEnvironment(peerFRR, command))
@@ -168,7 +168,7 @@ func ospfInterASFloodedVerdict(output string, want ospfInterASHeader) error {
 		if want.Checksum == nil {
 			return errors.New("source inter-AS LSA has no checksum")
 		}
-		if uint16(checksum) != *want.Checksum {
+		if checksum != uint64(*want.Checksum) {
 			return errors.New("flooded inter-AS LSA does not match the source checksum")
 		}
 		if header.Length != want.Length {

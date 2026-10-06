@@ -22,7 +22,7 @@ import (
 // through the established receive path. A changed Compatibility field must free
 // a full installed slot, and offered counting must frame that withdrawal too.
 // RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
-// MUST be ignored."
+// MUST be ignored.".
 func TestReceivePrefixLimitCompatibilityWithdrawal(t *testing.T) {
 	for _, fam := range []family.Family{
 		{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},

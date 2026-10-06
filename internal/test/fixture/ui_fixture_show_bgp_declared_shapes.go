@@ -157,11 +157,10 @@ system {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
 	addr := strings.TrimSpace(string(addrBytes))
-	colon := strings.LastIndexByte(addr, ':')
-	if colon < 0 {
+	host, port, found := strings.CutLast(addr, ":")
+	if !found {
 		return fmt.Errorf("invalid SSH address %q", addr)
 	}
-	host, port := addr[:colon], addr[colon+1:]
 	cliEnv := showBGPDeclaredShapesSetEnv(os.Environ(),
 		"ZE_SSH_HOST", host,
 		"ZE_SSH_PORT", port,

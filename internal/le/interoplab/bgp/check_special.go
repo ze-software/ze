@@ -889,7 +889,7 @@ func checkAddPathRailAgreement(ctx context.Context, check *interoplab.CheckConte
 	}
 	speaker1 := networkHostAddress(check.Network, 10)
 	speaker2 := networkHostAddress(check.Network, 11)
-	if err := waitZePeerState(ctx, check.Lab, speaker1, peerStateEstablished, 60*time.Second); err != nil {
+	if err := waitZePeerState(ctx, check.Lab, speaker1, 60*time.Second); err != nil {
 		return err
 	}
 	zeAddress := networkHostAddress(check.Network, 2)
@@ -928,7 +928,7 @@ func checkAddPathRailAgreement(ctx context.Context, check *interoplab.CheckConte
 	return nil
 }
 
-func waitZePeerState(ctx context.Context, lab interoplab.CheckerLab, address, want string, timeout time.Duration) error {
+func waitZePeerState(ctx context.Context, lab interoplab.CheckerLab, address string, timeout time.Duration) error {
 	var description textbuf.Buffer
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
@@ -936,7 +936,7 @@ func waitZePeerState(ctx context.Context, lab interoplab.CheckerLab, address, wa
 		Description: description.Str("ze peer ").Str(address).String(),
 	}, func(probeCtx context.Context) (string, error) {
 		return zePeerState(probeCtx, lab, address)
-	}, func(state string) bool { return state == want })
+	}, func(state string) bool { return state == peerStateEstablished })
 	return err
 }
 

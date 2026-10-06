@@ -18,6 +18,7 @@ import (
 // events through the parser and dispatcher. Compatibility bytes must affect
 // neither removal nor the election, while RD and ADD-PATH boundaries survive.
 // RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field MUST be ignored."
+// The test varies those bytes while retaining each native withdrawal identity.
 func TestJSONWithdrawalReconcilesNativeIdentity(t *testing.T) {
 	for _, fam := range []family.Family{labeledFamily, vpnv4Family} {
 		for _, addPath := range []bool{false, true} {
@@ -37,6 +38,7 @@ func TestJSONWithdrawalReconcilesNativeIdentity(t *testing.T) {
 // testJSONWithdrawalReconcilesNativeIdentity observes both the Adj-RIB-In and
 // the published Loc-RIB decision after removing the preferred PE's path.
 // RFC 8277 Section 2.4: "An explicit withdrawal in a SAFI-x UPDATE on a given BGP session not only withdraws the binding between the prefix and the label(s), it also withdraws the path to that prefix that was previously advertised in a SAFI-x UPDATE on that session."
+// Both stored path removal and its resulting election are observed.
 func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family, addPath bool, compatibility [3]byte) {
 	t.Helper()
 	bus := newTestEventBus()

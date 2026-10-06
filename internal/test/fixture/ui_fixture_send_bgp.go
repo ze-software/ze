@@ -421,11 +421,11 @@ func cliWireSSHAddress(path string) (host, port string, err error) {
 		return "", "", fmt.Errorf("read ssh.addr: %w", err)
 	}
 	addr := strings.TrimSpace(string(data))
-	colon := strings.LastIndexByte(addr, ':')
-	if colon < 0 {
+	host, port, found := strings.CutLast(addr, ":")
+	if !found {
 		return "", "", fmt.Errorf("invalid ssh.addr %q", addr)
 	}
-	return addr[:colon], addr[colon+1:], nil
+	return host, port, nil
 }
 
 // cliWireFileExists reports whether a startup barrier has appeared.

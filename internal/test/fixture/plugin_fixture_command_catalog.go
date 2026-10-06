@@ -63,7 +63,7 @@ var catalogAddressFieldsROA = []string{columnPrefix}
 var (
 	catalogRibColumns = []string{
 		fieldPeer, "direction", fieldFamily, columnPrefix, columnNextHop, "path-id",
-		fieldASPath, columnOrigin, "local-pref", "med", "communities",
+		fieldASPath, columnOrigin, "local-pref", fieldMED, "communities",
 	}
 	catalogAddressFieldsRib = []string{fieldPeer, columnNextHop}
 )

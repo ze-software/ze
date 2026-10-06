@@ -27,7 +27,7 @@ type flowSpecWireState struct {
 // session. Every FlowSpec announcement, including baseline rules, must have no
 // next hop. Only the tested NLRI advances the fence; the newest event wins.
 // RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
-// Next-Hop Network Address MUST be set to 0."
+// Next-Hop Network Address MUST be set to 0".
 func flowSpecWireEvidence(text, routerID string) (flowSpecWireState, error) {
 	var result flowSpecWireState
 	if len(text) > 34*1024*1024 {
@@ -126,7 +126,7 @@ func flowSpecWireEvidence(text, routerID string) (flowSpecWireState, error) {
 
 // flowSpecWireUpdate never searches attributes for an NLRI byte substring.
 // RFC 8955 Section 4: "The NLRI field of the MP_REACH_NLRI and MP_UNREACH_NLRI
-// is encoded as one or more 2-tuples of the form <length, NLRI value>."
+// is encoded as one or more 2-tuples of the form <length, NLRI value>".
 func flowSpecWireUpdate(body []byte) (bool, bool, error) {
 	sections, err := wire.ParseUpdateSections(body)
 	if err != nil {
@@ -222,7 +222,7 @@ type flowSpecForeignPath struct {
 // to a rate string elsewhere in the RIB. The preserved originated discard rule
 // supplies positive evidence for every absence query.
 // RFC 8955 Section 7: "All Traffic Filtering Actions are specified as transitive
-// BGP Extended Communities."
+// BGP Extended Communities".
 func flowSpecForeignEvidence(output, neighbor string, present bool) error {
 	var routes map[string][]flowSpecForeignPath
 	if err := json.Unmarshal([]byte(output), &routes); err != nil {
@@ -410,7 +410,7 @@ func flowSpecSourceComplete(logs string) error {
 		}
 	}
 	if !complete {
-		return errors.New("injector has not completed the cover-only replay dialogue")
+		return errors.New("injector has not completed the cover-only replay dialog")
 	}
 	return nil
 }

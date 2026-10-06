@@ -19,7 +19,7 @@ import (
 // attribute.ci announces, so a name missing here is a name no policy can act on.
 var filterSubjectNames = []string{
 	"origin",
-	"med",
+	fieldMED,
 	fieldLocalPreference,
 	"atomic-aggregate",
 	"cluster-list",

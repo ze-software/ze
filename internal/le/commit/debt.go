@@ -262,15 +262,15 @@ func debtCovered(cell string) (string, int) {
 		return cell, 1
 	}
 	head := strings.TrimSuffix(cell, closing)
-	at := strings.LastIndex(head, opening)
-	if at < 0 {
+	subject, count, found := strings.CutLast(head, opening)
+	if !found {
 		return cell, 1
 	}
-	after, err := strconv.Atoi(head[at+len(opening):])
+	after, err := strconv.Atoi(count)
 	if err != nil || after < 1 {
 		return cell, 1
 	}
-	return head[:at], after + 1
+	return subject, after + 1
 }
 
 // debtSubject renders a subject cell covering the named number of commits.

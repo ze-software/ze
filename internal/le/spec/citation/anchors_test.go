@@ -251,8 +251,8 @@ func bulletRenderedPath(t *testing.T, root string, model map[string][]string) (s
 // packageOf is the directory part of a code path, which is what the renderer
 // groups by (packageDir, internal/le/doc/index/codetodocs.go).
 func packageOf(path string) string {
-	if index := strings.LastIndex(path, "/"); index >= 0 {
-		return path[:index]
+	if dir, _, found := strings.CutLast(path, "/"); found {
+		return dir
 	}
 	return path
 }

@@ -270,7 +270,7 @@ func leInventoryTree(root string) error {
 		"go.mod":                            "module fixture.invalid/inventory\n\ngo 1.26\n",
 		"internal/widget/widget.go":         "package widget\n\nconst Name = \"widget\"\n",
 		"internal/widget/yang/fixture.yang": "module fixture {\n namespace \"urn:fixture\";\n prefix f;\n rpc show-widget {\n }\n rpc clear-widget {\n }\n}\n",
-		"cmd/widget/main.go":                "package main\n\nfunc main() {}\n",
+		"cmd/widget/main.go":                contentEmptyMain,
 		"test/widget/show.ci":               "cmd=foreground:exec=ze show widget\nexpect=exit:code=0\n",
 	}
 	for relative, body := range files {

@@ -326,7 +326,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	}
 	files := map[string]string{
 		fileGoMod:                      "module example.com/stale\n",
-		fileFeatureGates:               "ze_core\n",
+		fileFeatureGates:               contentCoreFeatureGate,
 		"internal/core/thing/thing.go": "// Package thing does a thing.\npackage thing\n",
 		"ai/PACKAGE-MAP.md":            "stale\n",
 	}
@@ -391,10 +391,10 @@ func uiLeDiscoveryAnswersMergedEnvironment(overrides map[string]string) []string
 	base = childEnvironment(base, map[string]string{
 		envGitConfigGlobal: os.DevNull,
 		envGitConfigSystem: "1",
-		"GIT_AUTHOR_NAME":  gitFixtureName,
-		envGitAuthorEmail:  "fixture@example.invalid",
+		envGitAuthorName:   gitFixtureName,
+		envGitAuthorEmail:  gitFixtureEmail,
 		envGitCommitName:   gitFixtureName,
-		envGitCommitEmail:  "fixture@example.invalid",
+		envGitCommitEmail:  gitFixtureEmail,
 	})
 	return childEnvironment(base, overrides)
 }
@@ -577,7 +577,7 @@ func leDiscoveryTree(root string) error {
 	// repository-size thresholds as a proxy for meaningful output.
 	return leDiscoveryWriteFiles(root, map[string]string{
 		fileGoMod:                           "module example.com/discovery\n",
-		fileFeatureGates:                    "ze_core\n",
+		fileFeatureGates:                    contentCoreFeatureGate,
 		"ai/.keep":                          "",
 		"internal/documented/source.go":     "// Design: docs/architecture/documented.md -- source documentation\n// Package documented owns the documented source.\npackage documented\n\nfunc Run() {}\n",
 		"pkg/registered/register.go":        "// Design: docs/architecture/registered.md -- registration description\npackage registered\n\nvar registration = struct { Description string }{Description: \"owns the registered source\"}\n\nfunc Run() {}\n",
@@ -602,11 +602,16 @@ func leDiscoveryWriteFiles(root string, files map[string]string) error {
 }
 
 func leDiscoveryWiringTree(ctx context.Context, root string) ([]string, error) {
+	const (
+		committedDoc = "docs/committed.md"
+		stagedDoc    = "docs/staged.md"
+		changedGo    = "internal/sample/changed.go"
+	)
 	if err := leDiscoveryWriteFiles(root, map[string]string{
-		fileGoMod:                    "module example.com/wiring\n",
-		"docs/committed.md":          "# Before\n",
-		"docs/staged.md":             "# Before\n",
-		"internal/sample/changed.go": "package sample\n",
+		fileGoMod:    "module example.com/wiring\n",
+		committedDoc: "# Before\n",
+		stagedDoc:    "# Before\n",
+		changedGo:    "package sample\n",
 	}); err != nil {
 		return nil, err
 	}
@@ -618,35 +623,35 @@ func leDiscoveryWiringTree(ctx context.Context, root string) ([]string, error) {
 		return nil
 	}
 	for _, args := range [][]string{
-		{"init", "-q"},
+		{argInit, "-q"},
 		{argAdd, "-A"},
-		{"-c", "core.hooksPath=" + os.DevNull, "-c", "commit.gpgsign=false", argCommit, "-qm", "baseline"},
+		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, "-qm", "baseline"},
 		{"update-ref", "refs/remotes/origin/main", "HEAD"},
 	} {
 		if err := git(args...); err != nil {
 			return nil, err
 		}
 	}
-	if err := leDiscoveryWriteFiles(root, map[string]string{"docs/committed.md": "# Unpushed change\n"}); err != nil {
+	if err := leDiscoveryWriteFiles(root, map[string]string{committedDoc: "# Unpushed change\n"}); err != nil {
 		return nil, err
 	}
-	if err := git(argAdd, "docs/committed.md"); err != nil {
+	if err := git(argAdd, committedDoc); err != nil {
 		return nil, err
 	}
-	if err := git("-c", "core.hooksPath="+os.DevNull, "-c", "commit.gpgsign=false", argCommit, "-qm", "unpushed change"); err != nil {
+	if err := git("-c", "core.hooksPath="+os.DevNull, "-c", gitCommitNoSign, argCommit, "-qm", "unpushed change"); err != nil {
 		return nil, err
 	}
 	if err := leDiscoveryWriteFiles(root, map[string]string{
-		"docs/staged.md":             "# Staged change\n",
-		"docs/untracked.md":          "# Untracked change\n",
-		"internal/sample/changed.go": "// Design: docs/committed.md -- changed source\npackage sample\n",
+		stagedDoc:           "# Staged change\n",
+		"docs/untracked.md": "# Untracked change\n",
+		changedGo:           "// Design: docs/committed.md -- changed source\npackage sample\n",
 	}); err != nil {
 		return nil, err
 	}
-	if err := git(argAdd, "docs/staged.md"); err != nil {
+	if err := git(argAdd, stagedDoc); err != nil {
 		return nil, err
 	}
-	return []string{"docs/committed.md", "docs/staged.md", "docs/untracked.md", "internal/sample/changed.go"}, nil
+	return []string{committedDoc, stagedDoc, "docs/untracked.md", changedGo}, nil
 }
 
 func uiLeDiscoveryAnswersSortedKeys(values map[string]json.RawMessage) []string {

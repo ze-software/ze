@@ -241,9 +241,9 @@ func TestPeerRIB_InsertEntry(t *testing.T) {
 func TestPeerRIBRetainedPathsSurviveReplacement(t *testing.T) {
 	prefix := netip.MustParsePrefix("198.18.247.0/24")
 	for _, tc := range []struct {
-		name string
-		fam family.Family
-		key []byte
+		name    string
+		fam     family.Family
+		key     []byte
 		labeled bool
 	}{
 		{"prefix", family.IPv4Unicast, []byte{24, 198, 18, 247}, false},

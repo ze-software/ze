@@ -10,6 +10,13 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+const (
+	showTableJSON    = "show bgp ipv4 unicast json"
+	zeInjectorASPath = "65001 65004"
+	frrIPv4Unicast   = "ipv4 unicast"
+	zeIPv4Unicast    = "ipv4/unicast"
+)
+
 // checkers returns the complete typed checker registry for test/interop/scenarios.
 func checkers() map[string]interoplab.Checker {
 	checkers := make(map[string]interoplab.Checker, len(scenarioOperations))
@@ -374,7 +381,7 @@ var scenarioOperations = map[string][]operation{
 	// 90s leaves the row three times the margin it needs.
 	"bgp-update-delay-frr": {
 		{kind: opFRRSession, argument: zeLabAddress, timeout: 30 * time.Second},
-		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"},
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", showTableJSON},
 			absent: []string{injectPrefixFirst}, proof: []string{"vrfName"}},
 		{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 240 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},
@@ -655,7 +662,7 @@ var scenarioOperations = map[string][]operation{
 	scenarioLocRIBReceiverFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opWaitContains, peer: "ze", command: zeCommand(zeShowBMPPeers),
-			contains: []string{"65045", frrLabAddress, "ipv4/unicast"},
+			contains: []string{"65045", frrLabAddress, zeIPv4Unicast},
 			timeout:  120 * time.Second},
 	},
 	"isis-auth-frr": {

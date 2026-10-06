@@ -267,11 +267,10 @@ system {
 		return fmt.Errorf("read ssh address: %w", err)
 	}
 	address := strings.TrimSpace(string(addressBytes))
-	colon := strings.LastIndex(address, ":")
-	if colon < 0 {
+	host, port, found := strings.CutLast(address, ":")
+	if !found {
 		return fmt.Errorf("invalid ssh address %q", address)
 	}
-	host, port := address[:colon], address[colon+1:]
 
 	cliEnv := replaceEnvironment(baseEnv,
 		environmentValue{envSSHHost, host},

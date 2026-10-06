@@ -176,11 +176,10 @@ system {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
 	address := strings.TrimSpace(string(addressBytes))
-	colon := strings.LastIndexByte(address, ':')
-	if colon < 0 {
+	host, port, found := strings.CutLast(address, ":")
+	if !found {
 		return fmt.Errorf("invalid SSH listener address %q", address)
 	}
-	host, port := address[:colon], address[colon+1:]
 
 	cliEnv := replaceBGPColumnOrderEnv(os.Environ(),
 		"ZE_SSH_HOST", host,

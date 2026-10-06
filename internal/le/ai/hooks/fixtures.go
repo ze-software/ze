@@ -1028,7 +1028,7 @@ func committedProbeTree(name string, files map[string]string) (string, error) {
 			"-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Original probe"},
 	} {
 		ctx, cancel := stdcontext.WithTimeout(stdcontext.Background(), probeGitTimeout)
-		command := exec.CommandContext(ctx, "git", args...)
+		command := exec.CommandContext(ctx, "git", args...) //nolint:gosec // Fixed git binary and literal argv above; fixture content never becomes an argument.
 		command.Dir = root
 		output, err := command.CombinedOutput()
 		cancel()

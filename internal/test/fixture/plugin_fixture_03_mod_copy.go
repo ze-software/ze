@@ -18,7 +18,7 @@ func bgpRSModCopy03(ctx context.Context, p *sdk.Plugin) error {
 		if err != nil {
 			return false
 		}
-		for _, address := range []string{"127.0.0.1", "127.0.0.2", "127.0.0.3"} {
+		for _, address := range []string{"127.0.0.1", addrLoopbackSecond, "127.0.0.3"} {
 			if number03(rows[address]["eor-sent"]) < 1 {
 				return false
 			}
@@ -38,7 +38,7 @@ func bgpRSModCopy03(ctx context.Context, p *sdk.Plugin) error {
 		if err != nil {
 			return false
 		}
-		for _, address := range []string{"127.0.0.2", "127.0.0.3"} {
+		for _, address := range []string{addrLoopbackSecond, "127.0.0.3"} {
 			row := rows[address]
 			if number03(row["updates-sent"])-number03(row["eor-sent"]) < 2 {
 				return false

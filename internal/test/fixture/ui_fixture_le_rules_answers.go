@@ -118,7 +118,7 @@ func leRulesAnswers(ctx context.Context) error {
 	const newRule = "# A\n\n**When:** when it happens\n**Severity:** blocking\n\n## S\n\n- **MUST do the NEW thing.**\n"
 	fixtureFiles := map[string]string{
 		fileGoMod:                         "module example.com/fixture\n",
-		fileFeatureGates:                  "ze_core\n",
+		fileFeatureGates:                  contentCoreFeatureGate,
 		"ai/rules/aaa.md":                 oldRule,
 		"ai/rules/points/aaa/manifest.md": "---\ntitle: A\nwhen: when it happens\nseverity: blocking\n---\ns ## S\n  p\n",
 		"ai/rules/points/aaa/s/p.md":      "---\nkind: directive\nlevel: MUST\n---\n- **MUST do the NEW thing.**\n",
@@ -337,7 +337,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err := os.MkdirAll(corpusTree, 0o750); err != nil {
 		return fmt.Errorf("FAIL: create digest corpus: %w", err)
 	}
-	for _, sub := range []string{"ai", "plan"} {
+	for _, sub := range []string{"ai", dirPlan} {
 		if err := copyTree(filepath.Join(root, sub), filepath.Join(corpusTree, sub)); err != nil {
 			return fmt.Errorf("FAIL: copy %s corpus: %w", sub, err)
 		}
@@ -458,7 +458,7 @@ func leRulesAnswers(ctx context.Context) error {
 		}
 	}
 
-	refused, err = le(root, areaAIRules, "router-report", "plan")
+	refused, err = le(root, areaAIRules, "router-report", dirPlan)
 	if err != nil {
 		return err
 	}

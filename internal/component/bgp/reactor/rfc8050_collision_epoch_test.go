@@ -376,7 +376,7 @@ type mrtCollisionUpdate struct {
 // family's ADD-PATH negotiation. Literal IDs include zero, not an absent ID.
 // RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
 // message, the NLRI encoding MUST be extended by prepending the Path Identifier
-// field, which is of four octets."
+// field, which is of four octets.".
 func mrtCollisionIsolatedUpdates() []mrtCollisionUpdate {
 	cases := []struct {
 		name     string

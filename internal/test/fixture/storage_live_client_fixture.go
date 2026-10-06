@@ -140,7 +140,7 @@ func restoreClientDaemon(ctx context.Context, base, role string, bgpPort int, ma
 		envTestBGPPort: strconv.Itoa(bgpPort),
 	}
 	name := caTrustHubName
-	initArgs := []string{"init"}
+	initArgs := []string{argInit}
 	if managedClient {
 		overrides["ZE_MANAGED_TLS_INSECURE"] = valueTrue
 		name = caTrustClientName

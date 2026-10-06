@@ -81,6 +81,7 @@ func TestRFC8654ExtendedMessageDirections(t *testing.T) {
 		{name: "both", local: true, remote: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var local, remote []Capability
 			if tc.local {
 				local = append(local, &ExtendedMessage{})

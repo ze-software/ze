@@ -497,12 +497,12 @@ func TestPlanRefusesLiveInputChanges(t *testing.T) {
 			writeLintFile(t, root, "pkg/p00/new.go", "package fixture\n")
 		}},
 		{"deleted-file", func(t *testing.T, root string) {
-			if err := os.Remove(filepath.Join(root, "pkg/p00/file.go")); err != nil {
+			if err := os.Remove(filepath.Join(root, "pkg", "p00", "file.go")); err != nil {
 				t.Fatalf("delete source input: %v", err)
 			}
 		}},
 		{"renamed-file", func(t *testing.T, root string) {
-			if err := os.Rename(filepath.Join(root, "pkg/p00/file.go"), filepath.Join(root, "pkg/p00/file_freebsd.go")); err != nil {
+			if err := os.Rename(filepath.Join(root, "pkg", "p00", "file.go"), filepath.Join(root, "pkg", "p00", "file_freebsd.go")); err != nil {
 				t.Fatalf("rename source input: %v", err)
 			}
 		}},

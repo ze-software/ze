@@ -243,7 +243,7 @@ func requireRPKIReloadRoutes(received []rpkiReloadRoute, accepted bool, original
 		if prefix == rpkiReloadInvalid {
 			state, ineligible = 3, !accepted
 		}
-		if !exists || route.Family != "ipv4/unicast" || route.State == nil || route.Ineligible == nil || *route.State != state || *route.Ineligible != ineligible || route.Attributes == "" || route.NextHop == "" || route.NLRI == "" {
+		if !exists || route.Family != zeIPv4Unicast || route.State == nil || route.Ineligible == nil || *route.State != state || *route.Ineligible != ineligible || route.Attributes == "" || route.NextHop == "" || route.NLRI == "" {
 			return nil, fmt.Errorf("retained %s does not have validation-state=%d ineligible=%t and received wire attributes: %+v", prefix, state, ineligible, route)
 		}
 		if before, ok := original[prefix]; ok && (route.Attributes != before.Attributes || route.NextHop != before.NextHop || route.NLRI != before.NLRI) {

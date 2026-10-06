@@ -949,11 +949,11 @@ func reviewGateRows(text string) ([][2]string, bool) {
 func namesAFile(value string) bool {
 	for field := range strings.FieldsSeq(value) {
 		name := strings.Trim(field, "`'\"(),;")
-		at := strings.LastIndex(name, "/")
-		if at < 0 {
+		_, base, found := strings.CutLast(name, "/")
+		if !found {
 			continue
 		}
-		if strings.Contains(name[at+1:], ".") {
+		if strings.Contains(base, ".") {
 			return true
 		}
 	}

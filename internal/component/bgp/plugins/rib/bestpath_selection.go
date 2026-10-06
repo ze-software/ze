@@ -114,6 +114,7 @@ func retainLowestMED(candidates []*Candidate, explanation *bestPathExplanation) 
 // remove records the actual elimination witness, which need not be the final
 // winner. Keeping original indices makes the existing CLI shape meaningful.
 // RFC 4271 Section 9.1.2.2: "The criteria MUST be applied in the order specified."
+// The recorded step identifies the criterion that removed this candidate.
 func (explanation *bestPathExplanation) remove(loser, winner *Candidate) {
 	loserIdx, winnerIdx := explanation.indices[loser], explanation.indices[winner]
 	incumbentIdx, challengerIdx := min(loserIdx, winnerIdx), max(loserIdx, winnerIdx)

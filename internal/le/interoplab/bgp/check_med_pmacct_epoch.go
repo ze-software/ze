@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -54,7 +54,7 @@ func waitMEDWholeSetInput(ctx context.Context, lab interoplab.CheckerLab, want *
 	})
 	if err != nil {
 		if mismatch != nil {
-			err = fmt.Errorf("%w: %v", err, mismatch)
+			err = fmt.Errorf("%w: %w", err, mismatch)
 		}
 	}
 	return withLastOutput(err, last)
@@ -191,11 +191,11 @@ func medWholeSetInputCriteria(peerUp, route *medWholeSetCollectorRow, want *medW
 	if route.LogType != pmacctLogUpdate {
 		return fmt.Errorf("pmacct latest candidate row is %q, not an UPDATE", route.LogType)
 	}
-	pathAS, err := strconv.ParseUint(route.ASPath, 10, 32)
+	pathAS, err := asn.Parse(route.ASPath)
 	if err != nil {
 		return fmt.Errorf("pmacct candidate AS_PATH is not one ASN: %w", err)
 	}
-	if pathAS != uint64(want.asn) {
+	if pathAS != want.asn {
 		return fmt.Errorf("pmacct AS_PATH=%q, want the source ASN %d", route.ASPath, want.asn)
 	}
 	if route.NextHop != want.peer {

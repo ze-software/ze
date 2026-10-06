@@ -601,16 +601,16 @@ func importName(spec *ast.ImportSpec) string {
 		return spec.Name.Name
 	}
 	path := strings.Trim(spec.Path.Value, `"`)
-	cut := strings.LastIndex(path, "/")
-	if cut < 0 {
+	parent, last, found := strings.CutLast(path, "/")
+	if !found {
 		return path
 	}
 	// A major-version suffix is not the package name: "math/rand/v2" is
 	// reached as rand, so the element before the suffix names it.
-	if last := path[cut+1:]; !isMajorVersion(last) {
+	if !isMajorVersion(last) {
 		return last
 	}
-	return importName(&ast.ImportSpec{Path: &ast.BasicLit{Value: `"` + path[:cut] + `"`}})
+	return importName(&ast.ImportSpec{Path: &ast.BasicLit{Value: `"` + parent + `"`}})
 }
 
 // isMajorVersion reports whether a path element is a module major-version

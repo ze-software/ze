@@ -23,7 +23,7 @@ import (
 // Valid attributes stay zero-copy; only endpoint-invalid TLV removal allocates.
 // RFC 9012 Section 13: "If a Tunnel Encapsulation attribute does not have any
 // valid TLVs, or it does not have the transitive bit set, the "Treat-as-withdraw"
-// procedure of [RFC7606] is applied."
+// procedure of [RFC7606] is applied.".
 func applyTunnelEncap(wu *wireu.WireUpdate, attrs []byte, hasNLRI bool, result *message.RFC7606ValidationResult) (*wireu.WireUpdate, []byte) {
 	if result.Action >= message.RFC7606ActionTreatAsWithdraw {
 		return wu, attrs
@@ -142,7 +142,7 @@ func applyTunnelEncap(wu *wireu.WireUpdate, attrs []byte, hasNLRI bool, result *
 // tunnelTLVLayout returns the first TLV's size and whether its endpoints permit
 // retaining it. Size zero means framing is unparseable, never an empty TLV.
 // RFC 9012 Section 13: "The final octet of a TLV MUST also be the final octet of
-// its final sub-TLV."
+// its final sub-TLV.".
 func tunnelTLVLayout(data []byte, requireEndpoint, policy bool) (int, bool) {
 	if len(data) < 4 {
 		return 0, false
@@ -200,7 +200,7 @@ func tunnelTLVLayout(data []byte, requireEndpoint, policy bool) (int, bool) {
 // address ownership. Unknown AFIs remain opaque, as required by Section 3.1.
 // RFC 9012 Section 3.1 defines a malformed endpoint when: "The length of the
 // sub-TLV's Value field is other than 6 added to the defined length for the
-// address family given in its Address Family subfield."
+// address family given in its Address Family subfield.".
 func tunnelEndpointLengthValid(value []byte) bool {
 	if len(value) < 6 {
 		return false
@@ -223,7 +223,7 @@ func tunnelEndpointLengthValid(value []byte) bool {
 // attribute in question MUST be treated as though all contained routes had been
 // withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in
 // the MP_UNREACH_NLRI attribute if appropriate) of the UPDATE message, thus causing
-// them to be removed from the Adj-RIB-In according to the procedures of [RFC4271]."
+// them to be removed from the Adj-RIB-In according to the procedures of [RFC4271].".
 func tunnelReceiveError(result *message.RFC7606ValidationResult, hasNLRI bool, description string) {
 	result.Action = message.RFC7606ActionTreatAsWithdraw
 	result.AttrCode = uint8(attribute.AttrTunnelEncap)

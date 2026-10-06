@@ -262,13 +262,12 @@ func attributionOf(root, path string, stage verifyengine.StageReport) (attributi
 // stageResult reads a stage log's closing line: the stage's own name, the
 // status it exited with, and whether the line was there at all.
 func stageResult(content string) (string, int, bool) {
-	start := strings.LastIndex(content, resultMarker)
-	if start < 0 {
+	_, line, found := strings.CutLast(content, resultMarker)
+	if !found {
 		return "", 0, false
 	}
-	line := content[start+len(resultMarker):]
-	if end := strings.IndexByte(line, '\n'); end >= 0 {
-		line = line[:end]
+	if before, _, found := strings.Cut(line, "\n"); found {
+		line = before
 	}
 	stage, status, found := strings.Cut(line, " exit=")
 	if !found {

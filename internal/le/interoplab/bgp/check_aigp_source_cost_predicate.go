@@ -50,7 +50,7 @@ func requireFRRAIGPRoute(output, prefix, zeAddress string, metric uint64) error 
 	if *path.Metric != metric {
 		return fmt.Errorf("FRR decoded AIGP%d, want %d", *path.Metric, metric)
 	}
-	if path.ASPath.String != "65001 65004" {
+	if path.ASPath.String != zeInjectorASPath {
 		return fmt.Errorf("FRR AS path %q, want 65001 65004", path.ASPath.String)
 	}
 	if path.Peer.ID != zeAddress {
@@ -189,7 +189,7 @@ func readFRRAIGPRecipientFence(output, address string) (aigpRecipientFence, erro
 	if !ok {
 		return aigpRecipientFence{}, errors.New("FRR recipient neighbor is absent")
 	}
-	if peer.State != "Established" {
+	if peer.State != stateEstablished {
 		return aigpRecipientFence{}, errors.New("FRR recipient session is not Established")
 	}
 	for _, value := range []*uint64{peer.Established, peer.Dropped} {

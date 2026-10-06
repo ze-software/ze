@@ -304,8 +304,9 @@ func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
 		if entry.Prefix != prefix || entry.Winner != addrPeerTwo || len(entry.Candidates) != 3 || len(entry.Steps) != 2 {
 			return fmt.Errorf("whole-set MED explanation=%+v, want B from three paths", entry)
 		}
+		const bestPathStepMED = "med" // The best-path explanation step, not an attribute field.
 		for step, want := range [2]struct{ name, winner, loser string }{
-			{"med", addrPeerThree, "10.0.0.1"},
+			{bestPathStepMED, addrPeerThree, "10.0.0.1"},
 			{"peer-address", addrPeerTwo, addrPeerThree},
 		} {
 			got := entry.Steps[step]

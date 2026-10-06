@@ -143,8 +143,8 @@ func newContext(payload Payload, root string) (context, bool) {
 // it, so a renamed check renames its probe and no second list can disagree.
 func checkName(check hookCheck) string {
 	full := goruntime.FuncForPC(reflect.ValueOf(check).Pointer()).Name()
-	if index := strings.LastIndex(full, "."); index >= 0 {
-		return full[index+1:]
+	if _, name, found := strings.CutLast(full, "."); found {
+		return name
 	}
 	return full
 }

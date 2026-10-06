@@ -66,7 +66,7 @@ func TestBuildReportsSilentExecutionFailures(t *testing.T) {
 // TestBuildRetainsCompilerDiagnostics preserves the underlying source error beside the exec error.
 func TestBuildRetainsCompilerDiagnostics(t *testing.T) {
 	env := fixture(t)
-	if err := writeFile(filepath.Join(env.dir, "cmd/probe/broken.go"), "package main\nvar broken = missingProducer\n"); err != nil {
+	if err := writeFile(filepath.Join(env.dir, "cmd", "probe", "broken.go"), "package main\nvar broken = missingProducer\n"); err != nil {
 		t.Fatal(err)
 	}
 	result := Build(env.ctx, env.dir, okFlavor, nil, 1)
@@ -209,10 +209,10 @@ func TestBuildLinksTheCommittedTree(t *testing.T) {
 	const brokenMain = "package main\nimport _ \"unsafe\"\n" +
 		"//go:linkname missing example.invalid/missing.symbol\n" +
 		"func missing()\nfunc main() { missing() }\n"
-	if err := writeFile(filepath.Join(fixture.probe, "cmd/probe/main.go"), brokenMain); err != nil {
+	if err := writeFile(filepath.Join(fixture.probe, "cmd", "probe", "main.go"), brokenMain); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeFile(filepath.Join(fixture.probe, "cmd/probe/gated.go"), fixtureFiles["cmd/probe/gated.go"]); err != nil {
+	if err := writeFile(filepath.Join(fixture.probe, "cmd", "probe", "gated.go"), fixtureFiles["cmd/probe/gated.go"]); err != nil {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
@@ -225,7 +225,7 @@ func TestBuildLinksTheCommittedTree(t *testing.T) {
 			t.Fatalf("commit link fixture: %v: %s", err, out)
 		}
 	}
-	if err := writeFile(filepath.Join(fixture.probe, "cmd/probe/main.go"), fixtureFiles["cmd/probe/main.go"]); err != nil {
+	if err := writeFile(filepath.Join(fixture.probe, "cmd", "probe", "main.go"), fixtureFiles["cmd/probe/main.go"]); err != nil {
 		t.Fatal(err)
 	}
 	working := Build(fixture.ctx, fixture.probe, okFlavor, nil, 1)

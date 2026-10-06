@@ -41,7 +41,7 @@ func waitMEDWholeSetSelected(ctx context.Context, lab interoplab.CheckerLab, wan
 	})
 	if err != nil {
 		if mismatch != nil {
-			err = fmt.Errorf("%w: %v", err, mismatch)
+			err = fmt.Errorf("%w: %w", err, mismatch)
 		}
 	}
 	return withLastOutput(err, last)

@@ -207,8 +207,8 @@ func assertAliases(file *ast.File) map[string]bool {
 			out[imported.Name.Name] = true
 			continue
 		}
-		if index := strings.LastIndex(path, "/"); index >= 0 {
-			out[path[index+1:]] = true
+		if _, name, found := strings.CutLast(path, "/"); found {
+			out[name] = true
 			continue
 		}
 		out[path] = true
@@ -230,8 +230,8 @@ func isAssertionImport(path string) bool {
 		return true
 	}
 	last := path
-	if index := strings.LastIndex(path, "/"); index >= 0 {
-		last = path[index+1:]
+	if _, name, found := strings.CutLast(path, "/"); found {
+		last = name
 	}
 	switch last {
 	case "assert", "require", "is", "should", "must", "qt":
@@ -249,8 +249,8 @@ func fileImports(file *ast.File) map[string]string {
 	for _, imported := range file.Imports {
 		path := strings.Trim(imported.Path.Value, `"`)
 		name := path
-		if index := strings.LastIndex(path, "/"); index >= 0 {
-			name = path[index+1:]
+		if _, last, found := strings.CutLast(path, "/"); found {
+			name = last
 		}
 		if imported.Name != nil {
 			if imported.Name.Name == "_" || imported.Name.Name == "." {
