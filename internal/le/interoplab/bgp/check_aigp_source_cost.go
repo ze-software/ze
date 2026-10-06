@@ -17,6 +17,9 @@ import (
 // MUTATION: forwardUpdateSection passes peer.Settings().AIGPLinkMetric instead
 // of srcAIGPLinkMetric to applyFactsAIGP: FRR observes143 instead of107.
 func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext) error {
+	if err := releaseSynchronizedAIGPSource(ctx, check); err != nil {
+		return err
+	}
 	if err := checkAIGPSelfNextHopBaseline(ctx, check); err != nil {
 		return err
 	}
@@ -33,7 +36,7 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 	if err := waitAIGPControl(ctx, check, sourceHop, thirdPartyHop); err != nil {
 		return fail(err)
 	}
-	if err := waitFRRAIGPRoute(ctx, check, aigpDirectPrefix, zeAddress); err != nil {
+	if err := waitFRRAIGPRoute(ctx, check, aigpDirectPrefix, zeAddress, 107); err != nil {
 		return fail(err)
 	}
 	fence := operation{kind: opFRRRoute, argument: aigpFencePrefix, timeout: 45 * time.Second}
@@ -46,7 +49,7 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 	}
 	// The sentinel follows every source announcement on this recipient's FIFO.
 	// An attribute-free announcement is still a route and fails the inventory.
-	inventory, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"}, nil)
+	inventory, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showTableJSON}, nil)
 	if err != nil {
 		return fail(err)
 	}
@@ -56,21 +59,24 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 	if err := checkAIGPRecipientFence(ctx, check, zeAddress, recipient); err != nil {
 		return fail(err)
 	}
-	for _, metric := range []uint64{7, 0, 7} {
+	if err := waitAIGPWire(ctx, check, 1); err != nil {
+		return fail(err)
+	}
+	for index, metric := range []uint64{11, 7, 0, 7} {
 		if err := installAIGPDistance(ctx, check, thirdPartyHop, metric); err != nil {
 			return fail(err)
 		}
 		if metric != 0 {
 			// RFC 7311 Section 3.4.3: recover from the retained received100,
 			// not the prior advertised107, and without another source UPDATE.
-			if err := waitFRRAIGPRoute(ctx, check, aigpRecoveryPrefix, zeAddress); err != nil {
+			if err := waitFRRAIGPRoute(ctx, check, aigpRecoveryPrefix, zeAddress, 100+metric); err != nil {
 				return fail(err)
 			}
 		}
 		last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 			Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR whole-route AIGP metric transition",
 		}, func(probe context.Context) (string, error) {
-			return check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"}, nil)
+			return check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", showTableJSON}, nil)
 		}, func(output string) bool { return requireFRRAIGPInventory(output, metric != 0) == nil })
 		if err != nil {
 			return fail(withLastOutput(err, last))
@@ -88,6 +94,9 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 		if err := checkAIGPRecipientFence(ctx, check, zeAddress, recipient); err != nil {
 			return fail(err)
 		}
+		if err := waitAIGPWire(ctx, check, index+2); err != nil {
+			return fail(err)
+		}
 	}
 	// The original local-auto next-hop proofs must survive every metric change.
 	if err := checkAIGPSelfNextHopBaseline(ctx, check); err != nil {
@@ -99,12 +108,12 @@ func checkAIGPSourceCostFRR(ctx context.Context, check *interoplab.CheckContext)
 	return nil
 }
 
-func waitFRRAIGPRoute(ctx context.Context, check *interoplab.CheckContext, prefix, zeAddress string) error {
+func waitFRRAIGPRoute(ctx context.Context, check *interoplab.CheckContext, prefix, zeAddress string, metric uint64) error {
 	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR decoded AIGP107 with next-hop self for " + prefix,
+		Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR decoded accumulated AIGP with next-hop self for " + prefix,
 	}, func(probe context.Context) (string, error) {
 		return check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + prefix + " json"}, nil)
-	}, func(output string) bool { return requireFRRAIGPRoute(output, prefix, zeAddress, 107) == nil })
+	}, func(output string) bool { return requireFRRAIGPRoute(output, prefix, zeAddress, metric) == nil })
 	return withLastOutput(err, last)
 }
 

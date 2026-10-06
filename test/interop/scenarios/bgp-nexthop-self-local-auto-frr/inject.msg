@@ -18,6 +18,9 @@ option=timeout:value=180s
 # here by Ze. A KEEPALIVE rule would release right after the OPEN, long before
 # FRR is up (internal/test/peer/checker.go ExpectedOrKeepalive).
 expect=bgp:conn=1:seq=1:contains=180A1400
+# The checker releases this only after every recipient's initial EOR.
+# Both checks share a sequence so their arrival order is immaterial.
+expect=bgp:conn=1:seq=1:contains=180AFFE9
 
 # The forwarded route. ORIGIN=IGP, AS_PATH=[65004], NEXT_HOP=172.30.0.9
 # (AC1E0009), NLRI=10.10.0.0/24.

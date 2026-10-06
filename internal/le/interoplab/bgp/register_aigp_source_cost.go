@@ -4,4 +4,5 @@ package bgp
 func init() {
 	registerProcessHelper(scenarioAIGPSourceCostFRR, runAIGPSourceCostProcess)
 	specialCheckers[scenarioAIGPSourceCostFRR] = checkAIGPSourceCostFRR
+	speakerRunners["aigp-wire"] = runAIGPWireRecipient
 }

@@ -1,0 +1,1 @@
+--asn 65001 --router-id 172.30.0.10 --test aigp-wire --duration 180

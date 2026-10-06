@@ -17,14 +17,17 @@ import (
 const (
 	scenarioAIGPSourceCostFRR = "bgp-nexthop-self-local-auto-frr"
 	aigpCostCommand           = "request interop aigp-cost"
+	aigpReleaseCommand        = "request interop aigp-release"
 )
 
 // runAIGPSourceCostProcess uses the same route-install RPC as a forked IGP plugin.
-// The helper changes only a next-hop distance; it never advertises the test NLRI.
+// The helper changes a next-hop distance or releases the synchronized source;
+// it never advertises either AIGP subject NLRI.
 func runAIGPSourceCostProcess(name string) error {
-	registration := sdk.Registration{Commands: []rpc.CommandDecl{{
-		Name: aigpCostCommand, ShortHelp: "Install an AIGP interop next-hop distance",
-	}}}
+	registration := sdk.Registration{Commands: []rpc.CommandDecl{
+		{Name: aigpCostCommand, ShortHelp: "Install an AIGP interop next-hop distance"},
+		{Name: aigpReleaseCommand, ShortHelp: "Release the synchronized AIGP source"},
+	}}
 	var runErr error
 	code := sdk.RunOrDeclare(registration, func() int {
 		plugin, err := sdk.NewFromEnv(name)
@@ -33,6 +36,9 @@ func runAIGPSourceCostProcess(name string) error {
 			return 1
 		}
 		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
+			if command == aigpReleaseCommand {
+				return releaseAIGPSource(plugin, args)
+			}
 			if command != aigpCostCommand {
 				return rpc.StatusError, nil, errors.New("unexpected AIGP control command")
 			}
@@ -74,4 +80,27 @@ func runAIGPSourceCostProcess(name string) error {
 		return errors.New("AIGP control process declaration failed")
 	}
 	return runErr
+}
+
+func releaseAIGPSource(plugin *sdk.Plugin, args []string) (string, any, error) {
+	if len(args) != 2 {
+		return rpc.StatusError, nil, errors.New("aigp-release wants SOURCE and LOCAL-NEXT-HOP")
+	}
+	for _, address := range args {
+		ip, err := netip.ParseAddr(address)
+		if err != nil || !ip.Is4() {
+			return rpc.StatusError, nil, errors.New("aigp-release requires IPv4 addresses")
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	announced, withdrawn, err := plugin.UpdateRoute(ctx, args[0],
+		"update text origin igp nhop "+args[1]+" nlri ipv4/unicast add 10.255.233.0/24")
+	if err != nil {
+		return rpc.StatusError, nil, err
+	}
+	if announced != 1 || withdrawn != 0 {
+		return rpc.StatusError, nil, fmt.Errorf("readiness route counts %d/%d, want 1/0", announced, withdrawn)
+	}
+	return rpc.StatusDone, map[string]uint32{"announced": announced, frrWithdrawnMarker: withdrawn}, nil
 }
