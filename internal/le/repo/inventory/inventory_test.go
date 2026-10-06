@@ -6,8 +6,10 @@
 package repoinventory
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -98,6 +100,73 @@ func TestCollectResolvesRPCCoverage(t *testing.T) {
 	}
 	if got := inv.coveredRPCs(); got != 2 {
 		t.Errorf("counted %d covered RPCs, want 2", got)
+	}
+}
+
+// TestExtractRPCsUsesOnlyCodeAreas compares the complete RPC population before
+// and after scratch copies, including duplicate modules and unreadable evidence.
+func TestExtractRPCsUsesOnlyCodeAreas(t *testing.T) {
+	dir := fixture(t)
+	write(t, dir, "pkg/example/pkg.yang", "module pkg {\n  rpc pkg-show { }\n}\n")
+	write(t, dir, "cmd/example/cmd.yang", "module cmd {\n  rpc cmd-show { }\n}\n")
+	counts, rpcs, err := extractRPCs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rpcs) != 5 || counts["pkg.yang"] != 1 || counts["cmd.yang"] != 1 {
+		t.Fatalf("source areas missing from RPC population: %v, %v", counts, rpcs)
+	}
+	write(t, dir, "tmp/session/thing.yang", "module thing {\n  rpc scratch-only { }\n}\n")
+	write(t, dir, "tmp/evidence/crash/hidden.yang", "module hidden {\n  rpc hidden-show { }\n}\n")
+	makeInventoryDirectoryUnreadable(t, filepath.Join(dir, "tmp", "evidence", "crash"))
+	gotCounts, gotRPCs, err := extractRPCs(dir)
+	if err != nil {
+		t.Fatalf("runtime evidence entered the source walk: %v", err)
+	}
+	if !reflect.DeepEqual(gotCounts, counts) || !reflect.DeepEqual(gotRPCs, rpcs) {
+		t.Fatalf("scratch contaminated RPCs: counts %v, RPCs %v; want %v, %v",
+			gotCounts, gotRPCs, counts, rpcs)
+	}
+}
+
+// TestExtractRPCsRefusesUnreadableSource proves each declared source area
+// remains fail-closed rather than treating a permission error as an empty area.
+func TestExtractRPCsRefusesUnreadableSource(t *testing.T) {
+	for _, area := range codeAreas {
+		t.Run(area, func(t *testing.T) {
+			dir := fixture(t)
+			write(t, dir, area+"/restricted/source.yang", "module source {\n  rpc source-show { }\n}\n")
+			path := filepath.Join(dir, area, "restricted")
+			makeInventoryDirectoryUnreadable(t, path)
+			counts, rpcs, err := extractRPCs(dir)
+			if !errors.Is(err, os.ErrPermission) {
+				t.Fatalf("unreadable source returned %v, want permission error", err)
+			}
+			if !strings.Contains(err.Error(), path) {
+				t.Errorf("permission error does not identify source: %v", err)
+			}
+			if counts != nil || rpcs != nil {
+				t.Fatalf("unreadable source published partial RPCs: %v, %v", counts, rpcs)
+			}
+		})
+	}
+}
+
+// makeInventoryDirectoryUnreadable checks the actual read, not just mode bits:
+// privileged test processes must not silently pass without exercising refusal.
+func makeInventoryDirectoryUnreadable(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Chmod(path, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(path, 0o750); err != nil {
+			t.Errorf("restore fixture directory permissions: %v", err)
+		}
+	})
+	if _, err := os.ReadDir(path); !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("permission fixture is readable by UID %d: %v; run without DAC bypass privileges",
+			os.Geteuid(), err)
 	}
 }
 

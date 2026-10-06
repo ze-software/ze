@@ -4,6 +4,13 @@
 
 For current counts and uncovered RPCs, run `./le repo inventory`.
 
+RPC declarations and YANG source paths come only from the first-party source
+areas `internal/`, `pkg/`, and `cmd/`. Scratch copies and runtime evidence outside
+those areas do not contribute RPCs or affect coverage. An unreadable file or
+directory inside the declared source population remains a hard failure, not a
+reason to publish a partial count.
+<!-- source: internal/le/repo/inventory/inventory.go -- codeAreas, extractRPCs -->
+
 
 ## Gaps -- Config Behavior Without .ci
 

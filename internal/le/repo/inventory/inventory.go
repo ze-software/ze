@@ -50,8 +50,8 @@ import (
 // as the page has always carried it.
 const generatedLayout = "2006-01-02 15:04 UTC"
 
-// codeAreas are the top-level directories the Go statistics cover, in the
-// order the table lists them.
+// codeAreas are the first-party source directories covered by Go statistics,
+// YANG paths and RPC discovery, in the order the statistics table lists them.
 var codeAreas = []string{"internal", "pkg", "cmd"}
 
 // walkFiles calls visit for every file under dir whose name ends in suffix.
@@ -299,31 +299,33 @@ func collectFamilySupport() []Family {
 }
 
 // extractRPCs answers the per-module RPC counts and the flat list of every RPC
-// declared by a .yang file under root.
+// declared by a .yang file in root's codeAreas, excluding runtime evidence.
 func extractRPCs(root string) (map[string]int, []RPC, error) {
 	counts := make(map[string]int)
 	var rpcs []RPC
 
-	err := walkFiles(root, ".yang", func(path string, entry fs.DirEntry) error {
-		module := entry.Name()
-		count := 0
-		if err := scanLines(path, func(text string) {
-			line := strings.TrimSpace(text)
-			if !strings.HasPrefix(line, "rpc ") {
-				return
+	for _, area := range codeAreas {
+		err := walkFiles(filepath.Join(root, area), yangSuffix, func(path string, entry fs.DirEntry) error {
+			module := entry.Name()
+			count := 0
+			if err := scanLines(path, func(text string) {
+				line := strings.TrimSpace(text)
+				if !strings.HasPrefix(line, "rpc ") {
+					return
+				}
+				count++
+				rpcs = append(rpcs, RPC{Name: rpcNameIn(line), Module: module})
+			}); err != nil {
+				return err
 			}
-			count++
-			rpcs = append(rpcs, RPC{Name: rpcNameIn(line), Module: module})
-		}); err != nil {
-			return err
+			if count > 0 {
+				counts[module] = count
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, nil, err
 		}
-		if count > 0 {
-			counts[module] = count
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, nil, err
 	}
 
 	sort.Slice(rpcs, func(i, j int) bool {
