@@ -126,7 +126,7 @@ module ze-vpp-conf {
                 type string;
                 default "1G";
                 description
-                    "Ze writes this size into the heapsize section of startup.conf as main-heap-size. The value MUST be
+                    "Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be
                     digits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check
                     counts this size toward the hugepage memory it expects the host to have reserved.";
                 ze:help "VPP main heap size (e.g. 512M, 1G, 1536M).
@@ -135,12 +135,12 @@ module ze-vpp-conf {
 
             leaf hugepage-size {
                 type enumeration {
-                    enum 2M { ze:help "Write page-size default-hugepage-size, which takes the kernel's default hugepage size."; }
+                    enum 2M { ze:help "Write page-size default-hugepage, which takes the kernel's default hugepage size."; }
                     enum 1G { ze:help "Write page-size 1G into the buffers and statseg sections of startup.conf."; }
                 }
                 default "2M";
                 description "The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and
-                    the statseg section of startup.conf. For 2M Ze writes page-size default-hugepage-size instead,
+                    the statseg section of startup.conf. For 2M Ze writes page-size default-hugepage instead,
                     which takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when
                     you select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.";
                 ze:help "Hugepage size for VPP buffers.";
@@ -151,9 +151,9 @@ module ze-vpp-conf {
                 default 128000;
                 description
                     "Ze writes this count into the buffers section of startup.conf as buffers-per-numa, beside a fixed
-                    default-data-size of 2048 bytes. So the pool costs the count multiplied by 2048 bytes on each NUMA
-                    node, and the default 128000 costs 250 MiB. A value of 0 is refused at commit with \"vpp: memory
-                    buffers must be > 0\".";
+                    default data-size of 2048 bytes. The packet data alone costs the count multiplied by 2048 bytes on
+                    each NUMA node, so the default 128000 needs 250 MiB plus buffer metadata and alignment. A value of 0
+                    is refused at commit with \"vpp: memory buffers must be > 0\".";
                 ze:help "Number of packet buffers per NUMA node.
                          128000 is proven for full DFZ at 10G.";
             }

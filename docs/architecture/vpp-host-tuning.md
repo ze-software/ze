@@ -18,7 +18,7 @@ dataplane workers are pinned inside, and idle-worker behavior, each with a
 still lives under `vpp/cpu`, because ze groups configuration by what the
 operator is thinking about, and the emitter writes it into the `unix { }`
 block. The `memory` container already works this way: it feeds the buffers,
-heapsize and statseg sections.
+memory and statseg sections.
 
 An explicit `0` is emitted. An absent leaf produces byte-identical output to
 before the leaf existed.

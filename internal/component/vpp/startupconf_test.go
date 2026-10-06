@@ -105,7 +105,7 @@ func TestGenerateStartupConf(t *testing.T) {
 		{"corelist-workers", "corelist-workers 1-3"},
 		{"buffers section", "buffers {"},
 		{"buffers-per-numa", "buffers-per-numa 128000"},
-		{"default-data-size", "default-data-size 2048"},
+		{"default data-size", "default data-size 2048"},
 		{"dpdk section", "dpdk {"},
 		{"dev xe0", "dev 0000:03:00.0 {"},
 		{"name xe0", "name xe0"},
@@ -123,11 +123,14 @@ func TestGenerateStartupConf(t *testing.T) {
 		{"lcp-auto-subint", "lcp-auto-subint"},
 		{"default netns", "default netns dataplane"},
 		{"linux-nl section", "linux-nl {"},
-		{"rx-buffer-size", "rx-buffer-size 67108864"},
-		{"heapsize section", "heapsize {"},
+		{"nl-rx-buffer-size", "nl-rx-buffer-size 67108864"},
+		{"memory section", "memory {"},
 		{"main-heap-size", "main-heap-size 1536M"},
 		{"statseg section", "statseg {"},
 		{"statseg size", "size 1G"},
+	}
+	if got := strings.Count(out, "  page-size default-hugepage\n"); got != 2 {
+		t.Errorf("buffer and stats sections must each select default hugepages, got %d:\n%s", got, out)
 	}
 
 	for _, c := range checks {
@@ -260,6 +263,46 @@ func TestStartupConfBuffers(t *testing.T) {
 	}
 	if !strings.Contains(out, "page-size 1G") {
 		t.Error("1G hugepage should produce page-size 1G")
+	}
+}
+
+// TestStartupConfConsumerGrammar pins the complete corrected sections against
+// VPP v26.06 consumers, not the generator's choice of directive names.
+// Sources: https://github.com/FDio/vpp/blob/v26.06/src/vlib/buffer.c
+// and https://github.com/FDio/vpp/blob/v26.06/src/plugins/linux-cp/lcp_nl.c.
+// Page tokens: https://github.com/FDio/vpp/blob/v26.06/src/vppinfra/std-formats.c.
+// MUTATION: Emit default-data-size or rx-buffer-size, move a directive to another
+// section, drop a section, or replace either hugepage token with default or 4K.
+func TestStartupConfConsumerGrammar(t *testing.T) {
+	for _, tt := range []struct {
+		hugepage string
+		page     string
+	}{
+		{hugepage: "2M", page: "default-hugepage"},
+		{hugepage: "1G", page: "1G"},
+	} {
+		t.Run(tt.hugepage, func(t *testing.T) {
+			s := defaultTestSettings()
+			s.Memory.HugepageSize = tt.hugepage
+			out := generateToString(t, s)
+			for _, section := range []string{
+				"buffers {\n  buffers-per-numa 128000\n  default data-size 2048\n  page-size " + tt.page + "\n}\n",
+				"linux-nl {\n  nl-rx-buffer-size 67108864\n}\n",
+				"memory {\n  main-heap-size 1G\n}\n",
+				"statseg {\n  size 512M\n  page-size " + tt.page + "\n  socket-name /run/vpp/stats.sock\n}\n",
+			} {
+				if !strings.Contains(out, section) {
+					t.Errorf("missing VPP v26.06 section %q:\n%s", section, out)
+				}
+			}
+			for _, invalid := range []string{
+				"default-data-size", "\n  rx-buffer-size ", "heapsize {", "default-hugepage-size",
+			} {
+				if strings.Contains(out, invalid) {
+					t.Errorf("unsupported generated grammar %q:\n%s", invalid, out)
+				}
+			}
+		})
 	}
 }
 

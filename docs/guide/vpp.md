@@ -159,7 +159,7 @@ Ze does the following, in order, every time it starts or VPP crashes:
 |------|--------------|------|
 | 1 | Parses the `vpp { ... }` YANG section into `VPPSettings` | `internal/component/vpp/config.go` |
 | 2 | Validates PCI addresses, socket paths, netns names, size strings | `config.go: Validate` |
-| 3 | Renders `startup.conf` (unix, cpu, buffers, dpdk, plugins, linux-cp, linux-nl, heapsize, statseg sections) | `startupconf.go: GenerateStartupConf` |
+| 3 | Renders `startup.conf` (unix, api-segment, socksvr, cpu, buffers, dpdk, plugins, linux-cp, linux-nl, memory, statseg sections, some conditional) | `startupconf.go: GenerateStartupConf` |
 | 4 | Loads `vfio`, `vfio_pci`, `vfio_iommu_type1` kernel modules | `dpdk.go: loadVFIOModules` |
 | 5 | For each configured PCI address: reads the current driver, saves it, unbinds, binds to vfio-pci | `dpdk.go: bindPCI` |
 | 6 | Execs the VPP binary with `-c <generated startup.conf>` | `vpp.go: runOnce` |
@@ -174,6 +174,17 @@ NIC unbind, driver save, rescan-on-teardown) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.
 <!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
+
+The generator targets upstream VPP v26.06 grammar. In particular, it writes
+`buffers { default data-size 2048 ... }`, `linux-nl { nl-rx-buffer-size 67108864 }`,
+and `memory { main-heap-size ... }`. The
+[deployment reference](../research/vpp-deployment-reference.md#generated-grammar-and-upstream-consumers)
+maps every emitted directive to its release-pinned consumer. Grammar matching
+and unit tests are not proof of native startup: the installed VPP plugins,
+hugepage reservation, CPU affinity and device/namespace permissions must also
+support the selected configuration.
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
+
 
 ## Running against an externally supervised VPP
 
@@ -227,9 +238,10 @@ vpp {
 }
 ```
 
-This is enough to boot VPP with the default heap, default buffer count,
-default stats segment and LCP enabled. Add cores, tune memory, or change
-the stats poll interval only when the defaults do not fit the workload.
+This selects the default heap, buffer count, stats segment and LCP settings.
+Starting native VPP also requires the host prerequisites below and the selected
+plugins. Add cores, tune memory, or change the stats poll interval when the
+defaults do not fit the workload.
 
 ### Every leaf, what it does, what it defaults to
 
@@ -242,9 +254,9 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze takes the cores from the kernel's isolated set (`/sys/devices/system/cpu/isolated`), lowest first, `main-core` excluded and any CPU no longer online excluded, and writes them as `corelist-workers`. On a host that isolated nothing, the list falls back to `main-core+1 .. main-core+workers` and `ze doctor` reports `doctor-vpp-cpu-isolation`. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --> |
 | `vpp.cpu.worker-cores` | CPU list | unset | Explicit worker cores in the kernel's `isolcpus` syntax (`2-4`, `2,4,6`). Names the cores instead of deriving them, and MUST NOT be set beside `workers`. A core off the host, a core that is also `main-core`, and a core listed twice are each refused at commit. <!-- source: internal/core/cpulist/cpulist.go -- Parse --> |
 | `vpp.cpu.poll-sleep` | `Nms` (0ms–100ms) | unset | Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (`ms` is the only accepted unit, e.g. `10ms`), emitted as `unix { poll-sleep-usec N }` (1ms = 1000µs). Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit `0ms` is emitted and equals VPP's default. <!-- source: internal/component/vpp/config.go -- parsePollSleepMs --> |
-| `vpp.memory.main-heap` | size string | `1G` | VPP main heap. Use `1536M` for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes). |
-| `vpp.memory.hugepage-size` | `2M` or `1G` | `2M` | Hugepage size. `2M` is the common case; `1G` for large installations. |
-| `vpp.memory.buffers` | uint32 | `128000` | Buffers per NUMA node. 128k is proven for full DFZ at 10G. |
+| `vpp.memory.main-heap` | size string | `1G` | Emitted as `memory { main-heap-size ... }`. Ze leaves the heap page size at VPP's OS-page default. Use `1536M` for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes). |
+| `vpp.memory.hugepage-size` | `2M` or `1G` | `2M` | Sets the buffers and stats page-size directives: `2M` emits `default-hugepage` (the kernel default, commonly 2M); `1G` emits `1G`. Neither selects ordinary 4K pages. |
+| `vpp.memory.buffers` | uint32 | `128000` | `buffers-per-numa`, beside fixed `default data-size 2048`. 128k is proven for full DFZ at 10G; packet data needs 250 MiB per NUMA node plus metadata and alignment. |
 | `vpp.dpdk.interface[pci-address].name` | string | (required) | Short interface name used in ze (e.g. `xe0`). Must start with a letter, max 15 chars. |
 | `vpp.dpdk.interface[pci-address].rx-queues` | uint8 | VPP default | Receive queues. Omit unless the NIC needs more. |
 | `vpp.dpdk.interface[pci-address].tx-queues` | uint8 | VPP default | Transmit queues. Omit unless the NIC needs more. |

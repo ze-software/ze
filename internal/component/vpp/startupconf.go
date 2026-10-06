@@ -1,5 +1,9 @@
 // Design: docs/research/vpp-deployment-reference.md -- startup.conf syntax and production values
 // Related: config.go -- VPPSettings parsed from YANG
+// VPP v26.06 startup format: https://github.com/FDio/vpp/blob/v26.06/src/vpp/conf/startup.conf
+// Consumers: src/vlib/buffer.c (vlib_buffers_configure) and
+// src/plugins/linux-cp/lcp_nl.c (lcp_itf_pair_config), in the same upstream tag.
+// The Design page maps every generated section to its upstream consumer.
 
 package vpp
 
@@ -20,8 +24,8 @@ var vppLogPath = "/var/" + "log/vpp/vpp.log"
 var confKeyForLog = "lo" + "g"
 
 // GenerateStartupConf writes a VPP startup.conf to w based on the given
-// settings and the host CPU inventory. The output follows the
-// production-proven template from IPng.ch / VyOS.
+// settings and the host CPU inventory. The grammar targets upstream VPP v26.06;
+// production sizing follows IPng.ch / VyOS.
 //
 // The inventory is a parameter rather than a read inside this function, so the
 // caller states which host the file is written for and this function stays
@@ -70,7 +74,7 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings, inv CPUInventory) error {
 
 	b.section("buffers", func() {
 		b.kv("buffers-per-numa", strconv.Itoa(int(s.Memory.Buffers)))
-		b.kv("default-data-size", "2048")
+		b.kv("default data-size", "2048")
 		b.kv("page-size", pageSize(s.Memory.HugepageSize))
 	})
 
@@ -136,11 +140,11 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings, inv CPUInventory) error {
 		})
 
 		b.section("linux-nl", func() {
-			b.kv("rx-buffer-size", "67108864")
+			b.kv("nl-rx-buffer-size", "67108864")
 		})
 	}
 
-	b.section("heapsize", func() {
+	b.section("memory", func() {
 		b.kv("main-heap-size", s.Memory.MainHeap)
 	})
 
@@ -160,7 +164,7 @@ func pageSize(hugepage string) string {
 	if hugepage == "1G" {
 		return "1G"
 	}
-	return "default-hugepage-size"
+	return "default-hugepage"
 }
 
 // confBuilder writes VPP startup.conf format.
