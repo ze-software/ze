@@ -1439,13 +1439,20 @@ show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-p
 <!-- source: internal/component/bgp/plugins/rib/yang/ze-rib-api.yang -- RIB RPCs -->
 <h4 id="inter-plugin-rib-commands-grllgr">Inter-Plugin RIB Commands (GR/LLGR)</h4>
 <p>These commands are dispatched between plugins (bgp-gr to bgp-rib) and are not intended for direct user invocation:</p>
-<pre><code>request bgp rib retain-routes &lt;peer&gt;                    # Retain routes for peer (GR activation)
+<pre><code>request bgp rib retain-routes &lt;peer&gt; [on-down] [family ...]  # Retain all or selected families
 request bgp rib release-routes &lt;peer&gt;                   # Release retained routes
 request bgp rib mark-stale &lt;peer&gt; &lt;restart-time&gt; [level]  # Mark routes stale (level: 1=GR, 2=LLGR)
 request bgp rib purge-stale &lt;peer&gt; [family]             # Purge stale routes (optionally per-family)
 request bgp rib attach-community &lt;peer&gt; &lt;family&gt; &lt;hex&gt;  # Attach community to stale routes in family
 request bgp rib delete-with-community &lt;peer&gt; &lt;family&gt; &lt;hex&gt;  # Delete routes carrying community in family
 </code></pre>
+<p><code>retain-routes</code> without <code>on-down</code> withdraws advertisements for families removed
+by an explicit family list, even while the source remains established. GR uses
+<code>on-down</code> during its actual session-DOWN transaction: RIB silently prunes the
+nonretained sent families and the forwarding DOWN owner sends their withdrawals.
+This explicit handoff does not infer lifecycle ownership from peer state.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- retainPeerFamilies -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- doRegisterBuiltinCommands, retainRoutes -->
 <h3 id="named-commits-batching">Named Commits (Batching)</h3>
 <p>A named commit holds withdrawals and flushes them to every peer the selector
 matches. There is no <code>group start</code> or <code>group end</code>: this page published that pair
@@ -2286,7 +2293,7 @@ and the web admin command form (the summary beside each input, the
 explanation under it).</p>
 <pre><code class="language-go">type ArgDef struct {
     Name        string         // YANG leaf name (kebab-case)
-    Kind        ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
+    Kind        ArgKind        // Argument type category
     EnumValues  []string       // Valid enum values
     UintBits    int            // 8, 16, 32, or 64
     Ranges      []UintRange    // Valid ranges (disjoint segments supported)
@@ -2301,6 +2308,12 @@ explanation under it).</p>
 <p>ArgDefs are extracted from YANG by <code>BuildCommandTree</code> (<code>config/yang/command.go</code>)
 and stored on <code>command.Node.ArgDefs</code>. The dispatcher receives them via
 <code>RegisterOptions.ArgDefs</code> populated by <code>PathToArgDefs</code>.</p>
+<p><code>yangTypeToArgDef</code> assigns the internal <code>ArgKind</code>; raw argument strings never
+choose it. <code>ValidateArgString</code> and <code>Constraint</code> treat an unknown internal kind
+as a BUG, not successful validation or an unconstrained argument. Invalid
+operator-supplied values still return their type's existing validation errors.</p>
+<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef -->
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString, Constraint -->
 <p>A container that names an object declares the value the operator types after
 its keyword, once, and every command under it takes that value:
 <code>request interface &lt;name&gt; up</code>, <code>&lt;name&gt; down</code>, <code>&lt;name&gt; mtu &lt;bytes&gt;</code> share one
@@ -3728,7 +3741,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

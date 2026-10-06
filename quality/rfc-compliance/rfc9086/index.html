@@ -117,10 +117,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>72.7%</strong><b>8 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>22 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
@@ -135,8 +134,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 11 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 11 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -166,7 +166,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>Partial proof; remaining gap</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
@@ -237,7 +237,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>22</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>6</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>22</td>
@@ -272,11 +272,11 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>8</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -288,7 +288,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -303,8 +303,9 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc9086-3-1"><code>RFC9086-3-1</code></a>, <a href="#rfc9086-3-2"><code>RFC9086-3-2</code></a>, <a href="#rfc9086-4.2-1"><code>RFC9086-4.2-1</code></a>, <a href="#rfc9086-4.2-2"><code>RFC9086-4.2-2</code></a>, <a href="#rfc9086-5-1"><code>RFC9086-5-1</code></a>, <a href="#rfc9086-5-3"><code>RFC9086-5-3</code></a>, <a href="#rfc9086-5-10"><code>RFC9086-5-10</code></a>, <a href="#rfc9086-7-1"><code>RFC9086-7-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc9086-5.2-1"><code>RFC9086-5.2-1</code></a>, <a href="#rfc9086-5-2"><code>RFC9086-5-2</code></a>, <a href="#rfc9086-7-2"><code>RFC9086-7-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc9086-3-1"><code>RFC9086-3-1</code></a>, <a href="#rfc9086-3-2"><code>RFC9086-3-2</code></a>, <a href="#rfc9086-4.2-1"><code>RFC9086-4.2-1</code></a>, <a href="#rfc9086-4.2-2"><code>RFC9086-4.2-2</code></a>, <a href="#rfc9086-5-1"><code>RFC9086-5-1</code></a>, <a href="#rfc9086-5-3"><code>RFC9086-5-3</code></a>, <a href="#rfc9086-5-10"><code>RFC9086-5-10</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc9086-5.2-1"><code>RFC9086-5.2-1</code></a>, <a href="#rfc9086-5-2"><code>RFC9086-5-2</code></a>, <a href="#rfc9086-7-1"><code>RFC9086-7-1</code></a>, <a href="#rfc9086-7-2"><code>RFC9086-7-2</code></a></p>
+<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc9086-7-1"><code>RFC9086-7-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -316,7 +317,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L89" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L91" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L307" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></span></div>
 </div></td>
 </tr>
@@ -325,7 +326,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L90" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L92" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L323" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID</code></a></span></div>
 </div></td>
 </tr>
@@ -335,9 +336,9 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go#L26" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go" target="_blank" rel="noopener"><code>TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L92" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L94" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go#L57" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresLocalRouterID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L184" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L186" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-4.2-2">RFC9086-4.2-2</code></td><td colspan="3"><span class="rfc-subject">The following Node Descriptor TLVs MUST be included in BGP-LS Link NLRI as Remote Node Descriptors when distributing BGP information: * BGP Router-ID (TLV 516), which contains the valid BGP Identifier of the peer BGP node. * Autonomous System Number (TLV 512) [RFC7752], which contains the ASN or the AS Confederation Identifier (an ASN) [RFC5065], if confederations are used, of the peer BGP node. (S4.2)</span></td></tr>
@@ -345,8 +346,8 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L93" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L185" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L95" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L187" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-5-1">RFC9086-5-1</code></td><td colspan="3"><span class="rfc-subject">When enabled for Egress Peer Engineering, the BGP router MUST include the PeerNode SID TLV in the BGP-LS Attribute for the BGP-LS Link NLRI corresponding to its BGP peering sessions. (S5)</span></td></tr>
@@ -354,7 +355,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L91" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L93" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L308" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeLinkWithoutPeerNodeRefused</code></a></span></div>
 </div></td>
 </tr>
@@ -394,18 +395,18 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-5-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L88" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L132" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L90" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L134" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-7-1">RFC9086-7-1</code></td><td colspan="3"><span class="rfc-subject">The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, (S7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-7-1">RFC9086-7-1</code></td><td colspan="3"><span class="rfc-subject">The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9086-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L210" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L211" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L212" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L213" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></span></div>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID,&#34;; gap &#34;PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.&#34;; Owner R3 preserves the tested PeerNode configuration scope. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig provides PeerNode assignments only. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig provides no per-recipient EPE information controls. PeerAdj and PeerSet controls remain absent, as recorded by RFC9086-7-2. No whole-requirement conformance is claimed.</p><p class="rfc-mark"><strong>Scoped evidence:</strong> Tests and tag-claim records apply only to Tested; zero whole-requirement credit. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Independent EPEReconcileNow judgment against RFC9086 Section 7 and owner R3. Tested: &#34;The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID,&#34;. Gap: &#34;PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.&#34; TestRFC9086NativeConfigurationEnableDisable parses PeerNode configuration, asserts label 16007 and exact PeerNode TLV bytes, then removes configuration and requires both collector withdrawals and label removal while the session stays up. The registered producer/exporter path connects these controls to native advertisements. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig provides only PeerNode assignments. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig exposes no per-recipient EPE control, and exporter reconciliation supplies the same desired topology to attached collectors. Existing publishLocked breaks establish producer reachability for both retained claims, not complete Section 7 conformance. The complete sentence remains unmet; no absent PeerAdj, PeerSet, or per-recipient capability is implemented by this correction.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9086-7-2">RFC9086-7-2</code></td><td colspan="3"><span class="rfc-subject">PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</span></td></tr>
 <tr><td></td>
@@ -514,6 +515,10 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>{gap}, no test</td>
 <td>the encoder writes the Flags byte verbatim and never originates a label-encoded SID, so no path sets V/L (internal/component/bgp/plugins/nlri/ls/attr_link.go:521)</td>
 </tr>
+<tr><td><a href="#rfc9086-7-1"><code>RFC9086-7-1</code></a> The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID,&#34;; gap &#34;PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.&#34;; Owner R3 preserves the tested PeerNode configuration scope. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig provides PeerNode assignments only. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig provides no per-recipient EPE information controls. PeerAdj and PeerSet controls remain absent, as recorded by RFC9086-7-2. No whole-requirement conformance is claimed.</td>
+</tr>
 <tr><td><a href="#rfc9086-7-2"><code>RFC9086-7-2</code></a> PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</td>
 <td>{gap}, no test</td>
 <td>R3 split of the operator-control sentence; native bgp-epe implements only PeerNode assignment, not PeerAdj/PeerSet advertisement options or per-recipient information controls (internal/component/bgp/plugins/epe/epe_config.go ParseConfig; internal/component/bgp/plugins/ls_export/export_config.go parseExportConfig).</td>
@@ -537,7 +542,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L89" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L91" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -557,7 +562,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L90" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L92" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -577,7 +582,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L184" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L186" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -587,7 +592,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L92" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L94" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -602,12 +607,12 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L185" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L187" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerRequiresNodeIdentities</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L93" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L95" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -627,7 +632,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L91" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L93" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -690,12 +695,12 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L132" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L134" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexRequiresSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L88" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L90" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativePeerIndexAdvertisesSRGB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -703,19 +708,20 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 </table>
 </div>
 <h3><a href="#rfc9086-7-1"><code>RFC9086-7-1</code></a></h3>
-<p>The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, (S7)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 9086 Section 7 whole sentence: &#34;The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.&#34; Current requirement text ends at PeerNode SID and the remaining clauses are disclosed on RFC9086-7-2; the source sentence and historical capability boundary have not changed. TestRFC9086NativeConfigurationEnableDisable genuinely proves configure/enable/disable for PeerNode: parsed operator configuration yields label 16007 plus exact PeerNode TLV, removing configuration removes forwarding labels and emits collector withdrawals while the session remains up. Producers epe_config.go ParseConfig and epe_source.go publishLocked implement only PeerNode assignment. No current tagged unit proves PeerAdj/PeerSet options or per-recipient information control, and the row&#39;s previous weak judgment explicitly bound the whole sentence. Preserve weak rather than upgrading solely because the summary was truncated; the existing RFC9086-7-2 gap remains intact, with no new exclusion or feature implementation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p>The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</p>
+<p>Scoped tag-claim records only: tested &#34;The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID,&#34;; gap &#34;PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.&#34;; Owner R3 preserves the tested PeerNode configuration scope. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig provides PeerNode assignments only. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig provides no per-recipient EPE information controls. PeerAdj and PeerSet controls remain absent, as recorded by RFC9086-7-2. No whole-requirement conformance is claimed.; zero whole-requirement credit.</p>
+<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Independent EPEReconcileNow judgment against RFC9086 Section 7 and owner R3. Tested: &#34;The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID,&#34;. Gap: &#34;PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.&#34; TestRFC9086NativeConfigurationEnableDisable parses PeerNode configuration, asserts label 16007 and exact PeerNode TLV bytes, then removes configuration and requires both collector withdrawals and label removal while the session stays up. The registered producer/exporter path connects these controls to native advertisements. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig provides only PeerNode assignments. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig exposes no per-recipient EPE control, and exporter reconciliation supplies the same desired topology to attached collectors. Existing publishLocked breaks establish producer reachability for both retained claims, not complete Section 7 conformance. The complete sentence remains unmet; no absent PeerAdj, PeerSet, or per-recipient capability is implemented by this correction.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L211" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L213" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L210" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go#L212" title="internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go" target="_blank" rel="noopener"><code>TestRFC9086NativeConfigurationEnableDisable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -724,7 +730,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
 </div>
 <h3><a href="#rfc9086-7-2"><code>RFC9086-7-2</code></a></h3>
 <p>PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Independent EPEReconcileNow first judgment against the complete RFC9086 Section 7 operator-control sentence and owner R3. The retained split-gap clause requires PeerAdj SID and PeerSet SID advertisement controls and selection of information for each internal or external recipient. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig accepts PeerNode assignments only; it has no PeerAdj or PeerSet assignment. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig configures exporter enablement and domain mappings, not per-recipient EPE information controls. The exporter supplies the same desired topology to its attached collectors. These absent capabilities remain disclosed in Support remaining and the gap annotation. Existing PeerNode enable/disable tests prove none of this absent scope; recording it does not authorize implementation or imply another distinct RFC sentence.</p>
 <p>No test carries RFC9086-7-2, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
@@ -949,7 +955,7 @@ PeerAdj and PeerSet segment assignment and their advertisement controls are not 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

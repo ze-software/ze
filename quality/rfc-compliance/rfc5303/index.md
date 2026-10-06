@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 52.9% | 9 of 17 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 58.8% | 10 of 17 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 17 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 17 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 17 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 79.3% | 23 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 81.8% | 27 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,7 +34,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 35.3% | 6 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 29.4% | 5 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 8 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -64,21 +64,21 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 18 |
 | Gated MUST-level | 17 |
 | Not applicable, so out of scope | 2 |
-| Declared gaps | 6 |
+| Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 29 |
-| Tagged units | 29 |
-| Recorded audit verdicts | 9 |
-| Discrimination records | 23 |
+| Test tags | 33 |
+| Tagged units | 33 |
+| Recorded audit verdicts | 10 |
+| Discrimination records | 27 |
 | Summary | `rfc/short/rfc5303.md` |
 | Requirement shard | `rfc/requirements/rfc5303.md` |
 | RFC text | `rfc/full/rfc5303.txt` |
 
 ## Enrolment
 
-Enrolled: Three-Way Handshake for IS-IS P2P Adjacencies (RFC 5303): 9 MET (TLV 240 origination+decode, Adjacency Three-Way State + Extended Local Circuit ID fields, System-ID echo gating adjacency to Up, two-way fall-back) + 7 gap (Ext Local Circuit ID uint8(ifindex) truncation, Neighbor Ext Circuit ID echoed 0 and unexamined, no invalid-state discard, no loop-detection mismatch discard, derived state model lacks distinct Accept/restart-Down actions) + 2 not-applicable (option always processed, option always emitted)
+Enrolled: The point-to-point handshake has per-requirement tests and explicit gaps below. Invalid-state discard is implemented and exercised through the packet decoder and circuit receiver; enrolment does not claim full support. Earlier fixed MET/gap counts described summary annotations, not a verified implementation count.
 
 ## What the public ledger says
 
@@ -90,14 +90,14 @@ Point-to-point IIH three-way handshake: TLV 240 (Point-to-Point Three-Way Adjace
 
 **What the ledger says remains**
 
-Gaps gated in [`rfc/short/rfc5303.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5303.md): the Extended Local Circuit ID is derived as uint8(ifindex) so it is not unique beyond 256 interfaces ([`RFC5303-3.2-4`](#rfc5303-3.2-4)); the Neighbor Extended Local Circuit ID is echoed as 0 and never examined ([`RFC5303-3.2-6`](#rfc5303-3.2-6), [`RFC5303-3.2-8`](#rfc5303-3.2-8)); an invalid three-way state is not discarded ([`RFC5303-3.2-7`](#rfc5303-3.2-7)); the loop-detection neighbor-mismatch discard is absent ([`RFC5303-3.2-9`](#rfc5303-3.2-9)); and the restart "Down" action deletes the adjacency without the "Neighbor restarted" adjacencyStateChange event ([`RFC5303-3.2-12`](#rfc5303-3.2-12)).
+Gaps gated in [`rfc/short/rfc5303.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5303.md): the Extended Local Circuit ID is derived as uint8(ifindex) so it is not unique beyond 256 interfaces ([`RFC5303-3.2-4`](#rfc5303-3.2-4)); the Neighbor Extended Local Circuit ID is echoed as 0 and never examined ([`RFC5303-3.2-6`](#rfc5303-3.2-6), [`RFC5303-3.2-8`](#rfc5303-3.2-8)); the loop-detection neighbor-mismatch discard is absent ([`RFC5303-3.2-9`](#rfc5303-3.2-9)); and the restart "Down" action deletes the adjacency without the "Neighbor restarted" adjacencyStateChange event ([`RFC5303-3.2-12`](#rfc5303-3.2-12)). Invalid-state discard now has valid-input and invalid-input controls; the earlier claim that this path was absent is obsolete.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 9 | one part of the gated population |
-| Annotated (including scoped evidence) | 8 | one part of the gated population |
+| Positive and negative tests | 10 | one part of the gated population |
+| Annotated (including scoped evidence) | 7 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -105,9 +105,9 @@ Gaps gated in [`rfc/short/rfc5303.md`](https://github.com/ze-software/ze/blob/ma
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **17** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (9):** [`RFC5303-3.1-1`](#rfc5303-3.1-1), [`RFC5303-3.1-4`](#rfc5303-3.1-4), [`RFC5303-3.2-1`](#rfc5303-3.2-1), [`RFC5303-3.2-2`](#rfc5303-3.2-2), [`RFC5303-3.2-3`](#rfc5303-3.2-3), [`RFC5303-3.2-5`](#rfc5303-3.2-5), [`RFC5303-3.2-10`](#rfc5303-3.2-10), [`RFC5303-3.2-11`](#rfc5303-3.2-11), [`RFC5303-3.2-13`](#rfc5303-3.2-13)
+**Positive and negative tests (10):** [`RFC5303-3.1-1`](#rfc5303-3.1-1), [`RFC5303-3.1-4`](#rfc5303-3.1-4), [`RFC5303-3.2-1`](#rfc5303-3.2-1), [`RFC5303-3.2-2`](#rfc5303-3.2-2), [`RFC5303-3.2-3`](#rfc5303-3.2-3), [`RFC5303-3.2-5`](#rfc5303-3.2-5), [`RFC5303-3.2-7`](#rfc5303-3.2-7), [`RFC5303-3.2-10`](#rfc5303-3.2-10), [`RFC5303-3.2-11`](#rfc5303-3.2-11), [`RFC5303-3.2-13`](#rfc5303-3.2-13)
 
-**Annotated (including scoped evidence) (8):** [`RFC5303-3.1-2`](#rfc5303-3.1-2), [`RFC5303-3.1-3`](#rfc5303-3.1-3), [`RFC5303-3.2-4`](#rfc5303-3.2-4), [`RFC5303-3.2-6`](#rfc5303-3.2-6), [`RFC5303-3.2-7`](#rfc5303-3.2-7), [`RFC5303-3.2-8`](#rfc5303-3.2-8), [`RFC5303-3.2-9`](#rfc5303-3.2-9), [`RFC5303-3.2-12`](#rfc5303-3.2-12)
+**Annotated (including scoped evidence) (7):** [`RFC5303-3.1-2`](#rfc5303-3.1-2), [`RFC5303-3.1-3`](#rfc5303-3.1-3), [`RFC5303-3.2-4`](#rfc5303-3.2-4), [`RFC5303-3.2-6`](#rfc5303-3.2-6), [`RFC5303-3.2-8`](#rfc5303-3.2-8), [`RFC5303-3.2-9`](#rfc5303-3.2-9), [`RFC5303-3.2-12`](#rfc5303-3.2-12)
 
 ## Requirements
 
@@ -123,13 +123,13 @@ Gaps gated in [`rfc/short/rfc5303.md`](https://github.com/ze-software/ze/blob/ma
 | `RFC5303-3.2-4` | This value SHALL be unique among all the circuits of this Intermediate System. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Extended Local Circuit ID is derived as uint8(ifindex) (circuits.go:317), truncating the interface index to 8 bits; two circuits whose ifindexes collide modulo 256 emit the same value, so uniqueness among all circuits is not guaranteed and the 4-octet field never exceeds 255 |
 | `RFC5303-3.2-5` | If the system ID and Extended Local Circuit ID of the neighboring system are known (in adjacency three-way state Initializing or Up), the neighbor's system ID SHALL be reported in the Neighbor System ID field (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayReportsNeighborSystemID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L226). **positive:** `unit/verify` [`TestRFC5303SentIIHEchoesKnownNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L130). **negative:** `unit/verify` [`TestISISThreeWayReportsNeighborSystemID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L229). **negative:** `unit/verify` [`TestRFC5303SentIIHEchoesKnownNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L133) |
 | `RFC5303-3.2-6` | the neighbor's Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not track the neighbor's Extended Local Circuit ID; threeWayTLV echoes a constant 0 in the Neighbor Extended Local Circuit ID field (circuit/hello.go:168) and updateThreeWay never stores the neighbor's value (adjacency/fsm.go updateThreeWay), so the neighbor's actual extended circuit ID is never reported |
-| `RFC5303-3.2-7` | If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the decoder validates only the TLV length, not the state value (packet/tlv_core.go DecodeP2PThreeWayTLV); an out-of-range Adjacency Three-Way State is folded into the FSM, where the state table has no column for it (adjacency/fsm.go threeWayTableAction) and the adjacency is set Initializing rather than the PDU discarded, so the "discard, no further action" path is absent |
+| `RFC5303-3.2-7` | If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestRFC5303InvalidStateWireDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L16). **negative:** `unit/verify` [`TestRFC5303InvalidStateBeforeValidDuplicate`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L73). **negative:** `unit/verify` [`TestRFC5303InvalidStateLeavesAdjacencyUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go#L14). **negative:** `unit/verify` [`TestRFC5303InvalidStateWireDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L17) |
 | `RFC5303-3.2-8` | If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** updateThreeWay examines only the Neighbor System ID (adjacency/fsm.go updateThreeWay) to set neighborNamesOther; the Neighbor Extended Local Circuit ID is decoded (packet/tlv_core.go DecodeP2PThreeWayTLV, the p2pThreeWayLenFull branch) but the FSM never examines it, so the required examination of both fields is incomplete |
 | `RFC5303-3.2-9` | If they are present, and the Neighbor System ID contained therein does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local system's extended circuit ID, the PDU SHALL be discarded and no further action is taken. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** on a Neighbor System ID that does not match ours Ze sets the adjacency Initializing (adjacency/fsm.go threeWayTableAction) and still processes the PDU, arming the hold timer and recording the neighbor (adjacency/fsm.go ReceiveHello); it neither discards the PDU nor checks the Neighbor Extended Local Circuit ID, so the loop-detection discard is absent |
 | `RFC5303-3.2-10` | In section 8.2.4.2 a and b, the action "Up" from state tables 5, 6, 7, and 8 may create a new adjacency but the three-way state of the adjacency SHALL be Down. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayNewAdjacencyStateDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L247). **positive:** `unit/verify` [`TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L37). **negative:** `unit/verify` [`TestISISThreeWayNewAdjacencyStateDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_threeway_test.go#L251). **negative:** `unit/verify` [`TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L40) |
-| `RFC5303-3.2-11` | If the action taken from section 8.2.4.2 a or b is "Up" or "Accept", the IS SHALL perform the action indicated by the new adjacency three-way state table below, based on the current adjacency three-way state and the received Adjacency Three-Way State value from the option. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayProceduresEngagedByOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L400). **positive:** `unit/verify` [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L92). **negative:** `unit/verify` [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L96) |
+| `RFC5303-3.2-11` | If the action taken from section 8.2.4.2 a or b is "Up" or "Accept", the IS SHALL perform the action indicated by the new adjacency three-way state table below, based on the current adjacency three-way state and the received Adjacency Three-Way State value from the option. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayProceduresEngagedByOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L400). **positive:** `unit/verify` [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L94). **negative:** `unit/verify` [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L98) |
 | `RFC5303-3.2-12` | If the new action is "Down", an adjacencyStateChange(Down) event is generated with the reason "Neighbor restarted" and the adjacency SHALL be deleted. (§3.2) | SHALL | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the "Down" action deletes the adjacency (adjacency/fsm.go applyThreeWayAction marks it for the next Reap) but generates no adjacencyStateChange(Down) event with the reason "Neighbor restarted": Ze has no event for an adjacency that was never Up |
-| `RFC5303-3.2-13` | If the new action is "Initialize", no event is generated and the adjacency three-way state SHALL be set to "Initializing". (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L430). **positive:** `unit/verify` [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L127). **negative:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L433). **negative:** `unit/verify` [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L132) |
+| `RFC5303-3.2-13` | If the new action is "Initialize", no event is generated and the adjacency three-way state SHALL be set to "Initializing". (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L430). **positive:** `unit/verify` [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L129). **negative:** `unit/verify` [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L433). **negative:** `unit/verify` [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L134) |
 | `RFC5303-3.1-5` | The other fields in this option SHOULD be included as explained below in section 3.2. (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
@@ -140,7 +140,6 @@ Gaps gated in [`rfc/short/rfc5303.md`](https://github.com/ze-software/ze/blob/ma
 | [`RFC5303-3.1-3`](#rfc5303-3.1-3) Any system that does not understand this option SHALL ignore it, and (of course) SHALL NOT include it in its own IIH packets. (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains a non-supporting system's emission; Ze supports the mechanism and always emits TLV 240 in its point-to-point IIH (circuit/hello.go:158 threeWayTLV, circuit/hello.go:204 buildP2PHello), so the "does not understand" role never applies to Ze |
 | [`RFC5303-3.2-4`](#rfc5303-3.2-4) This value SHALL be unique among all the circuits of this Intermediate System. (§3.2) | {gap}, no test | the Extended Local Circuit ID is derived as uint8(ifindex) (circuits.go:317), truncating the interface index to 8 bits; two circuits whose ifindexes collide modulo 256 emit the same value, so uniqueness among all circuits is not guaranteed and the 4-octet field never exceeds 255 |
 | [`RFC5303-3.2-6`](#rfc5303-3.2-6) the neighbor's Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field. (§3.2) | {gap}, no test | Ze does not track the neighbor's Extended Local Circuit ID; threeWayTLV echoes a constant 0 in the Neighbor Extended Local Circuit ID field (circuit/hello.go:168) and updateThreeWay never stores the neighbor's value (adjacency/fsm.go updateThreeWay), so the neighbor's actual extended circuit ID is never reported |
-| [`RFC5303-3.2-7`](#rfc5303-3.2-7) If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2) | {gap}, no test | the decoder validates only the TLV length, not the state value (packet/tlv_core.go DecodeP2PThreeWayTLV); an out-of-range Adjacency Three-Way State is folded into the FSM, where the state table has no column for it (adjacency/fsm.go threeWayTableAction) and the adjacency is set Initializing rather than the PDU discarded, so the "discard, no further action" path is absent |
 | [`RFC5303-3.2-8`](#rfc5303-3.2-8) If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2) | {gap}, no test | updateThreeWay examines only the Neighbor System ID (adjacency/fsm.go updateThreeWay) to set neighborNamesOther; the Neighbor Extended Local Circuit ID is decoded (packet/tlv_core.go DecodeP2PThreeWayTLV, the p2pThreeWayLenFull branch) but the FSM never examines it, so the required examination of both fields is incomplete |
 | [`RFC5303-3.2-9`](#rfc5303-3.2-9) If they are present, and the Neighbor System ID contained therein does not match the local system's ID, or the Neighbor Extended Local Circuit ID does not match the local system's extended circuit ID, the PDU SHALL be discarded and no further action is taken. (§3.2) | {gap}, no test | on a Neighbor System ID that does not match ours Ze sets the adjacency Initializing (adjacency/fsm.go threeWayTableAction) and still processes the PDU, arming the hold timer and recording the neighbor (adjacency/fsm.go ReceiveHello); it neither discards the PDU nor checks the Neighbor Extended Local Circuit ID, so the loop-detection discard is absent |
 | [`RFC5303-3.2-12`](#rfc5303-3.2-12) If the new action is "Down", an adjacencyStateChange(Down) event is generated with the reason "Neighbor restarted" and the adjacency SHALL be deleted. (§3.2) | {gap}, no test | the "Down" action deletes the adjacency (adjacency/fsm.go applyThreeWayAction marks it for the next Reap) but generates no adjacencyStateChange(Down) event with the reason "Neighbor restarted": Ze has no event for an adjacency that was never Up |
@@ -257,9 +256,14 @@ No test carries RFC5303-3.2-6, so no unit is bound to it.
 
 If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent first judgment against RFC 5303 Section 3.2: "If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken." TestRFC5303InvalidStateWireDiscard now carries a positive tag on its existing valid-state control: Circuit.Receive decodes the valid peer PDU and must reach StateUp before the established-neighbor invalid-state probes. Its negative assertions cover TLV lengths 1, 5 and 15, invalid states 3 and 255, fresh and established neighbors, unchanged neighbor presence and whole-adjacency equality, and no SessionUp, SessionDown or ForwardingChanged flags. TestRFC5303InvalidStateLeavesAdjacencyUntouched additionally covers every unnamed state 3 through 255 against Down, Initializing and Up adjacencies with whole-object equality and rejection; TestRFC5303InvalidStateBeforeValidDuplicate prevents a later valid option from hiding an earlier invalid one. Circuit.Receive routes P2P Hellos to handleP2PHello, which rejects every invalid TLV 240 before neighbor creation; ReceiveHello independently rejects invalid raw HelloInput before identity, hold-timer or adjacency mutation. The positive input is genuinely conforming, not another error; the negative assertions would fail if invalid states were admitted or mutated adjacency state. Canonical records name these producers, including the newly recorded positive cover; their producer-body panic breaks establish execution dependence, not selective semantic mutation. The assertions and producer routing, read against the whole sentence, support this requirement only; neighbor-ID mismatch and restart-event gaps remain separate.
 
-No test carries RFC5303-3.2-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5303InvalidStateLeavesAdjacencyUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go#L14) | unit/verify | revert, verified |
+| negative | [`TestRFC5303InvalidStateBeforeValidDuplicate`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L73) | unit/verify | revert, verified |
+| negative | [`TestRFC5303InvalidStateWireDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L17) | unit/verify | revert, verified |
+| positive | [`TestRFC5303InvalidStateWireDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L16) | unit/verify | revert, verified |
 
 ### [`RFC5303-3.2-8`](#rfc5303-3.2-8)
 
@@ -294,13 +298,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If the action taken from section 8.2.4.2 a or b is "Up" or "Accept", the IS SHALL perform the action indicated by the new adjacency three-way state table below, based on the current adjacency three-way state and the received Adjacency Three-Way State value from the option. (§3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions (3.2-7, 3.2-9) stay their own {gap} rows.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions remain separate obligations: invalid-state discard (3.2-7) now has positive and negative tagged coverage; neighbor-mismatch discard (3.2-9) remains a {gap}.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L96) | unit/verify | revert, verified |
+| negative | [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestISISThreeWayProceduresEngagedByOption`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L400) | unit/verify | revert, verified |
-| positive | [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L92) | unit/verify | revert, verified |
+| positive | [`TestRFC5303ThreeWayStateTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L94) | unit/verify | revert, verified |
 
 ### [`RFC5303-3.2-12`](#rfc5303-3.2-12)
 
@@ -319,9 +323,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L433) | unit/verify | revert, verified |
-| negative | [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L132) | unit/verify | revert, verified |
+| negative | [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L134) | unit/verify | revert, verified |
 | positive | [`TestISISThreeWayInitializeAction`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L430) | unit/verify | revert, verified |
-| positive | [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L127) | unit/verify | revert, verified |
+| positive | [`TestRFC5303InitializeActionOnEveryRow`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L129) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

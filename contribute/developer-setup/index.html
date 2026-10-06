@@ -206,6 +206,13 @@ of the two is absent.</p>
 </tr>
 </tbody>
 </table>
+<p>The linter's module dependency and setup install target move together. Use the
+pinned release: its exhaustive analyzer checks enum switches through type
+aliases as well as directly named types. An existing <code>golangci-lint</code> on PATH is
+only presence-probed by setup, so changing the pin alone does not replace that
+binary.</p>
+<!-- source: internal/le/setup/tools.go -- GolangCIVersion, golangciTarget -->
+<!-- source: internal/le/setup/probes.go -- Setup.Probe -->
 <p>Regenerate the checked-in protobuf Go files after you change
 <code>api/proto/ze.proto</code> or the module path:</p>
 <pre><code class="language-bash">./le setup proto-generate
@@ -411,7 +418,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

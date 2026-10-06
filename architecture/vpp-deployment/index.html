@@ -55,6 +55,7 @@ VyOS VPP integration, and GoVPP documentation.</p>
 <li><a href="#startupconf-reference">startup.conf Reference</a>
 <ol>
 <li><a href="#production-values-supermicro-sys-5018d-fn8t-xeon-d1518-4c">Production Values (Supermicro SYS-5018D-FN8T, Xeon D1518 4C)</a></li>
+<li><a href="#generated-grammar-and-upstream-consumers">Generated grammar and upstream consumers</a></li>
 <li><a href="#startupconf-syntax">startup.conf Syntax</a></li>
 </ol></li>
 <li><a href="#system-prerequisites">System Prerequisites</a>
@@ -188,18 +189,18 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 </tr>
 <tr>
 <td>buffers</td>
-<td>default-data-size</td>
+<td>default data-size</td>
 <td>2048</td>
-<td>Standard. Use 9216 for jumbo frames (9000B MTU + headers).</td>
+<td>Packet data bytes, excluding buffer metadata and alignment. Ze fixes this at 2048.</td>
 </tr>
 <tr>
 <td>buffers</td>
 <td>page-size</td>
-<td>default-hugepage-size</td>
-<td>Match hugepage size. 2M for most deployments.</td>
+<td>default-hugepage</td>
+<td>Kernel default hugepage size, commonly 2M; Ze emits <code>1G</code> for that explicit selection.</td>
 </tr>
 <tr>
-<td>heapsize</td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vpp/vnet/main.c" target="_blank" rel="noopener">memory</a></td>
 <td>main-heap-size</td>
 <td>1536M (1.5G)</td>
 <td>Enough for ~958K IPv4 + ~198K IPv6 full DFZ FIB.</td>
@@ -213,7 +214,7 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 <tr>
 <td>statseg</td>
 <td>page-size</td>
-<td>default-hugepage-size</td>
+<td>default-hugepage</td>
 <td>Match hugepage size.</td>
 </tr>
 <tr>
@@ -266,12 +267,97 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 </tr>
 <tr>
 <td>linux-nl</td>
-<td>rx-buffer-size</td>
+<td>nl-rx-buffer-size</td>
 <td>67108864</td>
-<td>64MB netlink buffer. Required for full DFZ route injection without overflow.</td>
+<td>64MB requested netlink receive buffer. Kernel limits still apply.</td>
 </tr>
 </tbody>
 </table>
+<h3 id="generated-grammar-and-upstream-consumers">Generated grammar and upstream consumers</h3>
+<p>Ze targets the <a href="https://github.com/FDio/vpp/blob/v26.06/src/vpp/conf/startup.conf" target="_blank" rel="noopener">VPP v26.06 startup format</a>.
+The consumer functions, rather than a third-party template, define the accepted
+directives. These links are release-pinned; they cover every section emitted by
+<code>GenerateStartupConf</code>, including optional settings.</p>
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf, confBuilder.devEntry, pageSize -->
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Generated directives</th>
+<th>Upstream v26.06 consumer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unix</code></td>
+<td><code>nodaemon</code>, <code>cli-listen</code>, <code>log</code>, <code>full-coredump</code>, optional <code>poll-sleep-usec</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vlib/unix/main.c" target="_blank" rel="noopener"><code>unix_config</code></a></td>
+</tr>
+<tr>
+<td><code>api-segment</code></td>
+<td><code>prefix vpp</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vpp/api/api.c" target="_blank" rel="noopener"><code>api_segment_config</code></a></td>
+</tr>
+<tr>
+<td><code>socksvr</code></td>
+<td><code>socket-name</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vlibmemory/socket_api.c" target="_blank" rel="noopener"><code>socksvr_config</code></a></td>
+</tr>
+<tr>
+<td><code>cpu</code></td>
+<td>Optional <code>main-core</code>, <code>corelist-workers</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vlib/threads.c" target="_blank" rel="noopener"><code>cpu_config</code></a></td>
+</tr>
+<tr>
+<td><code>buffers</code></td>
+<td><code>buffers-per-numa</code>, <code>default data-size 2048</code>, <code>page-size</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vlib/buffer.c" target="_blank" rel="noopener"><code>vlib_buffers_configure</code></a></td>
+</tr>
+<tr>
+<td><code>dpdk</code></td>
+<td><code>dev &lt;pci&gt;</code> with optional block containing <code>name</code>, <code>num-rx-queues</code>, <code>num-tx-queues</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/plugins/dpdk/device/init.c" target="_blank" rel="noopener"><code>dpdk_config</code>, <code>dpdk_device_config</code></a></td>
+</tr>
+<tr>
+<td><code>plugins</code></td>
+<td><code>plugin default { disable }</code>; <code>plugin &lt;name&gt; { enable }</code> for DPDK, optional Linux CP/NL and WireGuard</td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vlib/unix/plugin.c" target="_blank" rel="noopener"><code>vlib_plugin_config</code>, <code>config_one_plugin</code></a></td>
+</tr>
+<tr>
+<td><code>linux-cp</code></td>
+<td>Optional <code>lcp-sync</code>, <code>lcp-auto-subint</code>, <code>default netns</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/plugins/linux-cp/lcp_interface.c" target="_blank" rel="noopener"><code>lcp_itf_pair_config</code></a></td>
+</tr>
+<tr>
+<td><code>linux-nl</code></td>
+<td><code>nl-rx-buffer-size 67108864</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/plugins/linux-cp/lcp_nl.c" target="_blank" rel="noopener"><code>lcp_itf_pair_config</code></a></td>
+</tr>
+<tr>
+<td><code>memory</code></td>
+<td><code>main-heap-size</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vpp/vnet/main.c" target="_blank" rel="noopener"><code>main</code> early configuration pass</a></td>
+</tr>
+<tr>
+<td><code>statseg</code></td>
+<td><code>size</code>, <code>page-size</code>, optional <code>socket-name</code></td>
+<td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vlib/stats/init.c" target="_blank" rel="noopener"><code>statseg_config</code></a></td>
+</tr>
+</tbody>
+</table>
+<p>Both page-size directives use
+<a href="https://github.com/FDio/vpp/blob/v26.06/src/vppinfra/std-formats.c" target="_blank" rel="noopener"><code>unformat_log2_page_size</code></a>:
+Ze's <code>2M</code> setting emits <code>default-hugepage</code>, and <code>1G</code> emits <code>1G</code>.
+<code>default-hugepage-size</code> is a separate key in the <code>memory</code> section, not a
+page-size value. Ze does not emit that key or set the main heap's page size.
+VPP's main heap therefore retains the upstream OS-page default.</p>
+<p>The buffer directive has a space in <code>default data-size</code>; <code>default-data-size</code>
+is rejected. The Linux netlink directive requires the <code>nl-</code> prefix;
+<code>rx-buffer-size</code> is rejected. Unit contracts pin the corrected sections, but
+source matching does not establish native startup. A native run must still
+prove the installed plugin set, memory allocation, CPU affinity, device access,
+namespace access and API connection on the deployment host.</p>
+<!-- source: internal/component/vpp/startupconf_test.go -- TestStartupConfConsumerGrammar -->
 <h3 id="startupconf-syntax">startup.conf Syntax</h3>
 <p>VPP's startup.conf uses a custom format (not INI, not YAML):</p>
 <pre><code>section-name {
@@ -283,7 +369,9 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
   }
 }
 </code></pre>
-<p>String values are unquoted. Multi-word values use spaces. Booleans are bare flags (present = true).
+<p>String values are unquoted. Multi-word keys such as <code>default data-size</code> and
+<code>default netns</code> use spaces. The emitted boolean directives are bare flags
+(present = true); this is not a rule for every VPP option.
 Dev entries use PCI address as the key with a nested block for per-device options.</p>
 <h2 id="system-prerequisites">System Prerequisites</h2>
 <table>
@@ -461,8 +549,8 @@ this section is background for a future deployment path.</p>
 </tr>
 <tr>
 <td>Any NIC with jumbo frames</td>
-<td>Default buffer size (2048) too small</td>
-<td>Set <code>default-data-size 9216</code> in buffers section.</td>
+<td>Default buffer size (2048) too small for one buffer</td>
+<td>External startup.conf can set <code>default data-size 9216</code>; Ze's generated configuration fixes it at 2048.</td>
 </tr>
 </tbody>
 </table>
@@ -758,7 +846,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

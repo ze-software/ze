@@ -101,6 +101,22 @@ developer's checkout or linked worktrees as mutation fixtures.
 <!-- source: cmd/ze/root_launcher_test.go -- launcherEnv -->
 <!-- source: cmd/ze/ze_le_personality_test.go -- invokePersonality -->
 
+Verifier lifecycle fixtures need a real Git repository with `HEAD`, even when
+they inject the lifecycle's Git calls. Admission measures the actual checkout
+before the worktree operation: an empty directory fails that measurement
+instead of exercising the intended branch, timeout, or add refusal.
+<!-- source: internal/le/verify/lifecycle_test.go -- newFixtureRepo -->
+<!-- source: internal/le/verify/lifecycle.go -- run, admitWorktree -->
+
+CLI personality parity runs both real binaries against one isolated Git
+repository with a committed original, a tracked modification, and an untracked
+file. The fixture copies the checkout's real `.gitignore` before committing, so
+runtime scratch files follow the same ignore policy. Both binaries receive the
+same explicit fixture root. Stdout equality remains exact; stderr keeps only
+the existing program-name normalization. Concurrent developer edits are not
+fixture inputs.
+<!-- source: cmd/ze/ze_le_personality_test.go -- writePersonalityWorkingTree, assertInvocationPair -->
+
 ### Functional tests (`.ci` files)
 
 These spin up real Ze processes and test behavior end-to-end: does the config

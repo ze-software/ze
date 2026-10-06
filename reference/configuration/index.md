@@ -7179,13 +7179,13 @@ Ze reads this subtree at startup and writes /etc/vpp/startup.conf from it, then 
 - **memory** `container`: VPP memory and buffer configuration.
   These three leaves decide how much hugepage memory VPP asks the host for. The ze doctor check adds the main heap, the buffer memory and the stats segment together. It warns when the host reserved less hugepage memory than that sum. The hugepage-size leaf decides which page size VPP asks for, and it also governs the stats segment.
   - **buffers** `uint32`: Number of packet buffers per NUMA node. 128000 is proven for full DFZ at 10G.
-    Ze writes this count into the buffers section of startup.conf as buffers-per-numa, beside a fixed default-data-size of 2048 bytes. So the pool costs the count multiplied by 2048 bytes on each NUMA node, and the default 128000 costs 250 MiB. A value of 0 is refused at commit with "vpp: memory buffers must be > 0".
+    Ze writes this count into the buffers section of startup.conf as buffers-per-numa, beside a fixed default data-size of 2048 bytes. The packet data alone costs the count multiplied by 2048 bytes on each NUMA node, so the default 128000 needs 250 MiB plus buffer metadata and alignment. A value of 0 is refused at commit with "vpp: memory buffers must be > 0".
   - **hugepage-size** `enumeration`: Hugepage size for VPP buffers.
-    The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and the statseg section of startup.conf. For 2M Ze writes page-size default-hugepage-size instead, which takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when you select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.
+    The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and the statseg section of startup.conf. For 2M Ze writes page-size default-hugepage instead, which takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when you select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.
     - `1G`: Write page-size 1G into the buffers and statseg sections of startup.conf.
-    - `2M`: Write page-size default-hugepage-size, which takes the kernel's default hugepage size.
+    - `2M`: Write page-size default-hugepage, which takes the kernel's default hugepage size.
   - **main-heap** `string`: VPP main heap size (e.g. 512M, 1G, 1536M). Production with full DFZ: 1536M.
-    Ze writes this size into the heapsize section of startup.conf as main-heap-size. The value MUST be digits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check counts this size toward the hugepage memory it expects the host to have reserved.
+    Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be digits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check counts this size toward the hugepage memory it expects the host to have reserved.
 - **plugins** `container`: Optional VPP plugins to load.
   Optional VPP plugin enablement. startup.conf uses 'plugin default { disable }', so Ze loads only the always-on plugins and the plugins toggled on here. The always-on plugins are dpdk, plus linux-cp when lcp is enabled.
   - **wireguard** `boolean`: Load wireguard_plugin.so for the vpp interface backend.

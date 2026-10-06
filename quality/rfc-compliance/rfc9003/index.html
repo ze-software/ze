@@ -312,8 +312,8 @@ Sender remains conservative at 128 bytes for interoperability.
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9003-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L409" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L427" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L430" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-2">RFC9003-2-2</code></td><td colspan="3"><span class="rfc-subject">UTF-8 &#34;Shortest Form&#34; encoding is REQUIRED (S2, S6)</span></td></tr>
@@ -321,8 +321,8 @@ Sender remains conservative at 128 bytes for interoperability.
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9003-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L467" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L469" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-3">RFC9003-2-3</code></td><td colspan="3"><span class="rfc-subject">Subcode: The Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (S2)</span></td></tr>
@@ -331,9 +331,9 @@ Sender remains conservative at 128 bytes for interoperability.
 <td>2 - Shutdown Communication</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9003-2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L25" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L372" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L393" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L27" title="internal/component/bgp/message/rfc8203_shutdown_send_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L375" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L396" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-4">RFC9003-2-4</code></td><td colspan="3"><span class="rfc-subject">A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2)</span></td></tr>
@@ -341,8 +341,8 @@ Sender remains conservative at 128 bytes for interoperability.
 <td>MUST NOT</td>
 <td>2 - Shutdown Communication</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9003-2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L429" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L411" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L450" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L432" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-5">RFC9003-2-5</code></td><td colspan="3"><span class="rfc-subject">Mechanisms concerning the reporting of information contained in the Shutdown Communication are implementation specific but SHOULD include methods such as syslog [RFC5424]. (§2)</span></td></tr>
@@ -425,12 +425,12 @@ Sender remains conservative at 128 bytes for interoperability.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L427" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L409" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L430" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -445,12 +445,12 @@ Sender remains conservative at 128 bytes for interoperability.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L469" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L467" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -465,7 +465,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L375" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L396" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -475,7 +475,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L372" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L393" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -495,12 +495,12 @@ Sender remains conservative at 128 bytes for interoperability.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L411" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L432" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Valid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L429" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L450" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -672,7 +672,7 @@ Sender remains conservative at 128 bytes for interoperability.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

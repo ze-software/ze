@@ -11,11 +11,12 @@
 <!-- rfc: rfc/short/rfc9252.md -- SRv6 overlay services -->
 
 Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252),
-extracts SRv6 SIDs, validates them, and programs Linux ingress encapsulation.
-The VPP backend does not yet install the SR policy required for its steering
-request. Static route configuration and `update text` can also advertise an
-explicit Service SID. Ze does not allocate local SIDs or install egress endpoint
-behaviors.
+extracts SRv6 SIDs, validates them, and programs Linux or VPP ingress
+encapsulation. VPP creates an encapsulation policy before prefix steering,
+using a distinct local binding SID (BSID), not the advertised egress Service SID.
+Static route configuration and `update text` can advertise an explicit Service
+SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.
+<!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 
 | Feature | Description |
 |---------|-------------|
@@ -30,7 +31,7 @@ behaviors.
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
 | Propagation | Label-Index Reserved and Flags are cleared on every transmission, including relay. Originator SRGB and unknown TLVs remain byte-identical. A next-hop change removes only the SRv6 Service TLVs (types 5 and 6), with the whole attribute leaving if no TLV remains; the SR domain boundary strips it whole |
 | Linux FIB | SEG6 lwtunnel encap via netlink |
-| VPP FIB | Incomplete: `sr_steering_add_del` is issued, but the required SR policy and local binding SID are not installed |
+| VPP FIB | Single-Service-SID encapsulation policy, distinct local BSID, and per-prefix/table steering; shared policies are removed after their last reference |
 
 ## Configuration
 
@@ -61,11 +62,35 @@ part of the same SR domain, and leave both unset on every other EBGP neighbor.
 Set neither on an IBGP peer: the section governs propagation to other ASes, so
 it does not reach a peer in this one.
 
-No additional configuration is needed for IBGP sessions or for Linux FIB
-programming. When an SRv6 SID is present on a best-path route and the SID is
-resolvable, the Linux backend programs the encapsulation automatically. VPP
-steering alone does not provide that encapsulation; its policy-installation
-defect remains open.
+No additional configuration is needed for IBGP sessions or Linux FIB
+programming. A resolvable best-path Service SID selects ingress encapsulation.
+VPP still requires an IPv6 underlay route, encapsulation source, and the
+relevant tables. Its configured backend table selects policy and outer IPv6
+lookup; a nonzero per-route table override selects destination steering only.
+
+VPP ownership is durable in daemon state. Restore checks confirmed policy
+contents and steering references before mutation; foreign or ambiguous live
+resources fail closed rather than being adopted or deleted. Managed-VPP
+reconnect requests replay, but partial replay is not a complete snapshot and
+does not withdraw omitted live routes. External-VPP process restart does not
+provide that reconnect notification. See the [VPP guide](../../guides/vpp/index.md)
+and [runtime proof contract](../../architecture/testing/interop/index.md#real-vpp-srv6-service-route-proof).
+These implementation details are not evidence of an executed forwarding proof.
+<!-- source: internal/plugins/fib/vpp/srv6.go -- addSRv6Steer, acquirePolicy, releasePolicy -->
+<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore -->
+<!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin -->
+<!-- source: internal/component/vpp/vpp.go -- runOnce -->
+
+Durable admission is bounded by 4,096 ownership keys across policies, steering,
+and temporary IP/SRv6 transition records. New growth is refused before mutation
+when it cannot fit; existing-key replay and withdrawal remain available.
+Ordinary-route cleanup ownership survives restart as confirmed installation
+history, not adoption of matching live routes. VPP cannot expose every hidden
+API-source route through its winning-source dump, so external writers must not
+replace those owned entries.
+<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback, srv6Fallback -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- restoreSRv6 -->
+<!-- source: pkg/plugin/rpc/state.go -- StateListMax -->
 
 ### Explicit Service SID advertisement
 

@@ -511,12 +511,12 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-10-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L289" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661LocalIDsNeverZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go#L117" title="internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go" target="_blank" rel="noopener"><code>TestSCCRQWithNonZeroAssignedTunnelIDEstablishes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1047" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_MaxUint16</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1053" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_MaxUint16</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_initiator_test.go#L137" title="internal/component/l2tp/rfc2661_tunnel_initiator_test.go" target="_blank" rel="noopener"><code>TestTunnelInitiatorHandshake</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_initiator_test.go#L109" title="internal/component/l2tp/rfc2661_tunnel_initiator_test.go" target="_blank" rel="noopener"><code>TestParseSCCRP_Rejects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L320" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661PeerZeroTunnelIDRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go#L75" title="internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go" target="_blank" rel="noopener"><code>TestSCCRQWithZeroAssignedTunnelIDIsAnswered</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1061" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_Zero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1067" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_Zero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L24" title="test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci" target="_blank" rel="noopener"><code>rfc2661-sccrq-tunnel-id-zero.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#L21" title="test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci" target="_blank" rel="noopener"><code>rfc2661-sccrq-tunnel-id-zero.ci</code></a></span></div>
 </div></td>
@@ -1862,7 +1862,7 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1061" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_Zero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1067" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_Zero</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1887,7 +1887,7 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1047" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_MaxUint16</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L1053" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_SIDBoundary_MaxUint16</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -4073,7 +4073,7 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

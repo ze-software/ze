@@ -107,11 +107,11 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8203-2-1` | Subcode: the Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L21). **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L23). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370) |
-| `RFC8203-2-2` | The length value MUST range from 0 to 128 inclusive. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L393). **negative:** no negative test. **{single-polarity}:** the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert |
-| `RFC8203-2-3` | Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L60). **positive:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L62). **negative:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423) |
-| `RFC8203-6-1` | UTF-8 "Shortest Form" encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6) | MUST | 6 - Security Considerations | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441). **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L64). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L66) |
-| `RFC8203-2-4` | A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L425). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L407) |
+| `RFC8203-2-1` | Subcode: the Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L21). **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L389). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L23). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L391) |
+| `RFC8203-2-2` | The length value MUST range from 0 to 128 inclusive. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L414). **negative:** no negative test. **{single-polarity}:** the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert |
+| `RFC8203-2-3` | Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L60). **positive:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L426). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L62). **negative:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L444) |
+| `RFC8203-6-1` | UTF-8 "Shortest Form" encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6) | MUST | 6 - Security Considerations | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L462). **positive:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L64). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L464). **negative:** `unit/verify` [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L66) |
+| `RFC8203-2-4` | A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L428) |
 | `RFC8203-2-5` | Mechanisms concerning the reporting of information contained in the Shutdown Communication are implementation specific but SHOULD include methods such as Syslog [RFC5424]. (§2) | SHOULD | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
 | `RFC8203-4-1` | If a Shutdown Communication with an invalid Length value, or an invalid UTF-8 sequence is received, a message indicating this event SHOULD be logged for the attention of the operator. (§4) | SHOULD | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
 | `RFC8203-2-6` | If a BGP speaker decides to terminate its session with a BGP neighbor, and it sends a NOTIFICATION message with the Error Code "Cease" and Error Subcode "Administrative Shutdown" or "Administrative Reset" [RFC4486], it MAY include an UTF-8 encoded string. (§2) | MAY | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
@@ -133,9 +133,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Send
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370) | unit/verify | unproven |
+| negative | [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L391) | unit/verify | unproven |
 | negative | [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L23) | unit/verify | revert, verified |
-| positive | [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368) | unit/verify | unproven |
+| positive | [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L389) | unit/verify | unproven |
 | positive | [`TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L21) | unit/verify | revert, verified |
 
 ### [`RFC8203-2-2`](#rfc8203-2-2)
@@ -146,7 +146,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L393) | unit/verify | unproven |
+| positive | [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L414) | unit/verify | unproven |
 
 ### [`RFC8203-2-3`](#rfc8203-2-3)
 
@@ -156,9 +156,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423) | unit/verify | unproven |
+| negative | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L444) | unit/verify | unproven |
 | negative | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L62) | unit/verify | revert, verified |
-| positive | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405) | unit/verify | unproven |
+| positive | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L426) | unit/verify | unproven |
 | positive | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L60) | unit/verify | revert, verified |
 
 ### [`RFC8203-6-1`](#rfc8203-6-1)
@@ -169,9 +169,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Same
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443) | unit/verify | unproven |
+| negative | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L464) | unit/verify | unproven |
 | negative | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L66) | unit/verify | revert, verified |
-| positive | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441) | unit/verify | unproven |
+| positive | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L462) | unit/verify | unproven |
 | positive | [`TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8203_shutdown_send_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC8203-2-4`](#rfc8203-2-4)
@@ -182,8 +182,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L407) | unit/verify | unproven |
-| positive | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L425) | unit/verify | unproven |
+| negative | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L428) | unit/verify | unproven |
+| positive | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446) | unit/verify | unproven |
 
 ## Extraction sign-off
 

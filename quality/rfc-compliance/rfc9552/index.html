@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9552 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9552: Distribution of Link-State and Traffic Engineering Information Using BGP. 59 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9552: Distribution of Link-State and Traffic Engineering Information Using BGP. 59 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9552 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9552: Distribution of Link-State and Traffic Engineering Information Using BGP. 59 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9552: Distribution of Link-State and Traffic Engineering Information Using BGP. 59 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9552 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9552: Distribution of Link-State and Traffic Engineering Information Using BGP. 59 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9552: Distribution of Link-State and Traffic Engineering Information Using BGP. 59 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,12 +121,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.9%</strong><b>7 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>59.7%</strong><b>92 of 154 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>60.8%</strong><b>96 of 158 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>59</strong><b>of 88 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>59</strong><b>of 89 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>5</strong><b>of 59 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>8.5%</strong><b>5 of 59 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>3.4%</strong><b>2 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>42</strong><b>of 59 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>43</strong><b>of 59 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -210,7 +210,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>88</td>
+<td>89</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>59</td>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>154</td>
+<td>158</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>154</td>
+<td>158</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>42</td>
+<td>43</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>92</td>
+<td>96</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9552.md</code></td>
@@ -267,7 +267,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></a> still requires oversized propagation to discard the BGP-LS Attribute first. The owner selected **Standard origination only**: <code>encodeTopology</code> emits standard NLRI types and <code>originateAttributes</code> refuses private-use TLV types; no native vendor-private producer is enabled. Section 5.4&#39;s Enterprise Code duties are conditional on private origination; received unknown/private NLRIs remain opaque on the propagation path. New native origination proofs require centralized execution and discrimination; no conformance claim follows from the source additions alone. The native exporter does not bound a BGP-LS Attribute by the collector session&#39;s maximum UPDATE size (<a href="#rfc9552-5.3-1"><code>RFC9552-5.3-1</code></a>).
+MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></a> still requires oversized propagation to discard the BGP-LS Attribute first. The owner selected **Standard origination only**: <code>encodeTopology</code> emits standard NLRI types and <code>originateAttributes</code> refuses private-use TLV types; no native vendor-private producer is enabled. Section 5.4&#39;s Enterprise Code duties are conditional on private origination; received unknown/private NLRIs remain opaque on the propagation path. New native origination proofs require centralized execution and discrimination; no conformance claim follows from the source additions alone. The native exporter does not bound a BGP-LS Attribute by the collector session&#39;s maximum UPDATE size (<a href="#rfc9552-5.3-1"><code>RFC9552-5.3-1</code></a>). Optional FQDN-based native Link Name selection is not implemented (<a href="#rfc9552-5.3.2.7-1"><code>RFC9552-5.3.2.7-1</code></a>); received Link Name TLVs remain decoded and propagated without imposing a naming restriction.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -540,6 +540,7 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9552-5.2.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L114" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISNodeCarriesBothRouterIDs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L49" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISNodeRouterID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L38" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFRouterIDsReachExporter</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to include the Router-IDs the IGP carries, so its only failure is omission, which the positive test asserts per node; no input exists that ze could refuse</p></td>
 </tr>
@@ -550,8 +551,11 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9552-5.3.2.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L143" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISLinkCarriesAllRouterIDs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L72" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISLinkRouterIDs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L164" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFInterASRouterIDsReachExporter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L39" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFRouterIDsReachExporter</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L157" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISLinkCarriesAllRouterIDs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L77" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISLinkRouterIDs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L94" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFRouterIDAbsenceReachExporter</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9552-5.3.2.2-1">RFC9552-5.3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol-IDs listed in Table 2. (§5.3.2.2)</span></td></tr>
@@ -964,6 +968,15 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9552-5.3.2.7-1">RFC9552-5.3.2.7-1</code></td><td colspan="3"><span class="rfc-subject">This symbolic name can be the FQDN for the link, a substring of the FQDN, or any string that an operator wants to use for the link. The use of the FQDN or a substring of it is strongly RECOMMENDED. (§5.3.2.7)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>5.3.2.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9552-5.3.2.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> FQDN-based native Link Name selection is not implemented. internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeLinkName preserves a received string, and internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes copies supplied TLV values without deriving a link name. The optional Link Name TLV remains decodable and propagatable; arbitrary operator strings are permitted by the RFC. This records missing origination support for the recommendation, not a requirement to reject such strings or implement the optional feature in this pass.</p></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9552-5.3.2.2-2">RFC9552-5.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">Generation of the MPLS Protocol Mask TLV is only valid for and SHOULD only be used with originators that have local link insight, for example, the Protocol-IDs &#39;Static configuration&#39; or &#39;Direct&#39; as per Table 2. (§5.3.2.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -1198,6 +1211,10 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <tr><td><a href="#rfc9552-5.4-2"><code>RFC9552-5.4-2</code></a> For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format as described in Section 5.2 to carry the Enterprise Code [ENTNUM]. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze originates no private-use NLRI type: internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology builds only Node (1), Link (2), IPv4 and IPv6 Prefix (3, 4) and SRv6 SID (6) NLRIs</td>
+</tr>
+<tr><td><a href="#rfc9552-5.3.2.7-1"><code>RFC9552-5.3.2.7-1</code></a> This symbolic name can be the FQDN for the link, a substring of the FQDN, or any string that an operator wants to use for the link. The use of the FQDN or a substring of it is strongly RECOMMENDED. (§5.3.2.7)</td>
+<td>{gap}</td>
+<td>FQDN-based native Link Name selection is not implemented. internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeLinkName preserves a received string, and internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes copies supplied TLV values without deriving a link name. The optional Link Name TLV remains decodable and propagatable; arbitrary operator strings are permitted by the RFC. This records missing origination support for the recommendation, not a requirement to reject such strings or implement the optional feature in this pass.</td>
 </tr>
 </tbody>
 </table>
@@ -1680,7 +1697,7 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 </div>
 <h3><a href="#rfc9552-5.2.3.1-1"><code>RFC9552-5.2.3.1-1</code></a></h3>
 <p>The OSPF Route Type TLV MUST be included in the advertisement when the type is either being signaled explicitly in the underlying LSA or can be determined via another LSA for the same prefix when it is not signaled explicitly (e.g., in the case of OSPFv2 Extended Prefix Opaque LSA [RFC7684]). (§5.2.3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent judgment: RFC 9552 section 5.2.3.1 says, &#34;The OSPF Route Type TLV MUST be included in the advertisement when the type is either being signaled explicitly in the underlying LSA or can be determined via another LSA for the same prefix when it is not signaled explicitly (e.g., in the case of OSPFv2 Extended Prefix Opaque LSA [RFC7684]).&#34; The source and wire carriers jointly close the previously missing correlation clause. TestRFC9552ExtendedPrefixResolvesRouteType installs actual base and Extended Prefix LSAs, requests the live publisher&#39;s snapshot, and checks exactly one marked extended advertisement with the correct router identity and route type: zero resolved to each of types 1..6, plus explicit AS/NSSA classes separately resolved to Type 1/2. An opaque-source marker prevents a base prefix alone satisfying the test; NSSA evidence in another area exercises the cross-bucket scan. TestRFC9552NativeOSPFRouteType separately drives exporter replacement/reconciliation and checks TLV 264 value 1 on the emitted prefix NLRI. encodeTopology passes the snapshot&#39;s RouteType directly to the prefix descriptor, so the two real boundaries compose; this is not a claim that the LSDB test alone reads BGP bytes. The clarified single-positive annotation is valid for origination, not an exemption for underlying zero and not a receive-refusal claim. Inspected fresh native records on encodeTopology and v2PrefixRouteTypes, including the latter&#39;s observed producer halt. No new judge test run.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against complete RFC 9552 Section 5.2.3.1: ‘The OSPF Route Type TLV MUST be included in the advertisement when the type is either being signaled explicitly in the underlying LSA or can be determined via another LSA for the same prefix when it is not signaled explicitly (e.g., in the case of OSPFv2 Extended Prefix Opaque LSA [RFC7684]).’ Read both tagged tests and their producers. internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType installs actual Router, Summary Network, AS External and NSSA LSAs plus an Extended Prefix LSA, then synchronously requests the live publisher snapshot. Ten cases assert exactly one opaque-marked extended advertisement for router 2.2.2.2 and the exact route type: underlying zero resolves to each of 1 through 6; explicit AS/NSSA classes each distinguish Type 1 from Type 2. The opaque provenance guard prevents a base prefix alone satisfying the test; NSSA in another area exercises the cross-bucket lookup. internal/plugins/ospf/bgpls_export.go::publishBGPLSLocked processes base LSAs before extensions; v2 dispatches Extended Prefix LSAs to extendedV2Prefix, which consumes v2PrefixRouteTypes results and publishes RouteType on the prefix. The exporter subscription in internal/component/bgp/plugins/ls_export/export_plugin.go forwards source snapshots to replace; export_state.go::replace calls encodeTopology, and reconcile forwards encoded routes. export_encode.go::encodeTopology copies RouteType into PrefixDescriptor.OSPFRouteType, whose encoder emits nonzero values as TLV 264. internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType independently drives replacement/reconciliation and asserts exactly TLV 264 value 1 in the captured prefix NLRI. This composes two unit boundaries; the LSDB test does not itself inspect BGP wire bytes, and the exporter test does not exercise all six route types or a live BGP peer. The single-positive annotation is valid for this origination obligation, not an exemption for underlying zero or a receive-refusal assertion. The owned edit is an ordinary exhaustive comment in the fixture switch, outside the tag claim; it requires audit rejudgment but does not by itself change discrimination behavior or claim hashes. Stored producer-halt records were read, not replayed or independently freshness-verified. Concurrent producer changes are not attributed to this comment edit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1700,7 +1717,7 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 </div>
 <h3><a href="#rfc9552-5.2.1-1"><code>RFC9552-5.2.1-1</code></a></h3>
 <p>When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 (§5.2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. c23 rejudge: the IS-IS producer is now proven for both types (TestRFC9552ISISNodeCarriesBothRouterIDs: TLV 134 -&gt; 1028 and TLV 140 -&gt; 1029 with their values, revert record on isis lsp). Still weak: the OSPF producer (ospf/bgpls_export.go adds 1028/1029 from the TE Router Address) has no tagged unit, queued while the ospf package is held (R6), and no unit follows the node attribute onto the BGP-LS Attribute wire</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.2.1: &#39;When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 and MAY be included in the link attribute described in Section 5.3.2.&#39; Preserved IS-IS TestRFC9552ISISNodeRouterID and TestRFC9552ISISNodeCarriesBothRouterIDs assert exact per-node IPv4 and IPv6 values from native LSP TLVs 134/140. New OSPF TestRFC9552OSPFRouterIDsReachExporter installs one area-scope opaque-type-1 Router Address LSA per router, conforming to RFC 3630 Sections 2.1 and 2.4.1, and compares the complete native node TLV multiset and final encoded BGP-LS Attribute bytes from the registered exporter against independent literals. It catches omission, substitution, duplication and invented IPv6 IDs, closing the previous OSPF and final-attribute proof gaps. Read indexV2 scope guards, trafficEngineering, snapshot router-ID collection, encodeTopology, originateAttributes and send. The single-positive annotation is appropriate for this inclusion obligation. TestRFC9552OSPFAuxiliaryRouterIDsNotCollapsed is untagged robustness evidence only: multiple Router Address LSAs from one router violate RFC 3630&#39;s exactly-one-LSA condition and are not the conforming positive. This is a source-level judgment; new native discrimination observations remain Main&#39;s responsibility, and no fresh independent-peer run is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1715,12 +1732,17 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L38" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFRouterIDsReachExporter</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9552-5.3.2.1-1"><code>RFC9552-5.3.2.1-1</code></a></h3>
 <p>All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI. (§5.3.2.1)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. c23 rejudge: IS-IS links now proven for both types on both ends (TestRFC9552ISISLinkCarriesAllRouterIDs: 1028/1029 local, 1030/1031 remote, negative catches an IPv6 swap; +/- revert records on linkRouterIDs). Still weak: the OSPF link producer is untested (ospf package held, R6 queue), so &#39;all auxiliary Router-IDs&#39; is proven for one of the two IGPs Ze exports</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.3.2.1: &#39;All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.&#39; Preserved IS-IS TestRFC9552ISISLinkRouterIDs and TestRFC9552ISISLinkCarriesAllRouterIDs assert exact local/remote IPv4 and IPv6 inclusion and separately forbid swapped values. OSPF TestRFC9552OSPFRouterIDsReachExporter uses conforming single Router Address LSAs and pins both directed links&#39; exact 1028/1030 values through complete encoded attributes. TestRFC9552OSPFRouterIDAbsenceReachExporter uses absent, MaxAge and unrelated-opaque local sources with a live remote control: it requires the remote ID to remain on the correct side and forbids invented local IDs, with roles reversed on the reverse link. TestRFC9552OSPFInterASRouterIDsReachExporter uses RFC 5392 type-6 Link TLVs in both permitted area/AS scopes, mandatory remote-AS and permitted simultaneous remote IPv4/IPv6 ASBR IDs, with no prohibited Link ID; it requires local 1028 and remote 1030/1031 in exact final bytes and detects contamination from an internal same-four-octet-ID router. Read indexV2, trafficEngineering, linkAttributes and exporter attribute producers; Remote.ASN == 0 correctly prevents internal-ID borrowing. Literal complete snapshots and final attribute equality catch missing, swapped, duplicate or invented IDs rather than merely accepting a parse. The untagged multi-LSA case is robustness evidence, not a conforming positive; untagged wrong-scope and mixed-body regressions support provenance without adding tagged covers. This is a source-level judgment; new native discrimination observations remain Main&#39;s responsibility, and the documented FRR ordinary/inter-AS collectors are not claimed freshly passed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1735,6 +1757,11 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L94" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFRouterIDAbsenceReachExporter</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L143" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISLinkCarriesAllRouterIDs</code></a></td>
 <td>unit/verify</td>
@@ -1742,6 +1769,16 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L72" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISLinkRouterIDs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L164" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFInterASRouterIDsReachExporter</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L39" title="internal/plugins/ospf/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552OSPFRouterIDsReachExporter</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2533,6 +2570,10 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <p>For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format as described in Section 5.2 to carry the Enterprise Code [ENTNUM]. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9552-5.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9552-5.3.2.7-1"><code>RFC9552-5.3.2.7-1</code></a></h3>
+<p>This symbolic name can be the FQDN for the link, a substring of the FQDN, or any string that an operator wants to use for the link. The use of the FQDN or a substring of it is strongly RECOMMENDED. (§5.3.2.7)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. §5.3.2.7 recommends an FQDN-derived Link Name but permits arbitrary operator strings and makes the TLV optional. The native naming policy is absent: originateAttributes copies supplied values, and decodeLinkName decodes them. TestLinkNameRoundTrip exercises preservation of ge-0/0/1, not native name selection. This is an optional implementation gap, not an enforced recommendation or a receive-side rejection duty.</p>
+<p>No test carries RFC9552-5.3.2.7-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -3122,10 +3163,10 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
 <td>Restates the Attribute Discard ordering the preceding sentence states, that the BGP-LS Attribute is discarded first when the BGP-LS Propagator must reduce the BGP UPDATE message size.</td>
 <td>When a BGP-LS Propagator needs to perform &#39;Attribute Discard&#39; for reducing the BGP UPDATE message size as specified in Section 4 of [RFC8654], it MUST first discard the BGP-LS Attribute to enable the detection and diagnosis of this error condition as discussed in Section 8.2.2.</td>
 </tr>
-<tr><td><code>5.3.2.2:3</code></td>
+<tr><td><code>5.3.2.2:2</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>Restates the reserved-bit obligation the preceding sentence in the same TLV description states, which RFC9552-5.3.2.2-3 carries in full.</td>
-<td>The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver.</td>
+<td>Both sentences surrounding Table 9 govern the same six reserved bits of the MPLS Protocol Mask TLV. RFC9552-5.3.2.2-3 quotes the post-table sentence, preserving the transmit MUST and the stronger receive MUST; satisfying it also satisfies this pre-table receive SHOULD. Correction 2026-10-06 records the common producers and existing proof.</td>
+<td>The following bits are defined, and the reserved bits MUST be set to zero and SHOULD be ignored on receipt:</td>
 </tr>
 <tr><td><code>7.2:1</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
@@ -3203,7 +3244,7 @@ Two MUST rows carry {gap}. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

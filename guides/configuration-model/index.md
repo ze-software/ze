@@ -1073,6 +1073,16 @@ the same prefix again, and that replaces the path it sent before (RFC 4271
 Section 3.1). `offered` reads that second announcement as a second prefix.
 `installed` reads it as the prefix it already has.
 
+For `installed`, identity comes from the family's registered route key, not the
+whole NLRI encoding. Changing an MPLS label does not consume another slot.
+A labeled withdrawal ignores its three Compatibility octets and releases the
+matching route's slot. VPN Route Distinguishers remain part of the key, and
+negotiated ADD-PATH identifiers, including zero, distinguish paths. A withdrawal
+for another family, RD or Path Identifier cannot release that slot.
+Both modes use the family's withdrawal framing; `offered` still subtracts each
+withdrawal event rather than checking whether its route was held.
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- forEachPrefixEntry, prefixSetWalk.identity, prefixSetWalk.visit -->
+
 Pick `offered` to bound how much a peer may SEND you, announcement by
 announcement, and accept that a peer which re-announces will reach the bound
 without ever holding that many routes. Pick `installed` to bound how many
@@ -1090,6 +1100,11 @@ same UPDATE whole, and both send the same NOTIFICATION under `teardown true`.
 `installed` keeps one entry per prefix for that family, so it costs memory in
 proportion to what the peer sends, bounded by `maximum` when one is configured.
 `offered` keeps a number.
+
+An UPDATE refused by any family's maximum leaves every `installed` set
+unchanged, including withdrawals in that message. Its announcements and
+withdrawals never reach consumers, so neither may change the installed count.
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- checkPrefixLimits, rollbackPrefixSets -->
 
 > **`offered` counts announcements minus withdrawals, not what the peer holds.**
 > A withdrawal for a prefix the peer never announced still lowers the count, so a

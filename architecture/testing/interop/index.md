@@ -56,6 +56,106 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- peer helpers and scenario preparation -->
 <!-- source: internal/le/interoplab/bgp/run.go -- scenario orchestrator -->
 
+The conditional-MED collector check requires a single AS number in the received
+AS_PATH. It uses the shared AS-number parser, so decimal and dotted spellings
+identify the same source without accepting a multi-AS path.
+<!-- source: internal/le/interoplab/bgp/check_med_pmacct_epoch.go -- medWholeSetInputCriteria -->
+
+The Extended Message FRR scenarios use a bounded, single-session relay that
+changes capability 6 in OPEN only. It records Ze's original OPEN separately,
+leaves UPDATE and KEEPALIVE bytes unchanged, caps each direction at 256 frames,
+and joins both socket workers before returning. FRR 10.3.1 gates extension
+bilaterally, so its facing OPEN always advertises capability 6 while Ze's facing
+advertisement varies independently. This isolates Ze's directional behavior
+without replacing FRR's UPDATE producer or consumer.
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- runExtendedRelaySession, captureExtendedRelay -->
+
+The producer is `frr` at host `.3`; the consumer is a separate `frr-sink` at
+host `.15`, both in AS 65002, with distinct native router IDs matching those
+addresses. Relays `.10` and `.11` connect them to Ze independently. The consumer
+originates no test routes: its decoded path must come from `.11` with AS_PATH
+`65001 65002`, and `allowas-in 1` admits the producer's AS once.
+The old one-daemon topology presented the same `(AS, router ID)` on two configured
+Ze peers. Ze's default identifier-claim policy rejected the second OPEN with 2/3
+through `Peer.validateOpen`, `routerIDClaims.claim`, and
+`Session.runOpenValidator`. This was not RFC 4271 Section 6.8 TCP collision
+resolution, which closes the losing connection with Cease.
+[RFC 6286 Section 2.1](https://www.rfc-editor.org/rfc/rfc6286#section-2.1)
+says an identifier "should be unique within an AS"; Section 2.2 mandates Bad BGP
+Identifier for zero or a self-identifier from an internal peer, not this case.
+Section 3 explicitly mentions parallel sessions between the same speakers.
+The fixture therefore uses distinct native speakers compatible with Ze's default
+policy; it does not disable that policy or rewrite identifiers in transit.
+FRR's [`bgp_open_make`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_packet.c)
+writes each peer's native `local_id` into its OPEN.
+<!-- source: internal/le/interoplab/bgp/register_extended_message.go -- independent producer and consumer -->
+<!-- source: internal/le/interoplab/bgp/check_extended_message.go -- consumer route queries and per-daemon session generations -->
+
+No test route is originated from the producer's startup configuration. The checker
+first requires both native FRR sessions to be `Established` and both Ze peers
+to report `established` through `show bgp peer list | json`. These two-sided
+observations share one 60-second readiness deadline. Only then does it originate
+the baseline once through FRR's existing `vtysh` path and require its decoded path
+at the consumer. Large and later control routes follow through the same origin
+path. This is a first-origination barrier, not a route retry or session replacement.
+The source relay starts before the sink relay. A startup `network` announcement
+could therefore reach `reactorForwardRSSection` before the sink has live
+`forwardFacts`, when that destination is correctly skipped. These live fast-path
+fixtures do not attach the route-server/Adj-RIB-In event consumers for retained
+peer-up replay, so waiting for the sink afterward cannot recover that earlier
+announcement. FRR's Established state alone is insufficient: FRR can receive Ze's
+initial KEEPALIVE before Ze processes FRR's KEEPALIVE. Ze's peer-list producer
+`handleBgpPeerList` serializes `reactorAPIAdapter.Peers`'s `Peer.State()`, not the
+raw session FSM state. `Peer.runOnce` publishes negotiated encoding contexts and
+forwarding facts before publishing `PeerStateEstablished`, so that peer state
+is the local admission barrier. The checker reuses `waitZePeerState` for each
+original relay peer and retains the independent FRR observations. It changes
+neither AS-loop policy nor capability permissions.
+<!-- source: internal/le/interoplab/bgp/check_extended_message.go -- first baseline origination after two-sided peer readiness -->
+<!-- source: internal/le/interoplab/bgp/check_special.go -- waitZePeerState, zePeerState -->
+
+The FRR-facing Extended Message relays start only after the native configuration probes pass.
+Ze's CLI must list both relay peers. Each destination FRR daemon's last passive
+neighbor must reach `Active (passive)`, after `peer_unshut_after_cfg` clears the configuration hold.
+A listening TCP socket or successful `show version` is not sufficient: FRR
+`bgp_accept` can close a connection while configuration is still loading.
+These barriers use the existing ordered `ReadyProbe` hooks, with probe-specific
+environment and required stdout strings. Probes with no required strings retain
+exit-only readiness; relays to other daemons and other speaker personalities retain their startup order.
+No readiness probe opens a BGP connection, and the relay never reconnects a
+connected socket.
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers, dialExtendedRelay -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPeers -->
+<!-- source: internal/le/interoplab/lab.go -- waitPeer -->
+
+Bounded readiness waits check cancellation before each probe, including the
+first. A simultaneously ready poll tick cannot admit another probe after
+cancellation is observed. Failure retains the last measured state or probe
+error and does not start dependent peers or the scenario checker.
+<!-- source: internal/le/interoplab/wait.go -- Wait -->
+
+The FRR readiness producers are
+[`peer_unshut_after_cfg`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgpd.c),
+[`bgp_start`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_fsm.c), and
+[`bgp_accept`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_network.c).
+
+All five `bgp-extended-message-*-frr` fixtures build the native FRR attribute
+through four `EXTENDED` route-map sequences of 100 distinct large communities.
+The first sets the attribute; the next three use `additive`, with `on-match next`
+on the first three sequences. FRR therefore accumulates all 400 values (4800
+attribute-value octets) on one route without exceeding its 4096-byte VTY input
+buffer. Repeating `set large-community` within one sequence is not equivalent:
+FRR replaces the previous set rule of that kind.
+The FRR producers are [`config_from_file`](https://github.com/FRRouting/frr/blob/frr-10.3.1/lib/command.c),
+[`route_map_add_set` and `route_map_apply_ext`](https://github.com/FRRouting/frr/blob/frr-10.3.1/lib/routemap.c),
+and [`route_set_lcommunity`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_routemap.c).
+
+Before teardown, a failed Extended Message checker reads both relays' result
+JSON, original/delivered frame captures, TCP socket tables, and last 80 log lines.
+The diagnostic queries share a 15-second deadline and preserve read errors and
+the original assertion failure. They do not retry or replace the BGP session.
+<!-- source: internal/le/interoplab/bgp/check_extended_message.go -- checkExtendedMessages, extendedFailureDiagnostics -->
+
 ## Prerequisites
 
 | Requirement | Used By | Notes |
@@ -65,6 +165,111 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
 `NET_ADMIN` capability (granted automatically by the orchestrator).
+
+## Real VPP SRv6 service-route proof
+
+Run the focused service-route proof through native admission:
+
+```bash
+./le job run label vpp-srv6 command go test -tags integration -count=1 \
+  -timeout 30m ./internal/le/test/deployment \
+  -run '^TestVPPSRv6ServiceRoute$' -v
+```
+
+This test reuses the deployment VPP image, privileged container, build recipes,
+sockets, and staged Ze configuration. It does not replace the legacy
+`./le test deployment vpp-test` population. Docker, Go, a VPP image with the
+SRv6 API and AF_PACKET plugin, and a Docker kernel with veth support are required.
+The managed phase also needs `/usr/bin/vpp`, writable `/etc/vpp`, and sufficient
+already-reserved hugepage resources for its configured 64M heap, 1024 buffers,
+and 16M stats segment. The harness never changes global hugepage reservations.
+`ZE_VPP_DOCKER_IMAGE`, `ZE_VPP_DOCKER_PLATFORM`, and `ZE_VPP_DOCKER_GOARCH` select
+the image and matching target architecture through the existing VPP settings.
+The test prints the selected image, VPP version, and retained scratch directory.
+<!-- source: internal/le/test/deployment/vpp_srv6_integration_test.go -- TestVPPSRv6ServiceRoute -->
+These Docker-host integration tests are excluded from the QEMU guest package
+population: the guest has no Docker daemon. The native admission command above
+runs their real container and packet probes rather than substituting guest mocks.
+<!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
+<!-- source: internal/le/test/deployment/vppiface.go -- newVPPIface, containerArgs -->
+
+The compiled peer sends IPv4/unicast MP_REACH with an IPv6 next hop and an
+RFC 9252 L3 Service TLV through a real BGP session. Only Ze installs service
+policies and steering. The probe reads VPP's policy and steering dumps and CLI
+output. It requires an encapsulation policy whose single segment is the received
+SID, a distinct local BSID, and matching prefix steering in table zero. Two
+prefixes share a policy. A normal Ze restart against the still-running external
+VPP must retain the confirmed BSID identity without duplicates and resume packet
+forwarding. Withdrawal of one, replacement of one SID, last-user withdrawal,
+and reinstallation each have state and packet assertions.
+<!-- source: internal/le/test/deployment/vpp_srv6_probe_integration_linux_test.go -- TestVPPSRv6ServiceRouteProbe, vppSRv6StateMatches -->
+
+The same harness then switches to Ze-managed VPP. A test-only external plugin
+uses the existing `sdk.Plugin.EmitEvent` ingress to publish best-change entries
+for the same prefix in tenant tables 10 and 20. This is a separate producer
+contract from the BGP/sysrib path above, not a claim of BGP VRF configuration.
+Steering must use the tenant table while policy/outer lookup remains in backend
+table zero. The probe kills the real managed VPP child, requires a different PID
+and a production replay request, restores only interface/underlay prerequisites,
+then answers that request through the ordinary event ingress. Restored forwarding,
+repeated replay without duplicate BSIDs, replacement in one table, independent
+withdrawal, shared-policy retention, and final removal are checked.
+The runtime publisher also decodes the exact bytes it sends and requires their
+replay marker to match the requested replay, rather than treating an ordinary
+incremental event as a replay proof.
+Before querying VPP, the probe waits for the binary API handshake's `Connected`
+event using the production connector's bounded connection mechanism.
+`AllPluginsReady` starts the plugin population; it does not prove the managed
+VPP child has opened its API socket. The harness retains the complete managed
+daemon/child stdout and stderr in `srv6-managed-daemon.log` and copies the
+generated configuration and VPP logfile before container cleanup, including
+failures before API readiness.
+<!-- source: internal/le/test/deployment/vpp_srv6_managed_probe_integration_linux_test.go -- TestVPPSRv6ManagedProbe, vppSRv6Publish -->
+<!-- source: internal/le/test/deployment/vpp_srv6_managed_integration_test.go -- vppSRv6Managed, vppSRv6ManagedConfig -->
+
+The packet oracle injects a unique Ethernet/IPv4 datagram through a veth and
+captures VPP's emitted frame. It checks the IPv6 source and received-SID
+destination, reduced encapsulation without an SRH, and preserved inner payload
+with one TTL decrement. Withdrawal must stop forwarding the corresponding
+datagram; adjacent positive probes prevent a dead capture from passing.
+The managed phase uses VPP's built-in packet generator for real graph ingress
+and Ethernet egress capture, with the same independent byte oracle. It requires
+the generated-packet counter to reach one before a negative assertion. Input and
+output pcaps and the external plugin's complete test transcript remain in the
+scratch directory.
+Prerequisite mutations must return their successful CLI response: `vppctl` exit
+status zero alone is not acceptance. A failed prerequisite or positive packet
+assertion records bounded VPP logging, interface, error, IPv6 FIB, and trace
+diagnostics. Packet observations log at most eight frame prefixes per injection;
+these diagnostics do not replace the forwarding assertion or extend its deadline.
+<!-- source: internal/le/test/deployment/vpp_srv6_probe_integration_linux_test.go -- vppSRv6CLIOutput, vppSRv6Diagnostics -->
+
+The external-VPP configuration activates the real `connected` producer and
+netlink interface monitor. A test-only SDK plugin waits for all plugins to be
+ready, adds the Linux covering addresses through real netlink events, and queries
+`show rib` until both next-hop and SID covering prefixes have protocol `connected`.
+The BGP probe waits for that result before sending service announcements. After
+Ze restarts, the SDK probe re-adds the addresses to the new monitor and publishes
+a new process-generation readiness record; the old record cannot satisfy the
+barrier. Its actual RIB result remains in `srv6-connected.log`.
+<!-- source: internal/le/test/deployment/vpp_srv6_connected_integration_linux_test.go -- TestVPPSRv6ConnectedProbe, vppSRv6AwaitConnected -->
+
+The fixture additionally supplies the VPP IPv6 underlay route, neighbor, tenant
+tables, and encapsulation source. These
+prerequisites are not evidence that Ze added underlay provisioning, SID
+reachability validation, remote decapsulation, or external-VPP reconnect support.
+<!-- source: internal/le/test/deployment/vpp_srv6_wire_integration_linux_test.go -- vppSRv6Packet, vppSRv6PacketMatches -->
+<!-- source: internal/le/test/deployment/vpp_srv6_probe_integration_linux_test.go -- vppSRv6Underlay -->
+<!-- source: internal/le/test/deployment/vpp_srv6_pg_integration_linux_test.go -- vppSRv6PGUnderlay, vppSRv6PGPacket, vppSRv6PGGenerated -->
+
+Synthetic oracle tests check rejection of wrong policy bindings, tables, SIDs,
+and packet fields. They are not dataplane evidence. A real proof requires an
+executed, non-skipped `TestVPPSRv6ServiceRoute` result. For discrimination, omit
+policy creation in `(*govppSRv6Backend).acquirePolicy`, rerun the command above
+to rebuild the daemon, and require failure at the first installed-state assertion. Restore the source
+and require the packet proof to pass before claiming closure.
+<!-- source: internal/le/test/deployment/vpp_srv6_oracle_integration_linux_test.go -- TestVPPSRv6StateOracle, TestVPPSRv6PacketOracle -->
+<!-- source: internal/le/test/deployment/vpp_srv6_integration_test.go -- TestVPPSRv6ServiceRoute -->
 
 ## Live Interop Tests (`test/interop/`)
 
@@ -131,6 +336,18 @@ Runs that share a fixed subnet or staged binary paths must run serially.
 
 <!-- source: internal/le/interoplab/bgp/prepare.go -- container naming, IP addresses -->
 
+Typed checker queries and their expected JSON field values are rendered onto the
+same selected network. Rendering clones the expected-field map so concurrent or
+later runs cannot change the registered scenario's addresses. In `inject.msg`,
+literal UPDATE sends also receive the selected lab address in IPv4 NEXT_HOP
+and MP_REACH next-hop fields, including the address after a VPN RD. The
+renderer validates the envelope and attribute sequence before changing either
+field. RDs, IPv6 addresses, NLRI and unrelated attributes remain intact.
+Malformed framing and duplicate attribute codes remain unchanged,
+preserving negative protocol fixtures rather than repairing them.
+<!-- source: internal/le/interoplab/bgp/check_engine.go -- rewriteOperation -->
+<!-- source: internal/le/interoplab/bgp/prepare_inject.go -- renderInjectedNextHops, renderInjectedNextHop -->
+
 The IPsec, L2TP, PPPoE and RADIUS labs mount only Ze's input configuration file
 read-only. Its parent `/etc/ze` belongs to the container and remains writable,
 so `start /etc/ze/ze.conf` creates its database tree there without writing to
@@ -154,11 +371,28 @@ same private directory before each start.
 After the native L2TP PPP proof has negotiated IPCP and carried traffic, it
 injects an LCP Configure-Request from the peer namespace into the existing
 kernel L2TP session. The packet uses that session's live tunnel/session IDs and
-UDP endpoints, following RFC 2661 sections 3.1 and 5.3 and RFC 1661 sections 4.1
-and 5.1. The independent xl2tpd/pppd peer then renegotiates LCP and IPCP; a
+UDP endpoints. [RFC 2661 section 3.1](https://www.rfc-editor.org/rfc/rfc2661#section-3.1)
+says, “Tunnel ID in each message is that of the intended recipient, not the
+sender,” and gives the same rule for Session ID.
+[RFC 1661 section 3.4](https://www.rfc-editor.org/rfc/rfc1661#section-3.4)
+says, “The receipt of the LCP Configure-Request causes a return to the Link
+Establishment phase from the Network-Layer Protocol phase or Authentication
+phase.” Its section 4.1 specifies `tld,scr,sca/8` for an acceptable request in
+Opened. The independent xl2tpd/pppd peer then renegotiates LCP and IPCP; a
 credentialed input must also complete a fresh authentication exchange.
 `ZE_L2TP_PPP_SCENARIO=no-auth` is the default. Select `chap-md5` to use the
 existing local credential handler and require CHAP-MD5 on both negotiations.
+
+Each namespace must have exactly one kernel tunnel and one nonzero-ID data
+session. xl2tpd's kernel path also creates a tunnel-management PPPoL2TP socket:
+[Linux `pppol2tp_connect`](https://github.com/torvalds/linux/blob/v6.8/net/l2tp/l2tp_ppp.c)
+registers its local/peer session IDs as zero, without a PPP channel, and
+[`l2tp_nl_cmd_session_dump`](https://github.com/torvalds/linux/blob/v6.8/net/l2tp/l2tp_netlink.c)
+enumerates it alongside the data session. The proof validates this optional
+management record separately: both session IDs must be zero, both tunnel IDs
+must match the live tunnel, and no duplicate management record or second data
+session is accepted. Management presence is part of the before/after identity;
+its zero IDs never become injection targets.
 
 The proof records the pppd log offset, Ze observation counts and both kernel
 transport identities before injection. Only later request/Ack exchanges,
@@ -170,14 +404,20 @@ the peer leaves first and the proof requires another route withdrawal and
 ordinary kernel cleanup. Injection uses Python 3's standard-library raw IPv4
 socket and requires `CAP_NET_RAW` in addition to the namespace/PPP privileges.
 The boundary JSON and peer log remain in the scratch directory on failure.
+Raw tunnel/session listings are also printed before the restart identity check
+returns, while both peers are still running. Later general diagnostics run
+after deferred peer/daemon cleanup; their empty kernel state or pppd SIGTERM
+must not be read as the state that caused an earlier assertion to fail.
 <!-- source: internal/le/test/deployment/l2tpppprestart.go -- assertLCPRestart, awaitL2TPPPPWithdrawal -->
 
 The credentialed carrier then starts another xl2tpd/pppd peer with a wrong
 secret against the same daemon. It requires a matching CHAP
 Challenge/Response/Failure exchange, a local rejection, and session teardown.
 After the rejection boundary, neither the rejected peer's log nor new Ze
-observations can show network admission. PPP units, L2TP sessions and subscriber
-routes must disappear before the proof stops the rejected peer.
+observations can show network admission. PPP units, L2TP data sessions and
+subscriber routes must disappear before the proof stops the rejected peer.
+The control tunnel and its validated zero-ID management context may remain
+until that peer exits; they cannot stand in for a surviving PPP data session.
 <!-- source: internal/le/test/deployment/l2tppppauth.go -- assertWrongSecret, l2tpPPPCHAPRejected, l2tpPPPRejectedState -->
 
 ### Scenario Structure
@@ -194,6 +434,11 @@ Every directory has one typed checker in `internal/le/interoplab/bgp`. The
 catalogue uses explicit operations for ordinary session, route, adjacency, log,
 and negative assertions, plus bespoke checkers for scenarios whose control flow
 cannot be represented as an ordered operation list.
+
+Scenario-local `register_*.go` files can register bespoke checkers. The
+conditional-MED checker runs its four original baseline operations unchanged,
+then correlates collector events without adding an operation kind to the engine.
+<!-- source: internal/le/interoplab/bgp/register_med_pmacct.go -- init -->
 
 A bespoke checker is written in two halves. The body in `check_rfc.go` does the
 lab I/O and numbers each assertion, so a failure names the assertion that found
@@ -219,6 +464,44 @@ A scenario directory may also carry files that start extra containers before Ze:
 | `speaker-args` (and optional `speaker2-args`) | `le test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
 | `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
+
+The `ospf-te-frr` and `ospf-te-interas-frr` scenarios keep their FRR adjacency,
+TED and flooded-LSA assertions and add a BGP-LS speaker sidecar. Ze exports its
+native OSPF database through `bgp-ls-export`; the collector records actual
+negotiated SAFI 71 UPDATEs, not injected substitutes. The checker reconstructs
+the final received inventory, including withdrawals, with the native UPDATE
+and BGP-LS decoders. It requires exact Node and bidirectional Link auxiliary
+IPv4 Router-ID TLVs for ordinary TE, and local IPv4 plus remote IPv4/IPv6 IDs
+for the configured inter-AS link. It rejects missing, swapped, duplicate or
+invented local IPv6 IDs. The bounded capture must finish successfully and
+establish a BGP session; a historical matching UPDATE alone cannot pass.
+<!-- source: internal/le/interoplab/bgp/check_ospf_bgpls.go -- checkOSPFRouterIDCollector, ospfBGPLSRouterIDVerdict, ospfBGPLSApplyUpdate -->
+
+The inter-AS source assertion reads structured `show ospf database opaque-as`
+output. It requires the configured remote AS and both ASBR IDs on one decoded
+link, no Link ID, and a matching live Type-11, opaque-type-6 header. FRR's
+AS-wide database must contain the same originator and LSA ID with matching
+checksum and length. Neither a display label nor an address elsewhere in the
+output proves that link. These source and flooding checks supplement, not
+replace, the collector's final BGP-LS link and auxiliary Router-ID assertions.
+<!-- source: internal/le/interoplab/bgp/check_ospf_interas.go -- checkOSPFInterASDatabase, ospfInterASSourceVerdict, ospfInterASFloodedVerdict -->
+
+Both FRR fixtures explicitly configure `capability opaque`, separately from
+TE origination, so their DDs can negotiate the opaque LSAs needed by this
+proof. The native neighbor regression also keeps an O-clear peer: the
+production summary filter must still establish Full without advertising
+opaque headers to that peer. A capable interop fixture cannot replace that
+negative control or excuse an ExStart/SeqNumberMismatch loop.
+<!-- source: internal/plugins/ospf/neighbor/rfc5250_dd_capability_test.go -- TestDDNegotiatedOpaqueCapabilityControlsAdvertisedSummary -->
+The capture deadline bounds reads as well as the outer loop. Expiry while
+waiting for a new header is quiet completion; an unfinished header or body,
+EOF, notification or send failure cannot certify a complete capture.
+<!-- source: internal/le/interoplab/bgp/speaker.go -- runSpeakerSession, readSpeakerMessage, readSpeakerExact -->
+If either OSPF scenario fails, its checker captures both peers' interface and
+neighbor detail, Ze's packet/drop and NSM counters, and FRR's DD packet debug
+log before container teardown. The original Full-adjacency failure remains
+the result; diagnostic query failures are retained alongside it.
+<!-- source: internal/le/interoplab/bgp/check_ospf_bgpls.go -- ospfBGPLSFailureDiagnostics -->
 
 A scenario carrying `frr.conf` may also carry its own `daemons` file. That file
 names which FRR daemons run and what each one is started with, so a scenario
@@ -657,6 +940,11 @@ order. Every nested Child SA key moved off the line start, and
 `initiator-rekey-answer-narrows` went red with no daemon behavior changed.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- zeIKESAs, assertNATVerdict, assertZeSelectors -->
 
+The VPN withdrawal checker receives its phase from private named constants,
+not from FRR output. An unknown internal phase is a `BUG` assertion; malformed
+or unsupported external table data remains an ordinary rejected observation.
+<!-- source: internal/le/interoplab/bgp/check_vpn_withdraw.go -- requireVPNWithdrawTable -->
+
 **A number two readers print in two bases is normalized to one TYPE, and the
 decode is typed.** The `dataplane-readback` scenario joins the SPI set
 `show vpn ipsec dataplane sa | json` answers against the set `ip xfrm state`
@@ -725,6 +1013,11 @@ An unreadable log is not a plugin verdict. `checkerFailure` retains the original
 scenario assertion when the log read fails, so a Docker diagnostic cannot
 replace the protocol failure that triggered it.
 
+Ordered-checker failures include the selected IPv4 and IPv6 networks. A JSON
+wait retains its last answer, and a pmacct failure captures the collector log
+plus the last 80 msglog rows before container teardown. These diagnostics retain
+the original assertion failure; they do not substitute a guessed route state.
+
 <!-- source: internal/le/interoplab/bgp/helper.go -- runtimeFailure -->
 <!-- source: internal/le/interoplab/bgp/check_engine.go -- checkerFailure -->
 <!-- source: internal/le/interoplab/bgp/bgp_test.go -- TestCheckerFailureKeepsPrimaryCauseWhenLogsFail -->
@@ -743,6 +1036,37 @@ It completes only after a received-direction UPDATE carries the test prefix in
 its announced IPv4 NLRI. A matching byte sequence in attributes, a withdrawal,
 or an Adj-RIB-Out report cannot establish reception of that route.
 <!-- source: internal/test/fixture/plugin_fixture_04_bmp.go -- monitoringPrefix04, bmpCollector04 -->
+
+### Conditional MED observed by a foreign collector
+
+`bgp-addpath-best-path-pmacct` retains its two-identifier baseline and adds a
+separate prefix, `10.99.77.0/24`, with three sources. FRR sends A from AS65004
+with MED0 and Router ID198.51.100.3. GoBGP sends B from AS65005 with MED50 and
+Router ID198.51.100.2. The existing injector sends C from AS65004 with MED100
+and Router ID198.51.100.1. All three are external, have one AS in their path,
+and carry ORIGIN IGP. The checker reads the exact received attributes from
+pmacct's latest Adj-RIB-In route, including the absence of AIGP and received
+LOCAL_PREF; Ze explicitly configures their common preference base. Router ID is
+carried by Peer Up, not Route Monitoring. The checker joins the route to its
+preceding Peer Up using the BMP router, connection port, peer address, RIB view
+and increasing collector sequence, and requires the expected ASN in both rows.
+A Peer Down, a new Peer Up or a BMP stream restart invalidates the old route.
+An earlier correct identifier cannot satisfy a route from a different epoch.
+
+A removes C at MED, then B defeats A at Router ID. The checker requires B,
+withdraws non-best A through FRR, requires C, restores A, and requires B again.
+Before each change it checkpoints the collector's append-only log. The selection
+query keeps pre-checkpoint Peer Up context and every epoch boundary, rejecting
+snapshots beyond its 256-line bound rather than silently truncating them.
+Only the newest route in the current Loc-RIB epoch may satisfy the assertion,
+and its absolute file position must follow the checkpoint. A matching Peer Down,
+stream reset or replacement Peer Up invalidates an earlier winner. AS_PATH,
+NEXT_HOP and ORIGIN identify the source because Loc-RIB reports omit MED.
+All four original baseline assertions run before and after the cycle.
+<!-- source: internal/le/interoplab/bgp/check_med_pmacct.go -- checkMEDWholeSet, medWholeSetBaselineOperations -->
+<!-- source: internal/le/interoplab/bgp/check_med_pmacct_selected.go -- waitMEDWholeSetSelected, readMEDWholeSetLocEpoch, medWholeSetSelectedCriteria -->
+<!-- source: internal/le/interoplab/bgp/check_med_pmacct_epoch.go -- requireMEDWholeSetInput, medWholeSetSameEpoch, medWholeSetInputCriteria -->
+<!-- source: test/interop/scenarios/bgp-addpath-best-path-pmacct/ze.conf -- peer inputs -->
 
 ### Scenario Inventory
 
@@ -831,12 +1155,76 @@ its normal zebra forwarding and BIRD exports OSPF routes through its kernel prot
 <!-- source: test/interop/scenarios/ospf-virtual-link-frr/ -- OSPFv2 configurations -->
 <!-- source: test/interop/scenarios/ospfv3-vlink-frr/ -- OSPFv3 configurations -->
 
+`bgp-graceful-restart-frr` retains its original session, route, GR and EOR
+checks and adds two strict input speakers with FRR as the independent receiver.
+One source omits IPv4 from GR while advertising a 40-second IPv4 LLST; its
+IPv6 family has a 20-second GR period followed by the same LLST. The other
+source advertises zero LLST. After fencing initial receipt and bilateral FRR
+LLGR negotiation, the checker requires immediate removal for zero LLST,
+immediate IPv4 LLGR_STALE, and IPv6's conventional-to-LLGR transition.
+IPv4 must expire at its original DOWN+40 deadline while IPv6 survives until
+DOWN+60. FRR's established/dropped connection counters must remain unchanged;
+its recomputed wall-clock epoch is not a session identity. Complete observation
+cycles, including final expiry probes, must stay within the sampling bound.
+An explicit FRR-origin received-route check preserves the original reverse
+direction proof despite the added native sources. This does not cover
+NOTIFICATION, reconnect F-bit or received-stale-policy behavior.
+
+`bgp-nexthop-self-local-auto-frr` retains both original self-next-hop checks
+and adds AIGP on the general forwarding path. The received metric is 100;
+source-link cost 7 and destination-link cost 43 must produce 107 and Ze's
+next hop at FRR. GoBGP is the unchanged-next-hop control and must retain 100.
+A third-party next hop initially has no distance: the rewritten route must
+be absent while the unchanged control holds it. An SDK route installation
+with metric 11 restores 111, then metric 7 produces 107; replacing that
+distance with zero withdraws the whole rewritten route, and restoring 7
+recovers it again. Source UPDATE, EOR and session counters fence the recovery
+against a new advertisement.
+FRR's established/dropped counters and local/foreign socket ports are also
+captured before the initial withheld inventory and checked after every metric
+transition and the final baseline checks. Recovery through a replacement
+recipient session cannot satisfy that fence.
+
+A separate iBGP wire recipient uses the existing `speaker-args` container.
+Its passive Ze peer binds the explicit lab address; `local ip auto` supplies
+no address for a passive listener. The original FRR local-auto checks remain
+unchanged. The wire recipient records one connection's original received frames,
+never reconnects, and
+must observe exact AIGP TLVs 107 and 111, Ze's next-hop bytes, and a complete
+withdrawal of `10.10.3.0/24`. Its history also checks the subsequent
+107/withdrawal/107 transitions. Both the FRR readiness prefix and a checker
+release route precede injection; the release follows all recipients' initial
+EORs. This carries the former `aigp-source-cost-recovery` draft's wire contract
+on a legal source topology: 127/8 NEXT_HOPs are rejected before AIGP, even when
+unassigned to a host interface. Run it with
+`INTEROP_SCENARIO=bgp-nexthop-self-local-auto-frr ./le test integration interop`.
+<!-- source: internal/le/interoplab/bgp/speaker_aigp.go -- runAIGPWireRecipient -->
+<!-- source: internal/le/interoplab/bgp/check_aigp_wire.go -- releaseSynchronizedAIGPSource, requireAIGPWire -->
+<!-- source: test/interop/scenarios/bgp-nexthop-self-local-auto-frr/ -- source, wire and foreign recipients -->
+
+`bgp-labeled-withdraw-compatibility-frr` also exercises VPNv4 and VPNv6,
+with each prefix announced under three distinct RDs. Compatibility values
+`800000` and `123456` withdraw two RDs while the third survives. FRR's
+RD-keyed table and exact withdrawal log identify each route. After the
+injector goes down, only the surviving RD may receive another withdrawal;
+the previously removed routes must not be withdrawn twice. Receiver session
+generation and a subsequent received KEEPALIVE fence the final observation.
+
 `bgp-flowspec-sctp-gobgp` supplies both a covering unicast route and a FlowSpec
 from GoBGP, checks the installed kernel rule, then withdraws and restores only
 the unicast route. Its checker requires the existing FlowSpec filter to
 disappear and return without another FlowSpec announcement. Finally it
 withdraws the FlowSpec itself. Empty-ruleset checks require nft's JSON response,
 not a table that should have been removed.
+
+`bgp-flowspec-gobgp` retains its originated-rule and OR-of-AND checks and adds
+a received rule with a nonzero next hop. A byte-preserving relay captures
+the UPDATE delivered to GoBGP: its MP_REACH next-hop length must be zero,
+and GoBGP must decode the rule and traffic-rate action. Withdrawing and
+restoring only the covering route drives stored replay without a new source
+FlowSpec UPDATE. The checker requires the same rule and action after recovery.
+This independent-peer scenario covers IPv4 FlowSpec; the four-family wire
+matrix remains a separate internal proof.
 
 The Linux `integration`-tagged
 `TestSelectedFlowSpecKernelPacketSemantics` uses an isolated network namespace
@@ -1025,6 +1413,15 @@ format. `option=serial` marks process-driven fixtures that must not overlap
 other ExaBGP harness instances; the runner executes those after the parallel
 batch.
 
+The mock replies with the client's OPEN capabilities, changing only its AS
+number and router ID; it does not infer capabilities from expected UPDATEs.
+Migration expands an omitted or empty ExaBGP family block to every family
+registered in the current binary. An explicit family block stays restricted
+to its entries. `conf-vpn` explicitly declares `ipv4 mpls-vpn`, which migrates
+to `session > family ipv4/mpls-vpn`, so both OPENs advertise AFI 1, SAFI 128.
+The negotiated-family guard remains active: RFC 4760 Section 8 requires both
+speakers to advertise the family for bidirectional exchange.
+
 `<prefix>:signal:<NAME>` marks the point in a connection's script where the
 runner reloads Ze. It divides the script: every `raw` frame written before it
 must match before the reload happens, and the frames after it are matched only
@@ -1081,10 +1478,6 @@ also includes full IS-IS and OSPFv2/OSPFv3 interop families (adjacency, flooding
 dual-stack, authentication, TE, LFA/TI-LFA, graceful restart, and segment routing).
 ExaBGP compat covers wire encoding for all supported address families.
 <!-- source: test/interop/scenarios/ -- scenario directories -->
-
-Not yet covered by interop tests:
-
-- Long-Lived Graceful Restart with live peers
 
 ## Known Vendor Limitations
 

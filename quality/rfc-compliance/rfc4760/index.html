@@ -359,7 +359,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>MUST</td>
 <td>7 - Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L307" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L311" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L240" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPAttributeResetsTheSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L102" title="internal/component/bgp/reactor/rfc4760_section7_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L214" title="internal/component/bgp/reactor/rfc4760_peer_down_link_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB</code></a></span></div>
@@ -375,7 +375,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>MUST</td>
 <td>8 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4760-8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L65" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseCapabilities</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L66" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseCapabilities</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L88" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4760OpenAdvertisesEveryConfiguredFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L111" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC4760FamilyNotAdvertisedIsNotExchanged</code></a></span></div>
 </div></td>
@@ -656,7 +656,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L307" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L311" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleState_PeerDown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -696,7 +696,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L65" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseCapabilities</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L66" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseCapabilities</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -916,7 +916,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

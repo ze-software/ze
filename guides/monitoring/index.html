@@ -899,9 +899,9 @@ does not measure the untouched wire attribute set.</p>
 <p>A non-zero value means a configured modification (a next-hop rewrite, a community
 strip, a private-ASN removal) did not fit the route it applied to. The <code>reason</code>
 label set is closed: <code>malformed</code>, <code>overflow</code>, <code>attr-length-range</code>,
-<code>withdrawn-size</code>. Two further values exist and both indicate a defect rather than
-peer input: <code>no-failure</code> must never be emitted, and <code>unclassified</code> means a reason
-reached the counter that no constant produced.</p>
+<code>withdrawn-size</code>, <code>no-handler</code>, <code>handler-fault</code>, and <code>truncated</code>.
+The <code>no-failure</code> sentinel must never be emitted as a failure. An unnamed internal
+reason raises a <code>BUG</code> assertion instead of producing an <code>unclassified</code> label.</p>
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
 <p>Treat any increment as a policy that did not take effect. Ze counts the failure
 at the point the modification is built, on all five paths that build one: the
@@ -1120,7 +1120,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -25,6 +25,13 @@ Packet filter and NAT rules (nftables on Linux)
 - Required dependency for: [`anomaly-shape`](../anomaly-shape/index.md), [`copp`](../copp/index.md), [`ddos-local`](../ddos-local/index.md), [`firewall-domain`](../firewall-domain/index.md), [`firewall-irr`](../firewall-irr/index.md), [`flowspec-firewall`](../flowspec-firewall/index.md), [`policy-routes`](../policy-routes/index.md)
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`vpp`](../vpp/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/component/firewall`

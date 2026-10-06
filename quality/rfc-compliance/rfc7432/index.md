@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.0% | 1 of 102 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 102 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 102 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 62.5% | 20 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 87.5% | 28 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -70,8 +70,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Nightly-only evidence | 0 |
 | Test tags | 34 |
 | Tagged units | 32 |
-| Recorded audit verdicts | 9 |
-| Discrimination records | 20 |
+| Recorded audit verdicts | 10 |
+| Discrimination records | 28 |
 | Summary | `rfc/short/rfc7432.md` |
 | Requirement shard | `rfc/requirements/rfc7432.md` |
 | RFC text | `rfc/full/rfc7432.txt` |
@@ -228,7 +228,7 @@ Separate implementation and proof gaps remain in the requirement checklist.
 | `RFC7432-8.3.1.1-7` | If the next label is an ESI label that has not been assigned by PE2, then PE2 MUST drop the packet. (§8.3.1.1) | MUST | 8.3.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze forwards no EVPN traffic: it has no bridge domain, no BUM replication and no P2MP LSP, grep -rli evpn over internal/plugins/fib/ and internal/component/iface/ matches nothing, and EVPN routes reach ze only as BGP UPDATEs it encodes, decodes and originates from configuration (internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute) |
 | `RFC7432-8.3.1.2-2` | If the next label is the ESI label assigned by PE1 to ES1 and PE3 is not connected to ES1, then PE3 MUST pop the label and flood the packet over all local ESIs in that EVPN instance. (§8.3.1.2) | MUST | 8.3.1.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze forwards no EVPN traffic: it has no bridge domain, no BUM replication and no P2MP LSP, grep -rli evpn over internal/plugins/fib/ and internal/component/iface/ matches nothing, and EVPN routes reach ze only as BGP UPDATEs it encodes, decodes and originates from configuration (internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute) |
 | `RFC7432-8.5-2` | In the case of VLAN-(aware) bundle service, then the numerically lowest VLAN value in that bundle on that ES MUST be used in the modulo function. (§8.5) | MUST | 8.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze elects no designated forwarder: grep -rniE 'designated.forwarder\|df.election' --include=*.go over internal/ and pkg/ matches nothing, and ze holds no Ethernet segment or VLAN bundle whose lowest VLAN could enter a modulo function |
-| `RFC7432-9.2.1-6` | The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for IPv6 (§9.2.1) | MUST | 9.2.1 | **positive:** `unit/verify` [`TestRFC7432Type2IPAddressOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L26). **negative:** `unit/verify` [`TestRFC7432Type2IPAddressOctetsShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L88) |
+| `RFC7432-9.2.1-6` | The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for IPv6 (§9.2.1) | MUST | 9.2.1 | **positive:** `unit/verify` [`TestRFC7432Type2IPAddressOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L28). **negative:** `unit/verify` [`TestRFC7432Type2IPAddressOctetsShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L92) |
 | `RFC7432-10.1-5` | Each PE that acts as a default gateway for a given EVPN instance that receives this route and imports it as per procedures specified in this document MUST create MAC forwarding state that enables it to apply IP forwarding to the packets destined to the MAC address carried in the route. (§10.1) | MUST | 10.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze acts as no EVPN default gateway and creates no MAC forwarding state: ze forwards no EVPN traffic: it has no bridge domain, no BUM replication and no P2MP LSP, grep -rli evpn over internal/plugins/fib/ and internal/component/iface/ matches nothing, and EVPN routes reach ze only as BGP UPDATEs it encodes, decodes and originates from configuration (internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute) |
 | `RFC7432-11.1-3` | The BGP advertisement for the Inclusive Multicast Ethernet Tag route MUST also carry one or more Route Target (RT) attributes. (§11.1) | MUST | 11.1 | **positive:** `unit/verify` [`TestConfiguredEVPNIMETOriginatorIsNotNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L66). **positive:** `unit/verify` [`TestOriginInclusiveMulticastIncludesRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L47). **negative:** `unit/verify` [`TestConfiguredEVPNIMETRefusesMissingRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83). **negative:** `unit/verify` [`TestOriginInclusiveMulticastRefusesMissingRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L59) |
 | `RFC7432-11.2-5` | + If the PE that originates the advertisement uses a P-multicast tree for the P-tunnel for EVPN, the PMSI Tunnel attribute MUST contain the identity of the tree (note that the PE could create the identity of the tree prior to the actual instantiation of the tree). (§11.2) | MUST | 11.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no P-multicast tree and constructs no PMSI Tunnel attribute: internal/core/bgp/attribute/wire.go lists PMSI among the attribute codes with no parser, and internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute builds none for an Inclusive Multicast Ethernet Tag route |
@@ -385,7 +385,7 @@ No test carries RFC7432-8.2.1-1, so no unit is bound to it.
 
 The MPLS label in the NLRI MUST be set to 0. (§8.2.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7432 Section 8.2.1: The MPLS label in the NLRI MUST be set to 0. Independently read all four current config/command carriers. TestConfiguredEVPNPerESRoute compares the complete Type1 MAX-ET NLRI including three zero label octets; TestOriginEthernetADPerESUsesTypeOneRD checks the zero label in the NLRI carried by MP_REACH. TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack reject a nonzero label with a Type1 RD, RT and ESI Label community already supplied. ValidateEVPNOrigination rejects any nonzero label octet for MAX-ET Type1 and is reached by both parseConfigRoute and EncodeRoute through BuildEVPN. The second-label subcase and malformed-width ingress cases remain framing calibration, not support-negative evidence. Four discrimination tuples exist in the canonical rfc/discrimination/rfc7432.json; this read-only judgment makes no new execution or native freshness claim.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -549,9 +549,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestEVPNIPAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L377) | unit/verify | unproven |
+| negative | [`TestEVPNIPAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L377) | unit/verify | revert, verified |
 | positive | [`TestRFC7432MACIPSenderUsesBitLengths`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go#L13) | unit/verify | revert, verified |
-| positive | [`TestEVPNIPAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L355) | unit/verify | unproven |
+| positive | [`TestEVPNIPAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L355) | unit/verify | revert, verified |
 
 ### [`RFC7432-10-2`](#rfc7432-10-2)
 
@@ -1041,9 +1041,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestConfiguredEVPNPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L34) | unit/verify | unproven |
+| positive | [`TestConfiguredEVPNPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestOriginEthernetADPerESUsesTypeOneRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L13) | unit/verify | revert, verified |
-| positive | [`TestEVPNIngressPreservesPerESZeroLabel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go#L12) | unit/verify | unproven |
+| positive | [`TestEVPNIngressPreservesPerESZeroLabel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go#L12) | unit/verify | revert, verified |
 
 ### [`RFC7432-8.2.1-10`](#rfc7432-8.2.1-10)
 
@@ -1053,9 +1053,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestConfiguredEVPNRefusesInvalidPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L55) | unit/verify | unproven |
+| negative | [`TestConfiguredEVPNRefusesInvalidPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestOriginEthernetADPerESRefusesASTypeRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L34) | unit/verify | revert, verified |
-| positive | [`TestConfiguredEVPNPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L36) | unit/verify | unproven |
+| positive | [`TestConfiguredEVPNPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L36) | unit/verify | revert, verified |
 | positive | [`TestOriginEthernetADPerESUsesTypeOneRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L15) | unit/verify | revert, verified |
 
 ### [`RFC7432-8.2.1.1-1`](#rfc7432-8.2.1.1-1)
@@ -1125,8 +1125,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7432Type2IPAddressOctetsShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L88) | unit/verify | revert, verified |
-| positive | [`TestRFC7432Type2IPAddressOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L26) | unit/verify | revert, verified |
+| negative | [`TestRFC7432Type2IPAddressOctetsShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L92) | unit/verify | revert, verified |
+| positive | [`TestRFC7432Type2IPAddressOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L28) | unit/verify | revert, verified |
 
 ### [`RFC7432-10.1-5`](#rfc7432-10.1-5)
 
@@ -1144,9 +1144,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. orig
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestConfiguredEVPNIMETRefusesMissingRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83) | unit/verify | unproven |
+| negative | [`TestConfiguredEVPNIMETRefusesMissingRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83) | unit/verify | revert, verified |
 | negative | [`TestOriginInclusiveMulticastRefusesMissingRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L59) | unit/verify | revert, verified |
-| positive | [`TestConfiguredEVPNIMETOriginatorIsNotNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L66) | unit/verify | unproven |
+| positive | [`TestConfiguredEVPNIMETOriginatorIsNotNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestOriginInclusiveMulticastIncludesRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L47) | unit/verify | revert, verified |
 
 ### [`RFC7432-11.2-5`](#rfc7432-11.2-5)

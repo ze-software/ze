@@ -821,13 +821,21 @@ Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <
 These commands are dispatched between plugins (bgp-gr to bgp-rib) and are not intended for direct user invocation:
 
 ```
-request bgp rib retain-routes <peer>                    # Retain routes for peer (GR activation)
+request bgp rib retain-routes <peer> [on-down] [family ...]  # Retain all or selected families
 request bgp rib release-routes <peer>                   # Release retained routes
 request bgp rib mark-stale <peer> <restart-time> [level]  # Mark routes stale (level: 1=GR, 2=LLGR)
 request bgp rib purge-stale <peer> [family]             # Purge stale routes (optionally per-family)
 request bgp rib attach-community <peer> <family> <hex>  # Attach community to stale routes in family
 request bgp rib delete-with-community <peer> <family> <hex>  # Delete routes carrying community in family
 ```
+
+`retain-routes` without `on-down` withdraws advertisements for families removed
+by an explicit family list, even while the source remains established. GR uses
+`on-down` during its actual session-DOWN transaction: RIB silently prunes the
+nonretained sent families and the forwarding DOWN owner sends their withdrawals.
+This explicit handoff does not infer lifecycle ownership from peer state.
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- retainPeerFamilies -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- doRegisterBuiltinCommands, retainRoutes -->
 
 ### Named Commits (Batching)
 
@@ -1425,7 +1433,7 @@ explanation under it).
 ```go
 type ArgDef struct {
     Name        string         // YANG leaf name (kebab-case)
-    Kind        ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
+    Kind        ArgKind        // Argument type category
     EnumValues  []string       // Valid enum values
     UintBits    int            // 8, 16, 32, or 64
     Ranges      []UintRange    // Valid ranges (disjoint segments supported)
@@ -1441,6 +1449,13 @@ type ArgDef struct {
 ArgDefs are extracted from YANG by `BuildCommandTree` (`config/yang/command.go`)
 and stored on `command.Node.ArgDefs`. The dispatcher receives them via
 `RegisterOptions.ArgDefs` populated by `PathToArgDefs`.
+
+`yangTypeToArgDef` assigns the internal `ArgKind`; raw argument strings never
+choose it. `ValidateArgString` and `Constraint` treat an unknown internal kind
+as a BUG, not successful validation or an unconstrained argument. Invalid
+operator-supplied values still return their type's existing validation errors.
+<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef -->
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString, Constraint -->
 
 A container that names an object declares the value the operator types after
 its keyword, once, and every command under it takes that value:

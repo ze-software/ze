@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>request bgp rib retain-routes - Command Equivalents - Ze</title>
-        <meta name="description" content="Retain peer routes, optionally only the supplied families: &lt;selector&gt; [family ...]" />
+        <meta name="description" content="Retain peer routes: &lt;selector&gt; [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner" />
         <meta property="og:title" content="request bgp rib retain-routes - Command Equivalents - Ze" />
-        <meta property="og:description" content="Retain peer routes, optionally only the supplied families: &lt;selector&gt; [family ...]" />
+        <meta property="og:description" content="Retain peer routes: &lt;selector&gt; [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="request bgp rib retain-routes - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Retain peer routes, optionally only the supplied families: &lt;selector&gt; [family ...]" />
+        <meta name="twitter:description" content="Retain peer routes: &lt;selector&gt; [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,7 +48,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">request bgp rib retain-routes</h1>
-    <p>Retain peer routes, optionally only the supplied families: &lt;selector&gt; [family ...]</p>
+    <p>Retain peer routes: &lt;selector&gt; [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
@@ -129,7 +129,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

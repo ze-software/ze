@@ -77,7 +77,13 @@ When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
 
 `count` states which prefixes the number compared against `maximum` holds, and it changes what happens after `teardown false` drops an UPDATE. RFC 4271 Section 6.7 does not say whether a prefix limit governs what the peer offered or what the receiver kept, so the operator chooses. `offered`, the default, keeps a dropped UPDATE's prefixes in the count: the count stays above the maximum, and Ze drops every later announce of that family until the peer withdraws them. `installed` leaves the count where it was, so the family accepts the next announce that fits. Neither value is the size of the RIB, because import policy can reject a counted prefix. The choice never changes enforcement: both values drop the same UPDATE and send the same NOTIFICATION.
-<!-- source: internal/component/bgp/reactor/session_prefix.go -- applyInstalledPrefixDeltas settles an installed family before the count moves -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- applyInstalledPrefixSections settles installed families before the count moves -->
+
+Installed slots use registered route identity: label changes reuse a slot,
+and labeled withdrawals ignore the Compatibility field while retaining VPN RD
+and negotiated ADD-PATH identity. Both count modes use registered withdrawal
+framing. See [what the count holds](../../guides/configuration-model/index.md#what-the-count-holds-offered-or-installed).
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- forEachPrefixEntry, prefixSetWalk.identity -->
 
 
 A peer stopped by a prefix limit STAYS DOWN by default. Its state reads `idle-hold`, `ze show warnings` carries a `prefix-hold` warning that names the family, and the log line says `peer held down`. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.

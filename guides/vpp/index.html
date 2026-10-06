@@ -51,10 +51,7 @@
 crash recovery, DPDK NIC binding, GoVPP connection), the <code>fib-vpp</code> plugin
 programs routes from ze's system RIB directly into VPP's FIB via the
 GoVPP binary API, and the stats segment is polled for per-interface,
-per-node and system-wide Prometheus metrics. MPLS label programming,
-a VPP-native interface backend, and VPP-native features (L2XC, bridge
-domains, VXLAN, policers, ACLs, SRv6, sFlow) are designed but not yet
-wired.</p>
+per-node and system-wide Prometheus metrics.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#why-vpp-is-in-ze">Why VPP is in Ze</a></li>
@@ -65,15 +62,25 @@ wired.</p>
 <ol>
 <li><a href="#every-leaf-what-it-does-what-it-defaults-to">Every leaf, what it does, what it defaults to</a></li>
 <li><a href="#enabling-fib-programming">Enabling FIB programming</a></li>
+<li><a href="#srv6-service-routes">SRv6 service routes</a></li>
 </ol></li>
 <li><a href="#system-prerequisites">System prerequisites</a></li>
 <li><a href="#observing-what-vpp-is-doing">Observing what VPP is doing</a></li>
-<li><a href="#what-is-not-yet-wired">What is not yet wired</a></li>
+<li><a href="#implementation-status">Implementation status</a></li>
 <li><a href="#references-and-further-reading">References and further reading</a></li>
 </ol></nav>
 <!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent installs, updates, withdraws -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller -->
+<p>The FIB plugin also programs MPLS label stacks on IP routes. The VPP-native
+interface backend is registered as <code>vpp</code>. The
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/fib/fib-depth-4-srv6.md#vpp-backend" target="_blank" rel="noopener">SRv6 path</a> creates a
+single-Service-SID encapsulation policy before installing prefix steering.</p>
+<!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin backend construction -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, processMPLSChange -->
+<!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute -->
+<!-- source: internal/plugins/iface/vpp/register.go -- iface.RegisterBackend -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 <h2 id="why-vpp-is-in-ze">Why VPP is in Ze</h2>
 <p>Ze is a BGP daemon. BGP produces forwarding decisions; something else has
 to carry the packets. The default answer on Linux is the kernel route
@@ -212,7 +219,7 @@ Ze does the following, in order, every time it starts or VPP crashes:</p>
 </tr>
 <tr>
 <td>3</td>
-<td>Renders <code>startup.conf</code> (unix, cpu, buffers, dpdk, plugins, linux-cp, linux-nl, heapsize, statseg sections)</td>
+<td>Renders <code>startup.conf</code> (unix, api-segment, socksvr, cpu, buffers, dpdk, plugins, linux-cp, linux-nl, memory, statseg sections, some conditional)</td>
 <td><code>startupconf.go: GenerateStartupConf</code></td>
 </tr>
 <tr>
@@ -262,6 +269,15 @@ NIC unbind, driver save, rescan-on-teardown) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.</p>
 <!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
+<p>The generator targets upstream VPP v26.06 grammar. In particular, it writes
+<code>buffers { default data-size 2048 ... }</code>, <code>linux-nl { nl-rx-buffer-size 67108864 }</code>,
+and <code>memory { main-heap-size ... }</code>. The
+<a href="../../architecture/vpp-deployment/#generated-grammar-and-upstream-consumers">deployment reference</a>
+maps every emitted directive to its release-pinned consumer. Grammar matching
+and unit tests are not proof of native startup: the installed VPP plugins,
+hugepage reservation, CPU affinity and device/namespace permissions must also
+support the selected configuration.</p>
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
 <h2 id="running-against-an-externally-supervised-vpp">Running against an externally supervised VPP</h2>
 <p>Set <code>vpp.external true</code> when something other than ze owns the VPP
 process -- a systemd unit, a container sidecar, or the Python stub
@@ -291,6 +307,13 @@ supervisor starts VPP first, then ze with <code>external true</code>.</li>
 stub instead of a real VPP. See <code>docs/functional-tests.md</code> for the harness.</li>
 </ul>
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
+<p>The real-VPP deployment action, <code>./le test deployment vpp-test</code>, stops each Ze
+daemon by signalling its exact command inside the container, not the host
+<code>docker exec</code> client. Each replacement must reach its own startup marker before
+the harness inspects retained VPP state. A policer or ACL left by the previous
+daemon therefore cannot make a failed replacement look like a successful restart.</p>
+<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon -->
+<!-- source: internal/le/test/deployment/deployment.go -- running.stop -->
 <h2 id="configuring-vpp">Configuring VPP</h2>
 <p>The <code>vpp { ... }</code> container lives in the main ze config. Minimal example:</p>
 <pre><code>vpp {
@@ -305,9 +328,10 @@ stub instead of a real VPP. See <code>docs/functional-tests.md</code> for the ha
   }
 }
 </code></pre>
-<p>This is enough to boot VPP with the default heap, default buffer count,
-default stats segment and LCP enabled. Add cores, tune memory, or change
-the stats poll interval only when the defaults do not fit the workload.</p>
+<p>This selects the default heap, buffer count, stats segment and LCP settings.
+Starting native VPP also requires the host prerequisites below and the selected
+plugins. Add cores, tune memory, or change the stats poll interval when the
+defaults do not fit the workload.</p>
 <h3 id="every-leaf-what-it-does-what-it-defaults-to">Every leaf, what it does, what it defaults to</h3>
 <table>
 <thead>
@@ -365,19 +389,19 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.memory.main-heap</code></td>
 <td>size string</td>
 <td><code>1G</code></td>
-<td>VPP main heap. Use <code>1536M</code> for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes).</td>
+<td>Emitted as <code>memory { main-heap-size ... }</code>. Ze leaves the heap page size at VPP's OS-page default. Use <code>1536M</code> for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes).</td>
 </tr>
 <tr>
 <td><code>vpp.memory.hugepage-size</code></td>
 <td><code>2M</code> or <code>1G</code></td>
 <td><code>2M</code></td>
-<td>Hugepage size. <code>2M</code> is the common case; <code>1G</code> for large installations.</td>
+<td>Sets the buffers and stats page-size directives: <code>2M</code> emits <code>default-hugepage</code> (the kernel default, commonly 2M); <code>1G</code> emits <code>1G</code>. Neither selects ordinary 4K pages.</td>
 </tr>
 <tr>
 <td><code>vpp.memory.buffers</code></td>
 <td>uint32</td>
 <td><code>128000</code></td>
-<td>Buffers per NUMA node. 128k is proven for full DFZ at 10G.</td>
+<td><code>buffers-per-numa</code>, beside fixed <code>default data-size 2048</code>. 128k is proven for full DFZ at 10G; packet data needs 250 MiB per NUMA node plus metadata and alignment.</td>
 </tr>
 <tr>
 <td><code>vpp.dpdk.interface[pci-address].name</code></td>
@@ -498,6 +522,54 @@ is disabled or the GoVPP channel fails to open, the plugin falls back to
 a noop backend and logs a warning instead of blocking the rest of ze.</p>
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
 <!-- source: internal/plugins/fib/vpp/register.go -- mockBackend fallback when connector is nil -->
+<h3 id="srv6-service-routes">SRv6 service routes</h3>
+<p>The received egress Service SID is the policy's segment. Ze allocates a separate
+local BSID for steering and shares the policy across prefixes using that SID.
+Replacement installs new steering before releasing the old policy; withdrawal
+releases a policy only after its final reference. This does not allocate egress
+Service SIDs or install remote endpoint behaviors.</p>
+<!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer, delSRv6Steer, releasePolicy -->
+<p>Provide the IPv6 underlay route, encapsulation source, and required tables.
+<code>fib.vpp.table-id</code> selects the policy and outer IPv6 lookup table. A nonzero
+per-route table override selects destination steering, not the underlay table.
+The existing Service-SID resolvability check remains a prerequisite.</p>
+<!-- source: internal/plugins/fib/vpp/srv6.go -- processSRv6Change, acquirePolicy -->
+<!-- source: internal/component/sysrib/sysrib.go -- SID resolvability check -->
+<p>Ownership uses durable daemon keys under <code>meta/fib-vpp/srv6/</code>. Restore validates
+confirmed policy contents and live steering references before mutation.
+An unconfirmed creation found live fails closed with its BSID in the error;
+matching contents alone do not authorize adoption or deletion. Preserve that
+state for operator reconciliation. External writers must not race Ze's live
+ownership checks: VPP has no conditional steering replacement.</p>
+<!-- source: internal/plugins/fib/vpp/register.go -- srv6OwnershipKey -->
+<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- checkSteeringOwner -->
+<p>The ownership namespace admits at most 4,096 keys in total, not 4,096 routes.
+Policy, steering, and temporary ordinary-route fallback records all count.
+A transition reserves its complete growth before the first state or hardware
+write; replay and withdrawal of existing keys remain possible at the limit.</p>
+<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback -->
+<!-- source: pkg/plugin/rpc/state.go -- StateListMax -->
+<p>IP/SRv6 transitions retain durable planned and confirmed ordinary-route
+ownership by prefix and table. Restart restores confirmed cleanup ownership;
+an uncertain IP mutation fails closed for operator reconciliation. This is
+installation history, not inspection of a hidden API-source route: VPP's dump
+can expose the winning SR steering source instead. Other writers must not
+replace Ze-owned ordinary API-source entries, even sequentially. Matching live
+routes are never adopted as proof of ownership.</p>
+<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- srv6Fallback, beginSRv6Fallback, finishSRv6Fallback -->
+<!-- source: internal/plugins/fib/vpp/srv6_state.go -- loadState -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- restoreSRv6 -->
+<p>Normal Ze restart can reuse confirmed live ownership. Managed-VPP reconnect
+retires the old consumer, restores ownership, and requests system-RIB replay.
+Replay is partial, not a snapshot: omitted owned live routes remain until
+explicit withdrawal. External-VPP process restart does not emit the managed
+reconnect event. The <a href="../../architecture/testing/interop/#real-vpp-srv6-service-route-proof">real VPP proof</a>
+defines state, packet, and restart assertions; prepared code is not observed
+forwarding evidence.</p>
+<!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- run -->
+<!-- source: internal/component/vpp/vpp.go -- runOnce -->
 <h2 id="system-prerequisites">System prerequisites</h2>
 <p>VPP is not a user-space toy; DPDK needs real kernel cooperation. On a
 general-purpose host Ze cannot set kernel boot parameters, so you reserve
@@ -559,22 +631,21 @@ it has installed in VPP, as JSON <code>[{"prefix": ..., "next-hop": ...}, ...]</
 <p>Direct VPP introspection (<code>vppctl show int</code>, <code>vppctl show ip fib</code>) is
 still available through the CLI socket ze writes to <code>/run/vpp/cli.sock</code>.</p>
 <!-- source: internal/component/vpp/startupconf.go -- unix cli-listen -->
-<h2 id="what-is-not-yet-wired">What is not yet wired</h2>
-<p>Today, VPP process lifecycle, IPv4/IPv6 FIB programming, and stats
-telemetry are in the tree. The remaining phases:</p>
+<h2 id="implementation-status">Implementation status</h2>
+<p>The implementation status differs by subsystem:</p>
 <table>
 <thead>
 <tr>
 <th>Phase</th>
-<th>What it adds</th>
-<th>Why not yet</th>
+<th>Scope</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>vpp-3</td>
-<td>MPLS label push / swap / pop driven from BGP labelled unicast</td>
-<td><strong>In tree.</strong> Labels stripped at NLRI parse (SplitLabeled, RFC 8277), stored as FamilyRIB side-data, propagated through bgp-rib and sysRIB BestChangeEntry.Labels, programmed into VPP via IPRouteAddDel with LabelStack (push) or MplsRouteAddDel (swap/pop). 20-bit label range and stack depth 16 validated before GoVPP call.</td>
+<td>MPLS label stacks on IP routes</td>
+<td><code>processMPLSChange</code> dispatches labeled route installs and replacements to <code>addMPLSRoute</code>, and removals to <code>delMPLSRoute</code>. The GoVPP backend sends <code>IPRouteAddDel</code> with a label stack for installs. This path does not dispatch transit label swap/pop operations. <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processMPLSChange --> <!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute --></td>
 </tr>
 <tr>
 <td>vpp-4</td>
@@ -692,7 +763,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

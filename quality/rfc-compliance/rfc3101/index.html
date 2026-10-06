@@ -413,7 +413,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L62" title="internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterOriginatesDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L53" title="internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAInternalRouterOriginatesNoBorderDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L173" title="internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1261" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1258" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-1">RFC3101-2.5-1</code></td><td colspan="3"><span class="rfc-subject">Else if the destination is a Type-7 default route (destination ID = DefaultDestination) and one of the following is true, then do nothing with this LSA and consider the next in the list: o The calculating router is a border router and the LSA has its P-bit clear. Appendix E describes a technique whereby an NSSA border router installs a Type-7 default LSA without propagating it. o The calculating router is a border router and is suppressing the import of summary routes as Type-3 summary-LSAs. (§2.5)</span></td></tr>
@@ -917,7 +917,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1261" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1258" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -1818,7 +1818,7 @@ Disclosed deviation <a href="#rfc3101-3.1-4"><code>RFC3101-3.1-4</code></a> (tra
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

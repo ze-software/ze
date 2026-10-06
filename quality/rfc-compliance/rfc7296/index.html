@@ -2350,8 +2350,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5 - Security considerations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_test.go#L300" title="internal/component/ike/crypto/rfc7296_test.go" target="_blank" rel="noopener"><code>TestIKENeverNegotiatesNullAlgorithms</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L40" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L35" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L36" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L31" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-5-3">RFC7296-5-3</code></td><td colspan="3"><span class="rfc-subject">For this reason, a PRF whose output is less than 128 bits (e.g., 3DES-CBC) MUST NOT be used with this protocol. (§5)</span></td></tr>
@@ -6168,7 +6168,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7296-2.21.4-8"><code>RFC7296-2.21.4-8</code></a></h3>
 <p>A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA. (§2.21.4)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Judged 2026-09-30 at the producers. A message outside any known IKE SA goes to answerOutOfSA (notify_error.go), which answers an unprotected INVALID_IKE_SPI from the header alone and never looks up an IKE SA held with the sender&#39;s address; an unprotected message at a cached Message ID of an existing SA is dropped and counted in handleOwnedInbound (inbound.go, unprotected-retransmit). Neither path initiates an INFORMATIONAL exchange over the existing SA. The one protected emission Ze raises unprompted, INVALID_MESSAGE_ID (sendInvalidMessageID), answers an authenticated in-SA request under Section 2.3 and is not this sentence&#39;s suspicious message.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Independent source rejudgment against complete RFC 7296 Section 2.21.4: ‘A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.’ The existing gap remains applicable at SHOULD level. Read internal/component/ike/engine/inbound.go::handleOwnedInbound in full: a cached-id message without SK returns after countErrorNotifySuppressed(&#34;unprotected-retransmit&#34;); outer parse failures and unauthenticated invalid-message-id cases also return without initiating a protected exchange. Its post-classification decrypt refuses an unprotected INVALID_IKE_SPI. Read notify_error.go::answerOutOfSA and sendInvalidIKESPI, and both plain-IKE/NAT-T unknown-SA dispatch branches in register.go: after SPI lookup fails and SA_INIT handling declines, the dispatcher calls answerOutOfSA and continues; this emits only the permitted unprotected INVALID_IKE_SPI response and performs no address-based existing-SA lookup or protected INFORMATIONAL initiation. The authenticated invalid-message-id path is a different Section 2.3 condition, not evidence for this suspicious-message obligation. No tests tag this gap row. The enum edit only adds a default panic to the classification switch; msgid.go::classifyInbound returns exactly inboundInvalid, inboundNewRequest, inboundRetransmit or inboundResponse, all explicitly handled. The pre-existing absence of the recommended notification remains; no new runtime observation, feature implementation or record renewal is claimed.</p>
 <p>No test carries RFC7296-2.21.4-8, so no unit is bound to it.</p>
 <h3><a href="#rfc7296-3.10.1-1"><code>RFC7296-3.10.1-1</code></a></h3>
 <p>Types in the range 0 - 16383 are intended for reporting errors. An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely. (§3.10.1)</p>
@@ -7698,12 +7698,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L35" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L31" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L40" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_null_negotiation_test.go#L36" title="internal/component/ike/crypto/rfc7296_null_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -9216,7 +9216,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -57,11 +57,11 @@
     <span class="journey-eyebrow">Feature</span>
     <h1 id="srv6-segment-routing-over-ipv6">SRv6 (Segment Routing over IPv6)</h1>
     <p>Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252),
-extracts SRv6 SIDs, validates them, and programs Linux ingress encapsulation.
-The VPP backend does not yet install the SR policy required for its steering
-request. Static route configuration and <code>update text</code> can also advertise an
-explicit Service SID. Ze does not allocate local SIDs or install egress endpoint
-behaviors.</p>
+extracts SRv6 SIDs, validates them, and programs Linux or VPP ingress
+encapsulation. VPP creates an encapsulation policy before prefix steering,
+using a distinct local binding SID (BSID), not the advertised egress Service SID.
+Static route configuration and <code>update text</code> can advertise an explicit Service
+SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#configuration">Configuration</a>
@@ -86,6 +86,7 @@ behaviors.</p>
 </ol></li>
 <li><a href="#limitations">Limitations</a></li>
 </ol></nav>
+<!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 <table>
 <thead>
 <tr>
@@ -140,7 +141,7 @@ behaviors.</p>
 </tr>
 <tr>
 <td>VPP FIB</td>
-<td>Incomplete: <code>sr_steering_add_del</code> is issued, but the required SR policy and local binding SID are not installed</td>
+<td>Single-Service-SID encapsulation policy, distinct local BSID, and per-prefix/table steering; shared policies are removed after their last reference</td>
 </tr>
 </tbody>
 </table>
@@ -187,11 +188,33 @@ cannot derive it from the ASN pair. Set both leaves on an EBGP neighbor that is
 part of the same SR domain, and leave both unset on every other EBGP neighbor.
 Set neither on an IBGP peer: the section governs propagation to other ASes, so
 it does not reach a peer in this one.</p>
-<p>No additional configuration is needed for IBGP sessions or for Linux FIB
-programming. When an SRv6 SID is present on a best-path route and the SID is
-resolvable, the Linux backend programs the encapsulation automatically. VPP
-steering alone does not provide that encapsulation; its policy-installation
-defect remains open.</p>
+<p>No additional configuration is needed for IBGP sessions or Linux FIB
+programming. A resolvable best-path Service SID selects ingress encapsulation.
+VPP still requires an IPv6 underlay route, encapsulation source, and the
+relevant tables. Its configured backend table selects policy and outer IPv6
+lookup; a nonzero per-route table override selects destination steering only.</p>
+<p>VPP ownership is durable in daemon state. Restore checks confirmed policy
+contents and steering references before mutation; foreign or ambiguous live
+resources fail closed rather than being adopted or deleted. Managed-VPP
+reconnect requests replay, but partial replay is not a complete snapshot and
+does not withdraw omitted live routes. External-VPP process restart does not
+provide that reconnect notification. See the <a href="../../guides/vpp/">VPP guide</a>
+and <a href="../../architecture/testing/interop/#real-vpp-srv6-service-route-proof">runtime proof contract</a>.
+These implementation details are not evidence of an executed forwarding proof.</p>
+<!-- source: internal/plugins/fib/vpp/srv6.go -- addSRv6Steer, acquirePolicy, releasePolicy -->
+<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore -->
+<!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin -->
+<!-- source: internal/component/vpp/vpp.go -- runOnce -->
+<p>Durable admission is bounded by 4,096 ownership keys across policies, steering,
+and temporary IP/SRv6 transition records. New growth is refused before mutation
+when it cannot fit; existing-key replay and withdrawal remain available.
+Ordinary-route cleanup ownership survives restart as confirmed installation
+history, not adoption of matching live routes. VPP cannot expose every hidden
+API-source route through its winning-source dump, so external writers must not
+replace those owned entries.</p>
+<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback, srv6Fallback -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- restoreSRv6 -->
+<!-- source: pkg/plugin/rpc/state.go -- StateListMax -->
 <h3 id="explicit-service-sid-advertisement">Explicit Service SID advertisement</h3>
 <p>The <code>bgp-prefix-sid-srv6</code> route attribute accepts an IPv6 Service SID, an optional
 endpoint behavior, and an optional SID structure:</p>
@@ -496,7 +519,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

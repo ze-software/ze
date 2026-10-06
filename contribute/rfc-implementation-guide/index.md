@@ -702,8 +702,12 @@ never sums the two, because a nightly tier is not merge-gate proof.
   untracked or only staged one), a unit appended since the last commit, and a
   tag written since then are still the author's to repair: no claim has been
   counted from them. A committed tagged unit stays locked
-  whatever the working tree holds, and another session's uncommitted change
-  to it does not lock an edit that leaves it alone. The commit gate,
+  whatever the working tree holds. Where the unit is one Go function, another
+  session's uncommitted change to it does not lock an edit to another
+  function. Where the unit is the whole file (a `.ci` or other non-Go
+  carrier, or Go with a file-scope tag), that change makes every edit to the
+  file refuse until the file matches HEAD again or the owner approves. The
+  commit gate,
   `rfcChangeProblems` in `internal/le/commit/rfcchange.go`, reads its baseline
   from HEAD too.
   <!-- source: internal/le/test/weakened/proposed.go -- committedRFCChanges -->

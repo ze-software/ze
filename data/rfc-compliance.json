@@ -1,24 +1,60 @@
 {
   "gate": {
-    "ok": true,
-    "error-count": 0,
-    "gated-must": 4134,
+    "ok": false,
+    "error-count": 8,
+    "gated-must": 4135,
     "enrolled-rfcs": 175,
-    "test-tags": 8173,
-    "message": "rfc-requirements OK: 4141 gated MUST-level requirement(s) across 175 enrolled RFC(s); 8173 test tag(s) resolved."
+    "test-tags": 8294,
+    "message": "rfc-requirements: 8 violation(s)",
+    "violations": [
+      "internal/component/bgp/cli/rfc8277_vpn_consumer_test.go: test file name: it is named for rfc8277 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/cli/rfc8277_vpn_consumer_test.go to internal/component/bgp/cli/vpn_consumer_test.go",
+      "internal/component/bgp/fsm/rfc4271_start_ignore_test.go: test file name: it is named for rfc4271 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/fsm/rfc4271_start_ignore_test.go to internal/component/bgp/fsm/start_ignore_test.go",
+      "internal/component/bgp/plugins/rib/rfc8277_json_withdraw_test.go: test file name: it is named for rfc8277 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/plugins/rib/rfc8277_json_withdraw_test.go to internal/component/bgp/plugins/rib/json_withdraw_test.go",
+      "internal/component/bgp/reactor/flowspec_forward_mixed_test.go: test file name: every tag in it cites rfc8955, so it is named for that RFC: ./le rfc rename from internal/component/bgp/reactor/flowspec_forward_mixed_test.go to internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go",
+      "internal/component/l2tp/ppp/rfc1661_transition_cells_test.go: test file name: it is named for rfc1661 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/l2tp/ppp/rfc1661_transition_cells_test.go to internal/component/l2tp/ppp/transition_cells_test.go",
+      "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go: test file name: every tag in it cites rfc8277, so it is named for that RFC: ./le rfc rename from internal/component/plugin/ipc/rpc_decode_nlri_context_test.go to internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go",
+      "internal/core/eap/rfc5216_resumption_defect_test.go: test file name: it is named for rfc5216 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/core/eap/rfc5216_resumption_defect_test.go to internal/core/eap/resumption_defect_test.go",
+      "internal/plugins/ospf/neighbor/rfc5250_dd_capability_test.go: test file name: it is named for rfc5250 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/plugins/ospf/neighbor/rfc5250_dd_capability_test.go to internal/plugins/ospf/neighbor/dd_capability_test.go"
+    ],
+    "findings": [
+      {
+        "message": "internal/component/bgp/cli/rfc8277_vpn_consumer_test.go: test file name: it is named for rfc8277 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/cli/rfc8277_vpn_consumer_test.go to internal/component/bgp/cli/vpn_consumer_test.go"
+      },
+      {
+        "message": "internal/component/bgp/fsm/rfc4271_start_ignore_test.go: test file name: it is named for rfc4271 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/fsm/rfc4271_start_ignore_test.go to internal/component/bgp/fsm/start_ignore_test.go"
+      },
+      {
+        "message": "internal/component/bgp/plugins/rib/rfc8277_json_withdraw_test.go: test file name: it is named for rfc8277 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/bgp/plugins/rib/rfc8277_json_withdraw_test.go to internal/component/bgp/plugins/rib/json_withdraw_test.go"
+      },
+      {
+        "message": "internal/component/bgp/reactor/flowspec_forward_mixed_test.go: test file name: every tag in it cites rfc8955, so it is named for that RFC: ./le rfc rename from internal/component/bgp/reactor/flowspec_forward_mixed_test.go to internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go"
+      },
+      {
+        "message": "internal/component/l2tp/ppp/rfc1661_transition_cells_test.go: test file name: it is named for rfc1661 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/component/l2tp/ppp/rfc1661_transition_cells_test.go to internal/component/l2tp/ppp/transition_cells_test.go"
+      },
+      {
+        "message": "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go: test file name: every tag in it cites rfc8277, so it is named for that RFC: ./le rfc rename from internal/component/plugin/ipc/rpc_decode_nlri_context_test.go to internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go"
+      },
+      {
+        "message": "internal/core/eap/rfc5216_resumption_defect_test.go: test file name: it is named for rfc5216 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/core/eap/rfc5216_resumption_defect_test.go to internal/core/eap/resumption_defect_test.go"
+      },
+      {
+        "message": "internal/plugins/ospf/neighbor/rfc5250_dd_capability_test.go: test file name: it is named for rfc5250 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- \u003creason\u003e`, or name it after what it covers: ./le rfc rename from internal/plugins/ospf/neighbor/rfc5250_dd_capability_test.go to internal/plugins/ospf/neighbor/dd_capability_test.go"
+      }
+    ]
   },
   "share": {
-    "proven": 2572,
-    "gated": 4005,
+    "proven": 2579,
+    "gated": 4006,
     "rfcs": 152,
     "inspected": 171,
-    "gated-inspected": 4134,
-    "percent": "64.2"
+    "gated-inspected": 4135,
+    "percent": "64.4"
   },
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 2220
+      "count": 2227
     },
     {
       "key": "single_polarity",
@@ -26,11 +62,11 @@
     },
     {
       "key": "gap",
-      "count": 684
+      "count": 677
     },
     {
       "key": "partial-scope",
-      "count": 2
+      "count": 3
     },
     {
       "key": "one_polarity_unexcused",
@@ -58,12 +94,12 @@
     }
   ],
   "gaps": {
-    "requirements": 684,
+    "requirements": 677,
     "rfcs": 77,
     "status-counts": [
       {
         "status": "Partial",
-        "count": 59
+        "count": 60
       },
       {
         "status": "Experimental",
@@ -71,14 +107,10 @@
       },
       {
         "status": "Supported",
-        "count": 3
+        "count": 2
       }
     ],
     "supported-with-remaining": [
-      {
-        "rfc": "RFC 2545",
-        "remaining": "One SHALL-level gap, annotated in `rfc/short/rfc2545.md`: RFC2545-3-6, the include half of Section 3 for a next hop that is another router sharing a subnet with the speaker and the peer, on the rails where Ze writes the next hop (an explicit `session next-hop`, a static or API route naming that router). Ze holds no source for that router's Link-Local there, so such a route is sent with that router's global alone (`linkScope.linkLocalNextHop`, `internal/component/bgp/reactor/link_scope.go`). A route relayed under next hop unchanged or auto keeps the received Next Hop field as it arrived, so a 32-octet field the source sent still carries that router's own Link-Local to a peer the speaker shares a subnet with; toward a peer no connected subnet holds, the Link-Local half is removed (`egressNextHopGlobalHalf`, `internal/component/bgp/reactor/forward_next_hop.go`). Sections 2 and 4 bind a network administrator, an IPv6 router's neighbor-discovery behavior, and the operator who configures a session; those sites are classified in `rfc/extraction/rfc2545.json` rather than gated here. The BGP Identifier uniqueness that Section 4 restates is gated under RFC 6286. Capability code 77 is draft-based; RFC 2545 covers the next-hop wire behavior."
-      },
       {
         "rfc": "RFC 6396",
         "remaining": "One MUST gap gated in rfc/short/rfc6396.md [RFC6396-4.4.3-1]: the live BGP4MP writer always emits the BGP4MP_MESSAGE_AS4 subtype and records the on-wire message verbatim without checking the session's negotiated 4-byte-AS capability, so a message from an OLD (2-byte) peer carries a 2-byte AS_PATH mislabeled as AS4. RIB-path AS_PATH is unaffected (canonicalized to 4-byte)."
@@ -100,14 +132,14 @@
         "status": "Partial"
       },
       {
-        "rfc": "RFC 9012",
-        "count": 51,
-        "status": "Partial"
-      },
-      {
         "rfc": "RFC 2205",
         "count": 49,
         "status": "Experimental"
+      },
+      {
+        "rfc": "RFC 9012",
+        "count": 47,
+        "status": "Partial"
       },
       {
         "rfc": "DRAFT-IETF-BESS-MUP-SAFI",
@@ -131,7 +163,7 @@
       },
       {
         "rfc": "RFC 9830",
-        "count": 21,
+        "count": 18,
         "status": "Partial"
       },
       {
@@ -152,11 +184,11 @@
     ]
   },
   "audit": {
-    "verdicts": 2201,
-    "fresh": 2201,
+    "verdicts": 2210,
+    "fresh": 2210,
     "shifted": 0,
     "stale": 0,
-    "missing": 1933
+    "missing": 1925
   },
   "verify": {
     "command": "./le rfc check",

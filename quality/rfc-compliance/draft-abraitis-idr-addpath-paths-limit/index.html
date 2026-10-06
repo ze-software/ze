@@ -315,9 +315,9 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>MUST</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L383" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L384" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L604" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimitSingleInstance</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L384" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L385" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-2">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2</code></td><td colspan="3"><span class="rfc-subject">The PATHS-LIMIT capability MUST be ignored if the ADD-PATH capability is not present. (§3)</span></td></tr>
@@ -325,8 +325,8 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>MUST</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L589" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimit</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L644" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitNoAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L595" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L650" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitNoAddPath</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-3">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3</code></td><td colspan="3"><span class="rfc-subject">An AFI/SAFI tuple MUST be ignored if the same tuple was not received in the ADD-PATH capability. (§3)</span></td></tr>
@@ -334,8 +334,8 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>MUST</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L670" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L671" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L676" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L677" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-4">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4</code></td><td colspan="3"><span class="rfc-subject">If more than one tuple is received for the same AFI/SAFI pair, only the first tuple should be considered.  All others MUST be ignored. (§3)</span></td></tr>
@@ -343,8 +343,8 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>MUST</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L913" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L914" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L934" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L935" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-5">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5</code></td><td colspan="3"><span class="rfc-subject">If the received Paths Limit is zero (0), the tuple SHOULD be ignored. (§3)</span></td></tr>
@@ -352,11 +352,11 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>SHOULD</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L745" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L881" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L746" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L882" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L941" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitZeroFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L751" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L902" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L752" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L903" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L962" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitZeroFirst</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-6">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6</code></td><td colspan="3"><span class="rfc-subject">A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability. (§3)</span></td></tr>
@@ -399,7 +399,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L384" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L385" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -409,7 +409,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L383" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L384" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -424,12 +424,12 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L644" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitNoAddPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L650" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitNoAddPath</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L589" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L595" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -444,12 +444,12 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L671" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L677" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L670" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L676" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitPartialAddPath</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -464,12 +464,12 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L914" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L935" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L913" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L934" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -484,27 +484,27 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L882" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L903" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L941" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitZeroFirst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L962" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitZeroFirst</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L746" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L752" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L881" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L902" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L745" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L751" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -700,7 +700,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

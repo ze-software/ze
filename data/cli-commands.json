@@ -9251,7 +9251,7 @@
   },
   {
     "path": "request bgp rib retain-routes",
-    "short-help": "Retain peer routes, optionally only the supplied families: <selector> [family ...]",
+    "short-help": "Retain peer routes: <selector> [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner",
     "mode": "daemon",
     "usage": "request bgp rib retain-routes",
     "operators": [

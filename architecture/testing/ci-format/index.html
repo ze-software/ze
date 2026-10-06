@@ -2509,6 +2509,12 @@ config directory; the <code>.ci</code> declares the executor as an
 external plugin (<code>run "le test engine-steps ./engine-steps.json"</code>), which runs
 the steps from <code>OnAllPluginsReady</code> and reports failures via the
 <code>ZE-OBSERVER-FAIL</code> sentinel the runner gates on.</p>
+<p>The executor reads JSON from a file, or stdin when the path is <code>-</code>. Every
+numeric <code>kind</code> must name an <code>EngineStepKind</code> before any steps are published or
+TLS is attempted. Missing, zero, and unknown values fail with
+<code>ZE-OBSERVER-FAIL</code> and an indexed unknown-kind parse error; they are not skipped.</p>
+<!-- source: internal/test/runner/engine_steps.go -- UnmarshalEngineSteps -->
+<!-- source: internal/test/cli/cmd_engine_steps.go -- CmdEngineSteps -->
 <pre><code>command=&lt;cli command text&gt;
 stream=&lt;monitor command text&gt;
 expect=output:&lt;predicate&gt;[:timeout=&lt;dur&gt;]
@@ -3144,7 +3150,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

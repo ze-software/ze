@@ -28932,7 +28932,7 @@
       {
         "children": [
           {
-            "description": "Ze writes this count into the buffers section of startup.conf as buffers-per-numa, beside a fixed\ndefault-data-size of 2048 bytes. So the pool costs the count multiplied by 2048 bytes on each NUMA\nnode, and the default 128000 costs 250 MiB. A value of 0 is refused at commit with \"vpp: memory\nbuffers must be \u003e 0\".",
+            "description": "Ze writes this count into the buffers section of startup.conf as buffers-per-numa, beside a fixed\ndefault data-size of 2048 bytes. The packet data alone costs the count multiplied by 2048 bytes on\neach NUMA node, so the default 128000 needs 250 MiB plus buffer metadata and alignment. A value of 0\nis refused at commit with \"vpp: memory buffers must be \u003e 0\".",
             "kind": "leaf",
             "name": "buffers",
             "short-help": "Number of packet buffers per NUMA node.\n128000 is proven for full DFZ at 10G.",
@@ -28940,7 +28940,7 @@
             "type": "uint32"
           },
           {
-            "description": "The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and\nthe statseg section of startup.conf. For 2M Ze writes page-size default-hugepage-size instead,\nwhich takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when\nyou select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.",
+            "description": "The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and\nthe statseg section of startup.conf. For 2M Ze writes page-size default-hugepage instead,\nwhich takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when\nyou select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.",
             "kind": "leaf",
             "name": "hugepage-size",
             "short-help": "Hugepage size for VPP buffers.",
@@ -28953,12 +28953,12 @@
               },
               {
                 "name": "2M",
-                "short-help": "Write page-size default-hugepage-size, which takes the kernel's default hugepage size."
+                "short-help": "Write page-size default-hugepage, which takes the kernel's default hugepage size."
               }
             ]
           },
           {
-            "description": "Ze writes this size into the heapsize section of startup.conf as main-heap-size. The value MUST be\ndigits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check\ncounts this size toward the hugepage memory it expects the host to have reserved.",
+            "description": "Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be\ndigits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check\ncounts this size toward the hugepage memory it expects the host to have reserved.",
             "kind": "leaf",
             "name": "main-heap",
             "short-help": "VPP main heap size (e.g. 512M, 1G, 1536M).\nProduction with full DFZ: 1536M.",

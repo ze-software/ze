@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.0%</strong><b>1 of 102 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>62.5%</strong><b>20 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>87.5%</strong><b>28 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -236,10 +236,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>32</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>9</td>
+<td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>20</td>
+<td>28</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7432.md</code></td>
@@ -1320,8 +1320,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>9.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-9.2.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L26" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L88" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L28" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L92" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-10.1-5">RFC7432-10.1-5</code></td><td colspan="3"><span class="rfc-subject">Each PE that acts as a default gateway for a given EVPN instance that receives this route and imports it as per procedures specified in this document MUST create MAC forwarding state that enables it to apply IP forwarding to the packets destined to the MAC address carried in the route. (§10.1)</span></td></tr>
@@ -1815,7 +1815,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a></h3>
 <p>The MPLS label in the NLRI MUST be set to 0. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7432 Section 8.2.1: The MPLS label in the NLRI MUST be set to 0. Independently read all four current config/command carriers. TestConfiguredEVPNPerESRoute compares the complete Type1 MAX-ET NLRI including three zero label octets; TestOriginEthernetADPerESUsesTypeOneRD checks the zero label in the NLRI carried by MP_REACH. TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack reject a nonzero label with a Type1 RD, RT and ESI Label community already supplied. ValidateEVPNOrigination rejects any nonzero label octet for MAX-ET Type1 and is reached by both parseConfigRoute and EncodeRoute through BuildEVPN. The second-label subcase and malformed-width ingress cases remain framing calibration, not support-negative evidence. Four discrimination tuples exist in the canonical rfc/discrimination/rfc7432.json; this read-only judgment makes no new execution or native freshness claim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1979,7 +1979,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L377" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go" target="_blank" rel="noopener"><code>TestRFC7432MACIPSenderUsesBitLengths</code></a></td>
@@ -1989,7 +1989,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L355" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNIPAddressLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2244,7 +2244,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L34" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
@@ -2254,7 +2254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go#L12" title="internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go" target="_blank" rel="noopener"><code>TestEVPNIngressPreservesPerESZeroLabel</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2269,7 +2269,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L55" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L34" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesASTypeRD</code></a></td>
@@ -2279,7 +2279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L36" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L15" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
@@ -2341,12 +2341,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L88" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L92" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctetsShort</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L26" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L28" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go" target="_blank" rel="noopener"><code>TestRFC7432Type2IPAddressOctets</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2367,7 +2367,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETRefusesMissingRouteTarget</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L59" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastRefusesMissingRouteTarget</code></a></td>
@@ -2377,7 +2377,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L66" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETOriginatorIsNotNextHop</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L47" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastIncludesRouteTarget</code></a></td>
@@ -3099,7 +3099,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

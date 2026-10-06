@@ -59,6 +59,10 @@
 <li>Forward-barrier flush injected after route commands for ordering guarantees</li>
 <li><code>ze exabgp migrate</code> converts ExaBGP configs to ze format</li>
 <li><code>ze exabgp migrate --env</code> converts ExaBGP INI environment files to ze config</li>
+<li>An omitted or empty ExaBGP <code>family</code> block migrates to all address families
+registered in the current binary. An explicit block keeps only the named
+families; migration does not replace ExaBGP's implicit all-family behavior
+with Ze's IPv4-unicast default.</li>
 </ul>
 
             </section>
@@ -94,7 +98,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

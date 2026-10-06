@@ -230,6 +230,20 @@ developer's checkout or linked worktrees as mutation fixtures.</p>
 <!-- source: internal/le/worktree/actions_test.go -- useCheckout -->
 <!-- source: cmd/ze/root_launcher_test.go -- launcherEnv -->
 <!-- source: cmd/ze/ze_le_personality_test.go -- invokePersonality -->
+<p>Verifier lifecycle fixtures need a real Git repository with <code>HEAD</code>, even when
+they inject the lifecycle's Git calls. Admission measures the actual checkout
+before the worktree operation: an empty directory fails that measurement
+instead of exercising the intended branch, timeout, or add refusal.</p>
+<!-- source: internal/le/verify/lifecycle_test.go -- newFixtureRepo -->
+<!-- source: internal/le/verify/lifecycle.go -- run, admitWorktree -->
+<p>CLI personality parity runs both real binaries against one isolated Git
+repository with a committed original, a tracked modification, and an untracked
+file. The fixture copies the checkout's real <code>.gitignore</code> before committing, so
+runtime scratch files follow the same ignore policy. Both binaries receive the
+same explicit fixture root. Stdout equality remains exact; stderr keeps only
+the existing program-name normalization. Concurrent developer edits are not
+fixture inputs.</p>
+<!-- source: cmd/ze/ze_le_personality_test.go -- writePersonalityWorkingTree, assertInvocationPair -->
 <h3 id="functional-tests-ci-files">Functional tests (<code>.ci</code> files)</h3>
 <p>These spin up real Ze processes and test behavior end-to-end: does the config
 parse, does the BGP session establish, does the plugin produce the right output.</p>
@@ -830,7 +844,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -7,6 +7,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/anomaly/detect",
     "yang_files": [
       "internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang"
@@ -20,6 +21,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/anomaly/observe",
     "yang_files": [
       "internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang"
@@ -35,6 +37,7 @@
       "firewall"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/anomaly/shape",
     "yang_files": [
       "internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang"
@@ -48,6 +51,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/as112",
     "yang_files": [
       "internal/plugins/as112/yang/ze-as112-cmd.yang",
@@ -62,6 +66,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [
+      "interface"
+    ],
     "source_dir": "internal/component/bfd",
     "yang_files": [
       "internal/component/bfd/yang/ze-bfd-api.yang",
@@ -77,6 +84,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugin",
     "yang_files": [
       "internal/component/bgp/yang/ze-bgp-api.yang",
@@ -89,6 +97,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/adj_rib_in",
     "yang_files": [
       "internal/component/bgp/plugins/adj_rib_in/yang/ze-adj-rib-in-api.yang"
@@ -100,6 +109,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/aigp",
     "yang_files": []
   },
@@ -112,6 +122,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/bmp",
     "yang_files": [
       "internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang",
@@ -124,6 +135,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/capa",
     "yang_files": []
   },
@@ -135,6 +147,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/epe",
     "yang_files": [
       "internal/component/bgp/plugins/epe/yang/ze-bgp-epe-conf.yang"
@@ -150,6 +163,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_aspath",
     "yang_files": [
       "internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang"
@@ -165,6 +179,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_aspath_length",
     "yang_files": [
       "internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang"
@@ -180,6 +195,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_community",
     "yang_files": [
       "internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang"
@@ -195,6 +211,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_community_match",
     "yang_files": [
       "internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang"
@@ -210,6 +227,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_family",
     "yang_files": [
       "internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang"
@@ -225,6 +243,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_irr",
     "yang_files": [
       "internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang",
@@ -241,6 +260,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_modify",
     "yang_files": [
       "internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang"
@@ -256,6 +276,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_path_asn",
     "yang_files": [
       "internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang",
@@ -272,6 +293,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_prefix",
     "yang_files": [
       "internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang"
@@ -287,6 +309,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/filter_remove_private_as",
     "yang_files": [
       "internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang"
@@ -305,6 +328,7 @@
     "optional_dependencies": [
       "bgp-rs"
     ],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/gr",
     "yang_files": [
       "internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang"
@@ -321,6 +345,7 @@
       "bgp-watchdog"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/healthcheck",
     "yang_files": [
       "internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang"
@@ -336,6 +361,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/hostname",
     "yang_files": [
       "internal/component/bgp/plugins/hostname/yang/ze-hostname.yang"
@@ -351,6 +377,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/llnh",
     "yang_files": [
       "internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang"
@@ -366,6 +393,7 @@
       "bgp-nlri-ls"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/ls_export",
     "yang_files": [
       "internal/component/bgp/plugins/ls_export/yang/ze-bgp-ls-export-conf.yang"
@@ -377,6 +405,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/evpn",
     "yang_files": []
   },
@@ -386,6 +415,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/flowspec",
     "yang_files": [
       "internal/component/bgp/plugins/nlri/flowspec/yang/ze-flowspec-cmd.yang"
@@ -397,6 +427,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/labeled",
     "yang_files": []
   },
@@ -406,6 +437,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/ls",
     "yang_files": []
   },
@@ -415,6 +447,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/mup",
     "yang_files": []
   },
@@ -424,6 +457,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/mvpn",
     "yang_files": []
   },
@@ -433,6 +467,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/rtc",
     "yang_files": []
   },
@@ -442,6 +477,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/srpolicy",
     "yang_files": []
   },
@@ -451,6 +487,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/vpls",
     "yang_files": []
   },
@@ -460,6 +497,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/nlri/vpn",
     "yang_files": []
   },
@@ -469,6 +507,7 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/persist",
     "yang_files": []
   },
@@ -480,6 +519,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/rib",
     "yang_files": [
       "internal/component/bgp/plugins/rib/yang/ze-rib-api.yang",
@@ -496,6 +536,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/role",
     "yang_files": [
       "internal/component/bgp/plugins/role/yang/ze-role.yang"
@@ -511,6 +552,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/route_refresh",
     "yang_files": [
       "internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang",
@@ -529,6 +571,7 @@
       "bgp-adj-rib-in"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/rpki",
     "yang_files": [
       "internal/component/bgp/plugins/rpki/yang/ze-rpki.yang"
@@ -543,6 +586,7 @@
       "bgp-rpki"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/rpki_decorator",
     "yang_files": [
       "internal/component/bgp/plugins/rpki_decorator/yang/ze-rpki-decorator.yang"
@@ -557,6 +601,7 @@
       "bgp-rib"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/rr",
     "yang_files": [
       "internal/component/bgp/plugins/rr/yang/ze-rr-cmd.yang"
@@ -574,6 +619,7 @@
     "optional_dependencies": [
       "bgp-adj-rib-in"
     ],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/rs",
     "yang_files": [
       "internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang"
@@ -589,6 +635,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/softver",
     "yang_files": [
       "internal/component/bgp/plugins/softver/yang/ze-softver.yang"
@@ -604,6 +651,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/watchdog",
     "yang_files": []
   },
@@ -615,6 +663,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/connected",
     "yang_files": [
       "internal/plugins/connected/yang/ze-connected-conf.yang"
@@ -630,6 +679,7 @@
       "firewall"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/copp",
     "yang_files": [
       "internal/plugins/copp/yang/ze-copp-conf.yang"
@@ -643,6 +693,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/cos",
     "yang_files": [
       "internal/plugins/cos/yang/ze-cos-conf.yang"
@@ -658,6 +709,7 @@
       "interface"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ddos/detect",
     "yang_files": [
       "internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang"
@@ -671,6 +723,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ddos/flowspec",
     "yang_files": [
       "internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang"
@@ -684,6 +737,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ddos/flowtriq",
     "yang_files": [
       "internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang"
@@ -699,6 +753,7 @@
       "firewall"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ddos/local",
     "yang_files": [
       "internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang"
@@ -712,6 +767,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ddos/observe",
     "yang_files": [
       "internal/plugins/ddos/observe/yang/ze-ddos-observe-conf.yang"
@@ -725,6 +781,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/dhcpserver",
     "yang_files": [
       "internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang"
@@ -738,6 +795,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/exabgp/bridgeplugin",
     "yang_files": [
       "internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang"
@@ -754,6 +812,7 @@
       "sysctl"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/fib/kernel",
     "yang_files": [
       "internal/plugins/fib/kernel/yang/ze-fib-conf.yang"
@@ -769,6 +828,7 @@
       "rib"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/fib/p4",
     "yang_files": [
       "internal/plugins/fib/p4/yang/ze-fib-p4-conf.yang"
@@ -785,6 +845,7 @@
       "vpp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/fib/vpp",
     "yang_files": [
       "internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang"
@@ -798,6 +859,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [
+      "vpp"
+    ],
     "source_dir": "internal/component/firewall",
     "yang_files": [
       "internal/component/firewall/yang/ze-firewall-cmd.yang",
@@ -814,6 +878,7 @@
       "firewall"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/firewall/plugins/domain",
     "yang_files": [
       "internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group-cmd.yang",
@@ -830,6 +895,7 @@
       "firewall"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/firewall/plugins/irr",
     "yang_files": [
       "internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang",
@@ -846,6 +912,7 @@
       "interface"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/flowexport",
     "yang_files": [
       "internal/plugins/flowexport/yang/ze-flowexport-conf.yang"
@@ -860,6 +927,7 @@
       "bgp-rib"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/flowspec-firewall",
     "yang_files": []
   },
@@ -871,11 +939,36 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/geodns",
     "yang_files": [
       "internal/plugins/geodns/yang/ze-geodns-cmd.yang",
       "internal/plugins/geodns/yang/ze-geodns-conf.yang"
     ]
+  },
+  {
+    "name": "iface-dhcp",
+    "description": "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal",
+    "config_roots": [],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/iface/dhcp",
+    "yang_files": []
+  },
+  {
+    "name": "iface-ra",
+    "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)",
+    "config_roots": [],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/iface/ra",
+    "yang_files": []
   },
   {
     "name": "ike",
@@ -886,6 +979,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/ike/engine",
     "yang_files": []
   },
@@ -897,6 +991,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/imageserver",
     "yang_files": [
       "internal/plugins/imageserver/yang/ze-image-server-conf.yang"
@@ -912,6 +1007,7 @@
       "sysctl"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/iface",
     "yang_files": [
       "internal/component/iface/yang/ze-iface-api.yang",
@@ -933,6 +1029,7 @@
       "sysctl"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/isis",
     "yang_files": [
       "internal/plugins/isis/yang/ze-isis-cmd.yang",
@@ -947,6 +1044,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/kernel",
     "yang_files": [
       "internal/plugins/kernel/yang/ze-kernel-conf.yang"
@@ -960,6 +1058,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/l2tp/plugins/authlocal",
     "yang_files": [
       "internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang"
@@ -973,6 +1072,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/l2tp/plugins/authradius",
     "yang_files": [
       "internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang"
@@ -986,6 +1086,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/l2tp/plugins/pool",
     "yang_files": [
       "internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang"
@@ -999,6 +1100,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/l2tp/plugins/shaper",
     "yang_files": [
       "internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang"
@@ -1015,6 +1117,7 @@
       "sysctl"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ldp",
     "yang_files": [
       "internal/plugins/ldp/yang/ze-ldp-cmd.yang",
@@ -1027,10 +1130,21 @@
     "config_roots": [],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/reactor/filter",
     "yang_files": [
       "internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang"
     ]
+  },
+  {
+    "name": "memlock",
+    "description": "Memory lock: keep the running executable resident under memory pressure",
+    "config_roots": [],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/memlock",
+    "yang_files": []
   },
   {
     "name": "mrt",
@@ -1040,6 +1154,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/mrt",
     "yang_files": [
       "internal/plugins/mrt/yang/ze-mrt-conf.yang"
@@ -1053,6 +1168,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ntp",
     "yang_files": [
       "internal/plugins/ntp/yang/ze-ntp-cmd.yang",
@@ -1071,6 +1187,7 @@
       "sysctl"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/ospf",
     "yang_files": [
       "internal/plugins/ospf/yang/ze-ospf-cmd.yang",
@@ -1087,6 +1204,7 @@
       "firewall"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/policyroute",
     "yang_files": [
       "internal/plugins/policyroute/yang/ze-policyroute-cmd.yang",
@@ -1103,6 +1221,7 @@
       "bgp"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/bgp/plugins/redistribute_egress",
     "yang_files": []
   },
@@ -1114,6 +1233,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/sysrib",
     "yang_files": [
       "internal/component/sysrib/yang/ze-rib-conf.yang"
@@ -1127,6 +1247,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/routingtable",
     "yang_files": [
       "internal/plugins/routingtable/yang/ze-routing-table-conf.yang"
@@ -1144,6 +1265,7 @@
       "sysctl"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/rsvpte",
     "yang_files": [
       "internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang",
@@ -1163,6 +1285,7 @@
     "optional_dependencies": [
       "interface"
     ],
+    "start_after": [],
     "source_dir": "internal/plugins/static",
     "yang_files": [
       "internal/plugins/static/yang/ze-static-cmd.yang",
@@ -1177,6 +1300,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/sysctl",
     "yang_files": [
       "internal/component/sysctl/yang/ze-sysctl-conf.yang"
@@ -1190,6 +1314,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/tftpserver",
     "yang_files": [
       "internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang"
@@ -1205,6 +1330,7 @@
     "optional_dependencies": [
       "vpp"
     ],
+    "start_after": [],
     "source_dir": "internal/component/traffic",
     "yang_files": [
       "internal/component/traffic/yang/ze-traffic-control-conf.yang"
@@ -1220,6 +1346,7 @@
       "interface"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/trafficusage",
     "yang_files": [
       "internal/plugins/trafficusage/yang/ze-traffic-usage-cmd.yang",
@@ -1234,6 +1361,7 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/component/vpp",
     "yang_files": [
       "internal/component/vpp/yang/ze-vpp-conf.yang"
@@ -1249,6 +1377,7 @@
       "interface"
     ],
     "optional_dependencies": [],
+    "start_after": [],
     "source_dir": "internal/plugins/vrrp",
     "yang_files": [
       "internal/plugins/vrrp/yang/ze-vrrp-cmd.yang",

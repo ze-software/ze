@@ -129,6 +129,14 @@ of the two is absent.
 | `gopls` | Go language server behind the agent LSP tool (via `go install`) |
 | `govulncheck` | Dependency vulnerability scanner for the verification gate, built from the vendored copy (via `go install`) |
 
+The linter's module dependency and setup install target move together. Use the
+pinned release: its exhaustive analyzer checks enum switches through type
+aliases as well as directly named types. An existing `golangci-lint` on PATH is
+only presence-probed by setup, so changing the pin alone does not replace that
+binary.
+<!-- source: internal/le/setup/tools.go -- GolangCIVersion, golangciTarget -->
+<!-- source: internal/le/setup/probes.go -- Setup.Probe -->
+
 Regenerate the checked-in protobuf Go files after you change
 `api/proto/ze.proto` or the module path:
 

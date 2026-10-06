@@ -825,8 +825,12 @@ HEAD; both sides are cut the same way. A file HEAD does not record (an
 untracked or only staged one), a unit appended since the last commit, and a
 tag written since then are still the author's to repair: no claim has been
 counted from them. A committed tagged unit stays locked
-whatever the working tree holds, and another session's uncommitted change
-to it does not lock an edit that leaves it alone. The commit gate,
+whatever the working tree holds. Where the unit is one Go function, another
+session's uncommitted change to it does not lock an edit to another
+function. Where the unit is the whole file (a <code>.ci</code> or other non-Go
+carrier, or Go with a file-scope tag), that change makes every edit to the
+file refuse until the file matches HEAD again or the owner approves. The
+commit gate,
 <code>rfcChangeProblems</code> in <code>internal/le/commit/rfcchange.go</code>, reads its baseline
 from HEAD too.</p>
 <!-- source: internal/le/test/weakened/proposed.go -- committedRFCChanges -->
@@ -1049,7 +1053,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

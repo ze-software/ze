@@ -219,7 +219,7 @@ re-establishment rather than waiting for Ze to re-advertise.</p>
 </ol>
 <h3 id="peer-restarts">Peer Restarts</h3>
 <ol>
-<li><strong>Peer goes down</strong> -- GR plugin sends <code>retain-routes</code> with the received GR family list to RIB</li>
+<li><strong>Peer goes down</strong> -- GR plugin sends <code>retain-routes</code> with the received GR families plus exchanged LLGR families whose received LLST is nonzero</li>
 <li><strong>RIB marks routes as stale</strong> -- routes kept in forwarding but flagged</li>
 <li><strong>Restart timer starts</strong> -- countdown from <code>restart-time</code> seconds</li>
 <li><strong>Peer reconnects</strong> -- new session established, fresh routes received. A family whose Forwarding State bit is clear in the new OPEN, a family the new capability omits, and every family when the new OPEN carries no Graceful Restart Capability at all, are purged with <code>purge-stale</code> at once (RFC 4724 Section 4.2)</li>
@@ -227,22 +227,34 @@ re-establishment rather than waiting for Ze to re-advertise.</p>
 <li><strong>End-of-RIB received</strong> -- GR plugin sends <code>purge-stale</code> to RIB</li>
 <li><strong>Remaining stale routes removed</strong> -- any route not refreshed is withdrawn</li>
 </ol>
-<p>The RIB retains only those families: a negotiated family absent from the
-received retention capability is removed from the received inventory as well
-as withdrawn from its recorded destinations. The family list is applied to the
-existing inventory before RIB's DOWN event; no second retained-route inventory
-is kept. The operator form <code>request bgp rib retain-routes &lt;selector&gt;</code> remains
-peer-wide. Supplying <code>[family ...]</code> restricts it to those families and releases
-the others.</p>
+<p>The RIB retains only those families: a negotiated family with neither a GR
+period nor an enabled LLGR period is removed from the received inventory as
+well as withdrawn from its recorded destinations. GR supplies the explicit
+<code>on-down</code> argument so RIB applies the family list before its DOWN event but
+leaves nonretained-family wire withdrawals to the forwarding DOWN owner (RS);
+no second retained-route inventory is kept. The operator form
+<code>request bgp rib retain-routes &lt;selector&gt;</code> remains peer-wide. Supplying
+<code>[family ...]</code> restricts it to those families and withdraws the others directly,
+including when the source session is still established.</p>
 <p>Likewise, <code>request bgp rib mark-stale &lt;peer&gt; &lt;restart-time&gt; [level [family]]</code>
 remains peer-wide when the family is omitted. GR supplies the particular
 family when raising routes to LLGR level 2, so entering LLGR for one family
 does not raise another family's level.</p>
 <h3 id="restart-timer-expiry">Restart Timer Expiry</h3>
-<p>If the peer does not reconnect within <code>restart-time</code> seconds, all stale routes are purged. A safety margin of 5 seconds is added to account for processing delays.</p>
+<p>Without LLGR, Ze releases the peer's retained routes when the received
+<code>restart-time</code> expires. Expiry runs only after the session-down retention and
+stale marking finish. That processing time counts toward the restart deadline.
+A zero Restart Time therefore releases routes before the DOWN handler returns,
+rather than leaving an observable GR retention window.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, startRestartTimer, handleTimerExpired -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent, onTimerExpired, releaseRoutes -->
 <h3 id="fail-safe">Fail-Safe</h3>
-<p>If the GR plugin crashes or fails to issue <code>purge-stale</code>, the RIB automatically expires stale routes after <code>restart-time + 5s</code>.</p>
-<!-- source: internal/component/bgp/plugins/gr/ -- GR state machine, retain-routes/purge-stale commands -->
+<p>For a nonzero Restart Time, the RIB also starts a safety timer at
+<code>restart-time + 5s</code>. This margin belongs to the safety timer, not the GR
+plugin's restart deadline. A zero Restart Time arms no RIB safety timer:
+the GR plugin releases routes immediately or enters the negotiated LLGR period.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- markStaleCommand, grTimerMargin -->
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, startRestartTimer -->
 <h2 id="plugin-bindings">Plugin Bindings</h2>
 <p>The GR plugin requires:</p>
 <ul>
@@ -251,6 +263,16 @@ does not raise another family's level.</p>
 </ul>
 <p>The GR plugin depends on <code>bgp-rib</code> (declared in its registration). The engine ensures bgp-rib starts first.</p>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
+<p>GR and LLGR capability values in normalized JSON OPEN events contain only the
+payload bytes, encoded as lowercase hex. The capability code and length are
+not part of <code>value</code>. JSON and structured OPEN events give the GR plugin the
+same received restart times and native address families. Sent OPEN events
+identify the same locally advertised LLGR families on both paths.
+For example, GR value <code>000300010180</code> means three seconds and
+<code>ipv4/unicast</code>, with forwarding preserved.</p>
+<!-- source: internal/component/bgp/format/decode.go -- formatCapability -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleOpenEvent, extractGRCaps -->
+<!-- source: internal/component/bgp/plugins/gr/gr_llgr_exchange.go -- handleSentOpenEvent, addSentLLGRFamilies -->
 <h3 id="keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</h3>
 <p>Load the plugin with <code>internal &lt;name&gt; { use bgp-gr; }</code>, as every example on this
 page does. <code>run "ze plugin bgp-gr"</code> starts the plugin engine in a child process,
@@ -304,11 +326,16 @@ does <strong>not</strong> establish external-plugin LLGR support. Use internal <
 <td><code>graceful-restart / long-lived-stale-time</code></td>
 <td>uint32</td>
 <td>--</td>
-<td>Seconds to hold LLGR-stale routes per family (0-16777215, 24-bit)</td>
+<td>LLST Ze advertises for every family of this peer (0-16777215, 24-bit); received peer values govern Ze's helper timers</td>
 </tr>
 </tbody>
 </table>
 <p>LLGR is off unless you configure it. Ze advertises the LLGR capability (code 71) in its OPEN only when <code>long-lived-stale-time</code> is configured for the peer, and then for every family the peer's session carries.</p>
+<p>This is one peer-level leaf, not a per-family configuration list. The
+<code>graceful-restart family</code> container selects code-64 tuples only; it does not
+select LLGR families or assign different LLST values to them. Received code-71
+tuples can still carry different times, and Ze tracks those timers by family.</p>
+<!-- source: internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang -- graceful-restart-config -->
 <p>LLGR is only active for a family when both OPENs of the session list it in their LLGR capability. A peer that advertises LLGR for a family Ze did not advertise it for gets the base GR treatment for that family: its routes are kept for the Restart Time and no longer (RFC 9494 Section 5 requires configuration per AFI/SAFI before the procedures run). LLGR also requires the GR capability (code 64) in the same OPEN: LLGR without GR is ignored, as RFC 9494 Section 4.5 requires.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_llgr_exchange.go -- exchangedLLGRLocked -->
 <!-- source: internal/component/bgp/plugins/gr/gr_llgr.go -- extractLLGRCapabilities -->
@@ -335,6 +362,12 @@ peers can therefore expire at different times even when their local
 configuration is identical. Retention means routes in the received RIB:
 replaying a locally configured static route after reconnect does not demonstrate
 that a received route survived either restart period.</p>
+<p>Each family's LLST deadline is the original GR deadline plus that family's
+received Long-Lived Stale Time. Time spent dispatching the DOWN commands does
+not extend either period. After retention and stale marking finish, Ze removes
+families whose deadlines already elapsed. Other families enter LLGR only for
+the time that remains. This also applies when Restart Time is zero.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, enterLLGRLocked -->
 <p>The timer fixture <code>llgr-peer-stale-time-drives-timer.ci</code> gives the source a
 3-second LLST and a control peer 60 seconds, against Ze's local 3600. Its
 receiver acknowledges the control's initial route and LLGR_STALE advertisement
@@ -351,6 +384,15 @@ on the receiver's wire.</p>
 <!-- source: internal/test/fixture/plugin_fixture_llgr_lifecycle.go -- llgrLifecycle -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- wireStateCallbacks -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
+<p>The received-route EOR scenario uses a different release prefix for each phase.
+The initial readiness and DOWN-release markers replay when the source
+reconnects; neither releases its EOR. Only after the observer sees the refreshed
+route without LLGR_STALE and the unrefreshed route still stale does it send
+the distinct EOR-release marker. The receiver then acknowledges the
+unrefreshed route's withdrawal before the scenario can finish. Its ACK routes
+are not reflected to the strict source: that source grants RIB marker replay,
+but no route-server or Adj-RIB-In replay output.</p>
+<!-- source: internal/test/fixture/plugin_fixture_llgr_lifecycle.go -- llgrLifecycle eor scenario -->
 <p>The NO_LLGR decision uses the imported route, so a <code>modify</code> import policy that
 adds <code>65535:7</code> also excludes that route from LLGR retention. A route without the
 community remains eligible for the LLGR period.</p>
@@ -436,6 +478,22 @@ plugin's dependency edges merely by sharing its name.</p>
 <p>If <code>restart-time</code> is 0 but <code>long-lived-stale-time</code> is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately, after the routes are retained and marked stale: the LLGR steps above run last, so the routes they mark LLGR-stale are the retained ones. When both times are 0 the peer's routes are released at once, as in base BGP.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent -->
+<p>A family can also skip GR when the received code-64 capability omits it.
+RFC 9494 Section 4.2: "If the Graceful Restart Capability that was received
+does not list all AFIs/SAFIs supported by the session, then the GR Restart Time
+shall be deemed zero for those AFIs/SAFIs that are not listed." If both OPENs
+declare LLGR for that family and its received LLST is nonzero, Ze retains it
+and enters LLGR immediately after the DOWN retention commands finish.</p>
+<p>This is a per-family decision. An omitted family's LLST runs from the original
+DOWN instant, while a family listed in GR still gets its conventional GR
+period followed by its own LLST. The later GR expiry does not reset an LLST
+timer already running, and the first family's expiry does not release another
+family still in GR. Conventional expiry is armed after retention and stale
+marking, before the immediate family's readvertisement callbacks run, so a
+blocked readvertisement cannot extend its sibling's GR or LLST period.
+A family omitted from GR with zero or unexchanged LLST is not retained.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, enterLLGRLocked, handleLLSTExpired -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- retainPeerFamilies -->
 <p>Before 2026-10-02 the immediate LLGR entry ran first, and the session-down purge that follows it deleted every route it had just marked, so a peer advertising <code>restart-time 0</code> lost all its routes on a TCP failure.</p>
 <table>
 <thead>
@@ -541,7 +599,7 @@ plugin's dependency edges merely by sharing its name.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

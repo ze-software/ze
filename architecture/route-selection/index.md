@@ -102,9 +102,20 @@ without another UPDATE.
 
 ## Phase 2: Best-Path Selection (RFC 4271 Section 9.1.2)
 
-Eligible routes compete pairwise. The loser at each step gets tagged with the
-step that eliminated it. Steps are evaluated in strict order; the first difference
-decides.
+Eligible routes are removed from consideration in criterion order. Before later
+tie-breaks, MED removes each route whose MED exceeds another surviving route's
+MED from the same neighboring AS. A route removed by an earlier criterion cannot
+remove another route at MED. This whole-set step avoids insertion-order results
+from pairwise conditional-MED comparisons.
+<!-- source: internal/component/bgp/plugins/rib/bestpath_selection.go -- selectBestCandidates, retainLowestMED -->
+
+`SelectBest` and `SelectMultipath` use the caller-owned candidate slice as scratch:
+they can reorder its pointers but retain every candidate. Only MED survivors can
+become multipath siblings. Single-best selection adds no allocation or map.
+`SelectBestExplain` uses separate scratch to preserve the input order and original
+indices. Each removed route names its elimination witness, even when that witness
+later loses too.
+<!-- source: internal/component/bgp/plugins/rib/bestpath.go -- SelectBest, SelectMultipath, SelectBestExplain -->
 
 | # | Reason | Rule | RFC | Notes |
 |---|--------|------|-----|-------|
@@ -139,6 +150,30 @@ StaleLevel. Router ID
 and peer address comparisons use typed `netip.Addr` fields for zero-allocation
 numeric ordering. `ClusterListEntries` counts CLUSTER_IDs rather than octets and
 is `uint16`, because a CLUSTER_LIST can carry 16383 of them.
+
+An election holds its `bestPrev` shard before reading the peer map. Prior
+interner values are resolved before `peerMu.RLock`; candidate selection and
+winner metadata reads run under that peer admission. DOWN removes the peer
+under `peerMu`, releases it, then purges best-path shards. No peer writer waits
+for a shard while holding `peerMu`, and Loc-RIB publication happens after peer
+admission is released so synchronous subscribers can read peer state.
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, purgeBestPrevForPeer -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- handleStructuredState, handleState -->
+
+The peer-map lock does not protect route handles against UPDATE mutation.
+`AppendPrefixPathsRetained` and `AppendKeyPathsRetained` retain each storage
+revision under `PeerRIB.mu`; gathering transfers entry and label ownership to
+the candidate. Winner and ECMP metadata, including AS_PATH, next hop, labels,
+SRv6 SID, and BLACKHOLE action, use those retained revisions, not a second route
+lookup. A changed winner reserves its peer interner slot before releasing
+`peerMu`, so DOWN must fence even an admitted first publication with no prior
+record. Candidate references and peer admission are released before next-hop
+or metric interning and Loc-RIB callbacks. Failed next-hop or metric admission
+releases the reserved slot; successful insertion transfers it to the record.
+A same-best decision acquires no new peer reference.
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- AppendPrefixPathsRetained, AppendKeyPathsRetained -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked, gatherKeyCandidatesLocked, releaseCandidates -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->
 
 ### Enforced Before Selection (Not Best-Path Reasons)
 
@@ -181,9 +216,17 @@ replay. Forwarding with an unchanged next hop preserves the received attribute;
 next-hop-self adds the resolved interior distance or the configured source-link
 metric, changing only the first metric TLV. Mixed legacy and MP announcements
 are split before this edit, so each uses its governing received next hop.
-Explicit withdrawals and unrelated attributes survive the split. Without a
-non-zero distance, or when a recursive BGP next hop carries no AIGP, the forwarded
-attribute is removed.
+Explicit withdrawals and unrelated attributes survive the split. When a direct
+next-hop-self increment has no non-zero distance, Ze withholds the announcement
+and sends a withdrawal instead of silently removing AIGP. That successful
+withdrawal retains the received generation and recipient for recomputation when
+a distance becomes available. A resolved recursive sum may be zero; it remains
+an announcement with the computed AIGP. A source withdrawal, replacement or
+disconnect still invalidates the generation. A recursive BGP next hop with no
+AIGP is different: RFC 7311 Section 3.4.3 explicitly requires removal of the
+attribute in that case.
+<!-- source: internal/component/bgp/reactor/forward_aigp.go -- applyFactsAIGP -->
+<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, replayAIGP -->
 
 The received metric is retained separately from MED in best-path events and the
 shared Loc-RIB. Selection resolves both legacy NEXT_HOP and MP_REACH next hops;
@@ -200,8 +243,10 @@ passes egress processing and its buffered socket write succeeds. Routing changes
 recompute advertisements only for those recipients. Replay uses the original
 received metric and current egress policy under the original sender's authority.
 Its distance comes from the next hop retained for that route, including IPv4
-unicast received in MP_REACH. Reconstructing that route as legacy IPv4 replaces
-any sibling NEXT_HOP from the stored attribute block with the route's own next hop.
+unicast received in MP_REACH. Four-octet IPv4 next hops can be reconstructed in
+legacy framing, replacing any sibling NEXT_HOP from the stored attribute block
+with the route's own next hop. A negotiated 16- or 32-octet IPv6 next hop remains
+in MP_REACH during reconstruction, including recovery after a cost withdrawal.
 Withdrawals, replacements and disconnects invalidate retained generations; queued
 replays check the generation and destination session again before writing.
 
@@ -214,6 +259,8 @@ A collector without a forwarding role acquires no recipients.
 The RIB reads interior distances from the engine's registered `route-metrics`
 RPC when it runs in a subprocess. A one-second revision poll invalidates its
 next-hop cache and reruns selection, including recursive BGP metric changes.
+The metric response preserves whether resolution was recursive, so the forked
+cache also distinguishes a computed recursive zero from a direct zero.
 Selected paths and withdrawals return through `route-install` and `route-remove`.
 The subprocess remembers the last path it sent for each route. It skips a path
 the engine Loc-RIB would treat as unchanged, so an UPDATE that keeps the same
@@ -238,6 +285,20 @@ non-RD families still discard the community and all normal loop checks apply.
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- mandatory selection inputs -->
 <!-- source: internal/component/bgp/reactor/forward_aigp.go -- forwardUpdateSelected, aigpNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
+
+The `bgp-nexthop-self-local-auto-frr` interop scenario uses separate containers
+for its non-loopback source, FRR, GoBGP and byte-recording recipient. A received
+127/8 NEXT_HOP fails syntactic validation; a next hop owned by Ze's host fails
+semantic validation. Neither topology can prove configured source-link cost.
+After all sessions' initial EORs, the checker releases the source with a
+readiness route. The wire recipient requires metric 107, an exact unknown-cost
+withdrawal, and metric 111 after a route-install RPC, without another source
+UPDATE. Further metric 7, zero and 7 transitions retain the original recovery
+controls; GoBGP must keep received metric 100 with unchanged next hops.
+<!-- source: internal/component/bgp/message/rfc7606.go -- validateNextHopAttr -->
+<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop -->
+<!-- source: internal/le/interoplab/bgp/check_aigp_wire.go -- requireAIGPWire -->
+<!-- source: internal/le/interoplab/bgp/check_aigp_source_cost.go -- checkAIGPSourceCostFRR -->
 
 <!-- source: internal/component/bgp/reactor/config_aigp.go -- per-session AIGP policy -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- AIGP receive boundary -->

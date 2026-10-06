@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5303 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5303: Three-Way Handshake for IS-IS Point-to-Point Adjacencies. 17 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5303: Three-Way Handshake for IS-IS Point-to-Point Adjacencies. 17 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5303 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5303: Three-Way Handshake for IS-IS Point-to-Point Adjacencies. 17 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5303: Three-Way Handshake for IS-IS Point-to-Point Adjacencies. 17 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5303 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5303: Three-Way Handshake for IS-IS Point-to-Point Adjacencies. 17 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5303: Three-Way Handshake for IS-IS Point-to-Point Adjacencies. 17 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,11 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>52.9%</strong><b>9 of 17 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>58.8%</strong><b>10 of 17 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>79.3%</strong><b>23 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.8%</strong><b>27 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -135,7 +135,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>35.3%</strong><b>6 of 17 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>29.4%</strong><b>5 of 17 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -218,7 +218,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>29</td>
+<td>33</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>29</td>
+<td>33</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>9</td>
+<td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>23</td>
+<td>27</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5303.md</code></td>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Three-Way Handshake for IS-IS P2P Adjacencies (RFC 5303): 9 MET (TLV 240 origination+decode, Adjacency Three-Way State + Extended Local Circuit ID fields, System-ID echo gating adjacency to Up, two-way fall-back) + 7 gap (Ext Local Circuit ID uint8(ifindex) truncation, Neighbor Ext Circuit ID echoed 0 and unexamined, no invalid-state discard, no loop-detection mismatch discard, derived state model lacks distinct Accept/restart-Down actions) + 2 not-applicable (option always processed, option always emitted)</p>
+<p>Enrolled: The point-to-point handshake has per-requirement tests and explicit gaps below. Invalid-state discard is implemented and exercised through the packet decoder and circuit receiver; enrolment does not claim full support. Earlier fixed MET/gap counts described summary annotations, not a verified implementation count.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
@@ -263,7 +263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Point-to-point IIH three-way handshake: TLV 240 (Point-to-Point Three-Way Adjacency) origination and decode, the mandatory Adjacency Three-Way State and Extended Local Circuit ID fields, the Neighbor System ID echo, the Section 3.2 Adjacency Three-Way State Table that decides each received Hello (including the restart &#34;Down&#34; action that deletes a new adjacency receiving Up), and the legacy two-way fall-back for peers that omit the option. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5303.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5303.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5303.md" target="_blank" rel="noopener"><code>rfc/short/rfc5303.md</code></a>: the Extended Local Circuit ID is derived as uint8(ifindex) so it is not unique beyond 256 interfaces (<a href="#rfc5303-3.2-4"><code>RFC5303-3.2-4</code></a>); the Neighbor Extended Local Circuit ID is echoed as 0 and never examined (<a href="#rfc5303-3.2-6"><code>RFC5303-3.2-6</code></a>, <a href="#rfc5303-3.2-8"><code>RFC5303-3.2-8</code></a>); an invalid three-way state is not discarded (<a href="#rfc5303-3.2-7"><code>RFC5303-3.2-7</code></a>); the loop-detection neighbor-mismatch discard is absent (<a href="#rfc5303-3.2-9"><code>RFC5303-3.2-9</code></a>); and the restart &#34;Down&#34; action deletes the adjacency without the &#34;Neighbor restarted&#34; adjacencyStateChange event (<a href="#rfc5303-3.2-12"><code>RFC5303-3.2-12</code></a>).
+Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5303.md" target="_blank" rel="noopener"><code>rfc/short/rfc5303.md</code></a>: the Extended Local Circuit ID is derived as uint8(ifindex) so it is not unique beyond 256 interfaces (<a href="#rfc5303-3.2-4"><code>RFC5303-3.2-4</code></a>); the Neighbor Extended Local Circuit ID is echoed as 0 and never examined (<a href="#rfc5303-3.2-6"><code>RFC5303-3.2-6</code></a>, <a href="#rfc5303-3.2-8"><code>RFC5303-3.2-8</code></a>); the loop-detection neighbor-mismatch discard is absent (<a href="#rfc5303-3.2-9"><code>RFC5303-3.2-9</code></a>); and the restart &#34;Down&#34; action deletes the adjacency without the &#34;Neighbor restarted&#34; adjacencyStateChange event (<a href="#rfc5303-3.2-12"><code>RFC5303-3.2-12</code></a>). Invalid-state discard now has valid-input and invalid-input controls; the earlier claim that this path was absent is obsolete.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -272,11 +272,11 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>9</strong></td>
+<td><strong>10</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>8</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -303,8 +303,8 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc5303-3.1-1"><code>RFC5303-3.1-1</code></a>, <a href="#rfc5303-3.1-4"><code>RFC5303-3.1-4</code></a>, <a href="#rfc5303-3.2-1"><code>RFC5303-3.2-1</code></a>, <a href="#rfc5303-3.2-2"><code>RFC5303-3.2-2</code></a>, <a href="#rfc5303-3.2-3"><code>RFC5303-3.2-3</code></a>, <a href="#rfc5303-3.2-5"><code>RFC5303-3.2-5</code></a>, <a href="#rfc5303-3.2-10"><code>RFC5303-3.2-10</code></a>, <a href="#rfc5303-3.2-11"><code>RFC5303-3.2-11</code></a>, <a href="#rfc5303-3.2-13"><code>RFC5303-3.2-13</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (8):</strong> <a href="#rfc5303-3.1-2"><code>RFC5303-3.1-2</code></a>, <a href="#rfc5303-3.1-3"><code>RFC5303-3.1-3</code></a>, <a href="#rfc5303-3.2-4"><code>RFC5303-3.2-4</code></a>, <a href="#rfc5303-3.2-6"><code>RFC5303-3.2-6</code></a>, <a href="#rfc5303-3.2-7"><code>RFC5303-3.2-7</code></a>, <a href="#rfc5303-3.2-8"><code>RFC5303-3.2-8</code></a>, <a href="#rfc5303-3.2-9"><code>RFC5303-3.2-9</code></a>, <a href="#rfc5303-3.2-12"><code>RFC5303-3.2-12</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (10):</strong> <a href="#rfc5303-3.1-1"><code>RFC5303-3.1-1</code></a>, <a href="#rfc5303-3.1-4"><code>RFC5303-3.1-4</code></a>, <a href="#rfc5303-3.2-1"><code>RFC5303-3.2-1</code></a>, <a href="#rfc5303-3.2-2"><code>RFC5303-3.2-2</code></a>, <a href="#rfc5303-3.2-3"><code>RFC5303-3.2-3</code></a>, <a href="#rfc5303-3.2-5"><code>RFC5303-3.2-5</code></a>, <a href="#rfc5303-3.2-7"><code>RFC5303-3.2-7</code></a>, <a href="#rfc5303-3.2-10"><code>RFC5303-3.2-10</code></a>, <a href="#rfc5303-3.2-11"><code>RFC5303-3.2-11</code></a>, <a href="#rfc5303-3.2-13"><code>RFC5303-3.2-13</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (7):</strong> <a href="#rfc5303-3.1-2"><code>RFC5303-3.1-2</code></a>, <a href="#rfc5303-3.1-3"><code>RFC5303-3.1-3</code></a>, <a href="#rfc5303-3.2-4"><code>RFC5303-3.2-4</code></a>, <a href="#rfc5303-3.2-6"><code>RFC5303-3.2-6</code></a>, <a href="#rfc5303-3.2-8"><code>RFC5303-3.2-8</code></a>, <a href="#rfc5303-3.2-9"><code>RFC5303-3.2-9</code></a>, <a href="#rfc5303-3.2-12"><code>RFC5303-3.2-12</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -412,9 +412,11 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <td>SHALL</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5303-3.2-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the decoder validates only the TLV length, not the state value (packet/tlv_core.go DecodeP2PThreeWayTLV); an out-of-range Adjacency Three-Way State is folded into the FSM, where the state table has no column for it (adjacency/fsm.go threeWayTableAction) and the adjacency is set Initializing rather than the PDU discarded, so the &#34;discard, no further action&#34; path is absent</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L16" title="internal/plugins/isis/circuit/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateWireDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L73" title="internal/plugins/isis/circuit/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateBeforeValidDuplicate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go#L14" title="internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateLeavesAdjacencyUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L17" title="internal/plugins/isis/circuit/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateWireDiscard</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5303-3.2-8">RFC5303-3.2-8</code></td><td colspan="3"><span class="rfc-subject">If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2)</span></td></tr>
 <tr><td></td>
@@ -451,8 +453,8 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5303-3.2-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L400" title="internal/plugins/isis/adjacency/rfc5303_fsm_test.go" target="_blank" rel="noopener"><code>TestISISThreeWayProceduresEngagedByOption</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L92" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L96" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L94" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L98" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5303-3.2-12">RFC5303-3.2-12</code></td><td colspan="3"><span class="rfc-subject">If the new action is &#34;Down&#34;, an adjacencyStateChange(Down) event is generated with the reason &#34;Neighbor restarted&#34; and the adjacency SHALL be deleted. (§3.2)</span></td></tr>
@@ -470,9 +472,9 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5303-3.2-13">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L430" title="internal/plugins/isis/adjacency/rfc5303_fsm_test.go" target="_blank" rel="noopener"><code>TestISISThreeWayInitializeAction</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L127" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L129" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_fsm_test.go#L433" title="internal/plugins/isis/adjacency/rfc5303_fsm_test.go" target="_blank" rel="noopener"><code>TestISISThreeWayInitializeAction</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L132" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L134" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5303-3.1-5">RFC5303-3.1-5</code></td><td colspan="3"><span class="rfc-subject">The other fields in this option SHOULD be included as explained below in section 3.2. (§3.1)</span></td></tr>
@@ -508,10 +510,6 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <tr><td><a href="#rfc5303-3.2-6"><code>RFC5303-3.2-6</code></a> the neighbor&#39;s Extended Local Circuit ID SHALL be reported in the Neighbor Extended Local Circuit ID field. (§3.2)</td>
 <td>{gap}, no test</td>
 <td>Ze does not track the neighbor&#39;s Extended Local Circuit ID; threeWayTLV echoes a constant 0 in the Neighbor Extended Local Circuit ID field (circuit/hello.go:168) and updateThreeWay never stores the neighbor&#39;s value (adjacency/fsm.go updateThreeWay), so the neighbor&#39;s actual extended circuit ID is never reported</td>
-</tr>
-<tr><td><a href="#rfc5303-3.2-7"><code>RFC5303-3.2-7</code></a> If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2)</td>
-<td>{gap}, no test</td>
-<td>the decoder validates only the TLV length, not the state value (packet/tlv_core.go DecodeP2PThreeWayTLV); an out-of-range Adjacency Three-Way State is folded into the FSM, where the state table has no column for it (adjacency/fsm.go threeWayTableAction) and the adjacency is set Initializing rather than the PDU discarded, so the &#34;discard, no further action&#34; path is absent</td>
 </tr>
 <tr><td><a href="#rfc5303-3.2-8"><code>RFC5303-3.2-8</code></a> If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2)</td>
 <td>{gap}, no test</td>
@@ -699,8 +697,34 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <p>No test carries RFC5303-3.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc5303-3.2-7"><code>RFC5303-3.2-7</code></a></h3>
 <p>If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken. (§3.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5303-3.2-7, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent first judgment against RFC 5303 Section 3.2: &#34;If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken.&#34; TestRFC5303InvalidStateWireDiscard now carries a positive tag on its existing valid-state control: Circuit.Receive decodes the valid peer PDU and must reach StateUp before the established-neighbor invalid-state probes. Its negative assertions cover TLV lengths 1, 5 and 15, invalid states 3 and 255, fresh and established neighbors, unchanged neighbor presence and whole-adjacency equality, and no SessionUp, SessionDown or ForwardingChanged flags. TestRFC5303InvalidStateLeavesAdjacencyUntouched additionally covers every unnamed state 3 through 255 against Down, Initializing and Up adjacencies with whole-object equality and rejection; TestRFC5303InvalidStateBeforeValidDuplicate prevents a later valid option from hiding an earlier invalid one. Circuit.Receive routes P2P Hellos to handleP2PHello, which rejects every invalid TLV 240 before neighbor creation; ReceiveHello independently rejects invalid raw HelloInput before identity, hold-timer or adjacency mutation. The positive input is genuinely conforming, not another error; the negative assertions would fail if invalid states were admitted or mutated adjacency state. Canonical records name these producers, including the newly recorded positive cover; their producer-body panic breaks establish execution dependence, not selective semantic mutation. The assertions and producer routing, read against the whole sentence, support this requirement only; neighbor-ID mismatch and restart-event gaps remain separate.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go#L14" title="internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateLeavesAdjacencyUntouched</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L73" title="internal/plugins/isis/circuit/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateBeforeValidDuplicate</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L17" title="internal/plugins/isis/circuit/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateWireDiscard</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_invalid_state_test.go#L16" title="internal/plugins/isis/circuit/rfc5303_invalid_state_test.go" target="_blank" rel="noopener"><code>TestRFC5303InvalidStateWireDiscard</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5303-3.2-8"><code>RFC5303-3.2-8</code></a></h3>
 <p>If the option with a valid Adjacency Three-Way State is present, the Neighbor System ID and Neighbor Extended Local Circuit ID fields, if present, SHALL be examined. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -741,13 +765,13 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 </div>
 <h3><a href="#rfc5303-3.2-11"><code>RFC5303-3.2-11</code></a></h3>
 <p>If the action taken from section 8.2.4.2 a or b is &#34;Up&#34; or &#34;Accept&#34;, the IS SHALL perform the action indicated by the new adjacency three-way state table below, based on the current adjacency three-way state and the received Adjacency Three-Way State value from the option. (§3.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions (3.2-7, 3.2-9) stay their own {gap} rows.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions remain separate obligations: invalid-state discard (3.2-7) now has positive and negative tagged coverage; neighbor-mismatch discard (3.2-9) remains a {gap}.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L96" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L98" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -757,7 +781,7 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L92" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L94" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303ThreeWayStateTable</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -781,7 +805,7 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L132" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L134" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -791,7 +815,7 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L127" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go#L129" title="internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go" target="_blank" rel="noopener"><code>TestRFC5303InitializeActionOnEveryRow</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -991,7 +1015,7 @@ Gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

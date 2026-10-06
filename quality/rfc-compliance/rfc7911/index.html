@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.9%</strong><b>15 of 58 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>27.6%</strong><b>16 of 58 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>9</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -236,7 +236,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>15</td>
+<td>16</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7911.md</code></td>
@@ -362,9 +362,9 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>MUST</td>
 <td>4 - ADD-PATH Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L382" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L403" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L174" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC7911OpenCarriesOneAddPathInstance</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L353" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L374" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L194" title="internal/component/bgp/reactor/rfc_open_family_capability_test.go" target="_blank" rel="noopener"><code>TestRFC7911PerFamilyAddPathStaysOneInstance</code></a></span></div>
 </div></td>
 </tr>
@@ -649,7 +649,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L353" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L374" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -659,7 +659,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L382" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L403" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -738,7 +738,10 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </div>
 <h3><a href="#rfc7911-5-3"><code>RFC7911-5-3</code></a></h3>
 <p>A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt; (Section 5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5: &#34;A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt;, in which case the speaker MUST generate a route update for the &lt;AFI, SAFI&gt; based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document.&#34; TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily now negotiates actual Send/Receive for one of IPv4 unicast, IPv6 unicast or IPv4 multicast, announces every family, and compares exact plain/extended wire NLRI against family-specific expected bytes. Existing TestForwardSplitConvertsAddPathContext strips identifiers for an unnegotiated destination; TestForwardPathIDLeavesNonAddPathDestinationAlone retains the plain zero-copy body; TestForwardSplitSameContextKeepsRawSplit checks exact prefixes, regenerated distinct identifiers and splitting. Producers announceFactsFor/buildBatchAnnounceUpdate and EncodingContext.AddPath read the sent family, not any-family negotiation. The incorrectly receive-side tag is absent from this row now. Positive and crossed-family negative arms exercise the actual conditional rule; a family-blind generator fails. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7911 §5, rfc/full/rfc7911.txt:241-250: &#39;A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt;, in which case the speaker MUST generate a route update for the &lt;AFI, SAFI&gt; based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document.&#39; Read the full sentence, not only the short row&#39;s first clause.
+All five covers read: both polarities of rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily negotiate local Send/remote Receive for each of IPv4 unicast, IPv6 unicast and IPv4 multicast, call AnnounceNLRIBatch and inspect written UPDATEs. Exact concatenated NLRI equality requires IDs7/9 only for the negotiated family; other AFI/SAFI output is plain. rfc7911_forward_body_test.go::TestForwardSplitConvertsAddPathContext requires destination-context parsed splitting, size limits, fully consumed plain /24 entries and exact concatenation of all80 original prefixes without IDs. ::TestForwardSplitSameContextKeepsRawSplit requires raw split output, exact source prefixes/order, complete ADD-PATH parsing, unique local identifiers and different identifiers for the same prefixes from two sources. rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone requires one raw body aliasing the original and no borrowed buffer; this last unit alone is principally a zero-copy control, not the strongest byte-content oracle, and the family/output units supply that oracle.
+Producers/consumers read: buildFwdBody → fwdUpdateForDestination/fwdReencodeNLRIs and raw ID regeneration; forward_pool.go::fwdBatchHandler explicitly sends both rawBodies and parsed updates then flushes. Originating AnnounceNLRIBatch uses announceFactsFor&#39;s per-family addPath, buildBatchAnnounceUpdate/writeBatchNLRI and announceBatchToPeers/sendUpdateWithSplit. Q1 yes; Q2 yes by exact byte and identifier assertions; Q3 yes through distinct family/context controls; Q4 yes for negotiated-family framing/generation, not every RFC4271 decision rule. No semantic mutant or foreign interoperability was run.
+Pending note: retain enforced with this full population, cross-boundary routing and evidence limitations.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -766,7 +769,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L128" title="internal/component/bgp/reactor/rfc7911_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1027,7 +1030,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

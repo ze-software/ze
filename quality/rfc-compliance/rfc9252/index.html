@@ -453,7 +453,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go#L72" title="internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_ValidSID</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go#L83" title="internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go" target="_blank" rel="noopener"><code>TestIsSRv6Ineligible_InvalidSID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go#L196" title="internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go#L201" title="internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-5-2">RFC9252-5-2</code></td><td colspan="3"><span class="rfc-subject">Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation. (S5)</span></td></tr>
@@ -490,9 +490,9 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2397" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2466" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2426" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2406" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2475" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2435" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2.1-4">RFC9252-3.2.1-4</code></td><td colspan="3"><span class="rfc-subject">The bits that have been shifted out MUST be set to 0 in the SID value. (§3.2.1)</span></td></tr>
@@ -802,7 +802,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go#L196" title="internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go#L201" title="internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go" target="_blank" rel="noopener"><code>TestSRv6TranspositionWiderThanLabelFieldIsIneligible</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -876,17 +876,17 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2466" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2475" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_SIDInfoTooShort</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2426" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2435" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidateSRv6ServiceTLV_TrailingBytes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2397" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2406" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestValidatePrefixSIDAttr_Valid</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1395,7 +1395,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

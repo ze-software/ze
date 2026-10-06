@@ -22,8 +22,15 @@ OS network interface monitoring and management
 
 ## Used by
 
-- Required dependency for: [`ddos-detect`](../ddos-detect/index.md), [`flow-export`](../flow-export/index.md), [`ospf`](../ospf/index.md), [`rsvp-te`](../rsvp-te/index.md), [`traffic-usage`](../traffic-usage/index.md), [`vrrp`](../vrrp/index.md)
+- Required dependency for: [`ddos-detect`](../ddos-detect/index.md), [`flow-export`](../flow-export/index.md), [`iface-dhcp`](../iface-dhcp/index.md), [`iface-ra`](../iface-ra/index.md), [`ospf`](../ospf/index.md), [`rsvp-te`](../rsvp-te/index.md), [`traffic-usage`](../traffic-usage/index.md), [`vrrp`](../vrrp/index.md)
 - Optional dependency for: [`static`](../static/index.md)
+
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: None
+- Starts before: [`bfd`](../bfd/index.md)
 
 ## Repository artifacts
 

@@ -1,6 +1,6 @@
 # `request bgp rib retain-routes`
 
-Retain peer routes, optionally only the supplied families: <selector> [family ...]
+Retain peer routes: <selector> [on-down] [family ...]; on-down delegates unretained withdrawals to the forwarding owner
 
 ## Ze command
 

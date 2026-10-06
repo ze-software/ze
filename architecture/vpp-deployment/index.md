@@ -35,11 +35,11 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 | cpu | main-core | 0 | Core 0 for VPP main thread (HT sibling core 4 for Linux) |
 | cpu | corelist-workers | 1-3 | Cores 1-3 for VPP workers. `isolcpus=1,2,3,5,6,7` keeps Linux off. |
 | buffers | buffers-per-numa | 128000 | 128K buffers. Formula: expected_packets_in_flight * 2. Proven for full DFZ at 10G. |
-| buffers | default-data-size | 2048 | Standard. Use 9216 for jumbo frames (9000B MTU + headers). |
-| buffers | page-size | default-hugepage-size | Match hugepage size. 2M for most deployments. |
-| heapsize | main-heap-size | 1536M (1.5G) | Enough for ~958K IPv4 + ~198K IPv6 full DFZ FIB. |
+| buffers | default data-size | 2048 | Packet data bytes, excluding buffer metadata and alignment. Ze fixes this at 2048. |
+| buffers | page-size | default-hugepage | Kernel default hugepage size, commonly 2M; Ze emits `1G` for that explicit selection. |
+| [memory](https://github.com/FDio/vpp/blob/v26.06/src/vpp/vnet/main.c) | main-heap-size | 1536M (1.5G) | Enough for ~958K IPv4 + ~198K IPv6 full DFZ FIB. |
 | statseg | size | 1G | Stats segment shared memory for per-interface/node counters. |
-| statseg | page-size | default-hugepage-size | Match hugepage size. |
+| statseg | page-size | default-hugepage | Match hugepage size. |
 | dpdk | dev <pci> { name, num-rx-queues, num-tx-queues } | Per-NIC | See NIC table below. |
 | plugins | plugin default { disable } | (block) | Disable all, enable specific. |
 | plugins | plugin dpdk_plugin.so { enable } | (line) | NIC driver. Always enabled. |
@@ -48,7 +48,45 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 | linux-cp | lcp-sync | (flag) | VPP state changes propagate to Linux TAP mirrors. |
 | linux-cp | lcp-auto-subint | (flag) | Auto-create sub-TAPs for dot1q/QinQ sub-interfaces. |
 | linux-cp | default netns | dataplane | LCP TAPs created in `dataplane` netns. Routing daemons run there. |
-| linux-nl | rx-buffer-size | 67108864 | 64MB netlink buffer. Required for full DFZ route injection without overflow. |
+| linux-nl | nl-rx-buffer-size | 67108864 | 64MB requested netlink receive buffer. Kernel limits still apply. |
+
+### Generated grammar and upstream consumers
+
+Ze targets the [VPP v26.06 startup format](https://github.com/FDio/vpp/blob/v26.06/src/vpp/conf/startup.conf).
+The consumer functions, rather than a third-party template, define the accepted
+directives. These links are release-pinned; they cover every section emitted by
+`GenerateStartupConf`, including optional settings.
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf, confBuilder.devEntry, pageSize -->
+
+| Section | Generated directives | Upstream v26.06 consumer |
+|---------|----------------------|-------------------------|
+| `unix` | `nodaemon`, `cli-listen`, `log`, `full-coredump`, optional `poll-sleep-usec` | [`unix_config`](https://github.com/FDio/vpp/blob/v26.06/src/vlib/unix/main.c) |
+| `api-segment` | `prefix vpp` | [`api_segment_config`](https://github.com/FDio/vpp/blob/v26.06/src/vpp/api/api.c) |
+| `socksvr` | `socket-name` | [`socksvr_config`](https://github.com/FDio/vpp/blob/v26.06/src/vlibmemory/socket_api.c) |
+| `cpu` | Optional `main-core`, `corelist-workers` | [`cpu_config`](https://github.com/FDio/vpp/blob/v26.06/src/vlib/threads.c) |
+| `buffers` | `buffers-per-numa`, `default data-size 2048`, `page-size` | [`vlib_buffers_configure`](https://github.com/FDio/vpp/blob/v26.06/src/vlib/buffer.c) |
+| `dpdk` | `dev <pci>` with optional block containing `name`, `num-rx-queues`, `num-tx-queues` | [`dpdk_config`, `dpdk_device_config`](https://github.com/FDio/vpp/blob/v26.06/src/plugins/dpdk/device/init.c) |
+| `plugins` | `plugin default { disable }`; `plugin <name> { enable }` for DPDK, optional Linux CP/NL and WireGuard | [`vlib_plugin_config`, `config_one_plugin`](https://github.com/FDio/vpp/blob/v26.06/src/vlib/unix/plugin.c) |
+| `linux-cp` | Optional `lcp-sync`, `lcp-auto-subint`, `default netns` | [`lcp_itf_pair_config`](https://github.com/FDio/vpp/blob/v26.06/src/plugins/linux-cp/lcp_interface.c) |
+| `linux-nl` | `nl-rx-buffer-size 67108864` | [`lcp_itf_pair_config`](https://github.com/FDio/vpp/blob/v26.06/src/plugins/linux-cp/lcp_nl.c) |
+| `memory` | `main-heap-size` | [`main` early configuration pass](https://github.com/FDio/vpp/blob/v26.06/src/vpp/vnet/main.c) |
+| `statseg` | `size`, `page-size`, optional `socket-name` | [`statseg_config`](https://github.com/FDio/vpp/blob/v26.06/src/vlib/stats/init.c) |
+
+Both page-size directives use
+[`unformat_log2_page_size`](https://github.com/FDio/vpp/blob/v26.06/src/vppinfra/std-formats.c):
+Ze's `2M` setting emits `default-hugepage`, and `1G` emits `1G`.
+`default-hugepage-size` is a separate key in the `memory` section, not a
+page-size value. Ze does not emit that key or set the main heap's page size.
+VPP's main heap therefore retains the upstream OS-page default.
+
+The buffer directive has a space in `default data-size`; `default-data-size`
+is rejected. The Linux netlink directive requires the `nl-` prefix;
+`rx-buffer-size` is rejected. Unit contracts pin the corrected sections, but
+source matching does not establish native startup. A native run must still
+prove the installed plugin set, memory allocation, CPU affinity, device access,
+namespace access and API connection on the deployment host.
+<!-- source: internal/component/vpp/startupconf_test.go -- TestStartupConfConsumerGrammar -->
+
 
 ### startup.conf Syntax
 
@@ -65,7 +103,9 @@ section-name {
 }
 ```
 
-String values are unquoted. Multi-word values use spaces. Booleans are bare flags (present = true).
+String values are unquoted. Multi-word keys such as `default data-size` and
+`default netns` use spaces. The emitted boolean directives are bare flags
+(present = true); this is not a rule for every VPP option.
 Dev entries use PCI address as the key with a nested block for per-device options.
 
 ## System Prerequisites
@@ -138,7 +178,7 @@ this section is background for a future deployment path.
 |-----|-------|-----------|
 | Intel X710 (early VPP 21.06) | DPDK driver failures with vfio-pci and igb_uio | Upgrade VPP. Fixed in later releases. |
 | Intel i40e (some firmware) | RSS problems with flow-director enabled | Disable flow-director in DPDK dev config. |
-| Any NIC with jumbo frames | Default buffer size (2048) too small | Set `default-data-size 9216` in buffers section. |
+| Any NIC with jumbo frames | Default buffer size (2048) too small for one buffer | External startup.conf can set `default data-size 9216`; Ze's generated configuration fixes it at 2048. |
 
 ## LCP (Linux Control Plane) Plugin
 

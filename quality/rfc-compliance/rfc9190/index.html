@@ -520,7 +520,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>2.1.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.9-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L145" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L147" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L73" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage</code></a></span></div>
 </div></td>
 </tr>
@@ -529,8 +529,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.9-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L202" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L244" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L204" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L246" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-1">RFC9190-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2)</span></td></tr>
@@ -1577,7 +1577,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L145" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L147" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1592,12 +1592,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L244" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L246" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L202" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L204" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2510,7 +2510,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

@@ -432,8 +432,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L62" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityIsRecordedForDisplay</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L39" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityDecidesNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L58" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityIsRecordedForDisplay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L34" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityDecidesNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-4-2">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2</code></td><td colspan="3"><span class="rfc-subject">Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability. (§4)</span></td></tr>
@@ -636,18 +636,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-abraitis-bgp-version-capability-4-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1</code></a></h3>
 <p>The Software Version Capability MUST only be used for displaying the version of a BGP speaker&#39;s router daemon to make troubleshooting easier. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: using a received Software Version Capability for anything but display, such as a session decision. TestSoftwareVersionCapabilityDecidesNothing asserts Negotiate yields the same ASN4, route refresh, extended message, enhanced route refresh, BFD strict mode, graceful restart, families and encoding with and without code 75, and no mismatch, red if the capability changed any of them. Positive: parseCapability keeps it as an Unknown with the raw value and PeerAdvertised records it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Prior independent current judgment retained after evidence-scope comparison only. The complete Section 4 use restriction, both TestSoftwareVersionCapabilityDecidesNothing and TestSoftwareVersionCapabilityIsRecordedForDisplay units, and the inspected parseCapability/Negotiate/buildSubComponents producers have no scoped patch changes. The earlier judgment remains limited to opaque code-75 diagnostic retention and no negotiated protocol decision, not actual operator rendering or optional receive-feature implementation. No hashes were manufactured; native audit-stamp remains the sole fingerprint writer, and no new execution or foreign proof is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L39" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityDecidesNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L34" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityDecidesNothing</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L62" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityIsRecordedForDisplay</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L58" title="internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityIsRecordedForDisplay</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -841,7 +841,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

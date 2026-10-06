@@ -79,7 +79,7 @@ Enrolled: BFD for Multihop Paths: nine MUST-level requirements after the 2026-09
 
 **What the ledger says is covered:**
 
-- Multi-hop UDP 4784 sessions, single-hop/multihop port separation (3784/4784), Active/Passive roles, echo-on-multihop rejection, and min-TTL floor
+- Multi-hop UDP 4784 sessions, single-hop/multihop port separation (3784/4784), Active/Passive roles, echo-on-multihop rejection, and Ze's local min-TTL policy
 - tests bound per requirement in [`rfc/requirements/rfc5883.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5883.md).
 
 

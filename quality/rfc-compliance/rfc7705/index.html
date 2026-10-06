@@ -369,9 +369,9 @@ Two advisory items, neither of them a MUST. <a href="#rfc7705-3.3-9"><code>RFC77
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L79" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L81" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_reactor_b_test.go#L24" title="internal/component/bgp/reactor/rfc7705_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigratingPeerEstablishesAsIBGP</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L82" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L84" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_reactor_b_test.go#L25" title="internal/component/bgp/reactor/rfc7705_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigratingPeerEstablishesAsIBGP</code></a></span></div>
 </div></td>
 </tr>
@@ -380,8 +380,8 @@ Two advisory items, neither of them a MUST. <a href="#rfc7705-3.3-9"><code>RFC77
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L139" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L143" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L141" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L145" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-4.2-4">RFC7705-4.2-4</code></td><td colspan="3"><span class="rfc-subject">In each case, the BGP speaker MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by [RFC4271] and [RFC4456]. (§4.2)</span></td></tr>
@@ -607,7 +607,7 @@ Two advisory items, neither of them a MUST. <a href="#rfc7705-3.3-9"><code>RFC77
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L82" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L84" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -617,7 +617,7 @@ Two advisory items, neither of them a MUST. <a href="#rfc7705-3.3-9"><code>RFC77
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L79" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L81" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -632,12 +632,12 @@ Two advisory items, neither of them a MUST. <a href="#rfc7705-3.3-9"><code>RFC77
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L143" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L145" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L139" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_session_as_migration_test.go#L141" title="internal/component/bgp/reactor/rfc7705_session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -880,7 +880,7 @@ Two advisory items, neither of them a MUST. <a href="#rfc7705-3.3-9"><code>RFC77
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

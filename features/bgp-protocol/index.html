@@ -264,6 +264,9 @@
 The separate <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/nlri-bgpls.md#consumer-decoding-and-origination" target="_blank" rel="noopener"><code>bgp-ls-export</code></a>
 plugin originates standard SAFI 71 routes from native IGP or EPE state. It does
 not add generic text/API BGP-LS encoding or SAFI 72 origination.</p>
+<p>SR-Policy route encoding leaves the Binding SID's unassigned flag bits clear
+(RFC 9830 Section 2.4.2). It does not request S-Flag or I-Flag behavior.</p>
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- buildBindingSIDSubTLV -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->
@@ -319,7 +322,7 @@ not add generic text/API BGP-LS encoding or SAFI 72 origination.</p>
 <td>Extended Message</td>
 <td>6</td>
 <td>RFC 8654</td>
-<td>65535-byte messages</td>
+<td>Up to 65535 bytes: local advertisement permits receive, peer advertisement permits send; OPEN and KEEPALIVE are unchanged</td>
 </tr>
 <tr>
 <td>Extended Next Hop</td>
@@ -372,7 +375,7 @@ not add generic text/API BGP-LS encoding or SAFI 72 origination.</p>
 </tbody>
 </table>
 <!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->
-<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps fields ASN4, ExtendedMessage, AddPathMode, ExtendedNextHop, PathsLimitSend, PathsLimitRecv -->
+<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps fields ASN4, ExtendedMessageRecv, ExtendedMessageSend, AddPathMode, ExtendedNextHop, PathsLimitSend, PathsLimitRecv -->
 <!-- source: internal/core/bgp/capability/session.go -- SessionCaps fields RouteRefresh, EnhancedRouteRefresh, GracefulRestart -->
 <!-- source: internal/component/bgp/plugins/role/register.go -- BGP Role capability plugin -->
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->
@@ -837,7 +840,7 @@ whether an enabled peer's capture directory is usable
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

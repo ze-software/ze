@@ -25,6 +25,13 @@ Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`interface`](../interface/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/component/bfd`

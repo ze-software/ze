@@ -111,14 +111,14 @@
 <details class="dep-group" open>
 <summary>Standard Library Extensions (golang.org/x) <span class="dep-group-count">9</span></summary>
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
-<tr><td><code>golang.org/x/crypto</code></td><td><code>v0.56.0</code></td><td>SSH protocol primitives and certificate signing for the SSH server, plus password hashing.</td></tr>
-<tr><td><code>golang.org/x/mod</code></td><td><code>v0.40.0</code></td><td>Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.</td></tr>
-<tr><td><code>golang.org/x/net</code></td><td><code>v0.58.0</code></td><td>Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP&#39;s auth.</td></tr>
-<tr><td><code>golang.org/x/sync</code></td><td><code>v0.22.0</code></td><td>errgroup, which the plugin manager uses to drain every plugin&#39;s event queue concurrently and return the first failure.</td></tr>
-<tr><td><code>golang.org/x/sys</code></td><td><code>v0.47.0</code></td><td>Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.</td></tr>
-<tr><td><code>golang.org/x/term</code></td><td><code>v0.45.0</code></td><td>Reads passwords without echo and detects an interactive terminal during CLI login.</td></tr>
-<tr><td><code>golang.org/x/text</code></td><td><code>v0.41.0</code></td><td>Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires.</td></tr>
-<tr><td><code>golang.org/x/tools</code></td><td><code>v0.49.0</code></td><td>Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze&#39;s binaries.</td></tr>
+<tr><td><code>golang.org/x/crypto</code></td><td><code>v0.57.0</code></td><td>SSH protocol primitives and certificate signing for the SSH server, plus password hashing.</td></tr>
+<tr><td><code>golang.org/x/mod</code></td><td><code>v0.41.0</code></td><td>Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.</td></tr>
+<tr><td><code>golang.org/x/net</code></td><td><code>v0.59.0</code></td><td>Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP&#39;s auth.</td></tr>
+<tr><td><code>golang.org/x/sync</code></td><td><code>v0.23.0</code></td><td>errgroup, which the plugin manager uses to drain every plugin&#39;s event queue concurrently and return the first failure.</td></tr>
+<tr><td><code>golang.org/x/sys</code></td><td><code>v0.48.0</code></td><td>Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.</td></tr>
+<tr><td><code>golang.org/x/term</code></td><td><code>v0.46.0</code></td><td>Reads passwords without echo and detects an interactive terminal during CLI login.</td></tr>
+<tr><td><code>golang.org/x/text</code></td><td><code>v0.42.0</code></td><td>Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires.</td></tr>
+<tr><td><code>golang.org/x/tools</code></td><td><code>v0.50.0</code></td><td>Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze&#39;s binaries.</td></tr>
 <tr><td><code>golang.org/x/vuln</code></td><td><code>v1.7.0</code></td><td>Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
@@ -129,7 +129,7 @@
 <tr><td><code>github.com/gokrazy/updater</code></td><td><code>v0.0.0-20260620140544-0a84d8ab3878</code></td><td>Referenced only in a regression test against Ze&#39;s own vendored update-push logic, written locally after a bug was found upstream. Not used in production.</td></tr>
 <tr><td><code>github.com/sivchari/gomu</code></td><td><code>v0.2.1</code></td><td>Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate.</td></tr>
 <tr><td><code>gopkg.in/yaml.v3</code></td><td><code>v3.0.1</code></td><td>Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed.</td></tr>
-<tr><td><code>github.com/golangci/golangci-lint/v2</code></td><td><code>v2.13.2</code></td><td>The linter behind <code>./le go lint run</code>, pinned through the tools.go tracking file so every machine and every CI job lints with one version.</td></tr>
+<tr><td><code>github.com/golangci/golangci-lint/v2</code></td><td><code>v2.14.0</code></td><td>The linter behind <code>./le go lint run</code>, pinned through the tools.go tracking file so every machine and every CI job lints with one version.</td></tr>
 <tr><td><code>honnef.co/go/tools</code></td><td><code>v0.8.1</code></td><td>Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry.</td></tr>
 <tr><td><code>github.com/yuin/goldmark</code></td><td><code>v1.8.5</code></td><td>Renders the Markdown of <code>docs/</code> and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers.</td></tr>
 <tr><td><code>github.com/anmitsu/go-shlex</code></td><td><code>v0.0.0-20200514113438-38f4b401e2be</code></td><td>Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives.</td></tr>
@@ -167,7 +167,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

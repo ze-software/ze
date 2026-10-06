@@ -321,10 +321,10 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestAuthOffersCHAPBeforePAP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L97" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestConfiguredPAPStillOffersCHAPFirst</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L270" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L292" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestAuthOffersCHAPBeforePAP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98" title="internal/component/l2tp/ppp/rfc1334_clauses_test.go" target="_blank" rel="noopener"><code>TestConfiguredPAPStillOffersCHAPFirst</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L112" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L134" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.3-1">RFC1334-2.3-1</code></td><td colspan="3"><span class="rfc-subject">If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.3)</span></td></tr>
@@ -492,7 +492,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L112" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L134" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestSelectAuthFallback</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -507,7 +507,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L270" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L292" title="internal/component/l2tp/ppp/rfc1334_auth_test.go" target="_blank" rel="noopener"><code>TestDefaultAuthFallbackOrder</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1103,7 +1103,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

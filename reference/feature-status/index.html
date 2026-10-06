@@ -317,7 +317,7 @@
 <tr>
 <td>Path MTU diagnostic for IPsec tunnels</td>
 <td>Supported</td>
-<td><code>show mtu</code> measures the path MTU to every IPsec peer's installed endpoint and to a reference address with Don't Fragment ICMP probes (a reported MTU confirmed on the wire, then a candidate ladder and a bisection when ICMP is filtered), derives each tunnel's ESP ceiling from the transform it negotiated, and reports each bound xfrm interface as oversized, tight, under-utilized, ok, down or without a usable MTU, with the <code>set interface ... mtu</code> commands to apply and whether the access circuit or only the peer paths are clamped. A peer whose IKE SA is up is measured a second time over the SA itself, with an INFORMATIONAL request padded to the size under test: the authenticated reply confirms the ICMP figure or refutes it where ICMP errors are filtered, and the row names its prober (<code>ike</code>, <code>icmp</code>). <code>show mtu host &lt;address&gt;</code> measures one path; <code>force</code> bypasses the kernel's cached estimate. The command changes nothing. Linux only. <!-- source: internal/core/probe/socket.go -- OpenICMP; internal/core/probe/errqueue_linux.go -- DrainErrorQueue, classifyReportedMTU; internal/core/probe/doctor.go -- checkICMPProbeSocket --></td>
+<td><code>show mtu</code> measures the path MTU to every IPsec peer's installed endpoint and to a reference address with Don't Fragment ICMP probes (a reported MTU confirmed on the wire, then a candidate ladder and a bisection when ICMP is filtered), derives each tunnel's ESP ceiling from the transform it negotiated, and reports each bound xfrm interface as oversized, tight, under-utilized, ok, down or without a usable MTU, with the <code>set interface ... mtu</code> commands to apply and whether the access circuit or only the peer paths are clamped. A peer whose IKE SA is up is measured a second time over the SA itself, with an INFORMATIONAL request padded to the size under test: the authenticated reply confirms the ICMP figure or refutes it where ICMP errors are filtered, and the row names its prober (<code>ike</code>, <code>icmp</code>). <code>show mtu host &lt;address&gt;</code> measures one path; <code>exhaustive</code> bypasses the kernel's cached estimate. The command changes nothing. Linux only. <!-- source: internal/component/mtu/cmd/mtu.go -- parseMTUArgs --> <!-- source: internal/core/probe/socket.go -- OpenICMP; internal/core/probe/errqueue_linux.go -- DrainErrorQueue, classifyReportedMTU; internal/core/probe/doctor.go -- checkICMPProbeSocket --></td>
 </tr>
 <tr>
 <td>Protocol Event Capture and Replay</td>
@@ -726,7 +726,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

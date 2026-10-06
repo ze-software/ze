@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>38.5%</strong><b>5 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.2%</strong><b>13 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>73.7%</strong><b>14 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>7.7%</strong><b>1 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 13 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -190,7 +189,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -231,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>18</td>
+<td>19</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>18</td>
+<td>19</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6396.md</code></td>
@@ -325,6 +324,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4.2 - TABLE_DUMP Type</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_width_test.go#L20" title="internal/plugins/mrt/rfc6396_dump_width_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerWidthAndPrefixFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s RIB dumper unconditionally emits TABLE_DUMP_V2 with AS4 peer entries, so it always satisfies the use-V2 mandate and there is no path that emits TABLE_DUMP to reject (internal/plugins/mrt/dump.go:113, :206)</p></td>
@@ -364,10 +364,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>4.3.4 - RIB Entries</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L244" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L596" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396TwoByteSessionRouteDumpsFourByteASPath</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396FourByteSessionRouteDumpsASPathUnchanged</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L624" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.4-2">RFC6396-4.3.4-2</code></td><td colspan="3"><span class="rfc-subject">There is one exception to the encoding of BGP attributes for the BGP MP_REACH_NLRI attribute (BGP Type Code 14) [RFC4760].  Since the AFI, SAFI, and NLRI information is already encoded in the RIB Entry Header or RIB_GENERIC Entry Header, only the Next Hop Address Length and Next Hop Address fields are included.  The Reserved field is omitted. (§4.3.4)</span></td></tr>
@@ -590,7 +590,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <p>No test carries RFC6396-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6396-4.2-2"><code>RFC6396-4.2-2</code></a></h3>
 <p>The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field.  The TABLE_DUMP_V2 Type MUST be used in these situations. (§4.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Forbidden: emitting a TABLE_DUMP (type 12) record for a 4-byte peer AS or a peer/prefix AFI mismatch. internal/plugins/mrt/dump_test.go::TestRibSubtype asserts only that ribSubtype maps AFIs to TABLE_DUMP_V2 subtype numbers; it never asserts the record Type field is TypeTableDumpV2 and never drives a 4-byte peer AS or a differing peer AFI through the dump, so stamping TypeTableDump on those records stays green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent supplemental source rejudgment, 2026-10-06. RFC6396 Section 4.2: &#34;The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field. The TABLE_DUMP_V2 Type MUST be used in these situations.&#34; Read both current carriers, TestRibSubtype and TestDumpV2PeerWidthAndPrefixFamily. The latter drives actual Component.writeTableDumpV2/writePeerIndexTable and Writer/ReadFile using eight isolated combinations of peer IPv4/IPv6, prefix IPv4/IPv6 and ASN 65001/0x01020304. Every record header must be TypeTableDumpV2 before reader dispatch; both PIT and RIB counts must be one, with exact subtype, PIT width/address/ASN/BGP ID and RIB sequence/prefix/peer index/attributes. Thus subtype-only TestRibSubtype is supplementary, not mistaken for proving the Type. Ordinary same-family cases are genuine controls, and each mandatory V2 trigger is also isolated. The single-positive annotation is justified by the operational writer unconditionally emitting V2, not by inventing a legacy rejection obligation. Traced dumpRIB -&gt; writeTableDumpV2 -&gt; PIT/RIB writeHeader and reader readRecords -&gt; dispatch TypeTableDumpV2 -&gt; dispatchTDV2 -&gt; non-nil PIT/RIB callbacks. TestDumpV2PeerWidthAndPrefixFamily has no current diff against HEAD; history includes 67a74ef4d4 and the integrated checkpoint, so its stale-unit is preexisting judgment debt rather than this mechanical edit. Prior producer keys retained with empty values for main to stamp. Existing prior note reports race, mutation and CLI observations; this source rejudgment neither reruns nor independently attests them. No new defect found for this requirement; no tests or canonical writes executed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -599,6 +599,11 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_width_test.go#L20" title="internal/plugins/mrt/rfc6396_dump_width_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerWidthAndPrefixFamily</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -676,7 +681,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L624" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -686,7 +691,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L596" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1236,7 +1241,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

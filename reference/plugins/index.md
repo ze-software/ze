@@ -1,6 +1,6 @@
 # Plugin catalog
 
-91 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 75 ship YANG modules.
+94 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 75 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -22,6 +22,7 @@ Generated group for registry entries mapped to the BFD area. Config roots: `bfd`
 |--------|----------|--------|------------|-------------|
 | [`bfd`](bfd/index.md) | Bidirectional Forwarding Detection (RFC 5880, 5881, 5883) | `bfd` | None | `internal/component/bfd` |
 
+- [`bfd`](bfd/index.md): Start after `interface` (order only).
 ## BGP
 
 Generated group for registry entries mapped to the BGP area. Config roots: `bgp`, `bgp-epe`, `bgp-ls-export`, `environment`. Source area: `internal/component/bgp`.
@@ -165,6 +166,7 @@ Generated group for registry entries mapped to the Firewall area. Config roots: 
 | [`firewall-domain`](firewall-domain/index.md) | DNS-sourced address groups for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/domain` |
 | [`firewall-irr`](firewall-irr/index.md) | IRR-based prefix-list filtering for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/irr` |
 
+- [`firewall`](firewall/index.md): Start after `vpp` (order only).
 ## Flow Export
 
 Generated group for registry entries mapped to the Flow Export area. Config roots: `flow-export`. Source area: `internal/plugins/flowexport`.
@@ -191,10 +193,12 @@ Generated group for registry entries mapped to the IS-IS area. Config roots: `is
 
 ## Interface
 
-Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/vrrp`.
+Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/iface`, `internal/plugins/vrrp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
+| [`iface-dhcp`](iface-dhcp/index.md) | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | None | `interface` | `internal/plugins/iface/dhcp` |
+| [`iface-ra`](iface-ra/index.md) | Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) | None | `interface` | `internal/plugins/iface/ra` |
 | [`interface`](interface/index.md) | OS network interface monitoring and management | `interface` | `sysctl` | `internal/component/iface` |
 | [`vrrp`](vrrp/index.md) | Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy | `interface` | `interface` | `internal/plugins/vrrp` |
 
@@ -232,6 +236,14 @@ Generated group for registry entries mapped to the MRT area. Config roots: `mrt`
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`mrt`](mrt/index.md) | MRT routing information export (RFC 6396) | `mrt` | None | `internal/plugins/mrt` |
+
+## Memlock
+
+Generated group for registry entries mapped to the Memlock area. Source area: `internal/plugins/memlock`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`memlock`](memlock/index.md) | Memory lock: keep the running executable resident under memory pressure | None | None | `internal/plugins/memlock` |
 
 ## OSPF
 

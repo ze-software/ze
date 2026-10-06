@@ -349,11 +349,11 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2493" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2526" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshEoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2529" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2562" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshEoRR</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go#L61" title="internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go" target="_blank" rel="noopener"><code>TestRFC7313SubtypeZeroStartsTheRefresh</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2561" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L488" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_UnknownSubtype</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2597" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L487" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_UnknownSubtype</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go#L69" title="internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go" target="_blank" rel="noopener"><code>TestRFC7313PeerMarkersStartNoRefresh</code></a></span></div>
 </div></td>
 </tr>
@@ -381,11 +381,11 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>5 - Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L204" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2344" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2380" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L208" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L117" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthWithoutCapability70</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L268" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2422" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2458" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L172" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification</code></a></span></div>
 </div></td>
 </tr>
@@ -395,7 +395,7 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>5 - Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L206" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2347" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2383" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> routeRefreshNotificationData (internal/component/bgp/reactor/session_handlers.go) always copies the entire received body after the header, so every ROUTE-REFRESH NOTIFICATION carries the complete message; there is no truncating code path to drive a negative</p></td>
 </tr>
@@ -404,11 +404,11 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>MUST</td>
 <td>5 - Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2592" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshReserved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2559" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2628" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2595" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L266" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_reactor_b_test.go#L25" title="internal/component/bgp/reactor/rfc7313_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeNeverDelivered</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2496" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2532" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_reactor_b_test.go#L26" title="internal/component/bgp/reactor/rfc7313_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeNeverDelivered</code></a></span></div>
 </div></td>
 </tr>
@@ -606,12 +606,12 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L488" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_UnknownSubtype</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L487" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_UnknownSubtype</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2561" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2597" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -621,12 +621,12 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2493" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2529" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2526" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshEoRR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2562" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshEoRR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -669,7 +669,7 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2422" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2458" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -679,7 +679,7 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2344" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2380" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -699,7 +699,7 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2347" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2383" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -719,7 +719,7 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2496" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2532" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -734,12 +734,12 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2592" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshReserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2628" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshReserved</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2559" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2595" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -908,7 +908,7 @@ Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-so
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>

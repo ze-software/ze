@@ -37,7 +37,7 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**34,100+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**34,500+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
@@ -45,9 +45,9 @@ Every homepage number links to the page where you can inspect the test layer, tr
 
  Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**152 RFCs supported**
 
-- 4,005 MUSTs to test
-- 2,572 checked with a test
-- 64.2% done
+- 4,006 MUSTs to test
+- 2,579 checked with a test
+- 64.4% done
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,100+ end to end tests**
 

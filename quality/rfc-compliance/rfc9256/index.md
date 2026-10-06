@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 22 | of 68 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Gated MUSTs | 22 | of 69 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
 | Out of scope | 13 | of 22 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 59.1% | 13 of 22 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 22 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -35,6 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 27.3% | 6 of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 3 | of 22 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -53,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -61,16 +62,16 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 68 |
+| Requirements | 69 |
 | Gated MUST-level | 22 |
 | Not applicable, so out of scope | 13 |
-| Declared gaps | 6 |
+| Declared gaps | 7 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 4 |
 | Tagged units | 4 |
-| Recorded audit verdicts | 2 |
+| Recorded audit verdicts | 3 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc9256.md` |
 | Requirement shard | `rfc/requirements/rfc9256.md` |
@@ -90,7 +91,7 @@ Ze is an SR Policy originator, not a headend: it builds the SR Policy identifica
 
 **What the ledger says remains**
 
-Six MUST gaps annotated in [`rfc/short/rfc9256.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9256.md), all from ze holding no SR Policy state: [`RFC9256-2.6-1`](#rfc9256-2.6-1) -- the only candidate-path identity is the RFC 9830 distinguisher in the NLRI key and no candidate-path store resolves add, delete or modify; [`RFC9256-4-6`](#rfc9256-4-6) -- no code turns a segment list into a label stack or an SRv6 SID list, and a received Tunnel Encapsulation attribute stays raw TLV bytes with only the Preference sub-TLV decoded ([`internal/core/bgp/attribute/tunnel_encap.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/tunnel_encap.go)); [`RFC9256-5.1-2`](#rfc9256-5.1-2) and [`RFC9256-5.1-5`](#rfc9256-5.1-5) -- parseSegmentList determines no segment-list validity (empty list, weight 0 and mixed SR-MPLS/SRv6 lists are all accepted) and ze resolves no SID, so first-SID reachability is never established; and [`RFC9256-6.1-3`](#rfc9256-6.1-3) and [`RFC9256-6.2-4`](#rfc9256-6.2-4) -- the binding SID is encoded from configuration with no allocation table, no SRLB availability check and no alert. Headend obligations (composite candidate paths, Originator sub-TLV, candidate-path selection, active-path forwarding, dynamic candidate paths, Specified-BSID-only, policy state reporting) are annotated not-applicable: ze instantiates no policy.
+MUST gaps are annotated in [`rfc/short/rfc9256.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9256.md), all from ze holding no SR Policy state: [`RFC9256-2.6-1`](#rfc9256-2.6-1) -- the only candidate-path identity is the RFC 9830 distinguisher in the NLRI key and no candidate-path store resolves add, delete or modify; [`RFC9256-4-6`](#rfc9256-4-6) -- no code turns a segment list into a label stack or an SRv6 SID list, and a received Tunnel Encapsulation attribute stays raw TLV bytes with only the Preference sub-TLV decoded ([`internal/core/bgp/attribute/tunnel_encap.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/tunnel_encap.go)); [`RFC9256-5.1-2`](#rfc9256-5.1-2) and [`RFC9256-5.1-5`](#rfc9256-5.1-5) -- parseSegmentList determines no segment-list validity (empty list, weight 0 and mixed SR-MPLS/SRv6 lists are all accepted) and ze resolves no SID, so first-SID reachability is never established; and [`RFC9256-6.1-3`](#rfc9256-6.1-3) and [`RFC9256-6.2-4`](#rfc9256-6.2-4) -- the binding SID is encoded from configuration with no allocation table, no SRLB availability check and no alert. Headend obligations (composite candidate paths, Originator sub-TLV, candidate-path selection, active-path forwarding, dynamic candidate paths, Specified-BSID-only, policy state reporting) are annotated not-applicable: ze instantiates no policy. Optional Types I/J/K and their SR Algorithm, SRv6 SID behavior and SID structure fields are not implemented by the SR Policy originator ([`RFC9256-4-7`](#rfc9256-4-7)); Type B endpoint-behavior encoding does not supply that support.
 
 ## Coverage
 
@@ -155,6 +156,7 @@ Six MUST gaps annotated in [`rfc/short/rfc9256.md`](https://github.com/ze-softwa
 | `RFC9256-4-1` | Additionally, special purpose labels like explicit-null or in general any MPLS label MAY also be used. (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9256-4-2` | Optionally, the SRv6 SID behavior (as defined in [RFC8986] or other SRv6 specifications) and structure (as defined in [RFC8986]) MAY also be provided for the headend to perform validation of the SID when using it for building the segment list. (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9256-4-3` | The SR algorithm (refer to Section 3.1.1 of [RFC8402]) to be used MAY also be provided. Type D: IPv6 Global Prefix with optional SR Algorithm for SR-MPLS: In this case, the headend is required to resolve the specified IPv6 Global Prefix Address to the SR-MPLS label corresponding to its Prefix SID segment (as defined in [RFC8402]). The SR Algorithm (refer to Section 3.1.1 of [RFC8402]) to be used MAY also be provided. (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9256-4-7` | The SR Algorithm (refer to Section 3.1.1 of [RFC8402]), the SRv6 SID behavior (as defined in [RFC8986] or other SRv6 specifications), and structure (as defined in [RFC8986]) MAY also be provided. (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** this sentence applies to each of segment types I, J and K. Their optional SR Algorithm, SRv6 SID behavior and SID structure are not implemented by the SR Policy originator: internal/component/bgp/plugins/nlri/srpolicy/config.go::parseSegmentList accepts only type-a and type-b, and buildSegmentSubSubTLV emits only those types. Type B endpoint-behavior support does not supply any of the missing I/J/K fields. The absent optional segment types are not authorized for implementation by this audit. |
 | `RFC9256-4-5` | For SID types C through K, a SID value MAY also be optionally provided to the headend for verification (§4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9256-5.1-1` | An explicit candidate path MAY consist of a single explicit segment list containing only an implicit-null label to indicate pop-and- forward behavior. (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9256-5.1-3` | Implementations MAY provide a local configuration option to enable verification on a global or per-policy or per- candidate path basis. (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
@@ -205,6 +207,7 @@ Six MUST gaps annotated in [`rfc/short/rfc9256.md`](https://github.com/ze-softwa
 | [`RFC9256-6.2.3-3`](#rfc9256-6.2.3-3) When this restrictive behavior is enabled, if the candidate path has an unspecified BSID or if the specified BSID is not available when the candidate path becomes active, then no BSID is bound to it and the candidate path is considered invalid. An alert MUST be triggered for this error via mechanisms like syslog. (§6.2.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze implements no Specified-BSID-only behavior; grep for specified-bsid or SpecifiedBSID over internal, pkg and cmd matches nothing and parseConfigRoute's keyword switch has no spelling for it (internal/component/bgp/plugins/nlri/srpolicy/config.go:72) |
 | [`RFC9256-6.2.3-4`](#rfc9256-6.2.3-4) Other candidate paths MUST then be evaluated for becoming the active candidate path. (§6.2.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze implements no Specified-BSID-only behavior and no candidate-path selection, so there is no evaluation of other candidate paths to perform; the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29) |
 | [`RFC9256-7-1`](#rfc9256-7-1) The SR Policy state MUST also reflect the reason when a policy and/or its candidate path is not active due to validation errors or not being preferred (§7) | no test | no test carries this requirement id; annotated {not-applicable}: ze keeps no SR Policy state; grep for SRPolicyState or policyState over internal, pkg and cmd matches nothing, grep for sr-policy over internal/component/cli matches nothing, and an SR Policy route is an ordinary BGP NLRI carried in the RIB (internal/component/bgp/plugins/nlri/srpolicy/register.go:29) |
+| [`RFC9256-4-7`](#rfc9256-4-7) The SR Algorithm (refer to Section 3.1.1 of [RFC8402]), the SRv6 SID behavior (as defined in [RFC8986] or other SRv6 specifications), and structure (as defined in [RFC8986]) MAY also be provided. (§4) | {gap} | this sentence applies to each of segment types I, J and K. Their optional SR Algorithm, SRv6 SID behavior and SID structure are not implemented by the SR Policy originator: internal/component/bgp/plugins/nlri/srpolicy/config.go::parseSegmentList accepts only type-a and type-b, and buildSegmentSubSubTLV emits only those types. Type B endpoint-behavior support does not supply any of the missing I/J/K fields. The absent optional segment types are not authorized for implementation by this audit. |
 
 ## Proof state
 
@@ -392,6 +395,14 @@ The SR Policy state MUST also reflect the reason when a policy and/or its candid
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC9256-7-1, so no unit is bound to it.
+
+### [`RFC9256-4-7`](#rfc9256-4-7)
+
+The SR Algorithm (refer to Section 3.1.1 of [RFC8402]), the SRv6 SID behavior (as defined in [RFC8986] or other SRv6 specifications), and structure (as defined in [RFC8986]) MAY also be provided. (§4)
+
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. RFC 9256 §4 repeats the same combined permission for Types I, J and K. All three optional fields and all three types are retained by this row and its annotation. parseSegmentList accepts only type-a/type-b and rejects other types; buildSegmentSubSubTLV emits only A/B. Type B SID behavior/structure support is a separate existing permission (RFC9256-4-2), not evidence for I/J/K. No implementation or tagged conformance test exists for the new row; record the optional implementation gap without adding the feature.
+
+No test carries RFC9256-4-7, so no unit is bound to it.
 
 ## Extraction sign-off
 

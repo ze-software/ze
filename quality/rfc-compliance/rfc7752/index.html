@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7752 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7752 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7752 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7752: North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP. 26 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,12 +121,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.7%</strong><b>2 of 26 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>53.1%</strong><b>17 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>55.9%</strong><b>19 of 34 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>26</strong><b>of 51 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>26</strong><b>of 52 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>11</strong><b>of 26 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>42.3%</strong><b>11 of 26 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -136,6 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.4%</strong><b>4 of 26 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 26 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -189,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -209,7 +210,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>51</td>
+<td>52</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>26</td>
@@ -218,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -230,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>32</td>
+<td>34</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>32</td>
+<td>34</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>11</td>
+<td>12</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>17</td>
+<td>19</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7752.md</code></td>
@@ -263,7 +264,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Ze is a BGP-LS consumer and transit speaker: Node/Link/Prefix NLRI and node, link and prefix attribute TLV decode (<code>internal/component/bgp/plugins/nlri/ls</code>), (AFI 16388, SAFI 71/72) family registration and Multiprotocol capability negotiation, opaque-key RIB storage that keeps routing universes apart by Identifier, RFC 4760 next-hop encoding, unknown-TLV preservation with byte-identical re-advertisement, and Section 6.2.2 TLV syntactic checks. Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7752.md" target="_blank" rel="noopener"><code>rfc/short/rfc7752.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7752.md" target="_blank" rel="noopener"><code>rfc/short/rfc7752.md</code></a>: <a href="#rfc7752-3.3-1"><code>RFC7752-3.3-1</code></a> -- the UPDATE decoder reads a type-29 attribute for every address family instead of ignoring it outside link-state; <a href="#rfc7752-6.2.2-1"><code>RFC7752-6.2.2-1</code></a> -- no RFC 7606 validator is registered for attribute code 29, so a malformed BGP-LS attribute is not attribute-discarded; <a href="#rfc7752-6.2.6-1"><code>RFC7752-6.2.6-1</code></a> -- the per-family prefix maximum applies to bgp-ls but counts with a CIDR byte-walk that does not parse RFC 7752 TLV NLRI; and <a href="#rfc7752-8-1"><code>RFC7752-8-1</code></a> -- ze models no BGP-LS consumer peer, so any peer negotiating bgp-ls has its UPDATEs accepted. All origination obligations (Protocol-ID selection, Identifier stamping, auxiliary Router-IDs, node keying, ASN/BGP-LS-ID uniqueness, OSPF MT-ID bits, MPLS Protocol Mask restriction, prefix attribute reflection) are <code>{not-applicable}</code>: ze derives no link-state from its IS-IS or OSPF and has no BGP-LS config route surface.
+Historical requirement lineage is recorded by the per-row supersession annotations; current BGP-LS implementation scope is in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9552.md" target="_blank" rel="noopener"><code>rfc/short/rfc9552.md</code></a>. The native exporter now supplies <code>originateAttributes</code>, so the earlier no-native-origination claim no longer describes the code. Optional FQDN-based native Link Name selection is not implemented (<a href="#rfc7752-3.3.2.7-1"><code>RFC7752-3.3.2.7-1</code></a>); received Link Name TLVs remain decoded and propagated without imposing a naming restriction.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -512,8 +513,10 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>6.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7752-6.2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L133" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttrSyntacticChecks</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L13" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L14" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L96" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L25" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L97" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L26" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L101" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752MalformedTLVNotPreserved</code></a></span></div>
 </div></td>
 </tr>
@@ -619,6 +622,15 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.2.7-1">RFC7752-3.3.2.7-1</code></td><td colspan="3"><span class="rfc-subject">This symbolic name can be the FQDN for the link, it can be a subset of the FQDN, or it can be any string operators want to use for the link. The use of FQDN or a subset of it is strongly RECOMMENDED. (§3.3.2.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3.2.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7752-3.3.2.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> FQDN-based native Link Name selection is not implemented; decodeLinkName preserves a received string and originateAttributes copies supplied TLV values. The optional TLV is supported as received data, not as a native FQDN naming policy.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7752-3.3.2.2-2">RFC7752-3.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">Generation of the MPLS Protocol Mask TLV is only valid for and SHOULD only be used with originators that have local link insight, for example, the Protocol-IDs &#39;Static configuration&#39; or &#39;Direct&#39; as per Table 2. (Section 3.3.2.2)</span></td></tr>
 <tr><td></td>
@@ -850,6 +862,10 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <tr><td><a href="#rfc7752-8-1"><code>RFC7752-8-1</code></a> In the context of the BGP peerings associated with this document, a BGP speaker MUST NOT accept updates from a consumer peer. (Section 8)</td>
 <td>{gap}, no test</td>
 <td>ze models no BGP-LS consumer peer. The per-family peer knobs are enable, disable, require and ignore (internal/component/bgp/reactor/config.go:596), and a negotiated family is accepted in both directions (internal/core/bgp/capability/negotiated.go:413), so any peer that negotiates bgp-ls has its Link-State UPDATEs accepted whatever role it plays</td>
+</tr>
+<tr><td><a href="#rfc7752-3.3.2.7-1"><code>RFC7752-3.3.2.7-1</code></a> This symbolic name can be the FQDN for the link, it can be a subset of the FQDN, or it can be any string operators want to use for the link. The use of FQDN or a subset of it is strongly RECOMMENDED. (§3.3.2.7)</td>
+<td>{gap}</td>
+<td>FQDN-based native Link Name selection is not implemented; decodeLinkName preserves a received string and originateAttributes copies supplied TLV values. The optional TLV is supported as received data, not as a native FQDN naming policy.</td>
 </tr>
 </tbody>
 </table>
@@ -1091,7 +1107,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p>No test carries RFC7752-6.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-6.2.2-2"><code>RFC7752-6.2.2-2</code></a></h3>
 <p>An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. o Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? o Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? o Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? o Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? o Does any fixed-length TLV correspond to the TLV Length field in this document? (Section 6.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7752 Section 6.2.2: &#34;An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.&#34; Read all five bullets: attribute sum, MP_REACH sum, MP_UNREACH sum, descriptor sum against Total NLRI Length, fixed-length TLV size. TestRFC7752AttrSyntacticChecks and TestRFC7752MalformedTLVNotPreserved pin exact complete attribute walk, attribute overrun and wrong-sized fixed TLV at the offline decoder. TestRFC7752LinkStateLengthSumsOnReceive now drives Node/Link/Prefix type envelopes through enforceRFC7606 with both MP_REACH and MP_UNREACH, exact-sum conforming controls, NLRI overrun, descriptor overrun and descriptor underrun. Negative asserts detection (not unchanged ActionNone); it does not claim a particular fault-handling action, which is a different requirement. The current normative authority is RFC 9552 Section 8.2.2: propagators must not perform fixed-layout semantic validation, and the existing syntax-only receive/semantic offline split is preserved. validateBGPLSAttr and typedNLRIEdit were read; no protocol feature or new supersession exclusion is inferred. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Whole normative list (rfc/full/rfc7752.txt:2163-2180): &#34;An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? Does any fixed-length TLV correspond to the TLV Length field in this document?&#34;</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment: RFC7752 Section 6.2.2: &#34;An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.&#34; The full following list is retained: sums of TLV lengths for BGP-LS attribute, MP_REACH and MP_UNREACH, Node/Link/Prefix Descriptor Total NLRI Length sums, and fixed-TLV valid length. Current codec malformed/valid pairs and reactor TestRFC7752 length-sum units cover attribute and MP carriers with exact preserved bytes or RFC9552-compatible discard/reset behavior. The code29 malformed-length acceptance fault now fails malformed-attribute absence/dispatch handling; the discard-all code29 fault independently fails intact legal-attribute delivery. Both preserve their specified opposite-side controls. These are actual caller effect counterfactuals and do not rely on fabricated fixture differences or claim semantic TLV-content validation prohibited by successor RFC9552. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1102,7 +1118,12 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L14" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L97" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L26" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1112,7 +1133,12 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L13" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L96" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L25" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1187,6 +1213,10 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7752-3.3.2.7-1"><code>RFC7752-3.3.2.7-1</code></a></h3>
+<p>This symbolic name can be the FQDN for the link, it can be a subset of the FQDN, or it can be any string operators want to use for the link. The use of FQDN or a subset of it is strongly RECOMMENDED. (§3.3.2.7)</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. §3.3.2.7 recommends an FQDN-derived Link Name but permits arbitrary operator strings and makes the TLV optional. The native naming policy is absent: originateAttributes copies supplied values, and decodeLinkName decodes them. TestLinkNameRoundTrip exercises preservation of ge-0/0/1, not native name selection. This is an optional implementation gap, not an enforced recommendation or a receive-side rejection duty.</p>
+<p>No test carries RFC7752-3.3.2.7-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -1838,7 +1868,12 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <tr><td><a href="#rfc7752-3.3.1.3-1"><code>RFC7752-3.3.1.3-1</code></a> This symbolic name can be the Fully Qualified Domain Name (FQDN) for the router, it can be a subset of the FQDN (e.g., a hostname), or it can be any string operators want to use for the router. The use of FQDN or a subset of it is strongly RECOMMENDED. (Section 3.3.1.3)</td>
 <td>restated</td>
 <td>RFC9552-5.3.1.3-1</td>
-<td>RFC 9552 Sections 5.3.1.3 and 5.3.2.7 keep the FQDN recommendation for the Node Name and Link Name TLVs</td>
+<td>RFC 9552 Section 5.3.1.3 keeps the FQDN recommendation for the Node Name TLV</td>
+</tr>
+<tr><td><a href="#rfc7752-3.3.2.7-1"><code>RFC7752-3.3.2.7-1</code></a> This symbolic name can be the FQDN for the link, it can be a subset of the FQDN, or it can be any string operators want to use for the link. The use of FQDN or a subset of it is strongly RECOMMENDED. (§3.3.2.7)</td>
+<td>restated</td>
+<td>RFC9552-5.3.2.7-1</td>
+<td>RFC 9552 Section 5.3.2.7 retains the recommendation for the Link Name TLV</td>
 </tr>
 <tr><td><a href="#rfc7752-3.3.2.2-2"><code>RFC7752-3.3.2.2-2</code></a> Generation of the MPLS Protocol Mask TLV is only valid for and SHOULD only be used with originators that have local link insight, for example, the Protocol-IDs &#39;Static configuration&#39; or &#39;Direct&#39; as per Table 2. (Section 3.3.2.2)</td>
 <td>restated</td>
@@ -1963,7 +1998,7 @@ Four MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
                 </div>
             </div>
         </footer>
