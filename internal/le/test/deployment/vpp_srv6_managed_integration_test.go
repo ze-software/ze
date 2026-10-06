@@ -8,6 +8,7 @@ package testdeployment
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,13 +44,34 @@ func vppSRv6Managed(t *testing.T, v *VPP, container, work string) {
 	}
 	// External plugins have no stdout relay. Their complete Go test transcript
 	// is retained in the shared scratch mount, including the final PASS line.
+	transcript, err := os.Create(filepath.Join(work, "srv6-managed-daemon.log"))
+	if err != nil {
+		t.Fatal("create managed daemon transcript: ", err)
+	}
+	defer func() {
+		if err := transcript.Close(); err != nil {
+			t.Error("close managed daemon transcript: ", err)
+		}
+	}()
 	seen := newCollector("VPP ready, reinitializing backend")
 	cmd := exec.CommandContext(context.Background(), "docker", v.evidenceDaemonArgs(container, "srv6-managed", 0)...)
-	daemon, err := startWatched(cmd, "ze-managed> ", seen, v.Progress)
+	daemon, err := startWatched(cmd, "ze-managed> ", seen, io.MultiWriter(v.Progress, transcript))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer stopVPPProcess(daemon, seen)
+	defer func() {
+		// Preserve the real child's log and generated input before container
+		// cleanup, including failures before its API socket becomes ready.
+		for _, artifact := range []struct{ source, name string }{
+			{"/var/log/vpp/vpp.log", "srv6-managed-vpp.log"},
+			{"/etc/vpp/startup.conf", "srv6-managed-startup.conf"},
+		} {
+			if output, ok := v.dockerText("cp", container+":"+artifact.source, filepath.Join(work, artifact.name)); !ok {
+				t.Logf("retain managed VPP %s: %s", artifact.source, output)
+			}
+		}
+	}()
 	deadline = time.Now().Add(150 * time.Second)
 	logPath := filepath.Join(work, "srv6-managed.log")
 	for {

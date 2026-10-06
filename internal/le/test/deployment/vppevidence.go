@@ -387,7 +387,7 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 	daemon.signal = func(signal syscall.Signal) error {
 		ctx, cancel := context.WithTimeout(context.Background(), stopGrace)
 		defer cancel()
-		return exec.CommandContext(ctx, "docker", dockerExec, container, "pkill",
+		return exec.CommandContext(ctx, "docker", dockerExec, container, "pkill", //nolint:gosec // Generated container, internal signal, and anchored QuoteMeta pattern; no shell.
 			"-"+strconv.Itoa(int(signal)), "-f", pattern).Run()
 	}
 	// Existing VPP state cannot prove that a replacement Ze process started.

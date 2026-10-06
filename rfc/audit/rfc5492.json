@@ -1,5 +1,8 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-06",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5492-3-1": {
@@ -8,7 +11,7 @@
       "tests": {
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
-        "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "933b3c0fcb7d9bad",
+        "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "18bc1871ceb5610d",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "ac1b8bb6f2a0be51"
       },
       "units": {
@@ -23,8 +26,8 @@
       "note": "Session level via handleOpen. Positive: unrecognized codes 253/254 interleaved with MP IPv4 and required Route Refresh -> OpenConfirm, one KEEPALIVE, known capabilities negotiated. Negative (R1(b)): code 254 carrying the MP IPv6 value -> accepted but IPv6 not negotiated. Judge breaks: unrecognized 4-octet value parsed as Multiprotocol turned the negative red; unrecognized capability refused turned the positive red. HEAD negative TestParseRejectsMalformedKnownCapabilityLength concerns known capabilities and is supplementary.",
       "requirement_sha": "a4756f2db7068a2d",
       "tests": {
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "6069318487a1dc5e",
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "6069318487a1dc5e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "c39f47f1420a369e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "c39f47f1420a369e",
         "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "3b6ab22b8c99761b",
         "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "3b6ab22b8c99761b"
       },
@@ -62,7 +65,7 @@
       "note": "Row single-polarity positive. TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession sends Route Refresh x3 and each MP TLV twice through handleOpen -> OpenConfirm, one KEEPALIVE, all negotiated; closes the session-level gap. Parser-level tag kept as supplementary.",
       "requirement_sha": "2ad7c926df955bc6",
       "tests": {
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "6069318487a1dc5e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "c39f47f1420a369e",
         "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "3b6ab22b8c99761b"
       },
       "units": {
@@ -72,16 +75,16 @@
       "verdict": "enforced"
     },
     "RFC5492-4-2": {
-      "note": "Positive: three Capabilities parameters (RR / ExtMsg / 254) through handleOpen -> OpenConfirm, both required capabilities negotiated. Negative: required RR+ExtMsg split across two parameters with one missing -> NOTIFICATION 2/7 whose Data is exactly the capability absent from ALL parameters, Idle. Judge break: ParseFromOptionalParams returning after the first parameter turned both red.",
+      "note": "RFC 5492 \u00a74, rfc/full/rfc5492.txt:201-211: 'However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs.' The next sentence requires processing the capability set the same way whether combined or split. Read all four units. internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters requires exactly two decoded capabilities, first Multiprotocol IPv4/unicast and second ASN4=65002. ::TestOptionalParamRejectsTruncatedCapabilityTLV requires ErrShortRead, but its outer parameter length is itself truncated: this supplementary unit does NOT independently isolate inner-TLV validation and its prose must not be credited as doing so. internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters sends RR, Extended Message and unknown 254 in three parameters and requires OpenConfirm, exactly one KEEPALIVE, RR and both ExtendedMessageRecv/Send flags. ::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing varies which required capability is present across two parameters and requires Idle and exact NOTIFICATION 2/7 Data [6,0] or [2,0], naming only the capability absent from the entire parameter population.\nProducer path read: capability.go::ParseFromOptionalParams bounds-checks and loops over every parameter, appending Parse results; session_open_as.go::validateOpenPeerAS returns the full list; session_handlers.go::handleOpen passes it to session_negotiate.go::negotiateWith, then validates required modes and advances. Unknown code 254 remains external protocol input, not an impossible closed-enum value. Q1 yes collectively; Q2 yes: returning after the first parameter changes negotiated flags and exact missing-capability Data; Q3 yes for the session pair, with the confounded supplemental malformed parser fixture disclosed; Q4 yes for split-parameter acceptance. The missing-capability negatives are policy-boundary controls, not a claim that multiple parameters themselves warrant rejection. No current semantic overlay was executed.\nPending note: retain enforced with the exact session assertions and parser-fixture limitation above; no claim of newly observed discrimination or live-peer acceptance.",
       "requirement_sha": "3ac3408f07f25667",
       "tests": {
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "6069318487a1dc5e",
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "6069318487a1dc5e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "c39f47f1420a369e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "c39f47f1420a369e",
         "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "3b6ab22b8c99761b",
         "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "3b6ab22b8c99761b"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "a1f957c885fbf491",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "2edb86517474ad73",
         "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "19f65d18d69c910c",
         "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "6437edcbd51ff175",
         "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "c4610e5b4c316eeb"
@@ -94,7 +97,7 @@
       "tests": {
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
-        "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "933b3c0fcb7d9bad",
+        "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "18bc1871ceb5610d",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "ac1b8bb6f2a0be51",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "ac1b8bb6f2a0be51"
       },

@@ -25,6 +25,10 @@ import (
 // RFC requirement: RFC9830-2.4.1-5 negative -- the preference beside it is 0xDEADBEEF, so the zero is written.
 // RFC requirement: RFC9830-2.4.1-7 positive -- the Preference RESERVED octet is zero on transmission.
 // RFC requirement: RFC9830-2.4.1-7 negative -- the preference beside it is 0xDEADBEEF, so the zero is written.
+// RFC requirement: RFC9830-2.4.2-5 positive -- the Binding SID Flags octet has no unassigned bit set on transmission.
+// RFC requirement: RFC9830-2.4.2-5 negative -- the label beside the Flags octet is 0xFFFFF.
+// RFC requirement: RFC9830-2.4.2-6 positive -- the Binding SID Flags octet has no unassigned bit set on transmission.
+// RFC requirement: RFC9830-2.4.2-6 negative -- the label beside the Flags octet is 0xFFFFF.
 // RFC requirement: RFC9830-2.4.2-8 positive -- the Binding SID RESERVED octet is zero on transmission.
 // RFC requirement: RFC9830-2.4.2-8 negative -- the label beside it is 0xFFFFF.
 // RFC requirement: RFC9830-2.4.2-10 positive -- the Binding SID TC, S and TTL bits are zero on transmission.
@@ -79,6 +83,8 @@ func TestRFC9830FieldsToIgnoreAreZeroOnTransmission(t *testing.T) {
 	same("Preference", pref[2:6], []byte{0xDE, 0xAD, 0xBE, 0xEF})
 
 	bsid := srpOne(t, subs, subTLVBindingSID)
+	// RFC 9830 Section 2.4.2: "The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt."
+	zero("Binding SID unassigned Flags", bsid[0]&0x3F)
 	zero("Binding SID RESERVED", bsid[1])
 	zero("Binding SID TC and S", bsid[4]&0x0F)
 	zero("Binding SID TTL", bsid[5])

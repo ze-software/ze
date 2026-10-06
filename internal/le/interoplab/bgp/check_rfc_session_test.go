@@ -40,12 +40,14 @@ func TestFRRNewSessionRequiresEstablishedCountAdvance(t *testing.T) {
 		{"missing neighbor", `{}`, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			lab := &recordingLab{output: test.output}
-			// Wait probes once before checking cancellation; no elapsed-time
-			// bound is needed to reject a state that cannot prove a reconnect.
 			ctx, cancel := context.WithCancel(t.Context())
-			cancel()
+			defer cancel()
+			// Admit one real observation, then stop before another poll.
+			lab := &recordingLab{output: test.output, afterQuery: cancel}
 			err := waitFRRNewSession(ctx, lab, zeLabAddress, 2)
+			if lab.reads != 1 {
+				t.Fatalf("session observations = %d, want exactly one", lab.reads)
+			}
 			if (err == nil) != test.wantOK {
 				t.Fatalf("re-establishment error = %v, want success %t", err, test.wantOK)
 			}

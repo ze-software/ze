@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-06",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -86,15 +86,15 @@
       "verdict": "enforced"
     },
     "RFC8956-5-1": {
-      "note": "RFC 8956 Section 5: 'The validation procedure is the same as specified in Section 6 of [RFC8955] with the exception that item a) of the validation procedure should now read as follows: a) A destination prefix component with offset=0 is embedded in the Flow Specification'. The unchanged historical ID is retained. ADD-PATH commit d029f58129 changed the tagged internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD from the removed gatherCandidates wrapper to gatherCandidatesHeld, so this is an affected stale unit rather than another session's row. Both tagged polarities belong to that function, which was read in full with its receive fixture and producers. The IPv6 positive sends a well-formed /64 destination with offset zero and receives exactly the same-NLRI selected event only after same-RD VPN unicast arrives; global unicast and another RD cannot authorize it. The negative supplies a legal four-octet /64 pattern at offset 32, confirms route retention, and asserts both RouteEligible false and zero candidates, with no extra selected event. A same-RD default route prevents missing coverage from masquerading as the offset refusal. The two cases differ in the condition being checked, not merely in names. Producers: rib_flowspec_validation.go::flowSpecDestination parses the family codec and requires Offset()==0; flowSpecAuthorized rejects its invalid destination; reconcileFlowSpecs publishes only feasible rules. The candidate assertion reaches rib_commands.go::gatherCandidatesLocked/gatherKeyCandidatesLocked through rib_test.go::gatherCandidatesHeld. Removing the offset guard admits the retained nonzero-offset rule under the covering default and contradicts exact assertions. No discrimination record exists for this changed function; that proof is owed separately and was not run here.",
+      "note": "Independent semantic rejudgment: RFC8956 Section 5: \"A destination prefix component with offset=0 is embedded in the Flow Specification.\" Section 5 retains RFC8955 validation but replaces item a with this offset-zero amendment. Current TestFlowSpecVPNValidationSeparatesAFIAndRD uses a legal /64 offset32 four-byte pattern, the same RD/default authorizing route, and unchanged wire input. It requires retained receipt but false generation-7 eligibility, zero candidates and no additional selected event; the zero-offset rule succeeds. Removing only the Offset()==0 gate now fails that consumer oracle and clean controls pass. The pattern shape is legal under Section 3.1 length-minus-offset; rejection is authorization, not malformed encoding. Enforcement is for this amendment, not blanket inherited-rule or dataplane compliance. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "4b1ebea8abd37a82",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "9cd1a26af442a6a1",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "9cd1a26af442a6a1"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "5101973413fefddd",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "5101973413fefddd"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "87be8e858a3447cf",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "87be8e858a3447cf"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "06787942c3b80776",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "06787942c3b80776"
       },
       "verdict": "enforced"
     }

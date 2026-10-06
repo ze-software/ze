@@ -430,6 +430,30 @@ These are final-state and wire observables, not proof of deletion/withdrawal
 temporal ordering.
 <!-- source: internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go -- TestRFC8654FatalLengthReleasesInstalledRoutes, TestRFC8654ValidLengthRetainsInstalledRoutes -->
 
+### Standalone session fixtures
+
+A test that drives `Session.ReadAndProcess` without `Session.Run` owns the
+timers as well as the socket. Closing the raw pipe does not run the session's
+teardown: the periodic keepalive and RFC 9687 send-hold callbacks can otherwise
+survive into later tests. `acceptWithReader` registers cleanup before accepting;
+cleanup stops the FSM timers and send-hold timer, closes both pipe ends to
+unblock pending I/O, and clears the session connection. Collision fixtures use
+the same acceptance helper.
+Direct-accept migration fixtures stop both timer owners too; a stopped FSM
+HoldTimer does not stop the session-owned SendHoldTimer.
+
+A fixture that starts `Run` MUST cancel and join that invocation before
+releasing test-owned observers. The RFC 9687 fixtures wait for their run
+goroutine before restoring the package logger, without consuming the result
+channel used by the protocol assertions. Their fake clock runs timer callbacks
+synchronously; no timer advance remains in flight at cleanup.
+
+<!-- source: internal/component/bgp/reactor/session_test.go -- acceptWithReader, TestEstablishedSessionFixtureStopsTimers -->
+<!-- source: internal/component/bgp/reactor/collision_test.go -- collisionAcceptWithReader -->
+<!-- source: internal/component/bgp/reactor/rfc7705_session_as_migration_test.go -- migrationSession -->
+<!-- source: internal/component/bgp/reactor/rfc8050_migration_epoch_test.go -- TestMRTMigrationEpochUsesActualLocalOPEN -->
+<!-- source: internal/component/bgp/reactor/rfc9687_test.go -- rfc9687Run -->
+
 ## RFC 4271 ConnectRetryTimer replacement
 
 RFC 4271 specifies a `ConnectRetryTimer` (mandatory FSM attribute,

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-06",
   "requirements": {
     "RFC7999-3.1-2": {
       "note": "Forbidden: advertising BLACKHOLE to a bilateral peer that did not agree. internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer / ::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree / ::TestAnnounceBlackholeReachesAMemberOfADynamicGroup / ::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup all drive handleAnnounceBlackhole only. The second originating path the enrolment names, send ... unicast community 65535:666, is tested by TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate, which carries no tag, and no unit covers re-advertising a received BLACKHOLE-tagged route to an un-agreed peer.",
@@ -22,15 +22,15 @@
       "note": "Positive TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity: config leaf parsed, [BLACKHOLE 64496:1] leaves applyIngressFilter with NO_EXPORT (or NO_ADVERTISE) appended and the other community kept. Negative TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity: with the guard on, no COMMUNITY, 65535:665 (one below BLACKHOLE) and 64496:1 pass unchanged, so the trigger is BLACKHOLE alone. Both carry revert records on blackholePropagationGuard. SHOULD: the add is operator-enabled (no leaf: unchanged), which 3.2-2 permits.",
       "requirement_sha": "d39585bfbbd1e803",
       "tests": {
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "01445f68041be7b4",
         "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "8504f6d9864f16f2",
         "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "8504f6d9864f16f2",
-        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "01445f68041be7b4",
         "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
       },
       "units": {
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "eacfe9ac70880fbc",
         "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "e89478426e039e95",
         "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "71a267ba2179b3d3",
-        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "eacfe9ac70880fbc",
         "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
       },
       "verdict": "enforced"
@@ -39,34 +39,39 @@
       "note": "Positive TestRFC7999PropagationCommunityFollowsTheOperatorLeaf: each leaf value puts exactly its community on a received BLACKHOLE route. Negative TestRFC7999PropagationCommunityIsNeverForced: the unchosen community is absent under each value, and leaf none or unset leaves the route unchanged, so no fixed default is forced. Revert records on blackholeGuardCommunity for both.",
       "requirement_sha": "e0c6234737f6b78b",
       "tests": {
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "01445f68041be7b4",
         "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "8504f6d9864f16f2",
-        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "8504f6d9864f16f2",
-        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "01445f68041be7b4"
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "8504f6d9864f16f2"
       },
       "units": {
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "bff270859ef99dad",
         "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "7b8f99a53f3b3a38",
-        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "65e3c5b2d5256e16",
-        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "bff270859ef99dad"
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "65e3c5b2d5256e16"
       },
       "verdict": "enforced"
     },
     "RFC7999-3.3-1": {
-      "note": "Re-judged 2026-10-02 (BGP c31 judge). RFC 7999 Section 3.3: \"The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise.\" New rib rfc7999_equal_cover_test.go: ::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix (/24 authorized, /24 announced with 65535:666 -> Blackhole on the best-change and in the Loc-RIB) and ::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix (only /25 authorized, which holds the address: /24 stays type 0 on both rails), beside the HEAD /24-over-/32 and uncovered-/32 units and the FRR/BIRD interop scenario. Judge overlays on coveredByAuthorized: `a.Bits() > route.Bits()` made `>=` turns the equal positive red and leaves the negative green; the length test removed turns the longer-authorization negative red and leaves the positive green. Revert records on both new units. The equal and longer shapes duplicate rib_blackhole_rfc7999_cover_test.go (tagged 3.3-2 only); duplication, not a defect.",
+      "code": {
+        "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteType": "e1f826bd1f11dd3e",
+        "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest": "f82e890ce01f294b",
+        "internal/component/bgp/plugins/rib/rib_blackhole.go::coveredByAuthorized": "7ed18f8b8ba8b60f"
+      },
+      "note": "Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.",
       "requirement_sha": "7dede92b94f02a8a",
       "tests": {
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "21e8ae7237b60916",
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "21e8ae7237b60916",
-        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "56c15503fb0a8522",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e11848fab7255248",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f04334a58fd00e7c",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f04334a58fd00e7c"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f7ef88f508431a53"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "7572508169fe6f87",
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "9fbf037f461af03d",
-        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "18a9447db206bf57",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e7dfbb8467f8a0c6",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "0a7b4e0d15a24fd2",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",
@@ -76,23 +81,27 @@
       "verdict": "enforced"
     },
     "RFC7999-3.3-2": {
-      "note": "Both conditions, both polarities, on the rib honoring path. Condition 1: positive TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix (equal /24 authorized: Blackhole on event rail and Loc-RIB); negative TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix with the session agreed, outside /32 and SHORTER /16 stay RouteType 0, isolating condition 1. Revert records on coveredByAuthorized. Condition 2: rib_blackhole_wiring/dynamic units both ways plus the FRR/BIRD interop scenario. The filter_modify next-hop units were retagged to 4-1 (D-15): an operator-written modify matching the community is operator policy, not Ze honoring BLACKHOLE, so it is not a condition-1 defect.",
+      "code": {
+        "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteType": "e1f826bd1f11dd3e",
+        "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest": "f82e890ce01f294b"
+      },
+      "note": "Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.",
       "requirement_sha": "4eaeda4d7877392c",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "56c15503fb0a8522",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1969eb7af8dc7698",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "1969eb7af8dc7698",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e11848fab7255248",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "619a6a003fffd5d0",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f04334a58fd00e7c",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f04334a58fd00e7c"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f7ef88f508431a53"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "18a9447db206bf57",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1180af0e7f6a806f",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "e683818e36855e13",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e7dfbb8467f8a0c6",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "a94ddb69ae210ad3",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",

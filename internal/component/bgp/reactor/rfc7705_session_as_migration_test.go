@@ -48,6 +48,13 @@ func migrationSession(t *testing.T, localAS, peerAS, migrationAS uint32) (*Sessi
 	require.NoError(t, session.Start())
 
 	client, server := net.Pipe()
+	t.Cleanup(func() {
+		session.timers.StopAll()
+		session.stopSendHoldTimer()
+		client.Close() //nolint:errcheck // Closing the pipe releases the fixture reader.
+		server.Close() //nolint:errcheck // The session may already have closed the server.
+		session.closeConn()
+	})
 	written := make(chan []byte, 8)
 	go func() {
 		for {
@@ -63,11 +70,6 @@ func migrationSession(t *testing.T, localAS, peerAS, migrationAS uint32) (*Sessi
 
 	require.NoError(t, session.Accept(server))
 	require.Equal(t, fsm.StateOpenSent, session.State())
-
-	t.Cleanup(func() {
-		client.Close() //nolint:errcheck // test cleanup
-		server.Close() //nolint:errcheck // test cleanup
-	})
 
 	return session, written
 }

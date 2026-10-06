@@ -40,12 +40,11 @@ func TestSRPolicyNLRIEncoderRegistered(t *testing.T) {
 	}
 }
 
-// TestSRPolicyEncodeIPv4 verifies canonical owner-package route encoding against
-// the existing ExaBGP compatibility SR-Policy IPv4 UPDATE bytes.
+// TestSRPolicyEncodeIPv4 verifies the complete SR-Policy IPv4 UPDATE encoding.
 //
-// VALIDATES: IPv4 SR-Policy route encoding builds the same NLRI and Tunnel
-// Encapsulation attribute as the compatibility path.
-// PREVENTS: byte drift while wiring SR-Policy into the registry route encoder.
+// VALIDATES: the NLRI and Tunnel Encapsulation attribute carry configured
+// values without setting RFC 9830's unassigned Binding SID flag bits.
+// PREVENTS: retaining an invalid legacy flag in an otherwise valid UPDATE.
 func TestSRPolicyEncodeIPv4(t *testing.T) {
 	cmd := "distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 192.0.2.1 preference 100 binding-sid mpls 24000 segment-list weight 1 segment type-a mpls 16001"
 	update, nlri, err := EncodeRoute(cmd, "ipv4/sr-policy", 65000, true, true, false)
@@ -53,7 +52,7 @@ func TestSRPolicyEncodeIPv4(t *testing.T) {
 		t.Fatalf("EncodeRoute returned error: %v", err)
 	}
 
-	wantUpdate := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006902000000524001010040020040050400000064800E1600014904C0000201006000000000000000640A000001C01728000F00240C060000000000640D06100005DC00008000110009060000000000010106000003E81000"
+	wantUpdate := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006902000000524001010040020040050400000064800E1600014904C0000201006000000000000000640A000001C01728000F00240C060000000000640D06000005DC00008000110009060000000000010106000003E81000"
 	if got := strings.ToUpper(hex.EncodeToString(update)); got != wantUpdate {
 		t.Fatalf("update = %s, want %s", got, wantUpdate)
 	}
@@ -84,14 +83,12 @@ func TestSRPolicyEncodeIPv6(t *testing.T) {
 	}
 }
 
-// TestSRPolicyInteropExaBGPSubTLVBytes verifies Ze's sub-TLV encoding matches
-// ExaBGP's byte oracle from tests/unit/test_sr_policy.py.
+// TestSRPolicySubTLVWireBytes verifies configured RFC 9830 sub-TLV fields.
 //
-// VALIDATES: sub-TLV wire bytes are interoperable with ExaBGP.
-// PREVENTS: encoding drift between Ze and ExaBGP (except the documented
-// S-bit difference: Ze sets S=0 per RFC 9830 §2.4.4.2.1; ExaBGP sets S=1
-// on is_last segments).
-func TestSRPolicyInteropExaBGPSubTLVBytes(t *testing.T) {
+// VALIDATES: sub-TLV bytes through the route encoder, not a live peer exchange.
+// PREVENTS: copying legacy ExaBGP unassigned Binding SID flags or MPLS S bits
+// instead of RFC 9830 Sections 2.4.2 and 2.4.4.2.1's zero requirements.
+func TestSRPolicySubTLVWireBytes(t *testing.T) {
 	cases := []struct {
 		name string
 		cmd  string
@@ -117,10 +114,10 @@ func TestSRPolicyInteropExaBGPSubTLVBytes(t *testing.T) {
 		},
 		{
 			"binding_sid_mpls_24000_s_bit_zero",
-			// ExaBGP: BindingSIDSubTLV(24000).pack() == b'\x0d\x06\x10\x00\x05\xdc\x01\x00'
-			// Ze differs: S-bit=0 per RFC 9830 → 05DC0000 (not 05DC0100).
+			// RFC 9830 Section 2.4.2: unassigned Flags and the MPLS S bit are zero.
+			// The legacy ExaBGP oracle set 0x10 in Flags and 1 in S.
 			"distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 192.0.2.1 binding-sid mpls 24000",
-			"0D06100005DC0000",
+			"0D06000005DC0000",
 		},
 		{
 			"segment_type_a_16001_s_bit_zero",
@@ -165,7 +162,7 @@ func TestSRPolicyEncodeWithPriority(t *testing.T) {
 	// Verify all sub-TLVs present: preference, binding-sid, priority, segment-list.
 	for _, sub := range []string{
 		"0C06000000000064", // preference 100
-		"0D06100005DC0000", // binding-sid mpls 24000 (S=0)
+		"0D06000005DC0000", // binding-sid mpls 24000 (Flags=0, S=0)
 		"0F020A00",         // priority 10
 		"0106000003E81000", // segment type-a 16001 (S=0)
 	} {

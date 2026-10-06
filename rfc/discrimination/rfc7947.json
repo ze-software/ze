@@ -20,7 +20,7 @@
       "claim-sha": "a1c44330cb337c21",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_body.go::forwardWire",
-      "producer-sha": "f07161e0c6812c8b",
+      "producer-sha": "0c74feade9f7ea34",
       "break": "body of forwardWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

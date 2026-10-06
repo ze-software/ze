@@ -51,9 +51,15 @@ func srpBindingSID(flags, reserved byte, entry ...byte) []byte {
 	return teShort(SubTLVBindingSID, append([]byte{flags, reserved}, entry...)...)
 }
 
-// srpSRv6BindingSID builds an SRv6 Binding SID sub-TLV (RFC 9830 Section 2.4.3).
+// srpSRv6BindingSID builds an SRv6 Binding SID sub-TLV.
+// RFC 9830 Section 2.4.3: "The B-Flag, when set, indicates the presence of the
+// "SRv6 Endpoint Behavior & SID Structure" encoding specified in Section 2.4.4.2.4.".
 func srpSRv6BindingSID(flags, reserved byte) []byte {
-	return teShort(srpSubTLVSRv6BindingSID, append([]byte{flags, reserved}, srpSID()...)...)
+	value := append([]byte{flags, reserved}, srpSID()...)
+	if flags&0x20 != 0 {
+		value = append(value, 0xFF, 0xFF, 0, 0, 32, 16, 16, 64)
+	}
+	return teShort(srpSubTLVSRv6BindingSID, value...)
 }
 
 // srpSegmentList builds a Segment List sub-TLV (RFC 9830 Section 2.4.4): a RESERVED
@@ -81,8 +87,8 @@ func srpTypeA(flags, reserved, tcs byte) []byte {
 // Structure (RFC 9830 Sections 2.4.4.2.2 and 2.4.4.2.4).
 // The Flags octet carries the assigned B-Flag (bit 3), which Section 2.4.4.2.3 defines
 // as "the SRv6 Endpoint Behavior and SID Structure is present".
-func srpTypeB(reserved, ebReserved byte) []byte {
-	value := append([]byte{0x10, reserved}, srpSID()...)
+func srpTypeB(flags, reserved, ebReserved byte) []byte {
+	value := append([]byte{flags, reserved}, srpSID()...)
 	value = append(value, 0xFF, 0xFF, ebReserved, ebReserved, 32, 16, 16, 64)
 	return teShort(srpSegTypeB, value...)
 }
@@ -110,13 +116,15 @@ func TestRFC9830ReceivedFieldsAreIgnoredNotRead(t *testing.T) {
 
 	cases := []srpIgnoredCase{
 		// RFC requirement: RFC9830-2.4.2-6 positive -- the unassigned bits of the Binding SID Flags field are ignored on receipt
-		{"binding-sid flags", srpBindingSID(0xFF, 0x00, 0x05, 0xDC, 0x00, 0x00), srpBindingSID(0x00, 0x00, 0x05, 0xDC, 0x00, 0x00)},
+		{"binding-sid flags", srpBindingSID(0x3F, 0x00, 0x05, 0xDC, 0x00, 0x00), srpBindingSID(0x00, 0x00, 0x05, 0xDC, 0x00, 0x00)},
 		// RFC requirement: RFC9830-2.4.2-8 positive -- the Binding SID RESERVED octet is ignored on receipt
 		{"binding-sid reserved", srpBindingSID(0x00, 0xFF, 0x05, 0xDC, 0x00, 0x00), srpBindingSID(0x00, 0x00, 0x05, 0xDC, 0x00, 0x00)},
 		// RFC requirement: RFC9830-2.4.2-10 positive -- the TC, S and TTL bits of the Binding SID label stack entry are ignored on receipt
 		{"binding-sid tc/s/ttl", srpBindingSID(0x00, 0x00, 0x05, 0xDC, 0x0F, 0xFF), srpBindingSID(0x00, 0x00, 0x05, 0xDC, 0x00, 0x00)},
 		// RFC requirement: RFC9830-2.4.3-5 positive -- the unassigned bits of the SRv6 Binding SID Flags field are ignored on receipt
-		{"srv6-binding-sid flags", srpSRv6BindingSID(0xFF, 0x00), srpSRv6BindingSID(0x00, 0x00)},
+		{"srv6-binding-sid flags", srpSRv6BindingSID(0x1F, 0x00), srpSRv6BindingSID(0x00, 0x00)},
+		{"srv6-binding-sid flags with assigned S/I", srpSRv6BindingSID(0xDF, 0x00), srpSRv6BindingSID(0xC0, 0x00)},
+		{"srv6-binding-sid flags with assigned S/I/B", srpSRv6BindingSID(0xFF, 0x00), srpSRv6BindingSID(0xE0, 0x00)},
 		// RFC requirement: RFC9830-2.4.3-7 positive -- the SRv6 Binding SID RESERVED octet is ignored on receipt
 		{"srv6-binding-sid reserved", srpSRv6BindingSID(0x00, 0xFF), srpSRv6BindingSID(0x00, 0x00)},
 		// RFC requirement: RFC9830-2.4.4-5 positive -- the Segment List RESERVED octet is ignored on receipt
@@ -143,18 +151,21 @@ func TestRFC9830ReceivedFieldsAreIgnoredNotRead(t *testing.T) {
 		{"segment flags unassigned",
 			srpSegmentList(0x00, srpTypeA(0x6F, 0, 0)),
 			srpSegmentList(0x00, srpTypeA(0x00, 0, 0))},
+		{"type-b flags unassigned",
+			srpSegmentList(0x00, srpTypeB(0x7F, 0, 0)),
+			srpSegmentList(0x00, srpTypeB(0x10, 0, 0))},
 		// RFC requirement: RFC9830-2.4.4.2.3-3 positive -- a B-Flag (bit 3) appearing on a Segment Type A is ignored
 		{"type-a b flag",
 			srpSegmentList(0x00, srpTypeA(0x10, 0, 0)),
 			srpSegmentList(0x00, srpTypeA(0x00, 0, 0))},
 		// RFC requirement: RFC9830-2.4.4.2.2-3 positive -- the Type B segment RESERVED octet is ignored on receipt
 		{"type-b reserved",
-			srpSegmentList(0x00, srpTypeB(0xFF, 0x00)),
-			srpSegmentList(0x00, srpTypeB(0x00, 0x00))},
+			srpSegmentList(0x00, srpTypeB(0x10, 0xFF, 0x00)),
+			srpSegmentList(0x00, srpTypeB(0x10, 0x00, 0x00))},
 		// RFC requirement: RFC9830-2.4.4.2.4-3 positive -- the Reserved field of the SRv6 Endpoint Behavior and SID Structure is ignored on receipt
 		{"endpoint-behavior reserved",
-			srpSegmentList(0x00, srpTypeB(0x00, 0xFF)),
-			srpSegmentList(0x00, srpTypeB(0x00, 0x00))},
+			srpSegmentList(0x00, srpTypeB(0x10, 0x00, 0xFF)),
+			srpSegmentList(0x00, srpTypeB(0x10, 0x00, 0x00))},
 		// RFC requirement: RFC9830-2.4.6-6 positive -- the Priority RESERVED octet is ignored on receipt
 		{"priority reserved", teShort(SubTLVPriority, 9, 0xFF), teShort(SubTLVPriority, 9, 0x00)},
 		// RFC requirement: RFC9830-2.4.7-7 positive -- the SR Policy Candidate Path Name RESERVED octet is ignored on receipt

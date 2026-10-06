@@ -48,6 +48,7 @@ func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 		}
 		startSession(t, s)
 		t.Cleanup(s.timers.StopAll)
+		t.Cleanup(s.stopSendHoldTimer)
 		listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer func() {

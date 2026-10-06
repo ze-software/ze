@@ -955,21 +955,10 @@ func TestCheckSupportedSignoffRefusesTheGeneratedSkeleton(t *testing.T) {
 	}
 }
 
-// VALIDATES: assumption A-1 of plan/spec-rfcgate-6-supported-extraction-signoff.md,
-// re-derived from the summaries rather than retyped, and AC-4 of
-// plan/spec-rfc-ledger-single-declaration.md: one summary renders exactly one row.
-// PREVENTS: a scope carried forward from a table in a spec.
-//
-// The two denominators this test carried until 2026-09-01 -- the STEM set the page's
-// parser answered, and the ROW count of the eight RFC tables -- were two numbers because
-// the page was authored and a stem stated twice lost its earlier row. RFC 2759 held that
-// shape until 460fdc0f8. They are one number now: a row IS a summary's `| Support |`
-// declaration, so a stem cannot be stated twice and the bridge has nothing left to check.
-// What survives is the split by section, which is the term the spec's scope cut turns on.
-//
-// A number that moves fails this test with both counts printed, which is the point: the
-// scope is re-derived at the start of a phase and at closure, and a delta is recorded in
-// the spec's Risks & Assumptions rather than absorbed.
+// VALIDATES: support scope is derived from today's declarations, not a historic
+// corpus size. Every declared row appears once in its section, and the support
+// promises partition into exact, qualified and legacy Yes shapes.
+// METHOD: compare row identities and sections with the rendered page.
 func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -983,63 +972,148 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
 
-	var mapped, rfcTables, draftTable []string
-	for _, stem := range sortMetaStems(metas) {
-		meta := metas[stem]
-		if !meta.HasRow() || !statusPromisesSupport(meta.Status) {
-			continue
-		}
-		mapped = append(mapped, meta.Status)
-		if meta.Support == "drafts" {
-			draftTable = append(draftTable, meta.Status)
-			continue
-		}
-		rfcTables = append(rfcTables, meta.Status)
+	page, err := renderStatusPage(metas, nil)
+	if err != nil {
+		t.Fatalf("render the public rows: %v", err)
 	}
-	exact, qualified, yes := supportClaimSplit(mapped)
-	// No stem reads 'Yes' any more: that cell was RFC 1997's and the page's own
-	// vocabulary paragraph never defined the word, so it now reads 'Supported'.
-	// The shape is kept in the split rather than dropped, because the predicate
-	// still accepts it and a future row could reintroduce it.
-	// 44, not the 51 this test held until 2026-09-02. Seven rows promised
-	// conformance over a checklist not one of whose gated MUST-level
-	// requirements is proven in both polarities, and the second arm of
-	// checkUnprovenSupport refuses exactly that, so each was lowered to
-	// `Partial`: rfc3032 and rfc4302 were the two scope-qualified ones,
-	// rfc4364, rfc4761, rfc5798, rfc7535 and
-	// draft-abraitis-bgp-version-capability the five exact. The draft is the
-	// one of the seven outside the eight RFC sections, which is why the RFC
-	// count below drops by six.
-	// 45 (36 exact) since 2026-09-11: a8f7323f64 enrolled
-	// draft-ietf-idr-bgp-bfd-strict-mode with `| Support status | Supported |`,
-	// the first new support-promising row since the seven were lowered above. It
-	// carries `| Support | drafts 70 |`, so it joins the DRAFT table and the RFC
-	// section counts below are unchanged.
-	// 46 (37 exact) since 2026-09-14: af10938607 enrolled rfc7705 with
-	// `| Support status | Supported |` under `| Support | bgp-base 265 |`, so
-	// it joins the RFC sections and the section count below rises by one too.
-	// 45 (36 exact) since 2026-09-27: 1054d49c4d quoted rfc4303's rows verbatim,
-	// and the quoted RFC4303-2.1-2 names the address match used for the inbound
-	// SA lookup, which its tagged test does not drive. The row was lowered from
-	// `Supported` to `Partial` rather than left promising a proof it lacks, so
-	// the RFC section count below drops by one as well.
-	if len(mapped) != 45 || exact != 36 || qualified != 9 || yes != 0 {
-		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 45 (36, 9, 0)",
-			len(mapped), exact, qualified, yes)
+	if problems := supportedRowScopeProblems(metas, page); len(problems) != 0 {
+		t.Fatalf("public row accounting: %v", problems)
 	}
-	if exact+qualified+yes != len(mapped) {
-		t.Errorf("the three shapes sum to %d of %d accepted status cells, so a shape the producer accepts is uncounted",
-			exact+qualified+yes, len(mapped))
-	}
+}
 
-	rowExact, rowQualified, rowYes := supportClaimSplit(rfcTables)
-	if len(rfcTables) != 42 || rowExact != 33 || rowQualified != 9 || rowYes != 0 {
-		t.Errorf("the eight RFC sections carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 42 (33, 9, 0)",
-			len(rfcTables), rowExact, rowQualified, rowYes)
+// supportedRowScopeProblems checks identities before counting: an omitted row
+// cannot be hidden by duplicating another, even within the same status shape.
+func supportedRowScopeProblems(metas map[string]Meta, page string) []string {
+	var problems []string
+	expected := map[string]string{}
+	var statuses, rfcStatuses, draftStatuses []string
+	for stem := range metas {
+		meta := metas[stem]
+		if !meta.HasRow() {
+			continue
+		}
+		prefix := "| " + publicRowName(stem, meta) + " | " + meta.Area + " | " + meta.Status + " | "
+		if _, held := expected[prefix]; held {
+			problems = append(problems, "duplicate declared identity: "+stem)
+		}
+		expected[prefix] = meta.Support
+		if !statusPromisesSupport(meta.Status) {
+			continue
+		}
+		statuses = append(statuses, meta.Status)
+		if meta.Support == "drafts" {
+			draftStatuses = append(draftStatuses, meta.Status)
+			continue
+		}
+		rfcStatuses = append(rfcStatuses, meta.Status)
 	}
-	if len(mapped) != len(rfcTables)+len(draftTable) {
-		t.Errorf("%d support-promising row(s) split into %d + %d, so a section outside the nine holds one",
-			len(mapped), len(rfcTables), len(draftTable))
+	sections := map[string]string{}
+	for _, section := range statusSections {
+		sections["## "+section.Heading] = section.Key
+	}
+	seen := map[string]int{}
+	section := ""
+	for line := range strings.SplitSeq(page, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			section = sections[line]
+			continue
+		}
+		if !strings.HasPrefix(line, "| ") {
+			continue
+		}
+		if strings.HasPrefix(line, "| RFC |") {
+			continue
+		}
+		if strings.HasPrefix(line, "| Standard |") {
+			continue
+		}
+		matched := false
+		for prefix, wantSection := range expected {
+			if !strings.HasPrefix(line, prefix) {
+				continue
+			}
+			matched = true
+			seen[prefix]++
+			if section != wantSection {
+				problems = append(problems, "wrong section: "+prefix)
+			}
+		}
+		if !matched {
+			problems = append(problems, "undeclared row: "+line)
+		}
+	}
+	for prefix := range expected {
+		if seen[prefix] != 1 {
+			problems = append(problems, "row missing or duplicated: "+prefix)
+		}
+	}
+	for _, partition := range [][]string{statuses, rfcStatuses, draftStatuses} {
+		exact, qualified, yes := supportClaimSplit(partition)
+		if exact+qualified+yes != len(partition) {
+			problems = append(problems, "support promise outside the three status shapes")
+		}
+	}
+	if len(statuses) != len(rfcStatuses)+len(draftStatuses) {
+		problems = append(problems, "RFC and draft partitions do not cover support promises")
+	}
+	return problems
+}
+
+// TestSupportedRowScopeFixtures exercises each scope boundary and plants
+// balanced omission/duplication, which a total-only oracle would miss.
+func TestSupportedRowScopeFixtures(t *testing.T) {
+	metas := map[string]Meta{
+		"rfc1000":      {Support: "bgp-base", Rank: 10, Status: "Supported"},
+		"rfc1001":      {Support: "bgp-base", Rank: 20, Status: "Supported on Linux"},
+		"rfc1002":      {Support: "bgp-base", Rank: 30, Status: "Yes"},
+		"rfc1003":      {Support: "bgp-base", Rank: 40, Status: "Unsupported"},
+		"rfc1004":      {Support: "bgp-base", Rank: 50, Status: "Partial"},
+		"draft-widget": {Support: "drafts", Rank: 10, Status: "Supported"},
+		"rfc1005":      {Status: "Supported"},
+	}
+	page, err := renderStatusPage(metas, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if problems := supportedRowScopeProblems(metas, page); len(problems) != 0 {
+		t.Fatalf("valid fixture: %v", problems)
+	}
+	var claims []string
+	for _, meta := range metas {
+		if !meta.HasRow() {
+			continue
+		}
+		if statusPromisesSupport(meta.Status) {
+			claims = append(claims, meta.Status)
+		}
+	}
+	exact, qualified, yes := supportClaimSplit(claims)
+	if exact != 2 || qualified != 1 || yes != 1 {
+		t.Fatalf("fixture support split = %d/%d/%d, want 2/1/1", exact, qualified, yes)
+	}
+	var rows []string
+	for line := range strings.SplitSeq(page, "\n") {
+		if strings.HasPrefix(line, "| "+publicRowName("rfc1000", metas["rfc1000"])+" |") {
+			rows = append(rows, line)
+		}
+		if strings.HasPrefix(line, "| "+publicRowName("rfc1001", metas["rfc1001"])+" |") {
+			rows = append(rows, line)
+		}
+	}
+	if len(rows) != 2 {
+		t.Fatalf("fixture needs two distinct rendered RFC rows, got %v", rows)
+	}
+	for name, broken := range map[string]string{
+		"omission":              strings.Replace(page, rows[0]+"\n", "", 1),
+		"duplication":           page + rows[0] + "\n",
+		"balanced substitution": strings.Replace(page, rows[0], rows[1], 1),
+		"wrong section":         strings.Replace(page, "## "+statusSections[0].Heading, "## Unknown", 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if problems := supportedRowScopeProblems(metas, broken); len(problems) == 0 {
+				t.Fatal("broken rendered population accepted")
+			}
+		})
 	}
 }
 

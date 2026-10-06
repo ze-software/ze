@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-05",
+  "audited": "2026-10-06",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -14,7 +15,7 @@
       "requirement_sha": "eff52418bb3a7dea",
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "799e0e527a57d59c",
@@ -23,17 +24,17 @@
       "verdict": "enforced"
     },
     "RFC3748-2-2": {
-      "note": "Positive: the valid Response to the outstanding Challenge draws one next packet with a new Identifier; a replay draws nil. Negative: while the Challenge is outstanding a Response with Identifier+1 and a Response of Type 13 each draw nil (Session.Process Identifier check, handleMethod Type check), isolated as two separate inputs. The old Code-1-draws-Failure arm is no longer tagged.",
+      "note": "Re-read RFC 3748 in full, especially Section 2 [3] (no new Request before a valid Response), Sections 2.2-2.3 role routing and 4.1 Identifier/Type validity, and every tagged unit. TestRFC3748AuthenticatorRequiresValidResponse now supplies a genuine matching Identity Response and requires a non-nil CodeRequest of TypeMSCHAPv2; it does not expect a wrong-role Request to draw Failure. TestRFC3748NoNewRequestBeforeAValidResponse separately supplies a wrong-Identifier Response and a wrong-Type Response while the Challenge is outstanding and requires nil for each; the real peer then answers the retained Challenge, requires a next packet with a changed Identifier if it is a Request, and requires nil on replay. Session.Process checks CodeResponse and the outstanding Identifier before state dispatch; handleMethod checks the configured Type before calling the method. The malformed method payload in the wrong-Identifier probe cannot independently satisfy its nil assertion: mschapv2Method.handleResponse returns Err on that short payload and Session.handleMethod would emit Failure, which the assertion rejects. The wrong-Type probe likewise reaches a non-nil Failure if the framework Type discard is removed. handleIdentity, handleMethod and finalRequest emit their next Requests only while processing the admitted Response; handleResponderEAP consumes nil as no output and forwards non-nil packets through sendResponderEAP. Retain enforced for this lock-step obligation; this source rejudgment is not an executed test or named-peer result.",
       "requirement_sha": "d8dcc0644b45f303",
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "799e0e527a57d59c",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse#2": "799e0e527a57d59c",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "300022459c1d4676"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "24791198417775bd"
       },
       "verdict": "enforced"
     },
@@ -43,8 +44,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "5b577a81c25bf218",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "c7d9cf3b0751a797",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod": "595c925e4ca2da63",
@@ -60,8 +61,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "5b577a81c25bf218",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "c7d9cf3b0751a797",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult": "d61a083c6ef032f0",
@@ -90,8 +91,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_discard_test.go::TestPeerDiscardsARequestOfAnotherType": "34f6e882c4ad0ef2",
-        "internal/core/eap/rfc3748_discard_test.go::TestPeerProcessesARequestOfTheMethodType": "34f6e882c4ad0ef2"
+        "internal/core/eap/rfc3748_discard_test.go::TestPeerDiscardsARequestOfAnotherType": "e0e4c426f5444d02",
+        "internal/core/eap/rfc3748_discard_test.go::TestPeerProcessesARequestOfTheMethodType": "e0e4c426f5444d02"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType": "4ace33b358366ffe",
@@ -131,8 +132,8 @@
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength#2": "01da78c989864de5",
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength": "01da78c989864de5",
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength#2": "01da78c989864de5",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "5b577a81c25bf218",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "c7d9cf3b0751a797",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength": "ac2f731e78310cd6",
@@ -150,8 +151,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "5b577a81c25bf218",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "c7d9cf3b0751a797",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket": "c84bc537ec81c2dc",
@@ -179,17 +180,32 @@
       "verdict": "enforced"
     },
     "RFC3748-4-5": {
-      "note": "RFC 3748 Section 4 requires undefined Codes to be silently discarded by both roles. TestRFC3748UndefinedCodesAreSilentlyDiscarded checks Codes 0,5,6,255: authenticator output must be nil; peer output must have Discarded=true and no error, response, completion or key; following Identity packets must still work. Its corrected negative controls exercise a valid authenticator Identity Response, a peer Identity Request and matching Failure, without requiring replies to wrong-role Codes. These preserve the existing unknown-Code proof but do not enforce the peer clause at the exchange-budget boundary: PeerSession.Process (internal/core/eap/peer.go) increments rounds and returns ErrTooManyRounds with peerStateFailed above maxEAPRounds=20 before its undefined-Code guard. Twenty-one undefined packets therefore produce a terminal error; twenty discards also exhaust the next valid packet's budget. The four-packet test does not detect this. handleEAPResponse (internal/component/ike/engine/fsm.go) converts that error to StateDead. Verdict concerns this uncovered undefined-Code behavior, not the separate unchanged authenticator wrong-role defect. Source inspection only; no execution or discrimination result claimed.",
+      "code": {
+        "internal/component/ike/engine/fsm.go::handleEAPResponse": "852ae3cad0ce53c4",
+        "internal/component/ike/engine/responder.go::handleResponderInbound": "95699b158c56778b",
+        "internal/component/ike/engine/responder_eap.go::handleResponderEAP": "917e08916e89453e",
+        "internal/core/eap/eap.go::Process": "481750de5c1bf481",
+        "internal/core/eap/peer.go::Process": "ee07131482ea0948"
+      },
+      "note": "Independent semantic rejudgment: RFC3748 Section 4: \"Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers.\" The actual two-role core units check state, identifier, method, keys, round budget and legitimate controls; the engine unit injects encrypted undefined Codes before each real EAP round and finishes matching nonzero MSKs and final AUTH. Removing the initiator Discarded early return now produces the named Code-0 initiator output/retransmission failure while the legitimate retry control passes. Charging undefined Codes to peer.rounds now fails budget/exchange assertions while valid round-budget controls pass. Current Process admission rejects undefined Codes before state/method/budget access on both roles, and responder routing consumes Discarded before output/cache/message-ID advancement. The two previously requested semantic witnesses are observed; no fresh foreign EAP interoperability run is claimed. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "b79c6b2da2e91564",
       "tests": {
+        "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange": "9f3f8ce8f5d7aa2d",
+        "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange#2": "9f3f8ce8f5d7aa2d",
         "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "e0e4c426f5444d02",
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "e0e4c426f5444d02"
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "e0e4c426f5444d02",
+        "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange": "d1608e86f38109eb",
+        "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange#2": "d1608e86f38109eb"
       },
       "units": {
+        "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange": "e8c1e9e81cf148b7",
+        "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange#2": "e8c1e9e81cf148b7",
         "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "8296d97469eb1da3",
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "8296d97469eb1da3"
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "8296d97469eb1da3",
+        "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange": "04d2b44f18c317b1",
+        "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange#2": "04d2b44f18c317b1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3748-4.1-1": {
       "note": "'Only in reply to a valid Request': TestRFC3748PeerAnswersNoInvalidRequest (a Request of another method mid-method and a method Request after Success each discarded, a valid Request answered). 'Never retransmitted on a timer': TestRFC3748PeerNeverRetransmitsOnATimer walks PeerSession for a time.Timer, time.Ticker or chan time.Time (none), checks Process is the only method returning *Packet or PeerResult, and shows an answered peer handed an early EAP-Success returns no Response and marks it Discarded. PeerSession has no transport, so Process is its only send path. Limit: the reflection does not look for a func-typed send callback; adding one would also add a send path the method-set check misses. All units recorded.",
@@ -197,7 +213,7 @@
       "tests": {
         "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "24aa543c2cc9f42d",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerAnswersNoInvalidRequest": "a4c2ccc90d93cad9",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "94286487aa968dd3",
@@ -210,8 +226,8 @@
       "note": "Both 'these requirements' asserted at the authenticator: a Response of another Type draws nil and does not complete the exchange (exact nil, Succeeded false), a Nak after the initial non-Nak Response is discarded and the method still concludes; the method-Type control Response is processed to EAP-Success, so the discard is the Type check, not a refusal of every Response. All three units carry observed-red records.",
       "requirement_sha": "44a8418ad5971d2c",
       "tests": {
-        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType": "34f6e882c4ad0ef2",
-        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType": "34f6e882c4ad0ef2",
+        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType": "e0e4c426f5444d02",
+        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType": "e0e4c426f5444d02",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748AuthenticatorDiscardsANakAfterTheInitialNonNakResponse": "a4c2ccc90d93cad9"
       },
       "units": {
@@ -267,7 +283,7 @@
       "note": "{single-polarity: positive} carried on the row. Forbidden: the authenticator re-sending Success or Failure. TestRFC3748SuccessFailureNotRetransmitted fails on a non-nil packet from Process after a Failure (Nak path) and after a Success (full MS-CHAPv2 flight).",
       "requirement_sha": "c0a1e960bf77e219",
       "tests": {
-        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "cf8077ad6658a84d"
@@ -308,7 +324,7 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData": "f980dd0725d0f151",
@@ -318,16 +334,16 @@
       "verdict": "enforced"
     },
     "RFC3748-4.2-4": {
-      "note": "{single-polarity: positive} carried on the row (sender obligation). Forbidden: a Success or Failure whose Identifier is not the answered Response's. out.Identifier != responseID fails on the refused-code Failure (0x42), the Nak Failure (0x7E), the identity-stage Failure (0x11) and the Done-method Success (0x5A).",
+      "note": "Re-read the full RFC 3748 text and Section 4.2 Identifier rule, all four tagged test units, Session.Process/handleIdentity/handleMethod/finalRequest/failure, and the real MS-CHAPv2 producer and peer routing. The sender-only single-polarity annotation remains appropriate: the forbidden outcome is a terminal packet whose Identifier differs from the Response it answers, not a receiver acceptance rule. TestFailureIdentifierMatchesResponse now drives real wrong credentials through the method Failure Request, the peer acknowledgement and stateLastWord, requires CodeFailure within eight rounds, and compares its Identifier exactly with that actual acknowledgement Response (the previous refused-code 0x42 fixture no longer describes this unit). TestFailureIdentifierMatchesResponseOnNAK pins CodeFailure and Identifier 0x7E; TestIdentityFailureIdentifierMatchesResponse pins CodeFailure and 0x11 on the existing identity refusal branch; TestSuccessIdentifierMatchesResponse pins CodeSuccess and 0x5A on the Done branch. These assertions reject the former terminal Identifier increment. failure copies answered.Identifier, and the Done arm stamps response.Identifier; the IKE consumer forwards both terminal packet kinds without changing the EAP Identifier. The malformed identity fixture is evidence only for the Identifier on that existing terminal branch, not proof that emitting Failure for a wrong Type complies with the separate Section 4.1 discard obligation. Retain enforced for the scoped sender Identifier rule, with no live interop or test-execution claim.",
       "requirement_sha": "758c2f4e695d8847",
       "tests": {
-        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "979d1b9de935564e",
-        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponseOnNAK": "979d1b9de935564e",
-        "internal/core/eap/rfc3748_identifier_test.go::TestIdentityFailureIdentifierMatchesResponse": "979d1b9de935564e",
-        "internal/core/eap/rfc3748_identifier_test.go::TestSuccessIdentifierMatchesResponse": "979d1b9de935564e"
+        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "7a11de4f33685ca1",
+        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponseOnNAK": "7a11de4f33685ca1",
+        "internal/core/eap/rfc3748_identifier_test.go::TestIdentityFailureIdentifierMatchesResponse": "7a11de4f33685ca1",
+        "internal/core/eap/rfc3748_identifier_test.go::TestSuccessIdentifierMatchesResponse": "7a11de4f33685ca1"
       },
       "units": {
-        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "5f3c50c840ff27f9",
+        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "46155579bbf4e53c",
         "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponseOnNAK": "e6b0f0ca9af09fe7",
         "internal/core/eap/rfc3748_identifier_test.go::TestIdentityFailureIdentifierMatchesResponse": "eb74414682206675",
         "internal/core/eap/rfc3748_identifier_test.go::TestSuccessIdentifierMatchesResponse": "4fb6ceaf26c7d20d"
@@ -368,8 +384,8 @@
       "note": "Forbidden: acting on a Success sent at connection. A Success on a fresh peer fails on eapdWantDiscarded, on Succeeded(), and if the following Identity Request is no longer answered. Positive: the same Success at method end must conclude Done with a non-zero MSK.",
       "requirement_sha": "575e16cc23a4ce1e",
       "tests": {
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess": "34f6e882c4ad0ef2",
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess#2": "34f6e882c4ad0ef2"
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess": "e0e4c426f5444d02",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess#2": "e0e4c426f5444d02"
       },
       "units": {
         "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess": "1732f710a011678d",
@@ -383,8 +399,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet": "34f6e882c4ad0ef2",
-        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet#2": "34f6e882c4ad0ef2"
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet": "e0e4c426f5444d02",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet#2": "e0e4c426f5444d02"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted": "fd1837a05aa14116",
@@ -485,7 +501,7 @@
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "5b577a81c25bf218"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "c7d9cf3b0751a797"
       },
       "units": {
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",

@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
@@ -38,16 +39,29 @@ func teSRPolicyBody(value []byte, afi byte) []byte {
 	}
 	attrs := []byte{0x80, byte(attribute.AttrMPReachNLRI), byte(len(mp))}
 	attrs = append(attrs, mp...)
-	attrs = append(attrs, 0x40, 1, 1, 0, 0x40, 2, 0) // ORIGIN and empty AS_PATH.
-	attrs = append(attrs, 0xD0, byte(attribute.AttrTunnelEncap), byte(len(value)>>8), byte(len(value)))
+	// RFC 9830 Section 4.2.1: "The SR Policy update MUST have either the
+	// NO_ADVERTISE community, at least one Route Target extended community
+	// in IPv4-address format, or both."
+	// IPv4 RT 192.0.2.2:0 permits propagation; NO_ADVERTISE would forbid it.
+	attrs = append(attrs,
+		0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xea,
+		0xC0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0,
+		0xD0, byte(attribute.AttrTunnelEncap), byte(len(value)>>8), byte(len(value)))
 	attrs = append(attrs, value...)
 	return makeUpdateBody(nil, attrs, nil)
+}
+
+// teValidationSession matches the four-octet EBGP path in the tunnel fixtures.
+func teValidationSession() *Session {
+	s := rfc7311EBGPSession()
+	s.negotiated = &capability.Negotiated{ASN4: true}
+	return s
 }
 
 // teRequireSRPolicyReceipt reads the accepted carrier and the applicable value,
 // so opaque propagation on an unrelated family cannot satisfy the receipt oracle.
 // RFC 9830 Section 2.2: "The use of the SR Policy Tunnel Type is applicable only
-// for the AFI/SAFI pairs of (1/73, 2/73)."
+// for the AFI/SAFI pairs of (1/73, 2/73).".
 func teRequireSRPolicyReceipt(t *testing.T, before, after, value []byte) {
 	t.Helper()
 	beforeAttrs := rfc8669PathAttrs(t, before)
@@ -129,38 +143,52 @@ func TestTunnelAnnouncementUnaffectedByPolicyWithdrawal(t *testing.T) {
 // them and MAY remove them from the Tunnel Encapsulation Attribute during propagation."
 // RFC requirement: RFC9830-2.3-1 positive -- endpoint and color sub-TLVs on AFI 1/73 and 2/73 leave the receive verdict, policy NLRI and Preference unchanged.
 // RFC requirement: RFC9830-2.3-1 negative -- duplicate and malformed-length endpoint sub-TLVs do not invoke the unicast removal rule on the SR Policy carrier.
-// RFC requirement: RFC9830-2.3-3 positive -- VXLAN, Embedded Label Handling and malformed UDP-port sub-TLVs leave the received SAFI 73 policy intact and reach the peer unchanged.
+// RFC requirement: RFC9830-2.3-3 positive -- well-framed VXLAN, Embedded Label Handling and UDP-port sub-TLVs leave the received SAFI 73 policy intact and reach the peer unchanged.
 // RFC requirement: RFC9830-2.3-3 negative -- adding those inapplicable sub-TLVs changes neither the no-action verdict nor the MP_REACH bytes on either forwarding rail.
 // MUTATION: applying the RFC 9012 endpoint count rule to SAFI 73 withdraws the dirty policy.
 func TestRFC9830InapplicableSubTLVsIgnoredOnReceipt(t *testing.T) {
+	clean := teSRPolicyValue(0, false)
+	endpoint := teSub(6, 0, 0, 0, 0, 0, 1, 10, 0, 0, 77)
+	cases := []struct {
+		name  string
+		value []byte
+	}{
+		{"clean", clean},
+		{"one-endpoint", teTLV(15, clean[4:], endpoint)},
+		{"duplicate-endpoints", teTLV(15, clean[4:], endpoint, endpoint)},
+		{"short-endpoint", teTLV(15, clean[4:], teSub(6, 0))},
+		{"color", teTLV(15, clean[4:], teSub(4, 0x03, 0x0b, 0, 0, 0, 0, 0, 5))},
+		{"embedded-label", teTLV(15, clean[4:], teSub(9, 1))},
+		{"udp-port", teTLV(15, clean[4:], teSub(8, 0x12, 0x34))},
+		{"vxlan", teTLV(15, clean[4:], teSub(1, 0xC0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0))},
+		{"all-inapplicable", teTLV(15, teSRPolicyValue(0, true)[4:], teSub(6, 0))},
+	}
 	for _, afi := range []byte{1, 2} {
-		for _, ignored := range []bool{false, true} {
-			// RFC 9830 Sections 2.2 and 2.3.
-			value := teSRPolicyValue(0, ignored)
-			if ignored {
-				// A third endpoint whose value is too short even to hold its AFI.
-				value = teTLV(15, value[4:], teSub(6, 0))
-			}
-			// RFC 9830 Section 2.1.
-			body := teSRPolicyBody(value, afi)
-			s := rfc7311EBGPSession()
-			// RFC 9830 Sections 2.2 and 2.3.
-			wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
-			require.NoError(t, err)
-			require.Equal(t, message.RFC7606ActionNone, action)
-			// RFC 9830 Sections 2.1, 2.2 and 2.4.1.
-			teRequireSRPolicyReceipt(t, body, wu.Payload(), value)
-			for _, rebuild := range []bool{false, true} {
-				attrs := teForwardedAttrs(t, wu.Payload(), rebuild)
-				count, sent := countAttrCode(attrs, uint8(attribute.AttrTunnelEncap))
-				require.Equal(t, 1, count)
-				require.Equal(t, value, sent)
-				_, _, sentMP, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
-				require.True(t, found)
-				_, _, wantMP, found := attribute.AttrFind(rfc8669PathAttrs(t, body), attribute.AttrMPReachNLRI)
-				require.True(t, found)
-				require.Equal(t, wantMP, sentMP)
-			}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				// RFC 9830 Sections 2.2 and 2.3.
+				value := tc.value
+				// RFC 9830 Section 2.1.
+				body := teSRPolicyBody(value, afi)
+				s := teValidationSession()
+				// RFC 9830 Sections 2.2 and 2.3.
+				wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+				require.NoError(t, err)
+				require.Equal(t, message.RFC7606ActionNone, action)
+				// RFC 9830 Sections 2.1, 2.2 and 2.4.1.
+				teRequireSRPolicyReceipt(t, body, wu.Payload(), value)
+				for _, rebuild := range []bool{false, true} {
+					attrs := teForwardedAttrs(t, wu.Payload(), rebuild)
+					count, sent := countAttrCode(attrs, uint8(attribute.AttrTunnelEncap))
+					require.Equal(t, 1, count)
+					require.Equal(t, value, sent)
+					_, _, sentMP, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
+					require.True(t, found)
+					_, _, wantMP, found := attribute.AttrFind(rfc8669PathAttrs(t, body), attribute.AttrMPReachNLRI)
+					require.True(t, found)
+					require.Equal(t, wantMP, sentMP)
+				}
+			})
 		}
 	}
 }
@@ -193,7 +221,7 @@ func TestRFC9830TunnelTypeReceiveVerdicts(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// RFC 9830 Sections 2.1 and 2.2.
 				body := teSRPolicyBody(tc.value, afi)
-				s := rfc7311EBGPSession()
+				s := teValidationSession()
 				// RFC 9830 Section 2.2.
 				wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
 				require.NoError(t, err, "treat-as-withdraw must not reset the session")
@@ -244,7 +272,7 @@ func TestRFC9012EndpointInvalidTLVsRemovedOnUnicast(t *testing.T) {
 				original := append([]byte{}, body...)
 				input := wireu.NewWireUpdate(body, 0)
 				input.SetSourceID(99)
-				s := rfc7311EBGPSession()
+				s := teValidationSession()
 				// RFC 9012 Section 13.
 				wu, action, err := s.enforceRFC7606(input)
 				require.NoError(t, err)
@@ -275,24 +303,26 @@ func TestRFC9012EndpointInvalidTLVsRemovedOnUnicast(t *testing.T) {
 // RFC requirement: RFC9012-13-1 negative -- a sub-TLV value crossing the tunnel boundary causes treat-as-withdraw.
 // RFC requirement: RFC9012-13-2 positive -- truncated outer headers, outer values, sub-TLV headers and sub-TLV values cause exactly treat-as-withdraw.
 // RFC requirement: RFC9012-13-2 negative -- a framed unknown sub-TLV remains accepted beside a valid endpoint.
-// MUTATION: treating zero tunnelTLVLayout size as accepted makes malformed cases pass receive enforcement.
+// MUTATION: omitting the sub-TLV boundary check accepts truncated values beside a valid endpoint.
 func TestRFC9012TunnelFramingReceiveVerdicts(t *testing.T) {
+	// A valid endpoint prevents an unrelated missing-endpoint rejection.
+	endpoint := teSub(6, 0, 0, 0, 0, 0, 0)
 	for _, tc := range []struct {
 		name  string
 		value []byte
 		want  message.RFC7606Action
 	}{
-		{"framed-unknown", teTLV(2, teSub(6, 0, 0, 0, 0, 0, 0), teSub(99, 1)), message.RFC7606ActionNone},
+		{"framed-unknown", teTLV(2, endpoint, teSub(99, 1)), message.RFC7606ActionNone},
 		{"empty-attribute", nil, message.RFC7606ActionTreatAsWithdraw},
 		{"short-tunnel-header", []byte{0, 2, 0}, message.RFC7606ActionTreatAsWithdraw},
 		{"short-tunnel-value", []byte{0, 2, 0, 8, 6, 6}, message.RFC7606ActionTreatAsWithdraw},
-		{"short-sub-header", teTLV(2, []byte{99}), message.RFC7606ActionTreatAsWithdraw},
-		{"short-long-sub-header", teTLV(2, []byte{200, 0}), message.RFC7606ActionTreatAsWithdraw},
-		{"short-sub-value", teTLV(2, []byte{99, 2, 1}), message.RFC7606ActionTreatAsWithdraw},
-		{"short-long-sub-value", teTLV(2, []byte{200, 0, 2, 1}), message.RFC7606ActionTreatAsWithdraw},
+		{"short-sub-header", teTLV(2, endpoint, []byte{99}), message.RFC7606ActionTreatAsWithdraw},
+		{"short-long-sub-header", teTLV(2, endpoint, []byte{200, 0}), message.RFC7606ActionTreatAsWithdraw},
+		{"short-sub-value", teTLV(2, endpoint, []byte{99, 2, 1}), message.RFC7606ActionTreatAsWithdraw},
+		{"short-long-sub-value", teTLV(2, endpoint, []byte{200, 0, 2, 1}), message.RFC7606ActionTreatAsWithdraw},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := rfc7311EBGPSession()
+			s := teValidationSession()
 			// RFC 9012 Section 13.
 			_, action, err := s.enforceRFC7606(wireu.NewWireUpdate(teCarryBody(tc.value), 0))
 			require.NoError(t, err)
@@ -310,7 +340,12 @@ func TestTunnelEndpointRemovalComposesWithAttributeRepairs(t *testing.T) {
 	bad := teTLV(8, teSub(99, 1))
 	value := append(append([]byte{}, bad...), valid...)
 	for _, extended := range []bool{false, true} {
-		attrs := rfc7311AIGPAttrs(0xC0)
+		attrs := []byte{
+			0x40, 1, 1, 0,
+			0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xea,
+			0x40, 3, 4, 192, 0, 2, 1,
+		}
+		attrs = append(attrs, rfc7311AIGPAttrs(0xC0)[14:]...)
 		if extended {
 			attrs = append(attrs, 0xD0, byte(attribute.AttrTunnelEncap), 0, byte(len(value)))
 		} else {
@@ -325,7 +360,7 @@ func TestTunnelEndpointRemovalComposesWithAttributeRepairs(t *testing.T) {
 		original := append([]byte{}, body...)
 		input := wireu.NewWireUpdate(body, 0)
 		input.SetSourceID(1234)
-		s := rfc7311EBGPSession()
+		s := teValidationSession()
 		// RFC 9012 Section 13, RFC 7606 Section 3(g), RFC 7311 Section 3.2.
 		wu, action, err := s.enforceRFC7606(input)
 		require.NoError(t, err)
@@ -358,7 +393,7 @@ func TestTunnelEndpointRemovalComposesWithAttributeRepairs(t *testing.T) {
 // an unknown address family, preventing length checks from rejecting all TLVs.
 // RFC 9012 Section 3.1: "In the context of this specification, if the Address
 // Family subfield has any value other than IPv4, IPv6, or the special value 0,
-// the Tunnel Egress Endpoint sub-TLV is considered "unrecognized" (see Section 13)."
+// the Tunnel Egress Endpoint sub-TLV is considered "unrecognized" (see Section 13).".
 func TestTunnelEndpointLengthsAccepted(t *testing.T) {
 	for _, endpoint := range [][]byte{
 		{0, 0, 0, 0, 0, 0},
@@ -368,7 +403,7 @@ func TestTunnelEndpointLengthsAccepted(t *testing.T) {
 	} {
 		value := teTLV(2, teSub(6, endpoint...))
 		body := teCarryBody(value)
-		s := rfc7311EBGPSession()
+		s := teValidationSession()
 		// RFC 9012 Sections 3.1 and 13.
 		wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
 		require.NoError(t, err)
@@ -383,9 +418,9 @@ func TestTunnelEndpointLengthsAccepted(t *testing.T) {
 // RFC 7606 Section 5.2: "For this reason, if any path attribute errors are
 // encountered in such an UPDATE message and if any encountered error specifies
 // an error-handling approach other than "attribute discard", then the
-// "session reset" approach MUST be used."
+// "session reset" approach MUST be used.".
 func TestMalformedTunnelWithoutReachableNLRIResets(t *testing.T) {
-	s := rfc7311EBGPSession()
+	s := teValidationSession()
 	attrs := []byte{0xC0, byte(attribute.AttrTunnelEncap), 3, 0, 2, 0}
 	// RFC 9012 Section 13 and RFC 7606 Section 5.2.
 	_, action, err := s.enforceRFC7606(wireu.NewWireUpdate(makeUpdateBody(nil, attrs, nil), 0))

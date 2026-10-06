@@ -46,7 +46,6 @@ func TestVPNWithdrawTableIdentity(t *testing.T) {
 				{"empty output", "", vpnWithdrawAllGone, false},
 				{"warning", `{"warning":"No BGP process is configured"}`, vpnWithdrawAllGone, false},
 				{"unspecified phase", initial, vpnWithdrawUnspecified, false},
-				{"unknown phase", initial, vpnWithdrawPhase(99), false},
 			} {
 				t.Run(test.name, func(t *testing.T) {
 					err := requireVPNWithdrawTable(test.output, neighbor, family.prefix, test.phase)
@@ -57,6 +56,16 @@ func TestVPNWithdrawTableIdentity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVPNWithdrawUnknownPhasePanics(t *testing.T) {
+	defer func() {
+		message, ok := recover().(string)
+		if !ok || !strings.HasPrefix(message, "BUG:") {
+			t.Fatalf("unknown internal phase did not report a BUG: %v", message)
+		}
+	}()
+	_ = requireVPNWithdrawTable("{}", "172.30.44.2", "10.12.0.0/24", vpnWithdrawPhase(99))
 }
 
 func vpnWithdrawTableFixture(t *testing.T, neighbor, prefix string, rds ...string) string {

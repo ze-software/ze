@@ -96,8 +96,7 @@ func (r *srModelRequest) ReceiveReply(reply api.Message) (err error) {
 		case sr_types.SR_STEER_API_L2:
 			return errors.New("model does not accept L2 steering mutations")
 		default:
-			out.Retval = -1
-			return nil
+			panic("BUG: SRv6 model received an unknown outgoing steering type")
 		}
 		if !request.IsDel {
 			policy, known := r.ch.policies[request.BsidAddr]
@@ -145,8 +144,8 @@ func (c *srModelChannel) SendRequest(msg api.Message) api.RequestCtx {
 
 func (c *srModelChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
 	dump := &srModelDump{ch: c, msg: msg}
-	for _, policy := range c.policies {
-		dump.policies = append(dump.policies, policy)
+	for bsid := range c.policies {
+		dump.policies = append(dump.policies, c.policies[bsid])
 	}
 	return dump
 }

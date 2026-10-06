@@ -21,6 +21,7 @@ import (
 const (
 	teTunnelTypeSRPolicy   uint16 = 15     // RFC 9830: SR Policy CP.
 	teTunnelTypeVXLAN      uint16 = 8      // RFC 9012 Section 3.2.1.
+	teTunnelTypeNVGRE      uint16 = 9      // RFC 9012 Section 3.2.2.
 	teTunnelTypeUnassigned uint16 = 0xFFFE // Not in the IANA tunnel type registry.
 
 	teSubTLVEncapsulation  uint8 = 1   // RFC 9012 Section 3.2.
@@ -338,14 +339,17 @@ func TestRFC9012ReservedOctetsPropagateUnchanged(t *testing.T) {
 
 	// The V and M bits are 1 and the six R bits are set: an originator must not do this,
 	// but an intermediate router must pass it on untouched.
-	rBits := TunnelTLV{TunnelType: teTunnelTypeVXLAN, Value: teVXLANEncap(0xFF)}
-	rawRBits := teEncode(rBits)
+	for _, tunnelType := range []uint16{teTunnelTypeVXLAN, teTunnelTypeNVGRE} {
+		// RFC 9012 Sections 3.2.1 and 3.2.2 use the same encapsulation layout.
+		rBits := TunnelTLV{TunnelType: tunnelType, Value: teVXLANEncap(0xFF)}
+		rawRBits := teEncode(rBits)
 
-	// RFC requirement: RFC9012-3.2.1-2 positive -- the reserved R bits of a VXLAN Encapsulation sub-TLV are propagated without modification by the re-encode path
-	assert.Equal(t, rawRBits, teRoundTrip(t, rawRBits))
+		// RFC requirement: RFC9012-3.2.1-2 positive -- VXLAN and NVGRE reserved R bits survive the codec round trip.
+		assert.Equal(t, rawRBits, teRoundTrip(t, rawRBits))
 
-	// RFC requirement: RFC9012-3.2.1-2 negative -- clearing the R bits while keeping V and M produces different bytes, so masking them off on propagation is detectable
-	assert.NotEqual(t, rawRBits, teEncode(TunnelTLV{TunnelType: teTunnelTypeVXLAN, Value: teVXLANEncap(0xC0)}))
+		// RFC requirement: RFC9012-3.2.1-2 negative -- clearing only the R bits changes each tunnel's bytes while preserving V and M.
+		assert.NotEqual(t, rawRBits, teEncode(TunnelTLV{TunnelType: tunnelType, Value: teVXLANEncap(0xC0)}))
+	}
 }
 
 // TestRFC9012EmbeddedLabelHandlingNotStripped pins that the Embedded Label Handling
@@ -397,6 +401,12 @@ func TestRFC9012ColorExtendedCommunityUnchangedOnPropagation(t *testing.T) {
 	// RFC requirement: RFC9012-4.3-2 negative -- a different color re-encodes to its own octets and not to the first one's, so the value is carried through rather than synthesized
 	assert.Equal(t, color200, reencode(color200))
 	assert.NotEqual(t, reencode(color100), reencode(color200))
+
+	// Received flags are not an origination instruction: even nonzero flags
+	// must survive propagation (RFC 9012 Section 4.3).
+	flags := []byte{0x03, 0x0b, 0x3f, 0xa5, 0x00, 0x00, 0x00, 0x64}
+	assert.Equal(t, flags, reencode(flags))
+	assert.NotEqual(t, reencode(color100), reencode(flags))
 }
 
 // TestRFC9012ColorSubTLVUnrecognizedShapeIsCarried is not a compliance claim about the

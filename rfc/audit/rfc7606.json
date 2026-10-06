@@ -54,6 +54,7 @@
     "2026-09-25 RE-AUDIT of RFC7606-3.a-1, RFC7606-3.j-1, RFC7606-5.1-2, RFC7606-5.1-3, RFC7606-5.3-6, RFC7606-5.4-1, RFC7606-7.1-1, the verdicts that cite 7 whole-file .ci carriers. All were STALE-UNIT, which `./le rfc reseal` refuses by design for a whole-file carrier, so each was re-judged rather than re-stamped. WHAT MOVED: commit 1fb33e8098 (owner-approved, 2026-09-25) renamed the exec heads only: `ze-peer` became `le test peer`, `ze-test fixture` became `le test fixture`, and one comment line in paths-limit-live.ci followed. Each recorded fingerprint equals the carrier at 1fb33e8098^, and no commit after it touches these files, so that rename is the whole change. No expect=bgp rule, no action=send hex, no reject rule, no stdin block, no config leaf and no timeout differs from the sealed revision. The peer is the same code under the new name: internal/test/cli/cmd_peer.go drives internal/test/peer both before and after the rename. RUN EVIDENCE: `./le test bgp plugin` passes all eight carriers (paths-limit-live, rfc7606-reset, rfc7606-relay-one-field, rfc7606-receive-combinations, rfc7606-54-bgpls-override-propagates, rfc7606-54-discard-unrecognized-mup-nlri, rfc7606-54-discard-unrecognized-nlri, rfc7606-withdraw) in 17.4s. Every verdict keeps its value, no requirement_sha moved, and no checklist line was edited. The other verdicts in this file were not re-examined: the audit is sampled and the gate is total.",
     "2026-09-26 RE-AUDIT of the 51 rows whose checklist text became a verbatim RFC span (phase 5A backfill and the hand quotes of phase 5B, spec-rfc-requirement-verbatim-quote). Tagged units unchanged; each new sentence was compared clause by clause with what its tagged units assert. Four verdicts move enforced -> weak because the verbatim sentence names a clause no tagged unit drives: RFC7606-3.g-2 (unrecognized duplicate), RFC7606-4-1 (Section 4 second case, fewer than three octets remain), RFC7606-7.10-2 (zero length), RFC7606-7.14-1 (non-zero length not a multiple of 8). Every other verdict is unchanged.",
     "2026-09-25 RE-AUDIT of RFC7606-3.a-1, RFC7606-3.j-1, RFC7606-5.1-2, RFC7606-5.1-3, RFC7606-5.3-6, RFC7606-5.4-1, RFC7606-7.1-1, the verdicts that cite 7 whole-file .ci carriers. All were STALE-UNIT, which `./le rfc reseal` refuses by design for a whole-file carrier, so each was re-judged rather than re-stamped. WHAT MOVED: commit 1fb33e8098 (owner-approved, 2026-09-25) renamed the exec heads only: `ze-peer` became `le test peer`, `ze-test fixture` became `le test fixture`, and one comment line in paths-limit-live.ci followed. Each recorded fingerprint equals the carrier at 1fb33e8098^, and no commit after it touches these files, so that rename is the whole change. No expect=bgp rule, no action=send hex, no reject rule, no stdin block, no config leaf and no timeout differs from the sealed revision. The peer is the same code under the new name: internal/test/cli/cmd_peer.go drives internal/test/peer both before and after the rename. RUN EVIDENCE: `./le test bgp plugin` passes all eight carriers (paths-limit-live, rfc7606-reset, rfc7606-relay-one-field, rfc7606-receive-combinations, rfc7606-54-bgpls-override-propagates, rfc7606-54-discard-unrecognized-mup-nlri, rfc7606-54-discard-unrecognized-nlri, rfc7606-withdraw) in 17.4s. Every verdict keeps its value, no requirement_sha moved, and no checklist line was edited. The other verdicts in this file were not re-examined: the audit is sampled and the gate is total.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -67,7 +68,7 @@
         "internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go::TestRIBTreatAsWithdrawAddPathPreservesPathID": "c0411f60b1cff97c",
         "internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go::TestRIBTreatAsWithdrawRemovesInstalledRoute": "c0411f60b1cff97c",
         "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606ValidUpdateDispatchesAnnouncement": "9f97a0d56d362dc6",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal": "933b3c0fcb7d9bad"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal": "18bc1871ceb5610d"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_withdraw_test.go::TestSynthesizeWithdrawConvertsMPReachToMPUnreach": "4bf7425583f3618f",
@@ -85,7 +86,7 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "c6ef70edfa51afe7",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "933b3c0fcb7d9bad"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "18bc1871ceb5610d"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "b75fed7367066278",
@@ -251,7 +252,7 @@
         "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "25c96de03fee2bc0",
         "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "63addcbc92d19c5a",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "933b3c0fcb7d9bad"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "18bc1871ceb5610d"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "e8d83289676a1ed9",
@@ -436,7 +437,7 @@
         "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI": "b2618235905384c1",
         "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsReachAndUnreachTogether": "b2618235905384c1",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "3419f399675b6247",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "f04334a58fd00e7c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "f7ef88f508431a53",
         "test/plugin/rfc7606-receive-combinations.ci": "29fb3ccc456eeb82",
         "test/plugin/rfc7606-relay-one-field.ci": "ebc07445e585b8c0"
       },
@@ -574,7 +575,7 @@
         "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "f93919c811918dd2",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "34430c253621f2bb",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "34430c253621f2bb",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "f04334a58fd00e7c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "f7ef88f508431a53",
         "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "d72def77449d8e79",
         "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "16e711f7338cba75",
         "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "ac6239942ec03e64"
@@ -837,7 +838,7 @@
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard": "3419f399675b6247",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "3419f399675b6247",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "933b3c0fcb7d9bad"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "18bc1871ceb5610d"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",

@@ -466,6 +466,8 @@ func (l *Lab) cleanup(ctx context.Context, network string, peers []PeerConfig) [
 	return problems
 }
 
+// waitPeer MUST satisfy the probe's exit and stdout requirements before the suite
+// starts the next peer. It passes the declared environment to every attempt.
 func (l *Lab) waitPeer(ctx context.Context, peer PeerConfig) error {
 	ready := peer.Ready
 	if ready.Timeout <= 0 {
@@ -479,8 +481,15 @@ func (l *Lab) waitPeer(ctx context.Context, peer PeerConfig) error {
 		Interval:    ready.Interval,
 		Description: peer.Name,
 	}, func(probeCtx context.Context) (CommandResult, error) {
-		return l.docker.Exec(probeCtx, peer.Container, ready.Command, nil)
-	}, func(CommandResult) bool { return true })
+		return l.docker.Exec(probeCtx, peer.Container, ready.Command, ready.Environment)
+	}, func(answer CommandResult) bool {
+		for _, required := range ready.Contains {
+			if !strings.Contains(answer.Stdout, required) {
+				return false
+			}
+		}
+		return true
+	})
 	return err
 }
 

@@ -2,8 +2,10 @@ package reactor
 
 import (
 	"encoding/binary"
+	"io"
 	"net"
 	"net/netip"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -293,4 +296,75 @@ func TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling(t *testing.T) {
 		assert.Empty(t, capture.all(), "an UPDATE whose sections cannot be trusted is not dispatched")
 		assertNotification(t, <-answer, message.NotifyUpdateMessage, message.NotifyUpdateMalformedAttr, []byte{})
 	})
+}
+
+// TestRFC8654ExtendedAttributeDiscard isolates each RFC 7606 discard condition
+// in an otherwise valid extended UPDATE and compares its valid counterpart.
+// MUTATION: Skip ApplyAttrDiscard in enforceRFC7606: the malformed attribute
+// reaches the captured consumer and fails the explicit absence assertion.
+// RFC requirement: RFC8654-3-1 positive -- valid ATOMIC_AGGREGATE and four-octet AGGREGATOR survive extended UPDATE reception with all routes and other attributes intact.
+// RFC requirement: RFC8654-3-1 negative -- malformed ATOMIC_AGGREGATE or AGGREGATOR alone is discarded, not accepted, withdrawn or session-reset, by both extended UPDATE readers.
+func TestRFC8654ExtendedAttributeDiscard(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		code             attribute.AttributeCode
+		valid, malformed []byte
+	}{
+		{"atomic-aggregate", attribute.AttrAtomicAggregate, []byte{0x40, 6, 0}, []byte{0x40, 6, 1, 0}},
+		{"aggregator", attribute.AttrAggregator,
+			[]byte{0xc0, 7, 8, 0, 0, 0xfd, 0xea, 192, 0, 2, 1},
+			[]byte{0xc0, 7, 7, 0, 0, 0xfd, 0xea, 192, 0, 2}},
+	} {
+		for _, malformed := range []bool{false, true} {
+			for _, coalesced := range []bool{false, true} {
+				t.Run(tc.name+"/malformed="+strconv.FormatBool(malformed)+"/coalesced="+strconv.FormatBool(coalesced), func(t *testing.T) {
+					session, client, capture, cleanup := setupCapturingSession(t, 65002, true, false)
+					defer cleanup()
+					kept := fatalLengthAnnouncement().PathAttributes
+					extra := tc.valid
+					if malformed {
+						extra = tc.malformed
+					}
+					attrs := append(append([]byte(nil), kept...), extra...)
+					nlri := ipv4Slash24s(1100)
+					frame := buildUpdateMsg(receivedUpdateBody(attrs, nlri))
+					require.Greater(t, len(frame), message.MaxMsgLen)
+					answer := make(chan []byte, 1)
+					go func() {
+						data, _ := io.ReadAll(client)
+						answer <- data
+					}()
+					written := make(chan error, 1)
+					go func() {
+						_, err := client.Write(frame)
+						written <- err
+					}()
+					if coalesced {
+						require.NoError(t, session.readAndProcessCoalesced(session.Conn(), session.bufReader))
+					} else {
+						require.NoError(t, session.ReadAndProcess())
+					}
+					require.NoError(t, <-written)
+					got := capture.all()
+					require.Len(t, got, 1)
+					withdrawn, gotAttrs, gotNLRI := payloadSections(t, got[0])
+					require.Empty(t, withdrawn)
+					require.Equal(t, nlri, gotNLRI)
+					require.GreaterOrEqual(t, len(gotAttrs), len(kept))
+					require.Equal(t, kept, gotAttrs[:len(kept)])
+					_, _, value, found := attribute.AttrFind(gotAttrs, tc.code)
+					if malformed {
+						require.False(t, found, "the malformed attribute must not reach route consumers")
+					} else {
+						require.True(t, found)
+						require.Equal(t, extra[3:], value)
+						require.Equal(t, attrs, gotAttrs, "a valid attribute is not discarded")
+					}
+					require.Equal(t, fsm.StateEstablished, session.State())
+					cleanup()
+					require.Empty(t, <-answer, "attribute discard emits no NOTIFICATION")
+				})
+			}
+		}
+	}
 }

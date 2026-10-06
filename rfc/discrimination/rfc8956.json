@@ -11,6 +11,28 @@
       "producer": "internal/plugins/flowspec-firewall/translate.go::extractPrefix",
       "producer-sha": "3a988a83a45b41fb",
       "break": "body of extractPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8956-5-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD",
+      "unit-sha": "9ad7c05f9cee34b4",
+      "claim-sha": "afa2093a807cae13",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8956-5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD",
+      "unit-sha": "9ad7c05f9cee34b4",
+      "claim-sha": "b0d745b350f2c7c9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

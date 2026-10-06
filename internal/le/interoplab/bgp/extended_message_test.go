@@ -4,6 +4,7 @@ package bgp
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -15,10 +16,10 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // TestExtendedOpenRewrite proves the relay changes capability 6 alone, preserving
@@ -46,7 +47,7 @@ func TestExtendedOpenRewrite(t *testing.T) {
 		}
 	}
 	valid := extendedTestOpen(true)
-	for cut := range len(valid) {
+	for cut := range valid {
 		var target [4096]byte
 		// RFC 8654 Section 3: incomplete capability envelopes are not evidence.
 		if _, _, err := rewriteExtendedOpen(target[:], valid[:cut], true); err == nil {
@@ -165,7 +166,7 @@ func TestExtendedRelayPreservesPayloads(t *testing.T) {
 // verdict without Docker; the named scenario runs remain the interoperability proof.
 func TestExtendedMessageCheckerBranches(t *testing.T) {
 	frames := [][]byte{extendedTestOpen(false), speakerKeepalive(), extendedTestUpdate(1, true), extendedTestUpdate(2, false)}
-	text := extendedTestTranscript(t, frames, true)
+	text := extendedTestTranscript(t, frames)
 	// RFC 8654 Sections 3, 4 and 6: local-original false is not rewritten-local true.
 	capture, err := parseExtendedCapture(text, false, true)
 	if err != nil {
@@ -175,7 +176,7 @@ func TestExtendedMessageCheckerBranches(t *testing.T) {
 		t.Fatal("positive transcript evidence missing")
 	}
 	notification := speakerMessage(bgpNotification, []byte{1, 2, 0x12, 0xd7})
-	notified := text + extendedTestTranscript(t, [][]byte{notification}, true)
+	notified := text + extendedTestTranscript(t, [][]byte{notification})
 	// RFC 8654 Sections 4 and 5: retain the actual error for the exact verdict.
 	capture, err = parseExtendedCapture(notified, false, true)
 	if err != nil {
@@ -190,15 +191,15 @@ func TestExtendedMessageCheckerBranches(t *testing.T) {
 		"bad hex":                `{"original":"XYZ"}`,
 		"short frame":            `{"original":"FF"}`,
 		"rewritten UPDATE":       text + `{"original":"` + textbuf.StringHexUpper(extendedTestUpdate(2, false)) + `","delivered":"00"}`,
-		"duplicate OPEN":         text + extendedTestTranscript(t, [][]byte{extendedTestOpen(false)}, true),
-		"no keepalive":           extendedTestTranscript(t, [][]byte{extendedTestOpen(false)}, true),
-		"keepalive body":         extendedTestTranscript(t, [][]byte{extendedTestOpen(false), speakerMessage(bgpKeepalive, []byte{0})}, true),
-		"unknown type":           text + extendedTestTranscript(t, [][]byte{speakerMessage(99, nil)}, true),
-		"no OPEN":                extendedTestTranscript(t, [][]byte{speakerKeepalive()}, true),
-		"trailing frame bytes":   extendedTestTranscript(t, [][]byte{append(extendedTestOpen(false), 0)}, true),
-		"extended OPEN":          extendedTestTranscript(t, [][]byte{speakerMessage(bgpOpen, make([]byte, 4097-19))}, true),
-		"duplicate notification": notified + extendedTestTranscript(t, [][]byte{notification}, true),
-		"too many frames":        text + strings.Repeat(extendedTestTranscript(t, [][]byte{speakerKeepalive()}, true), 256),
+		"duplicate OPEN":         text + extendedTestTranscript(t, [][]byte{extendedTestOpen(false)}),
+		"no keepalive":           extendedTestTranscript(t, [][]byte{extendedTestOpen(false)}),
+		"keepalive body":         extendedTestTranscript(t, [][]byte{extendedTestOpen(false), speakerMessage(bgpKeepalive, []byte{0})}),
+		"unknown type":           text + extendedTestTranscript(t, [][]byte{speakerMessage(99, nil)}),
+		"no OPEN":                extendedTestTranscript(t, [][]byte{speakerKeepalive()}),
+		"trailing frame bytes":   extendedTestTranscript(t, [][]byte{append(extendedTestOpen(false), 0)}),
+		"extended OPEN":          extendedTestTranscript(t, [][]byte{speakerMessage(bgpOpen, make([]byte, 4097-19))}),
+		"duplicate notification": notified + extendedTestTranscript(t, [][]byte{notification}),
+		"too many frames":        text + strings.Repeat(extendedTestTranscript(t, [][]byte{speakerKeepalive()}), 256),
 	} {
 		t.Run(name, func(t *testing.T) {
 			// RFC 8654 Sections 3, 4 and 6: missing or invalid evidence cannot pass.
@@ -343,64 +344,153 @@ func TestExtendedRelayOptions(t *testing.T) {
 	}
 }
 
-// TestExtendedMessageScenarioWiring reads and renders every real fixture on a
-// nondefault subnet, proving both existing sidecar slots launch the relay and
-// retain their separate remote advertisements.
-func TestExtendedMessageScenarioWiring(t *testing.T) {
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatal(err)
-	}
+// TestExtendedRelayPreparationRequiresNativePeers exercises the preparation
+// consumer: an absent native endpoint cannot produce a runnable relay plan.
+func TestExtendedRelayPreparationRequiresNativePeers(t *testing.T) {
 	network := interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")}
-	for name, testCase := range extendedMessageCases {
-		t.Run(name, func(t *testing.T) {
-			rendered := t.TempDir()
-			source := filepath.Join(root, "test", "interop", "scenarios", name)
-			if err := renderScenario(source, rendered, network); err != nil {
-				t.Fatal(err)
-			}
-			peers, err := scenarioPeers(filepath.Join(root, "test", "interop"), rendered, "extended-test", network)
+	relays := []extendedRelayPeer{
+		{peer: interoplab.PeerConfig{Name: peerSpeaker, Host: 10}, destination: peerFRR},
+		{peer: interoplab.PeerConfig{Name: peerSpeaker2, Host: 11}, destination: peerFRRSink},
+	}
+	for _, peers := range [][]interoplab.PeerConfig{
+		nil,
+		{{Name: "ze"}},
+		{{Name: peerFRR}},
+		{{Name: "ze"}, {Name: peerFRR}},
+		{{Name: "ze"}, {Name: peerFRRSink}},
+	} {
+		if _, err := prepareExtendedRelayPeers(peers, relays, network); err == nil {
+			t.Fatal("relay preparation admitted an absent native endpoint")
+		}
+	}
+}
+
+// TestExtendedRelayGoBGPPreparation keeps FRR-specific readiness keyed to the
+// parsed destination, not merely the presence or spelling of --relay-peer.
+func TestExtendedRelayGoBGPPreparation(t *testing.T) {
+	for _, option := range []string{"--relay-peer 172.31.71.5:179", "--relay-peer=172.31.71.5:179"} {
+		t.Run(option, func(t *testing.T) {
+			scenario := t.TempDir()
+			writeFixture(t, filepath.Join(scenario, "ze.conf"), "bgp {}\n")
+			writeFixture(t, filepath.Join(scenario, "frr.conf"), "router bgp 65002\n")
+			writeFixture(t, filepath.Join(scenario, "gobgp.toml"), "[global.config]\n")
+			writeFixture(t, filepath.Join(scenario, "speaker-args"), option+"\n--duration 180\n--result /tmp/extended\n")
+			network := interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")}
+			peers, err := scenarioPeers(t.TempDir(), scenario, "gobgp-relay-test", network)
 			if err != nil {
 				t.Fatal(err)
 			}
-			relays, foreign := 0, 0
-			for _, peer := range peers {
-				if peer.Name == peerFRR {
-					foreign++
-				}
-				if peer.Name != peerSpeaker {
-					if peer.Name != peerSpeaker2 {
-						continue
-					}
-				}
-				relays++
-				options, err := parseSpeakerOptions(peer.Command[3:])
-				if err != nil {
-					t.Fatal(err)
-				}
-				if options.connect != "172.31.71.2:179" {
-					t.Fatal("relay connects to the wrong Ze network")
-				}
-				if options.relayPeer != "172.31.71.3:179" {
-					t.Fatal("relay does not connect to the real FRR container")
-				}
-				want := testCase.sourceRemote
-				if peer.Name == peerSpeaker2 {
-					want = testCase.sinkRemote
-				}
-				if options.relayExtended != want {
-					t.Fatal("scenario's remote capability differs from its checker")
-				}
+			if len(peers) != 4 || peers[0].Name != "ze" || peers[1].Name != peerSpeaker ||
+				peers[2].Name != peerFRR || peers[3].Name != peerGoBGP {
+				t.Fatalf("GoBGP relay startup order changed: %+v", peers)
 			}
-			if relays != 2 || foreign != 1 {
-				t.Fatalf("got %d relays and %d FRR containers", relays, foreign)
+			if len(peers[0].Ready.Contains) != 0 || len(peers[2].Ready.Contains) != 0 ||
+				!slices.Equal(peers[2].Ready.Command, []string{cmdVtysh, "-c", "show version"}) {
+				t.Fatal("GoBGP relay installed FRR-specific readiness probes")
 			}
 		})
 	}
 }
 
+// TestExtendedFRRRouteQueriesConsumer proves the decoded acceptance evidence is
+// read from the independent sink, not the producer's locally originated route.
+func TestExtendedFRRRouteQueriesConsumer(t *testing.T) {
+	lab := &extendedRouteLab{
+		output: `{"prefix":"10.86.0.0/24","paths":[{"valid":true,"peer":{"peerId":"172.31.71.11"},"aspath":{"string":"65001 65002"}}]}`,
+	}
+	check := &interoplab.CheckContext{
+		Lab:     lab,
+		Network: interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")},
+	}
+	if err := waitExtendedFRRRoute(t.Context(), check, extendedBaselinePrefix, false); err != nil {
+		t.Fatal(err)
+	}
+	if lab.peer != peerFRRSink || !slices.Equal(lab.command,
+		[]string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.86.0.0/24 json"}) {
+		t.Fatalf("decoded route queried from %s with %v", lab.peer, lab.command)
+	}
+}
+
+type extendedRouteLab struct {
+	recordingLab
+	peer    string
+	command []string
+}
+
+func (lab *extendedRouteLab) Query(ctx context.Context, peer string, command []string, environment []interoplab.EnvironmentVariable) (string, error) {
+	lab.peer = peer
+	lab.command = command
+	return lab.recordingLab.Query(ctx, peer, command, environment)
+}
+
+// TestExtendedFailureDiagnostics retains empty captures, read failures and both
+// peers' raw evidence, even after cancellation, under one bounded deadline.
+func TestExtendedFailureDiagnostics(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	lab := &extendedDiagnosticLab{t: t}
+	output := extendedFailureDiagnostics(ctx, lab)
+	for _, peer := range []string{peerSpeaker, peerSpeaker2} {
+		for _, suffix := range []string{"-result.json", "-ze.jsonl", "-frr.jsonl"} {
+			if !strings.Contains(output, peer+": "+extendedCaptureBase+suffix) {
+				t.Fatalf("missing %s %s", peer, suffix)
+			}
+		}
+	}
+	for _, want := range []string{"raw partial capture", "stderr: missing file", "query error: read failed", "exit: 1", "logs unavailable"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("diagnostics lost %q: %s", want, output)
+		}
+	}
+	if lab.reads != 8 {
+		t.Fatalf("read %d files, want all four from both peers", lab.reads)
+	}
+	failed := &recordingLab{failure: errors.New("transport unavailable")}
+	if output := extendedFailureDiagnostics(ctx, failed); !strings.Contains(output, "logs error: transport unavailable") {
+		t.Fatal("log collection failure disappeared")
+	}
+}
+
+type extendedDiagnosticLab struct {
+	noEvidenceLab
+	t        *testing.T
+	reads    int
+	deadline time.Time
+}
+
+func (lab *extendedDiagnosticLab) Exec(ctx context.Context, _ string, command []string, _ []interoplab.EnvironmentVariable) (interoplab.CommandResult, error) {
+	lab.t.Helper()
+	if err := ctx.Err(); err != nil {
+		lab.t.Fatal("diagnostics inherited cancellation", err)
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		lab.t.Fatal("diagnostics have no deadline")
+	}
+	if time.Until(deadline) > 15*time.Second {
+		lab.t.Fatal("diagnostics exceeded the shared deadline")
+	}
+	if lab.deadline.IsZero() {
+		lab.deadline = deadline
+	} else if !lab.deadline.Equal(deadline) {
+		lab.t.Fatal("diagnostic commands reset the shared deadline")
+	}
+	lab.reads++
+	if command[1] == extendedCaptureBase+"-result.json" {
+		return interoplab.CommandResult{ExitCode: 1, Stderr: "missing file"}, errors.New("read failed")
+	}
+	if command[1] == extendedCaptureBase+"-ze.jsonl" {
+		return interoplab.CommandResult{}, nil
+	}
+	return interoplab.CommandResult{Stdout: "raw partial capture"}, nil
+}
+
+func (*extendedDiagnosticLab) Logs(context.Context, string, int) (interoplab.LogResult, error) {
+	return interoplab.LogResult{}, nil
+}
+
 // RFC 8654 Section 3: "The BGP Extended Message Capability is a new BGP capability
-// [RFC5492] defined with Capability Code 6 and Capability Length 0."
+// [RFC5492] defined with Capability Code 6 and Capability Length 0.".
 func extendedTestOpen(extended bool) []byte {
 	parameters := []byte{99, 1, 42, 2, 6, 1, 4, 0, 1, 0, 1}
 	if extended {
@@ -411,7 +501,7 @@ func extendedTestOpen(extended bool) []byte {
 }
 
 // RFC 4271 Section 4.2: "This 1-octet unsigned integer indicates the total length
-// of the Optional Parameters field in octets."
+// of the Optional Parameters field in octets.".
 func extendedTestOpenBody(parameters []byte) []byte {
 	body := []byte{4, 0xfd, 0xe9, 0, 9, 172, 30, 0, 2, byte(len(parameters))}
 	return speakerMessage(bgpOpen, append(body, parameters...))
@@ -435,7 +525,7 @@ func extendedTestUpdate(subnet byte, large bool) []byte {
 	return speakerMessage(bgpUpdate, body)
 }
 
-func extendedTestTranscript(t *testing.T, frames [][]byte, delivered bool) string {
+func extendedTestTranscript(t *testing.T, frames [][]byte) string {
 	t.Helper()
 	var output strings.Builder
 	encoder := json.NewEncoder(&output)
@@ -444,7 +534,7 @@ func extendedTestTranscript(t *testing.T, frames [][]byte, delivered bool) strin
 		if len(frame) >= 29 && frame[18] == bgpOpen {
 			var target [4096]byte
 			// RFC 8654 Section 3: compute the relay's expected OPEN-only rewrite.
-			octets, _, err := rewriteExtendedOpen(target[:], frame, delivered)
+			octets, _, err := rewriteExtendedOpen(target[:], frame, true)
 			if err == nil {
 				row.Delivered = textbuf.StringHexUpper(target[:octets])
 			}

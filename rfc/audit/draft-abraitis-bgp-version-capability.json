@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-06",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -124,14 +124,19 @@
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1": {
-      "note": "Forbidden: using a received Software Version Capability for anything but display, such as a session decision. TestSoftwareVersionCapabilityDecidesNothing asserts Negotiate yields the same ASN4, route refresh, extended message, enhanced route refresh, BFD strict mode, graceful restart, families and encoding with and without code 75, and no mismatch, red if the capability changed any of them. Positive: parseCapability keeps it as an Unknown with the raw value and PeerAdvertised records it.",
+      "code": {
+        "internal/core/bgp/capability/capability.go::parseCapability": "dca88ec1fc7109a5",
+        "internal/core/bgp/capability/negotiated.go::Negotiate": "c12135995b82302a",
+        "internal/core/bgp/capability/negotiated.go::buildSubComponents": "a456e6d5e5c59db7"
+      },
+      "note": "Prior independent current judgment retained after evidence-scope comparison only. The complete Section 4 use restriction, both TestSoftwareVersionCapabilityDecidesNothing and TestSoftwareVersionCapabilityIsRecordedForDisplay units, and the inspected parseCapability/Negotiate/buildSubComponents producers have no scoped patch changes. The earlier judgment remains limited to opaque code-75 diagnostic retention and no negotiated protocol decision, not actual operator rendering or optional receive-feature implementation. No hashes were manufactured; native audit-stamp remains the sole fingerprint writer, and no new execution or foreign proof is claimed.",
       "requirement_sha": "dec94e43b4ec731d",
       "tests": {
-        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "4c321c5886708b06",
-        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay": "4c321c5886708b06"
+        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "708e0d7c49dc6fb3",
+        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay": "708e0d7c49dc6fb3"
       },
       "units": {
-        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "877b16298235e899",
+        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "65ad5e445d742e51",
         "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay": "eaf498946edf155a"
       },
       "verdict": "enforced"

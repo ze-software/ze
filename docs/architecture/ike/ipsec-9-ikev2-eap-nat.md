@@ -239,7 +239,7 @@ During an active IKE EAP exchange, `handleEAPResponse` returns on a discard
 before resetting the retransmission deadline or retry count. Ignored Codes
 therefore cannot keep postponing the outstanding IKE request.
 
-`eap_discard_admission_test.go` drives both encrypted IKE receive entry points,
+`rfc3748_eap_discard_admission_test.go` drives both encrypted IKE receive entry points,
 holds back each legitimate packet while delivering ignored Codes, then requires
 the same exchange to derive matching MSKs and produce a verifiable final AUTH.
 `rfc3748_role_budget_test.go` also snapshots the library's private state and
@@ -248,7 +248,7 @@ of a run against an independent peer.
 
 <!-- source: internal/core/eap/eap.go -- Session.Process -->
 <!-- source: internal/core/eap/peer.go -- PeerSession.Process -->
-<!-- source: internal/component/ike/engine/eap_discard_admission_test.go -- TestEngineDiscardedEAPCodesPreserveExchange -->
+<!-- source: internal/component/ike/engine/rfc3748_eap_discard_admission_test.go -- TestEngineDiscardedEAPCodesPreserveExchange -->
 
 **EAP-TLS runs Go's `crypto/tls` over a custom `net.Conn`.** The transport pipes
 TLS records through EAP request and response packets. Implementing TLS again was

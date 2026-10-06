@@ -652,17 +652,22 @@ RESERVED1(1), SID(16), Flags(1), Endpoint Behavior(2), RESERVED2(1), then
 Sub-Sub-TLVs. Sub-Sub-TLV 1 is the SID Structure (RFC 9252 Section 3.2.1): six
 1-octet bit lengths, length 6.
 
-Ze keeps the attribute value whole and decodes a field where a reader asks for
-one. RFC 8669 Section 3 requires unknown TLVs to be propagated unmodified, and
-RFC 9252 Section 2 requires every Reserved field to be propagated unchanged, so
-a relayed Prefix-SID is byte-identical to the one received except in three
-cases:
+Ze keeps the accepted attribute value whole and decodes a field where a reader
+asks for one. Unknown TLVs are propagated unmodified (RFC 8669 Section 3), as
+are the SRv6 Reserved fields (RFC 9252 Section 2). Receive policy and the
+following ingest and export rules can remove or change the attribute:
 
 | Case | What changes | Where |
 |------|--------------|-------|
+| An EBGP source not configured with `accept-srv6-prefix-sid` (RFC 8669 Section 4) | The attribute is discarded before publication | `Session.enforceRFC7606`, see [SRv6](../../features/srv6.md) |
 | A repeated single-occurrence TLV (RFC 8669 Section 6, RFC 9252 Section 7) | Every copy after the first is discarded at ingest, so every consumer sees the attribute without it | `discardRepeatedPrefixSIDTLVs`, described below |
 | The next hop changes toward a destination (RFC 9252 Section 2) | The SRv6 L3 and L2 Service TLVs are removed and every other TLV is kept; an attribute left with no TLV is removed | `prefixSIDNextHopHandler` |
 | An EBGP destination the operator has not configured for propagation (RFC 8669 Section 8) | The attribute is removed, on every rail that writes an UPDATE | `prefixSIDAllowedTo`, see [SRv6](../../features/srv6.md) |
+| A transmitted Label-Index TLV (RFC 8669 Section 3.1) | Its Reserved octet and both Flags octets are cleared in the private outgoing buffer; received storage and Originator SRGB bytes are unchanged | `clearTransmittedLabelIndex` |
+
+<!-- source: internal/component/bgp/reactor/session_validation.go -- Session.enforceRFC7606 and discardRepeatedPrefixSIDTLVs -->
+<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
+<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 
 **A repeated single-occurrence TLV is discarded at ingest.** RFC 8669 Section 6
 requires a receiver to discard every occurrence after the first of a TLV whose

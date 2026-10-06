@@ -282,6 +282,13 @@ func TestFlowSpecSelectedCommunitiesReplacementAndReplay(t *testing.T) {
 	}
 }
 
+// RFC 8955 Section 6: "The validation process described below validates Flow
+// Specifications against unicast routes received over the same AFI but the
+// associated unicast routing information SAFI:"
+// "Flow Specification received over SAFI=134 will be validated against routes
+// received over SAFI=128."
+// RFC requirement: RFC8955-6-1 positive -- same-AFI, same-RD VPN unicast authorizes the received VPN FlowSpec rule.
+// RFC requirement: RFC8955-6-1 negative -- global unicast, another RD, and another AFI cannot authorize the received VPN FlowSpec rule.
 // RFC requirement: RFC8956-5-1 positive -- a received IPv6 destination with offset zero is authorized by same-RD VPN unicast.
 // RFC requirement: RFC8956-5-1 negative -- a legally encoded /64 destination with offset 32 remains infeasible despite a same-RD covering default route.
 func TestFlowSpecVPNValidationSeparatesAFIAndRD(t *testing.T) {
@@ -308,10 +315,16 @@ func TestFlowSpecVPNValidationSeparatesAFIAndRD(t *testing.T) {
 			flowValidationReceive(t, r, peer, 65001, 1, flowFamily, raw, attrs, false)
 			flowValidationReceive(t, r, peer, 65001, 2, family.Family{AFI: afi, SAFI: family.SAFIUnicast}, prefix, attrs, false)
 			flowValidationReceive(t, r, peer, 65001, 3, vpnFamily, wrongRD, attrs, false)
-			if len(flowValidationEvents(bus)) != 0 {
-				t.Fatal("global unicast or another RD authorized VPN FlowSpec")
+			otherAFI := family.AFIIPv4
+			if afi == family.AFIIPv4 {
+				otherAFI = family.AFIIPv6
 			}
-			flowValidationReceive(t, r, peer, 65001, 4, vpnFamily, vpn, attrs, false)
+			otherDefault := append([]byte{88, 0, 1, 1}, rd...)
+			flowValidationReceive(t, r, peer, 65001, 4, family.Family{AFI: otherAFI, SAFI: family.SAFIVPN}, otherDefault, attrs, false)
+			if len(flowValidationEvents(bus)) != 0 {
+				t.Fatal("global unicast, another RD or another AFI authorized VPN FlowSpec")
+			}
+			flowValidationReceive(t, r, peer, 65001, 5, vpnFamily, vpn, attrs, false)
 			events := flowValidationEvents(bus)
 			if len(events) != 1 || events[0].Family != flowFamily || !bytes.Equal(events[0].NLRI, raw) {
 				t.Fatalf("same-domain VPN route did not authorize: %+v", events)
@@ -320,16 +333,16 @@ func TestFlowSpecVPNValidationSeparatesAFIAndRD(t *testing.T) {
 				// A default route makes offset, not missing unicast coverage, the
 				// reason the otherwise legal shortened pattern is infeasible.
 				vpnDefault := append([]byte{88, 0, 1, 1}, rd...)
-				flowValidationReceive(t, r, peer, 65001, 5, vpnFamily, vpnDefault, attrs, false)
+				flowValidationReceive(t, r, peer, 65001, 6, vpnFamily, vpnDefault, attrs, false)
 				offsetComponent := []byte{1, 64, 32, 0, 1, 0, 0}
 				offsetRaw := append([]byte{byte(len(rd) + len(offsetComponent))}, rd...)
 				offsetRaw = append(offsetRaw, offsetComponent...)
-				flowValidationReceive(t, r, peer, 65001, 6, flowFamily, offsetRaw, attrs, false)
+				flowValidationReceive(t, r, peer, 65001, 7, flowFamily, offsetRaw, attrs, false)
 				key := ribevents.ValidationRoute{Peer: peer, Family: flowFamily, NLRI: string(offsetRaw)}
 				if !ribevents.RoutePresent(key) {
 					t.Fatal("legal four-byte offset pattern was rejected instead of retained")
 				}
-				if ribevents.RouteEligible(key, 6) || len(gatherCandidatesHeld(t, r, flowFamily, offsetRaw, false)) != 0 {
+				if ribevents.RouteEligible(key, 7) || len(gatherCandidatesHeld(t, r, flowFamily, offsetRaw, false)) != 0 {
 					t.Fatal("nonzero destination offset passed IPv6 validation")
 				}
 				events = flowValidationEvents(bus)
@@ -394,6 +407,12 @@ func TestFlowSpecReentrantWithdrawalOrdersReplayAfterChange(t *testing.T) {
 	}
 }
 
+// RFC 8955 Section 6: "There are no "more-specific" unicast routes, when
+// compared with the flow destination prefix, that have been received from a
+// different neighboring AS than the best-match unicast route, which has been
+// determined in rule b."
+// RFC requirement: RFC8955-6-1 positive -- removing a losing foreign-AS more-specific path restores the retained FlowSpec rule's selected advertisement.
+// RFC requirement: RFC8955-6-1 negative -- a foreign-AS more-specific path withdraws the selected FlowSpec rule even when that path loses unicast selection.
 func TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule(t *testing.T) {
 	r, bus := flowValidationFixture(t)
 	peer, foreign := netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")

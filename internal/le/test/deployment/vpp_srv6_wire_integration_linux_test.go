@@ -20,7 +20,7 @@ import (
 
 // vppSRv6Open uses a deliberately independent, bounded wire speaker.
 // RFC 4271 Section 4.2: "After a TCP connection is established, the first
-// message sent by each side is an OPEN message."
+// message sent by each side is an OPEN message.".
 func vppSRv6Open(t *testing.T, peer net.Conn) {
 	t.Helper()
 	// OPEN: version[0], AS[1:3], hold[3:5], router ID[5:9], optlen[9].
@@ -52,7 +52,7 @@ func vppSRv6Open(t *testing.T, peer net.Conn) {
 // vppSRv6Update emits one global IPv4 route without using Ze's route encoder.
 // RFC 9252 Section 5.3: "SRv6 Service SID is encoded as part of the SRv6 L3
 // Service TLV." "The SRv6 Endpoint Behavior SHOULD be one of these: End.DX4,
-// End.DT4, or End.DT46."
+// End.DT4, or End.DT46.".
 func vppSRv6Update(t *testing.T, peer net.Conn, prefix netip.Prefix, sid netip.Addr) {
 	t.Helper()
 	var body [128]byte
@@ -79,7 +79,7 @@ func vppSRv6Update(t *testing.T, peer net.Conn, prefix netip.Prefix, sid netip.A
 }
 
 // RFC 4760 Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI is
-// not required to carry any other path attributes."
+// not required to carry any other path attributes.".
 func vppSRv6Withdraw(t *testing.T, peer net.Conn, prefix netip.Prefix) {
 	t.Helper()
 	var body [14]byte
@@ -90,7 +90,7 @@ func vppSRv6Withdraw(t *testing.T, peer net.Conn, prefix netip.Prefix) {
 }
 
 // RFC 4271 Section 4.3: "The Length field indicates the length in bits of the IP
-// address prefix."
+// address prefix.".
 func vppSRv6NLRI(t *testing.T, dst []byte, prefix netip.Prefix) int {
 	t.Helper()
 	if prefix.Bits() != 24 {
@@ -104,7 +104,7 @@ func vppSRv6NLRI(t *testing.T, dst []byte, prefix netip.Prefix) int {
 
 // RFC 4271 Section 4.1: "The value of the Length field MUST always be at least
 // 19 and no greater than 4096, and MAY be further constrained, depending on the
-// message type."
+// message type.".
 func vppSRv6Send(t *testing.T, peer net.Conn, kind byte, body []byte) {
 	t.Helper()
 	var frame [4096]byte
@@ -127,7 +127,7 @@ func vppSRv6Send(t *testing.T, peer net.Conn, kind byte, body []byte) {
 
 // RFC 4271 Section 4.1: "The value of the Length field MUST always be at least
 // 19 and no greater than 4096, and MAY be further constrained, depending on the
-// message type."
+// message type.".
 func vppSRv6Read(t *testing.T, peer net.Conn) (byte, []byte) {
 	t.Helper()
 	var header [19]byte
@@ -176,7 +176,7 @@ func vppSRv6PacketSocket(t *testing.T) (int, int) {
 // ensure that a dead or disconnected capture cannot satisfy the negative case.
 // RFC 9252 Section 1: "The ingress PE encapsulates the payload in an outer IPv6
 // header where the destination address is the SRv6 Service SID provided by the
-// egress PE."
+// egress PE.".
 func vppSRv6Packet(t *testing.T, fd, index int, destination, want netip.Addr, sequence byte) {
 	t.Helper()
 	var frame [74]byte
@@ -254,7 +254,7 @@ func vppSRv6Packet(t *testing.T, fd, index int, destination, want netip.Addr, se
 // the IPv4 hop-limit/checksum changes made by forwarding.
 // RFC 9252 Section 1: "The ingress PE encapsulates the payload in an outer IPv6
 // header where the destination address is the SRv6 Service SID provided by the
-// egress PE."
+// egress PE.".
 func vppSRv6PacketMatches(frame, inner []byte, sid netip.Addr) error {
 	if len(frame) < 54+len(inner) {
 		return errors.New("short encapsulated Ethernet frame")
@@ -300,7 +300,7 @@ func vppSRv6PacketMatches(frame, inner []byte, sid netip.Addr) error {
 }
 
 // RFC 791 Section 3.1: "The checksum field is the 16 bit one's complement of
-// the one's complement sum of all 16 bit words in the header."
+// the one's complement sum of all 16 bit words in the header.".
 func vppSRv6Checksum(header []byte) uint16 {
 	var sum uint32
 	for i := 0; i < len(header); i += 2 {
@@ -314,7 +314,7 @@ func vppSRv6Checksum(header []byte) uint16 {
 
 // vppSRv6Frame writes the common datagram used by raw-socket and VPP PG ingress.
 // RFC 791 Section 3.1: "The checksum field is the 16 bit one's complement of
-// the one's complement sum of all 16 bit words in the header."
+// the one's complement sum of all 16 bit words in the header.".
 func vppSRv6Frame(frame []byte, destination netip.Addr, sequence byte) {
 	copy(frame[:12], []byte{2, 0, 0, 0x94, 0, 1, 2, 0, 0, 0x94, 0, 2})
 	binary.BigEndian.PutUint16(frame[12:14], 0x0800)
@@ -328,7 +328,7 @@ func vppSRv6Frame(frame []byte, destination netip.Addr, sequence byte) {
 	binary.BigEndian.PutUint16(ip[20:22], 19400)
 	binary.BigEndian.PutUint16(ip[22:24], 19401)
 	binary.BigEndian.PutUint16(ip[24:26], uint16(len(ip)-20))
-	copy(ip[28:], []byte("ze-srv6-forwarding-packet-oracle"))
+	copy(ip[28:], "ze-srv6-forwarding-packet-oracle")
 	ip[len(ip)-1] = sequence
 	binary.BigEndian.PutUint16(ip[10:12], vppSRv6Checksum(ip[:20]))
 }

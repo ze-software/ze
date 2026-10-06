@@ -79,7 +79,7 @@ func checkScenario(ctx context.Context, check *interoplab.CheckContext, name str
 }
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
 	var diagnostics textbuf.Buffer
-	for _, peer := range []string{"ze", peerFRR, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2, peerPMACCT} {
+	for _, peer := range []string{"ze", peerFRR, peerFRRSink, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2, peerPMACCT} {
 		logs, err := lab.Logs(ctx, peer, 80)
 		if err != nil {
 			continue
@@ -440,7 +440,7 @@ func waitJSONFields(ctx context.Context, lab interoplab.CheckerLab, peer string,
 
 func waitFRRRoute(ctx context.Context, lab interoplab.CheckerLab, prefix, family string, timeout time.Duration, present bool) error {
 	if family == "" {
-		family = "ipv4 unicast"
+		family = frrIPv4Unicast
 	}
 	if timeout <= 0 {
 		timeout = 30 * time.Second

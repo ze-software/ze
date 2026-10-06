@@ -27,7 +27,8 @@ type WaitReport struct {
 // Wait calls probe until ready accepts a value or the timeout expires. The
 // probe MUST stop when its context is done. Wait returns an error when every
 // probe fails and when successful probes never become ready. Thus, no caller
-// can read an unmeasured zero value as state.
+// can read an unmeasured zero value as state. Wait MUST NOT start another probe
+// after observing cancellation, even when a poll tick is also ready.
 func Wait[T any](ctx context.Context, options WaitOptions, probe func(context.Context) (T, error), ready func(T) bool) (T, WaitReport, error) {
 	var zero T
 	if options.Timeout <= 0 {
@@ -53,7 +54,7 @@ func Wait[T any](ctx context.Context, options WaitOptions, probe func(context.Co
 	var last T
 	measured := false
 	var lastErr error
-	for {
+	for waitCtx.Err() == nil {
 		report.Attempts++
 		value, err := probe(waitCtx)
 		if err != nil {
@@ -71,14 +72,15 @@ func Wait[T any](ctx context.Context, options WaitOptions, probe func(context.Co
 
 		select {
 		case <-waitCtx.Done():
-			report.Elapsed = time.Since(started)
-			if !measured {
-				return zero, report, waitNeverMeasuredError(options.Description, lastErr)
-			}
-			return last, report, waitNotReadyError(options.Description)
+			// The loop guard gives cancellation precedence over a ready tick.
 		case <-ticker.C:
 		}
 	}
+	report.Elapsed = time.Since(started)
+	if !measured {
+		return zero, report, waitNeverMeasuredError(options.Description, lastErr)
+	}
+	return last, report, waitNotReadyError(options.Description)
 }
 
 func waitNeverMeasuredError(description string, last error) error {

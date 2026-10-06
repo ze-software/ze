@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-05",
+  "audited": "2026-10-06",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -92,8 +93,8 @@
       "note": "positive cases local-smaller, peer-smaller and equal would fail on max() or on always-local; the negative (zero from either side) is a mirror of min rather than a violating input",
       "requirement_sha": "0293569d42ba01ee",
       "tests": {
-        "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeMinOfBoth": "e0c0ad55ea2bfdf9",
-        "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeZero": "e0c0ad55ea2bfdf9"
+        "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeMinOfBoth": "68f7c52e0afa6be9",
+        "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeZero": "68f7c52e0afa6be9"
       },
       "units": {
         "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeMinOfBoth": "baaabc2177269ec9",
@@ -318,7 +319,7 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.2-3": {
-      "note": "Re-judged 2026-10-01 (c10 judge). Every clause now has a tagged unit: case 1 (leading AS_SEQUENCE gets the local AS) HEAD TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS and the wireu advertise units; case 1 overflow TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull (255-AS segment: new AS_SEQUENCE [65000] in front, full segment intact); case 2 TestASPathSlotPrependsBeforeALeadingASSet (AS_SET-led path gets a new AS_SEQUENCE [65000], set unchanged); case 3 TestASPathSlotInsertsWhenAbsent (absent path becomes one AS_SEQUENCE [64510]). Negatives: IBGP verbatim and withdraw-only (no advertise). The wireu units drive ASPathEdit.Record, which the reactor forward and RS paths call in production (reactor_api_forward.go, forward_rs.go); records observed red on recordPrepend. Tag lines were inserted by python: re-checked, comment-only diff.",
+      "note": "Independent supplemental source rejudgment 2026-10-06. RFC4271 Section 5.1.2(b): \"When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows: 1) if the first path segment of the AS_PATH is of type AS_SEQUENCE, the local system prepends its own AS number as the last element of the sequence (put it in the leftmost position with respect to the position of octets in the protocol message). If the act of prepending will cause an overflow in the AS_PATH segment (i.e., more than 255 ASes), it SHOULD prepend a new segment of type AS_SEQUENCE and prepend its own AS number to this new segment. 2) if the first path segment of the AS_PATH is of type AS_SET, the local system prepends a new path segment of type AS_SEQUENCE to the AS_PATH, including its own AS number in that segment. 3) if the AS_PATH is empty, the local system creates a path segment of type AS_SEQUENCE, places its own AS into that segment, and places that segment into the AS_PATH.\" The same section defines: \"(An empty AS_PATH attribute is one whose length field contains the value zero).\" All seven distinct functions/nine covers read: reactor explicit-path eBGP prepend/iBGP preservation; wireu advertising/withdrawal pair, absent path, leading set, full leading sequence; both checkRelayWithdrawalShape tags. Sequence/set/overflow behavior has concrete assertions, but TestASPathSlotInsertsWhenAbsent supplies only ORIGIN and NLRI, not a present zero-length AS_PATH. At internal/component/bgp/wireu/aspath_slot.go::recordPrepend (299-315), hasASPath parsing and absent construction are different branches; a regression skipping an existing empty attribute can leave these tagged units green. The implementation currently handles empty through ParseASPath/ASPath.Prepend, so this is test/judgment debt, not a proven runtime defect. Overflow checks the retained segment count rather than its complete original contents, and iBGP checks decoded numbers rather than byte identity; no stronger proof is claimed. Traced Record generators through general/RS forward rebuilds and batch rewrite/emit. The registered FRR carrier requires exact 65001 65004, disappearance plus positively decoded peer/prefix withdrawal, no attribute error and surviving session; live execution remains pending. Current checker diff only hoists relayedASPath to identical zeInjectorASPath, so its movement is mechanical. The absent/empty carrier has no diff HEAD: that conflation is preexisting judgment debt. Downgrade enforced to weak; no partial annotation, executed mutation or speculative producer fix claimed.",
       "requirement_sha": "a13562e6f3b2682e",
       "tests": {
         "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
@@ -328,8 +329,8 @@
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "52bf19846926dcc3",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "52bf19846926dcc3",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "52bf19846926dcc3",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "f04334a58fd00e7c",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f04334a58fd00e7c"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f7ef88f508431a53"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
@@ -339,10 +340,10 @@
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "62d51cc914f09baf",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "fd860fa8f88bf938",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "2f4519d040567ccb",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "cac36dd872b4096e",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "cac36dd872b4096e"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "b252fee9f8815efe",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "b252fee9f8815efe"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC4271-5.1.3-1": {
       "note": "Re-judged 2026-10-04 after f93a30fbfc. Originated-route units (writeUpdateGated/SendAnnounce tests and originated-nexthop-peer-own.ci) assert the route naming the peer's own address is withheld from that peer while other next hops are written. The forward-rail units now assert the owner is written no NLRI and the exact withdrawal of the refused prefix, with the bystander receiving both halves, on both rails; they extend the refusal to relayed routes, which this sentence (originated routes) does not name, and the withdrawal is the owner's decision rather than an RFC 4271 obligation.",
@@ -359,8 +360,8 @@
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "8acb5d36c93abfec",
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
-        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "f04334a58fd00e7c",
-        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "f04334a58fd00e7c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "f7ef88f508431a53",
         "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
         "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
       },
@@ -411,8 +412,8 @@
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "d216c0c86115d31f",
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "d216c0c86115d31f",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "d216c0c86115d31f",
-        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f04334a58fd00e7c",
-        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f04334a58fd00e7c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f7ef88f508431a53",
         "test/plugin/med-locally-set-reaches-peer.ci": "1b8b6dc94487cd73",
         "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
         "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
@@ -500,7 +501,7 @@
         "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "94aa07ebd53dcc5b",
-        "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "f04334a58fd00e7c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "f7ef88f508431a53",
         "test/plugin/local-pref-strip-ebgp.ci": "5a4fff5cffb8e210",
         "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"
       },
@@ -518,19 +519,19 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.5-3": {
-      "note": "Row is the RECEIVE side (\"MUST be ignored by the receiving speaker\"); the send-side LOCAL_PREF omission to external peers is a different row and is not judged here. New unit TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB drives a live passive session to Established and captures the payload the session dispatches to consumers, the only copy the RIB and best-path read. Positive: internal session, attrs byte-identical incl. LOCAL_PREF 200. Negative: external session, dispatched attribute codes are exactly [1 2 3 252] (no code 5; the ATTR_TOMBSTONE 252 marker of draft-mangin-idr-attr-tombstone replaces it, and no consumer reads 252 as LOCAL_PREF), ORIGIN/AS_PATH/NEXT_HOP and NLRI unchanged, session Established, no NOTIFICATION. Observed-red records +/- (revert session_validation.go::enforceRFC7606). Residual: the unit does not assert the tombstone's value bytes; confederation exception not exercised. Old message-level units stay as supplementary (they prove only the action selected).",
+      "note": "RFC 4271 \u00a75.1.5, rfc/full/rfc4271.txt:1599-1604: 'If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065].' The current full short row has this same receive-side sentence and no partial annotation. Read all four covers: internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession requires ActionNone and empty DiscardEntries; ::TestRFC4271LocalPrefIgnoredOnExternalSession requires exactly AttributeDiscard, one entry, code 5; both polarities of internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB drive an actual Established session. The internal case requires byte-identical attributes including preference 200 and unchanged NLRI. The external case uses the matching four-octet peer AS, requires one dispatched UPDATE, exact attribute codes [1,2,3,252], absence of code 5, byte-identical retained ORIGIN/AS_PATH/NEXT_HOP, unchanged NLRI, Established state and no NOTIFICATION. The 252 marker is not mistaken for a surviving LOCAL_PREF.\nProducing/consuming path read: message/rfc7606.go::validateLocalPrefAttr \u2192 reactor/session_validation.go::enforceRFC7606 \u2192 ApplyAttrDiscard/rebuild \u2192 session_read.go::processMessage \u2192 reactor_notify.go::notifyMessageReceiver. The latter derives RawBytes and AttrsWire from the rewritten WireUpdate, not the original raw body. rib_structured.go::handleReceivedStructured consumes that WireUpdate and packed attributes. Q1 yes: exact ignore-versus-retain behavior; Q2 yes by inspection: preserving external preference, dropping the UPDATE or stripping the internal control breaks explicit assertions; Q3 yes: valid established peers and matching external AS isolate preference handling; Q4 yes for the implemented non-confederation receive boundary, not send-side omission or entire RFC support. No confederation feature support or fresh semantic execution is inferred.\nPending note: use the preceding RFC quote, population, assertions and producer chain; retain enforced and state explicitly that this audit ran no tests and independent peer acceptance remains pending.",
       "requirement_sha": "d93d8e7519be8e22",
       "tests": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "ba18c36b881a0964",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "ba18c36b881a0964",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "a44e07949b80f520",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "a44e07949b80f520"
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "64686e84aed9a944",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "64686e84aed9a944"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "fbdb58c658f3a9bf",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "2ea484d9220d21a2",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "f773413b5958b546",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "f773413b5958b546"
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "96efa7af249e0195",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "96efa7af249e0195"
       },
       "verdict": "enforced"
     },
@@ -711,8 +712,8 @@
       "note": "RFC 7606 (Updates: 4271) revises this: the error is handled by treat-as-withdraw, so no NOTIFICATION, subcode or Data field is sent. an external UPDATE whose leftmost AS 65003 is not the peer AS 65002 is delivered as exactly a withdrawal of its prefix (7.2); leftmost AS equal to the peer AS announces unchanged",
       "requirement_sha": "3c98a0ec1375460c",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath": "fa4efa97380c9f87",
-        "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath#2": "fa4efa97380c9f87"
+        "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath": "8bb2697a46f1c6e7",
+        "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath#2": "8bb2697a46f1c6e7"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath": "9a8845be35afa8b4",
@@ -891,7 +892,7 @@
         "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire": "56ded9ff159b946a",
-        "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "193b8ed8407bdf7f"
+        "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "a65faf019fcdeda5"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
@@ -913,8 +914,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
         "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease": "671526884de3c8f0",
-        "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "193b8ed8407bdf7f",
-        "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "193b8ed8407bdf7f"
+        "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "a65faf019fcdeda5",
+        "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "a65faf019fcdeda5"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "132a6b151f557edb",
@@ -928,8 +929,8 @@
       "note": "Re-judged 2026-10-01 (BGP c12 judge). The trigger (receipt of an OPEN) now reaches the examination in a tagged unit: TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection hands a second connection to Reactor.acceptOrReject, which tracks it as pending until its OPEN, then writes a complete OPEN on it; handlePendingCollision examines the session held in OpenConfirm. Both outcomes of the examination are asserted on the wire: remote Identifier 10.0.0.3 above local 10.0.0.2 -> Cease 6/7 on the OpenConfirm connection; 10.0.0.1 below -> 6/7 on the new connection, pending cleared, OpenConfirm session kept. Negative TestRFC4271ReceivedOpenWithNoOpenConfirmConnection: with no connection in OpenConfirm (session Established) an OPEN with Identifier 255.255.255.255, which would win an OpenConfirm comparison, does not close the existing session; the new connection gets 6/7 and Established stays. Records on session.go::detectCollision observed red both polarities. HEAD units in collision_test.go (direct detectCollision calls) stay supplementary. Ze holds at most one OpenConfirm connection per peer, so 'all' is that one.",
       "requirement_sha": "773b4d24b325a53b",
       "tests": {
-        "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "c1c4f47a8a24ad7f",
-        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "c1c4f47a8a24ad7f",
+        "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "5c70309331197119",
+        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "5c70309331197119",
         "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "ba785114f38bbc8d",
         "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "ba785114f38bbc8d"
       },
@@ -1377,8 +1378,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "f4c592b6164d9e4a",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "f4c592b6164d9e4a"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "fb37fc79234ccfec",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "fb37fc79234ccfec"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
@@ -1435,8 +1436,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "f4c592b6164d9e4a",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "f4c592b6164d9e4a"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "fb37fc79234ccfec",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "fb37fc79234ccfec"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
@@ -1460,27 +1461,33 @@
       "verdict": "enforced"
     },
     "RFC4271-9.1.2.2-1": {
-      "note": "Read the complete RFC 4271 Section 9.1.2.2: 'The criteria MUST be applied in the order specified.' The section starts with all equally preferable routes, eliminates candidates at each criterion, and permits another algorithm only when it produces the same results. All seven tagged units were read. rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified isolates adjacent conflicting preferences from LOCAL_PREF through BGP Identifier in both argument orders and asserts the exact winner and step. The structured and JSON rfc4271_bgp_identifier tests drive real received-UPDATE ingestion, then SelectBestExplain: TestBestPathStepFComparesThePeerBGPIdentifier and its OnTheJSONRail counterpart make identifier and peer-address preferences conflict; TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress and TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress separately assert the tied-identifier fall-through. Metadata producers handleReceivedStructured, updatePeerMetadata, appendPeerJSON, GetPeerRouterID and extractCandidate preserve the remote identifier. bestpath_test.go::TestBestPath_MED_SameNeighborAS genuinely rejects cross-AS MED comparison, but its same-AS examples cannot distinguish MED from peer-address selection; TestBestPath_FullTiebreak proves final peer-address selection only, not its claimed whole ordering. These are distinct positive and negative assertions over valid candidates, but every tagged unit has only two candidates. Whole-set order remains unproved: bestpath.go::SelectBest and SelectBestExplain fold pairwise comparisons; rib_bestchange.go::checkRouteBestChange calls SelectMultipath, which calls SelectBest. Source-read inference, not an executed reproduction: with all earlier criteria, session class and interior cost tied, A(FirstAS=65001, MED=0, BGP Identifier=198.51.100.3), B(65002,0,198.51.100.2), C(65001,100,198.51.100.1), input [A,B,C] selects C by two cross-AS identifier comparisons. Section 9.1.2.2(c) first eliminates C against A; step f) then selects B. The tagged pair-only tests cannot detect this existing-capability defect. Add a six-permutation three-candidate regression over ordinary and explained selection and received-UPDATE selection before any upgrade. The recorded positive proof for TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified against bestpath.go::comparePair is stale after the ADD-PATH final tiebreak; its native discrimination renewal is owed. The four changed identifier test units have no records in rfc/discrimination/rfc4271.json and need their change-scoped proofs. No test, mutation, build, stamp, reseal or check was run for this judgment; no partial or gap annotation is claimed.",
+      "note": "Independent supplemental source rejudgment 2026-10-06; weak to enforced on changed/new evidence relative to the recorded audit. RFC4271 Section 9.1.2.2: \"The tie-breaking algorithm begins by considering all equally preferable routes to the same destination, and then selects routes to be removed from consideration. The algorithm terminates as soon as only one route remains in consideration. The criteria MUST be applied in the order specified.\" Also: \"BGP implementations MAY use any algorithm that produces the same results as those described here.\" MED: \"Remove from consideration routes with less-preferred MULTI_EXIT_DISC attributes. MULTI_EXIT_DISC is only comparable between routes learned from the same neighboring AS (the neighboring AS is determined from the AS_PATH attribute). Routes that do not have the MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value.\" Full criteria (a)-(g) and all ten current functions read, including three whole-set units absent from the old seven-unit map. Old pairwise fold could choose C for A(AS65001,MED0,ID .3), B(AS65002,MED0,ID .2), C(AS65001,MED100,ID .1), although A must remove C before B removes A. Current bestpath_selection.go::selectBestCandidates eliminates compareBeforeMED losers, compareNeighborAS/retainLowestMED eliminate within each known neighboring AS, and compareAfterMED chooses survivors. SelectBest/SelectBestExplain share this; SelectMultipath uses the MED survivors. TestRFC4271WholeSetMEDBeforeLaterCriteria covers six permutations, both APIs, exact winner B and exact elimination witnesses C by A at MED then A by B at Router ID. TestRFC4271WholeSetMEDEarlierCriteria makes A lose at stale, LOCAL_PREF, AIGP, AS_PATH length or ORIGIN; six permutations require C, preventing an already eliminated low-MED candidate from removing C. TestRFC4271WholeSetMEDRIBBestChange drives actual structured received UPDATEs, requires Loc-RIB B, withdraws non-best A and requires C plus exact BestChangeUpdate, restores A and requires B plus exact replacement, and rejects spurious unchanged publication. Adjacent criteria conflict in both orders. Structured/production-JSON remote-ID pairs prove identifier precedence and equal-ID address fall-through. Older FullTiebreak and aligned MED/address examples remain supplementary. Consumer chain handleReceivedStructured/JSON -> metadata/storage -> extractCandidate -> checkRouteBestChange -> SelectMultipath -> Loc-RIB and best-change publication was read. This replacement producer and newly tagged multi-candidate consumer evidence independently close the specific prior finding; no unchanged-unit reinterpretation or panic record justifies the upgrade. All identifier and whole-set units have no current diff HEAD, and the only current selection producer hunk is a comment, so this is preexisting audit debt relative to HEAD, not this mechanical edit. They are nevertheless changed/new against the supplied audit map, hence upgrade_reason is omitted rather than misused. No tests, semantic mutants, builds, stamps or checks executed.",
       "requirement_sha": "25f4bd3bf4eea6fc",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "dbcc36d32357abae",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "dbcc36d32357abae",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "8c4db5bd430ee149",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "8c4db5bd430ee149",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "a0c9bda6436eea78",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "a0c9bda6436eea78",
-        "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "a129dac3a74eb33f"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "71ac3f83dbbffc05",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "71ac3f83dbbffc05",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "c08f3cda82a46fa1",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "c08f3cda82a46fa1",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "87e8200e7dcbefd4",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "87e8200e7dcbefd4",
+        "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "a129dac3a74eb33f",
+        "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDBeforeLaterCriteria": "75355e6a550661f3",
+        "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDEarlierCriteria": "75355e6a550661f3",
+        "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange": "75355e6a550661f3"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "b5d24bd8d66b29b4",
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "6bf15b9f3232cdc2",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "1dcc4742498675f3",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "058d6dce56eb7689",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "237e192d49745dde",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "4a2cdf6fb365084e",
-        "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "28fa129380d74765"
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "7bbb93a44e069f3c",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "dfd0c22ba065b454",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "5af0c985f138fb51",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "077937651e4fe925",
+        "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "28fa129380d74765",
+        "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDBeforeLaterCriteria": "c48e748ebc6e8c6c",
+        "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDEarlierCriteria": "6aa91330ddadd008",
+        "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange": "c913ab3adfa446d5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9.1.2.2-3": {
       "note": "Re-judged 2026-10-01 (BGP c13 judge). The MISSING clause (b) of Section 9.1.2.2 (c) is closed at the producer: firstASInPath answers 0 for a path that begins with an AS_SET (quote above the statement), and neighborAS turns 0 into the local AS for an IBGP route (PeerASN == LocalASN). Positive TestRFC4271IBGPAggregatesLedByASSetsCompareMED: two IBGP aggregates led by different AS_SETs share neighbor AS = local AS, MED 10 beats MED 20 at BestStepMED against IGP cost 50 vs 5, and SelectBest agrees. Negative TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS: an AS_SEQUENCE-led IBGP route keeps neighbor AS 65010 against an aggregate led by AS_SET {65010, 65020}, MED is skipped and the IGP cost decides, so the local-AS rule is not over-applied. Both build candidates from wire bytes through firstASInPath and asPathLength, the calls extractCandidate (rib_commands.go) makes. Their records break the producer with a panic (reach only); a judge overlay (tree untouched) removing only the AS_SET check reddens both units and TestFirstASInPath, whose wrong expectation (65003, the set's first member) was corrected to 0 under D-15, so the clause is discriminated. HEAD units unchanged: empty-AS_PATH IBGP positive and the later-steps negative (2026-09-30 judge mutants). Side effect read: an EBGP route led by an AS_SET now compares no MED (route-selection.md); such a path breaks Section 5.1.2 b) at its sender, and MED is owed only between routes of one known neighbor AS, so not comparing it stays conformant. Residual outside this row's RFC 4271 reading: the RIB classifies IBGP by PeerASN == LocalASN, not the reactor's RFC 7705-aware rule (journal helper-bypassed-by-an-open-coded-copy.md).",
@@ -1569,8 +1576,8 @@
       "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
       "requirement_sha": "04f270bb5549bd27",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "f4c592b6164d9e4a",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "f4c592b6164d9e4a"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "fb37fc79234ccfec",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "fb37fc79234ccfec"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",

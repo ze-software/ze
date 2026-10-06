@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -51,9 +52,9 @@
         "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "229f47592a83c9c4",
         "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh": "229f47592a83c9c4",
         "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "44d90c337eb5fecd",
-        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "933b3c0fcb7d9bad",
-        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "933b3c0fcb7d9bad",
-        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "933b3c0fcb7d9bad"
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "18bc1871ceb5610d",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "18bc1871ceb5610d",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "18bc1871ceb5610d"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "8b53b9ee1343739b",
@@ -74,8 +75,8 @@
         "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "3e1a8969432bbe09",
         "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "3e1a8969432bbe09",
         "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "3e1a8969432bbe09",
-        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "933b3c0fcb7d9bad",
-        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "933b3c0fcb7d9bad"
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "18bc1871ceb5610d",
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "18bc1871ceb5610d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "6fd88cf95310ee55",
@@ -95,9 +96,9 @@
         "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "3e1a8969432bbe09",
         "internal/component/bgp/reactor/rfc7313_reactor_b_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered": "030ef3c4a808e27f",
         "internal/component/bgp/reactor/rfc7313_reactor_b_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered#2": "030ef3c4a808e27f",
-        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "933b3c0fcb7d9bad",
-        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshReserved": "933b3c0fcb7d9bad",
-        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "933b3c0fcb7d9bad"
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "18bc1871ceb5610d",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshReserved": "18bc1871ceb5610d",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "18bc1871ceb5610d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "609ea9cea55823ac",

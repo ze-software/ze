@@ -4,8 +4,52 @@
     {
       "rid": "RFC8654-3-1",
       "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes",
+      "unit-sha": "41153239eaf064a1",
+      "claim-sha": "9c5ed46e6e259423",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
+      "producer-sha": "8a7907921a42c2b1",
+      "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes",
+      "unit-sha": "41153239eaf064a1",
+      "claim-sha": "2c02efa933f3a584",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
+      "producer-sha": "8a7907921a42c2b1",
+      "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard",
+      "unit-sha": "01b0057fac0d2c89",
+      "claim-sha": "db16954e4eadc946",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "5ff7d5703bc38cb1",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard",
+      "unit-sha": "01b0057fac0d2c89",
+      "claim-sha": "1cad10399a93b750",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "5ff7d5703bc38cb1",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-3-1",
+      "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
-      "unit-sha": "c5e4bdea4cf7d3ac",
+      "unit-sha": "c29a2181ac8eee72",
       "claim-sha": "32396e4f9a54c9de",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606SessionReset",
@@ -16,11 +60,11 @@
       "rid": "RFC8654-3-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
-      "unit-sha": "c5e4bdea4cf7d3ac",
+      "unit-sha": "c29a2181ac8eee72",
       "claim-sha": "983e1eb9bd353b6d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "22001f81984512ae",
+      "producer-sha": "5ff7d5703bc38cb1",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -57,6 +101,29 @@
       "break": "body of parseZeroLengthCapability replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8654-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
+      "unit-sha": "a262f2c0fdbf879a",
+      "claim-sha": "39615ca1dcc1cdd3",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-4-1",
+      "polarity": "positive",
+      "unit": "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedAsymmetricFRR",
+      "unit-sha": "b78159859a9bc445",
+      "claim-sha": "f5265781030bad20",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "1"
+    },
+    {
       "rid": "RFC8654-4-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc8654_update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize",
@@ -66,6 +133,109 @@
       "producer": "internal/component/bgp/message/update_split.go::SplitMPReachNLRIWithAddPath",
       "producer-sha": "08bdacae42899067",
       "break": "body of SplitMPReachNLRIWithAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AdvertisementDoesNotExtendControlBounds",
+      "unit-sha": "902b274b9966e325",
+      "claim-sha": "8e75f963bebb542f",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+      "producer-sha": "74b3bd33b6da2c9e",
+      "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-4-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654SendLimitFollowsPeerOPEN",
+      "unit-sha": "32fae9a8d6689625",
+      "claim-sha": "918a869b4705de8f",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-4-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654SendLimitFollowsPeerOPEN",
+      "unit-sha": "32fae9a8d6689625",
+      "claim-sha": "e77ea6253f5b3fc1",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-4-6",
+      "polarity": "positive",
+      "unit": "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedAsymmetricFRR",
+      "unit-sha": "b78159859a9bc445",
+      "claim-sha": "33d0ad743503d8cf",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "1"
+    },
+    {
+      "rid": "RFC8654-4-6",
+      "polarity": "negative",
+      "unit": "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedSendDeniedFRR",
+      "unit-sha": "e8984d17536c954d",
+      "claim-sha": "dac325e32d34acd0",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "1"
+    },
+    {
+      "rid": "RFC8654-5-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
+      "unit-sha": "a262f2c0fdbf879a",
+      "claim-sha": "930acc323a18f0ea",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
+      "unit-sha": "a262f2c0fdbf879a",
+      "claim-sha": "db37753a398c3b61",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-5-1",
+      "polarity": "negative",
+      "unit": "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedNeitherRejectFRR",
+      "unit-sha": "c7415ce3c9b6c414",
+      "claim-sha": "120b499e6bba4d51",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "1"
+    },
+    {
+      "rid": "RFC8654-5-1",
+      "polarity": "negative",
+      "unit": "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedRemoteOnlyRejectFRR",
+      "unit-sha": "e2de54148a5ff107",
+      "claim-sha": "1a45b2cb54d4fcfd",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "1"
     },
     {
       "rid": "RFC8654-5-4",
@@ -90,6 +260,39 @@
       "break": "body of readAndProcessMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8654-5-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654FatalLengthReleasesInstalledRoutes",
+      "unit-sha": "67fa5a9adc7cb9e9",
+      "claim-sha": "c77a209ef1fff3fa",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed",
+      "producer-sha": "708c987d1f1c40b1",
+      "break": "body of notifyPeerClosed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654ValidLengthRetainsInstalledRoutes",
+      "unit-sha": "888dee4b40c95473",
+      "claim-sha": "f39779fbf9133782",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
+      "producer-sha": "698d8478ad30aeb7",
+      "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-5-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest",
+      "unit-sha": "74277ca594150159",
+      "claim-sha": "4ad1d433840a5762",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
+      "producer-sha": "698d8478ad30aeb7",
+      "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8654-6-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability",
@@ -110,6 +313,72 @@
       "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
       "producer-sha": "74b3bd33b6da2c9e",
       "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation",
+      "unit-sha": "a820906b002a77b8",
+      "claim-sha": "7156181d16944a07",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
+      "producer-sha": "698d8478ad30aeb7",
+      "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation",
+      "unit-sha": "a820906b002a77b8",
+      "claim-sha": "4eaf9b67864475c8",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
+      "producer-sha": "698d8478ad30aeb7",
+      "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
+      "unit-sha": "a262f2c0fdbf879a",
+      "claim-sha": "e55ca551b2e35d85",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
+      "unit-sha": "a262f2c0fdbf879a",
+      "claim-sha": "a8f0401c640025e9",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections",
+      "unit-sha": "a506ea06be6e100b",
+      "claim-sha": "84c6d2bd517cda38",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8654-6-1",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections",
+      "unit-sha": "a506ea06be6e100b",
+      "claim-sha": "273cb2a0539b8d14",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

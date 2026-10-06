@@ -121,7 +121,7 @@ func TestVPPSRv6PacketOracle(t *testing.T) {
 	inner[0], inner[8], inner[9] = 0x45, 64, 17
 	binary.BigEndian.PutUint16(inner[2:4], uint16(len(inner)))
 	copy(inner[12:20], []byte{192, 0, 2, 2, 10, 94, 1, 1})
-	copy(inner[28:], []byte("independent-payload"))
+	copy(inner[28:], "independent-payload")
 	binary.BigEndian.PutUint16(inner[10:12], vppSRv6Checksum(inner[:20]))
 	sid := netip.MustParseAddr(vppSRv6SIDOne)
 	for _, test := range []struct {

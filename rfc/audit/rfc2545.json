@@ -1,55 +1,55 @@
 {
-  "audited": "2026-10-05",
+  "audited": "2026-10-06",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2545-3-1": {
-      "note": "Re-judged 2026-10-01 (BGP c19 judge). (a) forbidden: a Next Hop field whose first address is not the global next hop, a link-local second address placed first, a non-link-local second address, a second address appended unconditionally, or a second address that is not the next hop's own (the speaker's Link-Local after another router's global). (b) conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci pin global-then-link-local by exact wire hex (offset order); TestSendAnnounceRefusesUnusableIPv6NextHop requires ErrNextHopUnencodable and empty wire for an IPv4 or unset address in the global slot; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the same for a global second address; new-v6.ci pins the one-address form when no link-local exists. NEW negative TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink (sendStaticRoutes, one-hop internal peer, explicit next hop 2001:db8:1::99 on the shared link) asserts Contains the 16-octet ::99 attribute AND NotContains [::99, fe80::1]; it was observed red as the c18 probe before the R55 fix and carries a record on classify. Fixture positives (conf-llnh-update.conf local-address fd00::2 = next hop; interop fd00:1e:0::2 held on the lab interface) keep a speaker-own global, so the fix leaves them valid by reading; their re-run is owed to the functional/interop gates.",
+      "note": "RFC2545 Section 3: \"A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop.\" Read all nine current carriers. Announce/default-originate positives and conf-llnh-update.ci require global-then-link-local exact wire; new-v6.ci requires global alone; adj-rib-in-replay-rfc2545-next-hop.ci requires pair preservation on both live and explicit replay arrivals. Session guards require ErrNextHopUnencodable and empty socket for IPv4/unset first address and a global second address. The third-party static negative requires global-only and rejects the speaker-owned link-local after another router global. These are not whole-clause enforcement: TestSendAnnounceRefusesUnusableIPv6NextHop tests netip.Addr{}, not actual IPv6 ::, and no tagged carrier tests multicast first addresses. Producer internal/component/bgp/reactor/reactor_wire.go::nextHopGlobalOctets, lines 116-123, admits actual :: and ff02::1: both pass Is6/not-Is4In6 and internal/core/bgp/attribute/nexthop_form.go::ValidateGlobalNextHop rejects only link-local unicast. Read Peer.SendAnnounce -> Session.SendAnnounce -> validateAnnounceNextHop/writeAnnounceUpdate -> bufWriter.Write/flush; the peer-own gate does not reject those values for an ordinary peer. [INFERENCE] They can therefore be emitted as the first IPv6 next-hop address, although neither is a global unicast next-hop router. Section 2 equates site-local and global within unicast scope, not unspecified or multicast. This is an existing implemented producer defect with missing invalid-input isolation, not an absent-feature request. Downgrade enforced to weak; no gap/partial annotation exists and no speculative source fix is proposed. Independent source rejudgment 2026-10-06, full RFC and all current carriers read. Scoped git diff HEAD is empty for both moved positive carriers and reactor_wire.go, forward_next_hop.go and nexthop_form.go: these are preexisting stale judgment debt/defects relative to HEAD, not introduced by the current mechanical edit. No test, mutation, build, lint, formatter, canonical stamp or live named-peer run was executed. FRR execution remains pending; classify panic records prove reachability only.",
       "requirement_sha": "3a3438e9b66804c5",
       "tests": {
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "83af95f0f2ec37a2",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSendAnnounceRefusesUnusableIPv6NextHop": "6e3405f0ade498ee",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "6e3405f0ade498ee",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "6e3405f0ade498ee",
         "internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go::TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink": "fe6870d389da3ebe",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "b23e8edb4b065981",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "d8925fdfafd8a5c2",
         "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
         "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
         "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "d5dcddc3a4400225"
       },
       "units": {
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "87d10c13f2b87493",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "b205f823cbd57b12",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSendAnnounceRefusesUnusableIPv6NextHop": "a4ab9b1b0532fb83",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "488aa4ac73d235f2",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "392b5106ce6ef8a2",
         "internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go::TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink": "30e45e1591dff18f",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "0060d81c4d82153b",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "17a0c7c6a9154189",
         "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
         "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
         "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "d5dcddc3a4400225"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC2545-3-2": {
-      "note": "(a) forbidden: a length octet other than 16 with only a global address, or other than 32 with a link-local also included. (b) new-v6.ci asserts 800E26 0002 01 10 with one 16-octet address; conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci assert the 0x20 octet with both addresses by exact hex; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress asserts no 32-octet field is written for a non-link-local second address.",
+      "note": "RFC2545 Section 3: \"The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field.\" Read all eight current covers. new-v6.ci requires complete frames with 800E26 0002 01 10 and one address; conf-llnh-update.ci requires 800E36 0002 01 20 and both addresses. Announce, direct-session and default-originate positives independently construct expected length-32 MP_REACH bytes at a socket. The replay fixture checks length 32 on both live and explicit stored replay, with observer ordering/causality. writeAnnounceUpdate derives 16/32 from the second address, UpdateBuilder.buildMPReach preserves order, MPReachNLRI.WriteTo uses the summed length and relay writeMPReach emits len(nextHop). Exact assertions distinguish both length branches. Non-link-local-second rejection is primarily 3-1 evidence rather than an isolated length violation; the separate global-only fixture supplies the length contrast. Registered checkRFC2545NextHops additionally checks exact FRR two-entry global/link-local versus sole-global sets and surviving session, but is not claimed executed. Retain enforced for length clauses only, not all RFC2545 behavior. Independent source rejudgment 2026-10-06, full RFC and all current carriers read. Scoped git diff HEAD is empty for both moved positive carriers and reactor_wire.go, forward_next_hop.go and nexthop_form.go: these are preexisting stale judgment debt/defects relative to HEAD, not introduced by the current mechanical edit. No test, mutation, build, lint, formatter, canonical stamp or live named-peer run was executed. FRR execution remains pending; classify panic records prove reachability only.",
       "requirement_sha": "b5d1c52dd182fc35",
       "tests": {
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "83af95f0f2ec37a2",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "6e3405f0ade498ee",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "6e3405f0ade498ee",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "b23e8edb4b065981",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "f04334a58fd00e7c",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "d8925fdfafd8a5c2",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "f7ef88f508431a53",
         "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
         "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
         "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "d5dcddc3a4400225"
       },
       "units": {
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "87d10c13f2b87493",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "b205f823cbd57b12",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "488aa4ac73d235f2",
         "internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "392b5106ce6ef8a2",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "0060d81c4d82153b",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "17a0c7c6a9154189",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "263cc49621f97ac1",
         "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
         "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
@@ -58,29 +58,29 @@
       "verdict": "enforced"
     },
     "RFC2545-3-3": {
-      "note": "Re-judged 2026-10-01 (BGP c19 judge) after the RFC2545-3-6 split: this row now carries the include half for a global that is the speaker's own address and the exclude half. (a) forbidden: including the link-local address when either half of the condition fails, or omitting it when both hold for the speaker's own global. (b) conf-llnh-update.ci (local-address fd00::2 = next hop) and TestSendAnnounceAppendsLinkLocalWhenSection3Holds / TestDefaultOriginateAppendsLinkLocalWhenSection3Holds assert the 32-octet form when both halves hold; conf-llnh-lla-only.ci asserts the 16-octet form when the global next hop is on no connected subnet; TestSendAnnounceOmitsLinkLocalWhenPeerOffLink / TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink assert the 16-octet form and NotContains the 32-octet one when the peer half fails; checkRFC2545NextHops proves both against FRR. Both halves are broken separately. Note: the speaker's own Link-Local is supplied by the session > link-local leaf (YANG says set it on a shared-link session); with no leaf Ze includes none.",
+      "note": "RFC2545 Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Also: \"In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16).\" Read all eight current covers: announce/default-originate pairs, both compatibility .ci files and both FRR checker tags. Socket pairs require length 32 for configured speaker-owned global and length 16 plus absence of pair for off-link destination. Functional/FRR next-hop-off-link negatives also change ownership from speaker-owned to third-party; link_scope.go::linkLocalNextHop returns for third-party before SharesSubnet, so those negatives cannot independently discriminate the global-subnet check. Compatibility configs change local-address too (fd00::2 versus ::1). Existing producer defect: internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf, lines 387-405, returns immediately when destOnLink is true without examining the received global entity. Both forwardUpdateSection and reactorForwardRSSection consume this function; next-hop unchanged/auto preserves the received pair. [INFERENCE] A received global-plus-link-local pair whose global entity shares no connected subnet with the speaker is retained toward an on-link external destination. No tagged 3-3 carrier exercises that exclusion. The historical 3-6 split acknowledges third-party inclusion debt but does not remove the whole iff sentence from this unannotated row. The RFC permission for internal advertisement to remove link-local does not excuse external retention when the global condition fails. Downgrade enforced to weak; no partial/gap annotation stands, and no absent feature expansion or speculative fix is proposed. Independent source rejudgment 2026-10-06, full RFC and all current carriers read. Scoped git diff HEAD is empty for both moved positive carriers and reactor_wire.go, forward_next_hop.go and nexthop_form.go: these are preexisting stale judgment debt/defects relative to HEAD, not introduced by the current mechanical edit. No test, mutation, build, lint, formatter, canonical stamp or live named-peer run was executed. FRR execution remains pending; classify panic records prove reachability only.",
       "requirement_sha": "2b40069283106c59",
       "tests": {
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "02487edfbf589113",
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "02487edfbf589113",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "b23e8edb4b065981",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "b23e8edb4b065981",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "f04334a58fd00e7c",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "f04334a58fd00e7c",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "83af95f0f2ec37a2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "83af95f0f2ec37a2",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "d8925fdfafd8a5c2",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "d8925fdfafd8a5c2",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "f7ef88f508431a53",
         "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "7f04e98f19ef5222",
         "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323"
       },
       "units": {
-        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "87d10c13f2b87493",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "b205f823cbd57b12",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "1f589f2024fa0f2e",
-        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "0060d81c4d82153b",
+        "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "17a0c7c6a9154189",
         "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "72ba439b85f70cd5",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "263cc49621f97ac1",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "263cc49621f97ac1",
         "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "7f04e98f19ef5222",
         "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC2545-3-4": {
       "note": "(a) forbidden: a second address or a length other than 16 when the inclusion condition does not hold. (b) TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the global-only form with length 0x10 and NotContains the 32-octet form; new-v6.ci pins 01 10 plus one address byte for byte; conf-llnh-update.ci is the negative, asserting the field is not reduced to 16 while the condition holds.",

@@ -377,6 +377,8 @@ var excludedIntegrationPackages = map[string]string{
 		" (internal/le/test/integration/gates.go), so naming it here would run it twice",
 	"internal/le/interoplab": "requires the host Docker daemon; run TestDockerBuildRetainsImageAcrossRetag" +
 		" through ./le job run as documented in docs/architecture/testing/interop.md",
+	"internal/le/test/deployment": "requires the host Docker daemon and privileged VPP containers;" +
+		" run TestVPPSRv6ServiceRoute through ./le job run as documented in docs/architecture/testing/interop.md",
 }
 
 // optionalPackages are added when the directory is there. Each is a transport

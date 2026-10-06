@@ -1,5 +1,8 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-06",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8092-3-1": {
@@ -19,8 +22,8 @@
       "note": "Judge 2026-09-30 (R34, D-8 fixed). Producer reactor/rfc8092_large_community.go::removeRedundantLargeCommunities, called from publishBase: scan first (pairwise up to 16 values, seeded 64k-bit stack filter with exact confirm above), rebuild only on a repeat, keeping first occurrences in order, the peer's flags and header width, length rewritten, other attributes copied unchanged. Positive TestRFC8092RedundantLargeCommunityRemovedBeforePropagation: 2 copies (1-octet length) and 23 values with 3 repeats (extended length, filter path): no error, ActionNone, published and forwarded attribute hold each value once in first-occurrence order. Negative TestRFC8092DistinctLargeCommunitiesKeptWhole: 3 and 22 distinct values (filter path) published octet-equal to the received body and forwarded whole. Both have observed-red revert records. A non-multiple-of-12 value stays treat-as-withdraw (publishBase not reached). Attribute-package tags on ParseLargeCommunities remain unproven secondary units.",
       "requirement_sha": "ae06df7fca1a32ad",
       "tests": {
-        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole": "a4a78f553037c1d0",
-        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092RedundantLargeCommunityRemovedBeforePropagation": "a4a78f553037c1d0",
+        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole": "d985ac23bb1022c7",
+        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092RedundantLargeCommunityRemovedBeforePropagation": "d985ac23bb1022c7",
         "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "df914436e0bdaf8a",
         "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesParse": "df914436e0bdaf8a"
       },
@@ -74,32 +77,32 @@
       "verdict": "enforced"
     },
     "RFC8092-6-3": {
-      "note": "Judge 2026-09-30. Reactor TestRFC8092DuplicateLargeCommunityIsNotMalformed: a LARGE_COMMUNITY holding one value twice goes through enforceRFC7606 with ActionNone, no error, attribute kept. {single-polarity: positive} is valid: the obligation is a SHALL NOT on one decision, and a duplicate-based rejection has no compliant negative form. RFC8092-3-2 (remove redundant values) is a separate row, still weak on defect D-8 (R34).",
+      "note": "Independent supplemental source rejudgment, 2026-10-06. RFC8092 Section 6: \"A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values.\" Read both tagged units: reactor TestRFC8092DuplicateLargeCommunityIsNotMalformed and attribute TestLargeCommunitiesDeduplication. The reactor supplies one complete 12-byte value twice in a properly bounded attribute and otherwise valid ORIGIN, ASN4 AS_SEQUENCE 65002 and NEXT_HOP; teValidationSession explicitly negotiates ASN4. It requires exact RFC7606ActionNone, no error and one retained LARGE_COMMUNITY attribute. The decoder carrier requires no error and the exact two distinct values from three inputs including one duplicate. These assertions fail duplicate-triggered reset, treat-as-withdraw or attribute discard without a neighboring malformed-length confound. Traced message validator registry code 32 -> validateLargeCommunityAttr (nonzero multiple-of-12 only), enforceRFC7606 ActionNone -> publishBase -> removeRedundantLargeCommunities, and session_read.go continues non-error actions to delivery rather than dropping them. ParseLargeCommunities independently returns its deduplicated values. The existing single-positive annotation correctly avoids demanding a conforming duplicate-based rejection; malformed length is a different requirement. Current moved unit changes empty AS_PATH/rfc7311EBGPSession to a matching valid AS_SEQUENCE/ASN4 teValidationSession: fixture isolation repair in the current patch, not an assertion weakening or mere line movement. This judgment does not rejudge RFC8092-3-2 or carry forward its old D-8 finding as if unchanged; that separate row is outside this assignment. Prior enforced verdict retained; no tests or mutations run and no new defect found.",
       "requirement_sha": "06d3c42c68daaf5c",
       "tests": {
-        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DuplicateLargeCommunityIsNotMalformed": "a4a78f553037c1d0",
+        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DuplicateLargeCommunityIsNotMalformed": "d985ac23bb1022c7",
         "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "df914436e0bdaf8a"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DuplicateLargeCommunityIsNotMalformed": "e296a9dc47c3e00e",
+        "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DuplicateLargeCommunityIsNotMalformed": "d919570041b35233",
         "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "e82a9367647ad21d"
       },
       "verdict": "enforced"
     },
     "RFC8092-6-4": {
-      "note": "rejudge 2026-10-02 (c33 judge): proven on the live receive rail, not only the classifier. + TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes: an Established session receives an UPDATE announcing 10.0.0.0/24 with a 10-octet LARGE_COMMUNITY; exactly one payload is dispatched with Withdrawn 18 0a 00 00, no attributes, no NLRI, no NOTIFICATION, session still Established. - TestRFC8092WellFormedLargeCommunityKeepsTheRoutes: identical attributes with a 12-octet value dispatch unchanged as an announcement, which also isolates the LARGE_COMMUNITY as the only cause of the withdrawal. Records: revert SynthesizeWithdrawFamilies (+ red), revert validateLargeCommunityAttr (- red); author probe disabling the session treat-as-withdraw dispatch turned the + red and left the - green.",
+      "note": "Independent semantic rejudgment: RFC8092 Section 6: \"A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of \"treat-as-withdraw\" as described in Section 2 of [RFC7606].\" Current TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes asserts actual reactor handoff as withdrawn NLRI with no reachable NLRI/attributes, Established retained and no notification, paired with unchanged valid attribute/NLRI delivery. The caller-bypass mutation now fails that withdrawal oracle, not merely ValidateUpdateRFC7606 Action. The duplicate-values-as-malformed fault independently fails the valid duplicate carrier, providing legitimate admission discrimination; it does not create a new judgment for an unrequested duplicate requirement. Source and tagged consumers therefore protect the actual RFC7606 caller behavior, while unexecuted foreign FRR carriers remain pending. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "25a1fc1019385ad0",
       "tests": {
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "64840271479cd6ab",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab",
-        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "961f26a0b4e29dd6",
-        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "961f26a0b4e29dd6"
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "652a5d2bf24456a1",
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "652a5d2bf24456a1"
       },
       "units": {
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "3bf72eb68ee49fcf",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389",
-        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "f00a0c5bf148cfd5",
-        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "0f48d758226b0331"
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "4ce5db79e3c2ab79",
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "ff13c96587a6b70f"
       },
       "verdict": "enforced"
     }

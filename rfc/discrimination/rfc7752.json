@@ -169,23 +169,45 @@
     {
       "rid": "RFC7752-6.2.2-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive",
-      "unit-sha": "a6de82ab13ac3f2a",
-      "claim-sha": "2e49b646c5333dea",
+      "unit": "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive",
+      "unit-sha": "fd519ccfb759895d",
+      "claim-sha": "1764b6e59c9c2d96",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "22001f81984512ae",
+      "producer-sha": "5ff7d5703bc38cb1",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-6.2.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive",
+      "unit-sha": "fd519ccfb759895d",
+      "claim-sha": "08ee0bde551a9005",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "5ff7d5703bc38cb1",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-6.2.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive",
+      "unit-sha": "b9f6ad548c92259a",
+      "claim-sha": "2811489d5fe36229",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "5ff7d5703bc38cb1",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7752-6.2.2-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive",
-      "unit-sha": "a6de82ab13ac3f2a",
-      "claim-sha": "12608ff8d8215d10",
+      "unit-sha": "b9f6ad548c92259a",
+      "claim-sha": "f3a6ac8cd757b6bf",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "22001f81984512ae",
+      "producer-sha": "5ff7d5703bc38cb1",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

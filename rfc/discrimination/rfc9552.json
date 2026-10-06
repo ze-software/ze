@@ -64,7 +64,7 @@
       "claim-sha": "3cc6f5dc41bae96f",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "35ab38939eb6268e",
+      "producer-sha": "4ed8e03c68ec2ffa",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -218,7 +218,7 @@
       "claim-sha": "b05e1fbb0ce978b1",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
+      "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

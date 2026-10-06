@@ -291,11 +291,11 @@
       "rid": "RFC8277-2.4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes",
-      "unit-sha": "09e8fd7e7c2f6601",
+      "unit-sha": "f3a4d141f8a271fe",
       "claim-sha": "f5b38d892265bda0",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rs/server_handlers.go::sendBatchedWithdrawals",
-      "producer-sha": "009f770202a21f13",
+      "producer-sha": "747e2288c7745ddf",
       "break": "body of sendBatchedWithdrawals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -478,11 +478,11 @@
       "rid": "RFC8277-3.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go::TestRFC8277AddPathRoutesOnOneSessionAreComparable",
-      "unit-sha": "3199a0d657522b6c",
+      "unit-sha": "dc6b2e17e56d0556",
       "claim-sha": "3a4c98bbae69a33e",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesLocked",
-      "producer-sha": "27bd98677c852b43",
+      "producer-sha": "052dc0e1c7879ffa",
       "break": "body of gatherPrefixCandidatesLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -511,11 +511,11 @@
       "rid": "RFC8277-3.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go::TestRFC8277VPNAddPathLabelsAreOneElection",
-      "unit-sha": "d97210b68c53dfe3",
+      "unit-sha": "15db51e534da1054",
       "claim-sha": "5fe736b392a0397d",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherKeyCandidatesLocked",
-      "producer-sha": "c6b0c338204e6286",
+      "producer-sha": "990f3a0b89c13796",
       "break": "body of gatherKeyCandidatesLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

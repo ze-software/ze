@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -84,6 +85,108 @@ func TestRFC7752LinkStateLengthSumsOnReceive(t *testing.T) {
 				assertLinkStateLengthDispatch(t, original, fault, wantError)
 			}
 		}
+	}
+}
+
+// TestRFC7752AttributeLengthSumsOnReceive observes code 29 at the Established
+// session's consumer boundary, rather than through the offline TLV decoder.
+// RFC 7752 Section 6.2.2 requires exact attribute sums; its successor RFC 9552
+// Section 8.2.2 requires whole-attribute discard without withdrawing the NLRI.
+// The propagator checks framing, not TLV semantic layouts or value contents.
+// RFC requirement: RFC7752-6.2.2-2 positive -- exact-sum code29 TLVs and a valid continuation survive Established processing byte-for-byte, including an unknown TLV.
+// RFC requirement: RFC7752-6.2.2-2 negative -- isolated truncated TLV headers and value overruns remove the whole code29 attribute at dispatch while preserving all other attributes and the Link-State NLRI.
+func TestRFC7752AttributeLengthSumsOnReceive(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		value   []byte
+		discard bool
+	}{
+		{
+			name:  "exact-sum",
+			value: []byte{0x04, 0x00, 0, 1, 0, 0xff, 0xfe, 0, 2, 0xab, 0xcd},
+		},
+		{
+			name:    "truncated-header",
+			value:   []byte{0x04, 0x00, 0, 1, 0, 0xff, 0xfe, 0},
+			discard: true,
+		},
+		{
+			name:    "value-overrun",
+			value:   []byte{0x04, 0x00, 0, 1, 0, 0xff, 0xfe, 0, 3, 0xab, 0xcd},
+			discard: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65001, 0x01020301)
+			session := NewSession(settings)
+			t.Cleanup(session.timers.StopAll)
+			t.Cleanup(session.stopSendHoldTimer)
+			for _, event := range []fsm.Event{fsm.EventManualStart, fsm.EventTCPConnectionConfirmed, fsm.EventBGPOpen, fsm.EventKeepaliveMsg} {
+				if err := session.fsm.Event(event); err != nil {
+					t.Fatalf("establish attribute length-sum fixture: %v", err)
+				}
+			}
+			conn := &recordingConn{}
+			session.conn = conn
+			session.bufWriter = bufio.NewWriterSize(conn, 4096)
+			t.Cleanup(session.closeConn)
+			var dispatched [][]byte
+			session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+				wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
+				_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
+				if direction == rpc.DirectionReceived && wu != nil {
+					dispatched = append(dispatched, bytes.Clone(wu.Payload()))
+				}
+				return false
+			}
+
+			// Keep the outer attribute lengths correct. Only the code29 TLV
+			// framing differs, after a complete valid Node Flag Bits TLV.
+			// Place MP_REACH after code29 to prove the rest is still processed.
+			baseAttrs := mpReachAttrs(lsFam, lsNodeNLRI(65001))
+			attrs := append(bytes.Clone(baseAttrs[:7]), 0x80, 29, byte(len(tc.value)))
+			attrs = append(attrs, tc.value...)
+			attrs = append(attrs, baseAttrs[7:]...)
+			body := makeUpdateBody(nil, attrs, nil)
+			wantAttrs := bytes.Clone(attrs)
+			if tc.discard {
+				// Ze's existing ATTR_TOMBSTONE representation keeps the
+				// original size, names code29/reason 2, and zeroes its tail.
+				// Construct the oracle independently of ApplyAttrDiscard.
+				wantAttrs[8] = byte(attribute.AttrTombstone)
+				wantAttrs[10] = 29
+				wantAttrs[11] = wireu.TombstoneInvalidLength
+				clear(wantAttrs[12 : 10+len(tc.value)])
+			}
+			want := makeUpdateBody(nil, wantAttrs, nil)
+			continuationAttrs := mpReachAttrs(lsFam, lsNodeNLRI(65002))
+			continuationAttrs = append(continuationAttrs,
+				0x80, 29, 5, 0x04, 0x00, 0, 1, 0)
+			continuation := makeUpdateBody(nil, continuationAttrs, nil)
+			for i, input := range [][]byte{body, continuation} {
+				header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(input))} //nolint:gosec // Fixed fixtures fit in a BGP message.
+				err, kept := session.processMessage(&header, bytes.Clone(input), BufHandle{ID: noPoolBufID})
+				assertLinkStateLengthError(t, err, "")
+				if kept {
+					t.Fatal("non-owning callback retained the UPDATE buffer")
+				}
+				if len(dispatched) != i+1 {
+					t.Fatalf("message %d: dispatches=%d, want %d", i, len(dispatched), i+1)
+				}
+				if i == 1 {
+					want = continuation
+				}
+				if !bytes.Equal(dispatched[i], want) {
+					t.Fatalf("message %d: dispatched UPDATE=%x, want %x", i, dispatched[i], want)
+				}
+				if session.State() != fsm.StateEstablished {
+					t.Fatalf("message %d: state=%v, want Established", i, session.State())
+				}
+				if len(conn.written()) != 0 {
+					t.Fatalf("message %d: unexpected notification bytes %x", i, conn.written())
+				}
+			}
+		})
 	}
 }
 

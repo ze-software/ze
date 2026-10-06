@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-06",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -16,38 +16,38 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4456-8-1": {
-      "note": "positive asserts ORIGINATOR_ID created with the exact value 10.0.0.1 on reflection; negatives assert it is not re-created when present and not injected into a reflected withdrawal or End-of-RIB",
+      "note": "Independent supplemental source rejudgment, 2026-10-06. RFC4456 Section 8: \"ORIGINATOR_ID is a new optional, non-transitive BGP attribute of Type code 9. This attribute is 4 bytes long and it will be created by an RR in reflecting a route. This attribute will carry the BGP Identifier of the originator of the route in the local AS. A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists.\" All five covers read: forward_rr_test.go TestReactorForwardRRInjects and TestReactorForwardRRPreservesOriginator, rfc4456_forward_build_withdraw_shape_test.go TestForwardReflectionLeavesAWithdrawalUntouched, and both checkReflectorWithdrawal tags. The real RS forward helper captures dispatched bodies and decodes bounded attribute fields: absent originator becomes exactly four bytes 10.0.0.1; present 9.9.9.9 remains byte-exact. General-forward withdrawal and EOR cases remain byte-exact, with an advertisement control requiring both RR attributes. Producers forwardUpdateSection/reactorForwardRSSection record Set(9); attrModHandlersWithDefaults explicitly registers originatorIDHandler, whose absent-source branch emits only a four-byte Set and existing-source branch keeps it; planAttr prevents creation without reachable NLRI. Interop carrier requires exact attribute tokens, refuses an early withdrawal, requests FRR withdrawal, then requires its exact wire shape and established session. It is registered in specialCheckers. No current diff changes checkReflectorWithdrawal itself (only unrelated waitZePeerState in its file); therefore this stale-unit is preexisting judgment debt relative to HEAD, not this mechanical edit. Supplemental interop log matching is not promoted to independent executed proof: live named-peer run remains pending. Existing enforced verdict retained on complementary precise unit assertions; no new defect found.",
       "requirement_sha": "03b367adb6790836",
       "tests": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
         "internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched": "4f14963c3fba371f",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "7f983133581bfaac",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "7f983133581bfaac"
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "90b54aaabe4822c1",
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "90b54aaabe4822c1"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "24c38b6509acd085",
         "internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched": "6f3db4b2afe72d58",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "fee586c97e13a59e",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "fee586c97e13a59e"
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "54d92ff12c54100f",
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "54d92ff12c54100f"
       },
       "verdict": "enforced"
     },
     "RFC4456-8-2": {
-      "note": "positive asserts the list is created as exactly [1.2.3.2] when absent; negative asserts exact bytes [1.2.3.2, 5.5.5.5], prepend before the existing entry, so both sentences of the quote are proven",
+      "note": "Independent supplemental source rejudgment, 2026-10-06. RFC4456 Section 8: \"When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST. If the CLUSTER_LIST is empty, it MUST create a new one.\" Read all four covers: forward_rr_test.go TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator, and both checkReflectorWithdrawal tags. With an otherwise identical valid iBGP route, the first requires exact CLUSTER_LIST [1.2.3.2] and the second exact [1.2.3.2,5.5.5.5]; replacement, append, omission and wrong local ID all fail. Existing-list input isolates the prepend obligation, while absent-list input proves creation. Traced both forward producers recording Prepend(10) through attrModHandlersWithDefaults to clusterListHandler, which emits each four-byte prepend before the retained source value. planAttr blocks creation on withdrawals/EOR, and interop requires the reflected attribute token followed by an explicitly requested attribute-free withdrawal. The interop unit has no current diff against HEAD, so its stale-unit is preexisting judgment debt rather than current mechanical change; sibling waitZePeerState edits do not alter it. Source verdict retained; named-peer execution remains pending, and no canonical producer-halt record is taken as semantic correctness. No new defect found.",
       "requirement_sha": "d017c078f2e893f8",
       "tests": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "7f983133581bfaac",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "7f983133581bfaac"
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "90b54aaabe4822c1",
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "90b54aaabe4822c1"
       },
       "units": {
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",
         "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "24c38b6509acd085",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "fee586c97e13a59e",
-        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "fee586c97e13a59e"
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "54d92ff12c54100f",
+        "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "54d92ff12c54100f"
       },
       "verdict": "enforced"
     },

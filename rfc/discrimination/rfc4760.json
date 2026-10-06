@@ -86,7 +86,7 @@
       "claim-sha": "d8e3d9147579256c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
-      "producer-sha": "21be99a9aa000963",
+      "producer-sha": "8ded9fa1e846fbd5",
       "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "a7ff419c08ac52e3",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "22001f81984512ae",
+      "producer-sha": "5ff7d5703bc38cb1",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "26951f0854a74623",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
+      "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "b42c84e92898aee6",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
+      "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

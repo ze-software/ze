@@ -181,7 +181,7 @@
       "rid": "RFC8050-x-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8050_migration_epoch_test.go::TestMRTMigrationEpochUsesActualLocalOPEN",
-      "unit-sha": "38fa2dbf10d3fc1d",
+      "unit-sha": "adaca29a30a0e19a",
       "claim-sha": "5eb0c1eb7e748237",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_wire.go::dispatchObservedWire",

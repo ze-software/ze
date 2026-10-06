@@ -68,6 +68,17 @@
       "break": "body of coveredByAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7999-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent",
+      "unit-sha": "a87f8b3ac45e8afa",
+      "claim-sha": "992d72fbc0b1e80d",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest",
+      "producer-sha": "605f56660a509168",
+      "break": "body of blackholeRouteTypeForBest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7999-3.3-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix",
@@ -88,6 +99,17 @@
       "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::coveredByAuthorized",
       "producer-sha": "9d73d91d8c403a26",
       "break": "body of coveredByAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7999-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent",
+      "unit-sha": "a87f8b3ac45e8afa",
+      "claim-sha": "68dabfeb0a7aacc5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest",
+      "producer-sha": "605f56660a509168",
+      "break": "body of blackholeRouteTypeForBest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7999-4-1",

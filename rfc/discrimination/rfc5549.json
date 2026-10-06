@@ -53,7 +53,7 @@
       "claim-sha": "06c5b8c335884f4e",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
+      "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -35,8 +35,7 @@ func rfc9687EstablishedWithClient(t *testing.T) (*rfc9687Peer, net.Conn) {
 	server, client := net.Pipe()
 	_ = acceptWithReader(t, session, server, client)
 	wire, drainErr := startDrain(t, client)
-	runResult := make(chan error, 1)
-	go func() { runResult <- session.Run(t.Context()) }()
+	runResult := rfc9687Run(t, session)
 
 	go func() { _, _ = client.Write(rfc9687PeerOpen(90)) }()
 	require.Eventually(t, func() bool { return session.State() == fsm.StateOpenConfirm },

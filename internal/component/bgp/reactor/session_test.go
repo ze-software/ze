@@ -27,8 +27,20 @@ import (
 )
 
 // acceptWithReader handles net.Pipe's synchronous behavior by reading
-// from client while Accept writes.
+// from client while Accept writes. It MUST register session resource cleanup
+// before accepting, including for callers that never start Run.
 func acceptWithReader(t *testing.T, session *Session, server, client net.Conn) []byte {
+	t.Helper()
+	t.Cleanup(func() {
+		// Cleanup MUST stop both timer owners; closing a raw pipe alone never
+		// runs the teardown of a session driven only by ReadAndProcess.
+		session.timers.StopAll()
+		session.stopSendHoldTimer()
+		client.Close() //nolint:errcheck // Closing both pipe ends releases any pending fixture I/O.
+		server.Close() //nolint:errcheck // The session may already have closed the server.
+		session.closeConn()
+	})
+
 	buf := make([]byte, 4096)
 	var n int
 	var wg sync.WaitGroup
@@ -2334,6 +2346,28 @@ func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
 	require.Equal(t, fsm.StateEstablished, session.State())
 
 	return session, client, cleanup
+}
+
+// TestEstablishedSessionFixtureStopsTimers proves a fixture without Run
+// releases the timers armed by its real handshake before the next test starts.
+// The child returns without a protocol teardown; its cleanup owns that work.
+func TestEstablishedSessionFixtureStopsTimers(t *testing.T) {
+	var session *Session
+	t.Run("established", func(t *testing.T) {
+		var cleanup func()
+		session, _, cleanup = setupEstablishedSession(t)
+		defer cleanup()
+
+		require.NotZero(t, session.sendHoldDeadline.Load(), "precondition: the send-hold timer is armed")
+		require.True(t, session.timers.IsHoldTimerRunning(), "precondition: the hold timer is armed")
+		require.True(t, session.timers.IsKeepaliveTimerRunning(), "precondition: the keepalive timer is armed")
+	})
+
+	require.NotNil(t, session)
+	assert.Zero(t, session.sendHoldDeadline.Load(), "a completed fixture must not emit a later send-hold expiry")
+	assert.False(t, session.timers.IsHoldTimerRunning(), "a completed fixture must release its hold timer")
+	assert.False(t, session.timers.IsKeepaliveTimerRunning(), "a completed fixture must stop periodic keepalives")
+	assert.Nil(t, session.Conn(), "a completed fixture must release its session connection")
 }
 
 // TestRouteRefreshInvalidLengthNotDelivered verifies a BoRR or an EoRR whose body

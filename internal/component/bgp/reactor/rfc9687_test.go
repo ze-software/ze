@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -62,6 +63,32 @@ func rfc9687PeerOpen(holdTime uint16) []byte {
 	}, nil)
 }
 
+// rfc9687Run owns one fixture Run invocation. Cleanup MUST cancel and join it
+// before an earlier-registered logger restoration or pipe cleanup can run.
+// The result remains available to the test even when cleanup joins the worker.
+func rfc9687Run(t *testing.T, session *Session) <-chan error {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	runResult := make(chan error, 1)
+	runDone := make(chan struct{})
+	t.Cleanup(func() {
+		// Run's owner MUST join after cancellation; t.Context cancellation
+		// alone does not wait for the resource-release defers to finish.
+		cancel()
+		select {
+		case <-runDone:
+		case <-time.After(runExitDeadline):
+			t.Error("RFC 9687 fixture Run did not return after cancellation")
+		}
+	})
+	go func() {
+		defer close(runDone)
+		runResult <- session.Run(ctx)
+	}()
+	return runResult
+}
+
 // rfc9687Established drives a real Session to Established over a net.Pipe with
 // Run executing and a FakeClock behind every timer, then arms the resources RFC
 // 9687 Section 4.3's Event 29 action list names so their clearing is
@@ -103,8 +130,7 @@ func rfc9687Established(t *testing.T, peerHoldTime uint16) *rfc9687Peer {
 	_ = acceptWithReader(t, session, server, client)
 	wire, drainErr := startDrain(t, client)
 
-	runResult := make(chan error, 1)
-	go func() { runResult <- session.Run(t.Context()) }()
+	runResult := rfc9687Run(t, session)
 
 	// net.Pipe is synchronous, so each write needs its own goroutine and the
 	// two must be sequenced: concurrent writers interleave their bytes and ze
@@ -348,9 +374,7 @@ func TestRFC9687SendHoldTimerNotArmedBeforeEstablished(t *testing.T) {
 	_ = acceptWithReader(t, session, server, client)
 	startDrain(t, client)
 
-	runResult := make(chan error, 1)
-	go func() { runResult <- session.Run(t.Context()) }()
-	t.Cleanup(func() { _ = client.Close() })
+	rfc9687Run(t, session)
 
 	go func() { _, _ = client.Write(rfc9687PeerOpen(90)) }()
 	require.Eventually(t, func() bool { return session.State() == fsm.StateOpenConfirm },

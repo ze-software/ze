@@ -574,6 +574,103 @@ func TestSuiteRunsLifecycleAndCheckerInOrder(t *testing.T) {
 	)
 }
 
+// TestSuiteWaitsForConfiguredPeer drives the real startup consumer with a peer
+// whose command succeeds before configuration is ready. No dependent container
+// or checker may start on empty, partial, stderr-only, or failed probe evidence.
+func TestSuiteWaitsForConfiguredPeer(t *testing.T) {
+	for _, testCase := range []struct {
+		name         string
+		answer       processResult
+		ready        bool
+		preCancelled bool
+	}{
+		{name: "configured", answer: processResult{Stdout: "configured\naccepting\n"}, ready: true},
+		{name: "empty"},
+		{name: "partial", answer: processResult{Stdout: "configured\n"}},
+		{name: "stderr", answer: processResult{Stderr: "configured\naccepting\n"}},
+		{name: "failed", answer: processResult{Stdout: "configured\naccepting\n", ExitCode: 1}},
+		{name: "pre-canceled", preCancelled: true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if testCase.preCancelled {
+				cancel()
+			}
+			probes, starts, checks := 0, 0, 0
+			runner := &recordingRunner{run: func(command processCommand) (processResult, error) {
+				joined := strings.Join(command.Arguments, " ")
+				if strings.HasPrefix(joined, "docker exec ") {
+					probes++
+					want := []string{"docker", "exec", "-e", "PROBE_AUTH=secret", "lab-native", "native-state"}
+					if !reflect.DeepEqual(command.Arguments, want) {
+						t.Fatalf("readiness lost its command or environment: %v", command.Arguments)
+					}
+					if probes == 1 {
+						return processResult{}, nil
+					}
+					if probes == 2 {
+						return processResult{Stdout: "configured\n"}, nil
+					}
+					if !testCase.ready {
+						cancel()
+					}
+					return testCase.answer, nil
+				}
+				if strings.HasPrefix(joined, "docker run -d --name lab-relay ") {
+					starts++
+					if probes != 3 {
+						t.Fatal("relay started before the native peer was configured")
+					}
+				}
+				return processResult{}, nil
+			}}
+			suite := Suite{
+				Docker:  newDocker(runner),
+				NoBuild: true,
+				Scenarios: []ScenarioPlan{{
+					Source: ScenarioSource{Name: "configured-peer", Checker: func(context.Context, *CheckContext) error {
+						checks++
+						return nil
+					}},
+					Network: NetworkSpec{Name: "ready-net", Candidates: []Subnet{{IPv4: netip.MustParsePrefix("172.29.0.0/24")}}},
+					Peers: []PeerConfig{
+						{Name: "native", Container: "lab-native", Image: "native", Host: 2, Ready: &ReadyProbe{
+							Command:     []string{"native-state"},
+							Environment: []EnvironmentVariable{{Name: "PROBE_AUTH", Value: "secret"}},
+							Contains:    []string{"configured", "accepting"},
+							Timeout:     time.Second,
+							Interval:    time.Millisecond,
+						}},
+						{Name: "relay", Container: "lab-relay", Image: "relay", Host: 3},
+					},
+				}},
+			}
+			report := suite.Run(ctx)
+			if (report.Code == 0) != testCase.ready {
+				t.Fatalf("readiness verdict: %+v", report)
+			}
+			want := 0
+			if testCase.ready {
+				want = 1
+			}
+			if starts != want {
+				t.Fatalf("started %d dependent containers, want %d", starts, want)
+			}
+			if checks != want {
+				t.Fatalf("ran %d checkers, want %d", checks, want)
+			}
+			wantProbes := 3
+			if testCase.preCancelled {
+				wantProbes = 0
+			}
+			if probes != wantProbes {
+				t.Fatalf("ran %d readiness probes, want %d", probes, wantProbes)
+			}
+		})
+	}
+}
+
 // VALIDATES: a container-start failure marks the scenario failed and still removes every declared resource.
 // PREVENTS: setup failures bypassing the finally-style cleanup contract.
 func TestSuiteCleansUpAfterSetupFailure(t *testing.T) {
@@ -669,6 +766,84 @@ func TestWaitIsBoundedAndFailsClosed(t *testing.T) {
 	}
 	if report.Attempts != 1 {
 		t.Errorf("ready Wait took %d attempts, want 1", report.Attempts)
+	}
+}
+
+// TestWaitCancellationPreservesEvidence cancels at explicit probe boundaries.
+// No later probe or readiness predicate may replace the last measured state or
+// the failed-probe diagnostic; pre-canceled input must measure nothing.
+func TestWaitCancellationPreservesEvidence(t *testing.T) {
+	for _, testCase := range []struct {
+		name         string
+		preCancelled bool
+		measured     bool
+		wantAttempts int
+		wantFailures int
+		wantValue    string
+		wantError    string
+	}{
+		{
+			name: "pre-canceled", preCancelled: true,
+			wantError: "wait for cancellation boundary never measured peer state",
+		},
+		{
+			name: "failed probe", wantAttempts: 1, wantFailures: 1,
+			wantError: "wait for cancellation boundary never measured peer state: final probe failed",
+		},
+		{
+			name: "measured then failed", measured: true, wantAttempts: 2, wantFailures: 1,
+			wantValue: "last measured state",
+			wantError: "wait for cancellation boundary timed out before the peer became ready",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if testCase.preCancelled {
+				cancel()
+			}
+			probes, predicates := 0, 0
+			value, report, err := Wait(ctx, WaitOptions{
+				Timeout: time.Second, Interval: time.Nanosecond, Description: "cancellation boundary",
+			}, func(context.Context) (string, error) {
+				probes++
+				if probes > testCase.wantAttempts {
+					t.Fatal("probe started after cancellation")
+				}
+				if testCase.measured {
+					if probes == 1 {
+						return "last measured state", nil
+					}
+				}
+				cancel()
+				return "failed probe output", errors.New("final probe failed")
+			}, func(string) bool {
+				predicates++
+				return false
+			})
+			if err == nil {
+				t.Fatal("canceled wait succeeded")
+			}
+			if err.Error() != testCase.wantError {
+				t.Errorf("error = %q, want %q", err, testCase.wantError)
+			}
+			if value != testCase.wantValue {
+				t.Errorf("value = %q, want %q", value, testCase.wantValue)
+			}
+			if probes != testCase.wantAttempts || report.Attempts != testCase.wantAttempts {
+				t.Errorf("probe calls = %d, attempts = %d, want %d", probes, report.Attempts, testCase.wantAttempts)
+			}
+			if report.TransientFailures != testCase.wantFailures {
+				t.Errorf("failures = %d, want %d", report.TransientFailures, testCase.wantFailures)
+			}
+			wantPredicates := 0
+			if testCase.measured {
+				wantPredicates = 1
+			}
+			if predicates != wantPredicates {
+				t.Errorf("readiness predicate calls = %d, want %d", predicates, wantPredicates)
+			}
+		})
 	}
 }
 

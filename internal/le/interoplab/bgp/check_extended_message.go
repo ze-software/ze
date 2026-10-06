@@ -8,16 +8,22 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// checkExtendedMessages uses FRR as both producer and consumer, on separate
-// sessions. The relay changes only capability 6 in OPENs because FRR 10.3.1 itself
+// checkExtendedMessages uses separate FRR daemons as producer and consumer.
+// The relay changes only capability 6 in OPENs because FRR 10.3.1 itself
 // uses bilateral packet-size negotiation. Ze's original OPEN is checked separately
 // from the delivered copy, so the relay cannot grant Ze local receive permission.
 // RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a peer only
-// if the BGP Extended Message Capability was received from that peer."
-func checkExtendedMessages(ctx context.Context, check *interoplab.CheckContext, testCase extendedMessageCase) error {
+// if the BGP Extended Message Capability was received from that peer".
+func checkExtendedMessages(ctx context.Context, check *interoplab.CheckContext, testCase extendedMessageCase) (resultErr error) {
+	defer func() {
+		if resultErr != nil {
+			resultErr = fmt.Errorf("%w%s", resultErr, extendedFailureDiagnostics(ctx, check.Lab))
+		}
+	}()
 	fail := func(assertion int, err error) error {
 		return checkerFailure(ctx, check.Lab, check.Source.Name, assertion, err)
 	}
@@ -25,13 +31,30 @@ func checkExtendedMessages(ctx context.Context, check *interoplab.CheckContext, 
 		return fail(1, errors.New("extended-message scenario has no selected network"))
 	}
 	// Assertion 1: two real FRR sessions and a path FRR actually learned from Ze.
-	for _, host := range []byte{10, 11} {
-		neighbor := networkHostAddress(check.Network, host)
-		if err := waitContains(ctx, check.Lab, peerFRR,
+	sessions := [...]struct {
+		peer string
+		host uint8
+	}{{peerFRR, 10}, {peerFRRSink, 11}}
+	readyCtx, cancelReady := context.WithTimeout(ctx, 60*time.Second)
+	defer cancelReady()
+	for _, session := range sessions {
+		neighbor := networkHostAddress(check.Network, session.host)
+		if err := waitContains(readyCtx, check.Lab, session.peer,
 			[]string{cmdVtysh, "-c", "show bgp neighbor " + neighbor},
 			60*time.Second, "BGP state = Established"); err != nil {
 			return fail(1, err)
 		}
+		// Peer.State is published after encoding contexts and forwarding facts;
+		// FRR's Established state alone does not prove that local publication.
+		if err := waitZePeerState(readyCtx, check.Lab, neighbor, 60*time.Second); err != nil {
+			return fail(1, err)
+		}
+	}
+	cancelReady()
+	// First origination, not a replay: the source relay starts before the sink,
+	// and the native fast path cannot forward to a peer without a live session.
+	if err := originateExtendedFRRRoute(ctx, check.Lab, extendedBaselinePrefix); err != nil {
+		return fail(1, err)
 	}
 	if err := waitExtendedFRRRoute(ctx, check, extendedBaselinePrefix, false); err != nil {
 		return fail(1, err)
@@ -92,10 +115,10 @@ func checkExtendedMessages(ctx context.Context, check *interoplab.CheckContext, 
 			return fail(6, errors.New("FRR route exists but Ze sent no extended UPDATE for it"))
 		}
 	} else if sink.updatesLarge != 0 {
-		return fail(6, errors.New("Ze sent an extended UPDATE to a non-advertising sink"))
+		return fail(6, errors.New("ze sent an extended UPDATE to a non-advertising sink"))
 	}
 	if sink.notification != nil {
-		return fail(6, errors.New("Ze notified the sink during a permitted session"))
+		return fail(6, errors.New("ze notified the sink during a permitted session"))
 	}
 	// Assertion 7: OPEN/KEEPALIVE retain their ordinary framing; both original
 	// sessions remain alive. The no-reconnect relay and FRR counter reject a reset.
@@ -121,8 +144,14 @@ func checkExtendedMessages(ctx context.Context, check *interoplab.CheckContext, 
 	if sinkPeer.notification != nil {
 		return fail(7, errors.New("FRR rejected the sink's forwarded UPDATE"))
 	}
-	for _, host := range []byte{10, 11} {
-		generation, err := queryFRRSessionGeneration(ctx, check.Lab, networkHostAddress(check.Network, host))
+	for _, session := range sessions {
+		neighbor := networkHostAddress(check.Network, session.host)
+		output, err := check.Lab.Query(ctx, session.peer,
+			[]string{cmdVtysh, "-c", "show bgp neighbor " + neighbor + " json"}, nil)
+		if err != nil {
+			return fail(7, err)
+		}
+		generation, err := parseFRRSessionGeneration(output, neighbor)
 		if err != nil {
 			return fail(7, err)
 		}
@@ -133,11 +162,45 @@ func checkExtendedMessages(ctx context.Context, check *interoplab.CheckContext, 
 	return nil
 }
 
+// Read both single-session relays before teardown, including empty captures and
+// missing result files. These distinguish an unfinished dial from a closed socket.
+// The relay bounds each capture to 256 frames; all queries share a 15-second limit.
+// Diagnostic errors are retained beside the original failure, never a pass.
+func extendedFailureDiagnostics(ctx context.Context, lab interoplab.CheckerLab) string {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+	defer cancel()
+
+	var output textbuf.Buffer
+	for _, peer := range []string{peerSpeaker, peerSpeaker2} {
+		for _, path := range []string{
+			extendedCaptureBase + "-result.json",
+			extendedCaptureBase + "-ze.jsonl",
+			extendedCaptureBase + "-frr.jsonl",
+			"/proc/net/tcp",
+		} {
+			answer, err := lab.Exec(ctx, peer, []string{cmdCat, path}, nil)
+			output.Str("\n--- ").Str(peer).Str(": ").Str(path).Str(" ---\n").Str(answer.Stdout)
+			output.Str("\nexit: ").Int(int64(answer.ExitCode)).Str("\nstderr: ").Str(answer.Stderr).Byte('\n')
+			if err != nil {
+				output.Str("\nquery error: ").Str(err.Error()).Byte('\n')
+			}
+		}
+		logs, err := lab.Logs(ctx, peer, 80)
+		output.Str("\n--- ").Str(peer).Str(" relay logs ---\n").Str(logs.Text)
+		if err != nil {
+			output.Str("\nlogs error: ").Str(err.Error()).Byte('\n')
+		} else if !logs.Available {
+			output.Str("\nlogs unavailable\n")
+		}
+	}
+	return output.String()
+}
+
 // checkExtendedReceiveRejection also reads FRR's session state: a captured
 // NOTIFICATION without teardown is insufficient evidence for this negative case.
 // RFC 8654 Section 5: "A BGP speaker that has the ability to use BGP Extended
 // Messages but has not advertised the BGP Extended Message Capability, presumably
-// due to configuration, MUST NOT accept a BGP Extended Message."
+// due to configuration, MUST NOT accept a BGP Extended Message".
 func checkExtendedReceiveRejection(ctx context.Context, check *interoplab.CheckContext,
 	testCase extendedMessageCase, offendingOctets int) error {
 	capture, err := waitExtendedTranscript(ctx, check.Lab, peerSpeaker, "ze", testCase.sourceLocal, true,
@@ -182,7 +245,8 @@ func waitExtendedFRRRoute(ctx context.Context, check *interoplab.CheckContext, p
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR installs Ze-forwarded route",
 	}, func(probeCtx context.Context) (bool, error) {
-		output, err := queryFRRIPv4Route(probeCtx, check.Lab, prefix)
+		output, err := check.Lab.Query(probeCtx, peerFRRSink,
+			[]string{cmdVtysh, "-c", "show bgp ipv4 unicast " + prefix + " json"}, nil)
 		if err != nil {
 			return false, err
 		}

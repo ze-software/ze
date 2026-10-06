@@ -3,7 +3,7 @@
 Both FIB backends read the `SRv6SID` field of a best-change entry. The kernel
 backend builds a SEG6 encapsulation. The VPP backend creates a local
 encapsulation policy and steers the destination prefix into it. API-model
-coverage is not dataplane evidence: real VPP forwarding proof remains pending.
+coverage is distinct from the native packet and installed-state probes below.
 
 ## Where the SID comes from
 
@@ -136,8 +136,11 @@ the same prefix in another table is not overwritten. Retained table zero is an
 actual table identity, even if the configured default later changes.
 
 A known VPP rejection rolls back the IP intent without removing previous SR
-forwarding. A lost API reply or failed durable confirmation leaves unconfirmed
-IP ownership and blocks further mutation pending operator reconciliation.
+forwarding. Rollback restores the previous durable fallback record when one
+existed; otherwise it removes the new intent. Absence of a previous record is
+a valid first transition, not an error. A lost API reply or failed durable
+confirmation leaves unconfirmed IP ownership and blocks further mutation
+pending operator reconciliation.
 VPP's IP dumps encode the best FIB source, not an ordinary API-source route
 hidden beneath SR steering. Ze therefore does **not** infer ordinary ownership
 from a matching live route. Confirmed ownership is durable installation history:
@@ -159,8 +162,20 @@ restored MPLS fallback requiring another configured table is refused.
 The owner included policy installation and local binding-SID ownership in this
 pass on 2026-10-04, superseding the 2026-10-02 separate-scope decision.
 `TestRFC9252VPPServiceRouteEncapsulatesTowardTheSID` and lifecycle controls model
-the API dependency, not real packets. Closure still requires real VPP
-encapsulation evidence through the production best-change consumer.
+the API dependency. `TestVPPSRv6ServiceRouteProbe` exercises BGP input, installed
+policy identity and captured packets through the production best-change consumer,
+including Ze restart, shared policy references, replacement and withdrawal.
+The native managed-VPP probe separately exercises VPP restart and tenant tables.
+The subscription fixtures join their delivery callbacks before closing the
+durable store, including on assertion failure.
+The API model accepts the outgoing steering types constructed by Ze; an unknown
+internal type is a `BUG` assertion rather than a simulated VPP reply. Actual API
+dump values remain external input and keep their rejecting paths.
+<!-- source: internal/plugins/fib/vpp/rfc9252_srv6_encap_red_test.go -- srModelRequest.ReceiveReply -->
+<!-- source: internal/plugins/fib/vpp/srv6.go -- steerTypeForPrefix -->
+
+<!-- source: internal/le/test/deployment/vpp_srv6_probe_integration_linux_test.go -- TestVPPSRv6ServiceRouteProbe -->
+<!-- source: internal/plugins/fib/vpp/register_test.go -- TestSRv6SubscriptionResolvesCurrentWriter, TestSRv6SubscriptionWaitsForPublication -->
 
 Primary semantics:
 [RFC 9252 Section 1](https://www.rfc-editor.org/rfc/rfc9252#section-1),

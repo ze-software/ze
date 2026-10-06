@@ -161,19 +161,23 @@
       "verdict": "enforced"
     },
     "RFC7752-6.2.2-2": {
-      "note": "RFC 7752 Section 6.2.2: \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" Read all five bullets: attribute sum, MP_REACH sum, MP_UNREACH sum, descriptor sum against Total NLRI Length, fixed-length TLV size. TestRFC7752AttrSyntacticChecks and TestRFC7752MalformedTLVNotPreserved pin exact complete attribute walk, attribute overrun and wrong-sized fixed TLV at the offline decoder. TestRFC7752LinkStateLengthSumsOnReceive now drives Node/Link/Prefix type envelopes through enforceRFC7606 with both MP_REACH and MP_UNREACH, exact-sum conforming controls, NLRI overrun, descriptor overrun and descriptor underrun. Negative asserts detection (not unchanged ActionNone); it does not claim a particular fault-handling action, which is a different requirement. The current normative authority is RFC 9552 Section 8.2.2: propagators must not perform fixed-layout semantic validation, and the existing syntax-only receive/semantic offline split is preserved. validateBGPLSAttr and typedNLRIEdit were read; no protocol feature or new supersession exclusion is inferred. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Whole normative list (rfc/full/rfc7752.txt:2163-2180): \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? Does any fixed-length TLV correspond to the TLV Length field in this document?\"",
+      "note": "Independent semantic rejudgment: RFC7752 Section 6.2.2: \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" The full following list is retained: sums of TLV lengths for BGP-LS attribute, MP_REACH and MP_UNREACH, Node/Link/Prefix Descriptor Total NLRI Length sums, and fixed-TLV valid length. Current codec malformed/valid pairs and reactor TestRFC7752 length-sum units cover attribute and MP carriers with exact preserved bytes or RFC9552-compatible discard/reset behavior. The code29 malformed-length acceptance fault now fails malformed-attribute absence/dispatch handling; the discard-all code29 fault independently fails intact legal-attribute delivery. Both preserve their specified opposite-side controls. These are actual caller effect counterfactuals and do not rely on fabricated fixture differences or claim semantic TLV-content validation prohibited by successor RFC9552. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "d752ea60c051e852",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "600df28992081178",
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "600df28992081178",
-        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "14d7df2689c3064e",
-        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "14d7df2689c3064e"
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "6f2c9e2f2b169813",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "6f2c9e2f2b169813",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "6f2c9e2f2b169813",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "6f2c9e2f2b169813"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "cd3772465de11c9c",
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "18b9bf6d13926af9",
-        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "96ccbd73aaa50e4d",
-        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "96ccbd73aaa50e4d"
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "b7119d61ce285be4",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "b7119d61ce285be4",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "e3944c818f8097ff",
+        "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "e3944c818f8097ff"
       },
       "verdict": "enforced"
     }

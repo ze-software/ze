@@ -39,6 +39,13 @@ import (
 // advertises, to its peers, either withdraws for the routes marked as invalid, or
 // the new best routes before the invalid routes are deleted from the system."
 //
+// This test observes completed cleanup, not queue-admission order. In production,
+// RS handleStateDown transfers its compact withdrawal inventory to an owned
+// asynchronous sender after draining source workers; a socket write need not
+// precede the separate RIB plugin's Adj-RIB-In release. Neither this test nor a
+// timestamp comparison between those plugins proves the lifetime of the last
+// advertisement owner. The alternate-best test separately checks re-election.
+//
 // MUTATION: Bypass notifyPeerClosed or the RIB peer-down purge; the preinstalled
 // routes or their downstream advertisements then survive the fatal Length error.
 // RFC requirement: RFC8654-5-4 positive -- an actual Established peer without local capability 6 rejects UPDATE Length 4097 with exact NOTIFICATION 1/2 Data 1001 and EOF, clears its real Adj-RIB-In and Loc-RIB routes, withdraws both previously advertised routes on recipient TCP, and releases its session, timers and encoding contexts.
@@ -220,7 +227,7 @@ func fatalLengthInstalledPeers(t *testing.T) []*lowLivePeer {
 // fatalLengthAnnouncement encodes two /24s with the source's four-octet AS path.
 // RFC 4271 Section 4.3: "A variable-length sequence of path attributes is present
 // in every UPDATE message, except for an UPDATE message that carries only the
-// withdrawn routes."
+// withdrawn routes.".
 func fatalLengthAnnouncement() *message.Update {
 	return &message.Update{
 		PathAttributes: []byte{
@@ -320,7 +327,7 @@ func fatalLengthRecipientMED(t *testing.T, peer *lowLivePeer) uint8 {
 
 // fatalLengthNLRIMask parses the bounded IPv4 NLRI list, not a substring search.
 // RFC 4271 Section 4.3: "Reachability information is encoded as one or more
-// 2-tuples of the form <length, prefix>, whose fields are described below:"
+// 2-tuples of the form <length, prefix>, whose fields are described below:".
 func fatalLengthNLRIMask(t *testing.T, nlri []byte) uint8 {
 	t.Helper()
 	var routes uint8

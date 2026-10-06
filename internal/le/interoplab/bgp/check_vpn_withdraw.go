@@ -25,6 +25,12 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+const (
+	vpnWithdrawFirstRD    = "65004:10"
+	vpnWithdrawSecondRD   = "65004:20"
+	vpnWithdrawSurvivorRD = "65004:30"
+)
+
 type vpnWithdrawPhase uint8
 
 const (
@@ -76,7 +82,7 @@ func waitVPNWithdrawState(ctx context.Context, check *interoplab.CheckContext, p
 // the caller MUST additionally prove the live session and withdrawal log entries
 // after prior positive reads before treating that form as disappearance.
 func requireVPNWithdrawTable(output, neighbor, prefix string, phase vpnWithdrawPhase) error {
-	want := []string{"65004:10", "65004:20", "65004:30"}
+	want := []string{vpnWithdrawFirstRD, vpnWithdrawSecondRD, vpnWithdrawSurvivorRD}
 	switch phase {
 	case vpnWithdrawUnspecified:
 		return fmt.Errorf("unspecified VPN withdrawal phase")
@@ -86,7 +92,7 @@ func requireVPNWithdrawTable(output, neighbor, prefix string, phase vpnWithdrawP
 	case vpnWithdrawAllGone:
 		want = nil
 	default:
-		return fmt.Errorf("unknown VPN withdrawal phase %d", phase)
+		panic("BUG: checker has an unknown VPN withdrawal phase")
 	}
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(output), &envelope); err != nil {
@@ -153,7 +159,7 @@ func requireVPNWithdrawTable(output, neighbor, prefix string, phase vpnWithdrawP
 			if paths[0].Peer != neighbor {
 				return fmt.Errorf("VPN RD %s prefix %s came from %s, want %s", rd, prefix, paths[0].Peer, neighbor)
 			}
-			if paths[0].Path != "65001 65004" {
+			if paths[0].Path != zeInjectorASPath {
 				return fmt.Errorf("VPN RD %s prefix %s carries AS_PATH %q", rd, prefix, paths[0].Path)
 			}
 		}
@@ -230,7 +236,7 @@ func requireVPNAnnouncementLabels(ctx context.Context, lab interoplab.CheckerLab
 		return fmt.Errorf("read FRR VPN announcement log: %w", err)
 	}
 	for _, family := range vpnWithdrawFamilies() {
-		for index, rd := range [...]string{"65004:10", "65004:20", "65004:30"} {
+		for index, rd := range [...]string{vpnWithdrawFirstRD, vpnWithdrawSecondRD, vpnWithdrawSurvivorRD} {
 			if got := frrVPNDecodes(log, neighbor, rd, family.prefix, false, family.label+index); got != 1 {
 				return fmt.Errorf("FRR logged %d announcements for RD %s prefix %s label %d, want 1", got, rd, family.prefix, family.label+index)
 			}
@@ -245,9 +251,9 @@ func requireVPNWithdrawalCounts(ctx context.Context, lab interoplab.CheckerLab, 
 		return fmt.Errorf("read FRR VPN withdrawal log: %w", err)
 	}
 	for _, family := range vpnWithdrawFamilies() {
-		for _, rd := range [...]string{"65004:10", "65004:20", "65004:30"} {
+		for _, rd := range [...]string{vpnWithdrawFirstRD, vpnWithdrawSecondRD, vpnWithdrawSurvivorRD} {
 			want := 1
-			if rd == "65004:30" && !down {
+			if rd == vpnWithdrawSurvivorRD && !down {
 				want = 0
 			}
 			if got := frrVPNDecodes(log, neighbor, rd, family.prefix, true, 0); got != want {

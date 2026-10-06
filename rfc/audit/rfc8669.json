@@ -2,6 +2,7 @@
   "audited": "2026-10-04",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -177,8 +178,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst": "880d4dcf544fb926",
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "880d4dcf544fb926",
-        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "04c1a5b0af6055b3",
-        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "04c1a5b0af6055b3",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "2da5739060578ead",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "2da5739060578ead",
         "test/plugin/prefixsid-duplicate-tlv-relay.ci": "edd3f723202b52c7"
       },
       "units": {

@@ -72,11 +72,14 @@ func TestSRv6SubscriptionResolvesCurrentWriter(t *testing.T) {
 	}
 	started := make(chan struct{})
 	done := make(chan struct{})
+	// Cleanup MUST join delivery before the store's earlier cleanup closes it.
+	t.Cleanup(func() { <-done })
 	go func() {
 		close(started)
 		deliver(&incomingBatch{Changes: []incomingChange{{
 			Action: routeaction.Withdraw, Prefix: prefix,
 		}}})
+		// Delivery MUST signal completion after its final store access.
 		close(done)
 	}()
 	<-started
@@ -120,11 +123,14 @@ func TestSRv6SubscriptionWaitsForPublication(t *testing.T) {
 	deliver := bus.handler
 	started := make(chan struct{})
 	done := make(chan struct{})
+	// Cleanup MUST join delivery before the store's earlier cleanup closes it.
+	t.Cleanup(func() { <-done })
 	go func() {
 		close(started)
 		deliver(&incomingBatch{Changes: []incomingChange{{
 			Action: routeaction.Withdraw, Prefix: prefix,
 		}}})
+		// Delivery MUST signal completion after its final store access.
 		close(done)
 	}()
 	<-started

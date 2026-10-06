@@ -207,7 +207,7 @@
       "claim-sha": "13bbcfaa2bb29577",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "6042a717a7a8b10f",
+      "producer-sha": "796174bb0f8b3d29",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -218,7 +218,7 @@
       "claim-sha": "1e2bb6733f91d7cb",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "6042a717a7a8b10f",
+      "producer-sha": "796174bb0f8b3d29",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "6d6eceecff843292",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "6042a717a7a8b10f",
+      "producer-sha": "796174bb0f8b3d29",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -328,7 +328,7 @@
       "claim-sha": "a7786cc776750b1b",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "6042a717a7a8b10f",
+      "producer-sha": "796174bb0f8b3d29",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "667c522c13a51ee0",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "6042a717a7a8b10f",
+      "producer-sha": "796174bb0f8b3d29",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -713,7 +713,7 @@
       "claim-sha": "815271c6447235f2",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
-      "producer-sha": "6042a717a7a8b10f",
+      "producer-sha": "796174bb0f8b3d29",
       "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

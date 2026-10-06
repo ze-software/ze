@@ -158,10 +158,16 @@ func TestEveryCheckerFailsClosedWithoutPeerEvidence(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
 	defer cancel()
 
+	network := interoplab.Network{
+		Name: "missing-evidence",
+		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+	}
 	for name, checker := range checkers() {
 		if err := checker(ctx, &interoplab.CheckContext{
-			Source: interoplab.ScenarioSource{Name: name},
-			Lab:    noEvidenceLab{},
+			Source:  interoplab.ScenarioSource{Name: name},
+			Lab:     noEvidenceLab{},
+			Network: network,
 		}); err == nil {
 			t.Errorf("checker %s passed with no peer evidence", name)
 		}
@@ -868,7 +874,7 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 		renumbered := checkerGuardFailure(t, checkRFC7606MixedUpdate, renumberedNetwork())
 		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
-			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+			t.Fatalf("a renumbered lab did not reach its network guard: %s", renumbered)
 		}
 	})
 
@@ -929,7 +935,7 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 		renumbered := checkerGuardFailure(t, checkSelfNextHopWithheld, renumberedNetwork())
 		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
-			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+			t.Fatalf("a renumbered lab did not reach its network guard: %s", renumbered)
 		}
 	})
 
@@ -1625,17 +1631,17 @@ func renumberedNetwork() interoplab.Network {
 
 // checkerGuardFailure runs one checker over a lab that answers an Established BGP
 // session and nothing else, then returns what the checker said. A body whose
-// network guard sits behind a session assertion still reaches that guard, and the
-// context is already canceled, so the first operation the answer does NOT satisfy
-// ends the run at once. The caller asserts the guard's own sentence, which no
-// other failure of these bodies carries.
+// network guard sits behind a session assertion still reaches that guard. The
+// query cancels its context as it returns the initial observation, so a state
+// that does not satisfy readiness cannot poll again. The caller asserts the
+// guard's own sentence, which no other failure of these bodies carries.
 func checkerGuardFailure(t *testing.T, checker interoplab.Checker, network interoplab.Network) string {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
+	defer cancel()
 	err := checker(ctx, &interoplab.CheckContext{
 		Network: network,
-		Lab:     &recordingLab{output: "BGP state = Established"},
+		Lab:     &recordingLab{output: "BGP state = Established", afterQuery: cancel},
 	})
 	if err == nil {
 		t.Fatal("a checker passed with a lab that answered nothing but a session state")
@@ -1659,10 +1665,11 @@ func gobgpTable(routes ...string) string {
 }
 
 type recordingLab struct {
-	output  string
-	logs    string
-	reads   int
-	failure error
+	output     string
+	logs       string
+	reads      int
+	failure    error
+	afterQuery func()
 }
 
 func recorderFor(current *operation) *recordingLab {
@@ -1786,6 +1793,9 @@ func (r *recordingLab) ExecDetached(context.Context, string, []string, []interop
 
 func (r *recordingLab) Query(context.Context, string, []string, []interoplab.EnvironmentVariable) (string, error) {
 	r.reads++
+	if r.afterQuery != nil {
+		defer r.afterQuery()
+	}
 	if r.failure != nil {
 		return "", r.failure
 	}

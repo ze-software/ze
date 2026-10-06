@@ -48,7 +48,7 @@ const (
 // egress PE, the ingress PE encapsulates the IPv4 or IPv6 customer packet in an
 // outer IPv6 header (using H.Encaps or H.Encaps.Red flavors specified in
 // [RFC8986]), where the destination address is the SRv6 Service SID associated
-// with the related BGP route update."
+// with the related BGP route update.".
 func TestVPPSRv6ServiceRouteProbe(t *testing.T) {
 	if *vppSRv6Port == 0 {
 		t.Skip("launched by TestVPPSRv6ServiceRoute with a real VPP and daemon")
@@ -162,7 +162,7 @@ func vppSRv6Underlay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: vppSRv6Host, HardwareAddr: hostMAC},
+	link := &netlink.Veth{Name: vppSRv6Host, HardwareAddr: hostMAC,
 		PeerName: vppSRv6Link, PeerHardwareAddr: vppMAC}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatal(err)
@@ -289,7 +289,7 @@ func vppSRv6AwaitTables(t *testing.T, api sr.RPCService, want map[vppSRv6RouteKe
 	for {
 		policies, steering, err := vppSRv6State(ctx, api)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("SRv6 installed-state read failed: %v; last mismatch: %v", err, last)
 		}
 		last = vppSRv6TablesMatch(policies, steering, want)
 		if last == nil {

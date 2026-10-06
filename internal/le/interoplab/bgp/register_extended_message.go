@@ -1,8 +1,13 @@
 // Design: docs/architecture/testing/interop.md -- RFC 8654 directional matrix.
 package bgp
 
+const (
+	peerFRRSink      = "frr-sink"
+	extendedSinkHost = 15
+)
+
 // extendedMessageCase describes the OPENs as Ze sees them, never FRR's rewritten
-// view. Source and sink are separate sessions to the same independent FRR daemon.
+// view. Source and sink are separate FRR daemons with distinct native router IDs.
 type extendedMessageCase struct {
 	sourceLocal  bool
 	sourceRemote bool

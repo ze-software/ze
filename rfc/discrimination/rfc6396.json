@@ -27,7 +27,7 @@
       "rid": "RFC6396-4.2-2",
       "polarity": "positive",
       "unit": "internal/plugins/mrt/rfc6396_dump_width_test.go::TestDumpV2PeerWidthAndPrefixFamily",
-      "unit-sha": "590743a1e70b3067",
+      "unit-sha": "0d49394ec6b30f94",
       "claim-sha": "43d6e092c3ca09fe",
       "route": "revert",
       "producer": "internal/plugins/mrt/dump.go::writeTableDumpV2",

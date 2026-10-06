@@ -43,7 +43,7 @@ func TestSendContextPublicationWaitsForControlWrite(t *testing.T) {
 			_ BufHandle, _ map[string]any, _ string, _ uint64,
 		) bool {
 			peer.mu.RLock()
-			peer.mu.RUnlock()
+			defer peer.mu.RUnlock()
 			seen <- id
 			return false
 		}

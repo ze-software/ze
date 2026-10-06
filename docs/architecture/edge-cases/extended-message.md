@@ -64,6 +64,11 @@ Both the ordinary and coalesced readers validate the header before attempting
 to read its declared body. Outbound rewrite scratch buffers are sized from the
 body being rewritten, not from the session's unrelated receive permission.
 
+Capability negotiation computes its result under the session lock, before taking
+the writer lock. Publishing that result and resizing the write buffer remain one
+writer-locked operation, so an internal negotiation panic cannot strand that lock
+and block connection cleanup.
+
 <!-- source: internal/component/bgp/reactor/session_negotiate.go -- negotiateWith -->
 <!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage -->
@@ -89,8 +94,10 @@ an UPDATE Length of 4,097 produces Data `10 01`; the reader does not wait for
 the oversized body.
 
 Fatal closure also invokes the peer lifecycle: timers and session resources
-are released, the peer's Adj-RIB-In is cleared, failed routes are removed from
-the Loc-RIB, and recipients receive withdrawals or replacement best routes.
+are released and the peer's Adj-RIB-In is cleared. The selecting RIB re-elects
+surviving paths or removes routes with no survivor from the Loc-RIB. The route
+server separately submits withdrawals from its failed-source inventory; that
+does not by itself prove replacement-best delivery to recipients.
 See [the Established FSM](../behavior/fsm-established.md) and
 [peer lifecycle](../behavior/peer-lifecycle.md).
 
@@ -105,6 +112,9 @@ See [the Established FSM](../behavior/fsm-established.md) and
 - `TestRFC8654ReceiveLimitFollowsLocalOPEN` exchanges OPENs and checks both
   readers at Length 4,096, 4,097 and 65,535, including exact accepted payloads
   and rejected-length NOTIFICATION data.
+- `TestRFC8654AnnouncementAccumulation` feeds standard-sized announcements
+  through the accumulating reader, compares exact combined consumer payloads
+  beyond 4,096 through 65,535 octets, and checks overflow/KEEPALIVE flushes.
 - `TestRFC8654SendLimitFollowsPeerOPEN` observes actual emitted UPDATEs after
   each OPEN combination and checks that splitting preserves all withdrawals.
 - `TestRFC8654AdvertisementDoesNotExtendControlBounds` asserts that OPEN and
@@ -114,12 +124,32 @@ See [the Established FSM](../behavior/fsm-established.md) and
   storage cleanup, resource release and downstream withdrawals.
   `TestRFC8654ValidLengthRetainsInstalledRoutes` supplies the adjacent valid
   4,096-octet case and observes its changed MED in storage and recipient TCP.
-  These assertions cover final cleanup, not the temporal ordering of route
-  deletion versus downstream withdrawal emission.
+  These assertions cover final cleanup, not the ordering of final route-owner
+  release versus outbound advertisement admission.
+- `TestRFC8654ExtendedAttributeDiscard` isolates malformed ATOMIC_AGGREGATE
+  and AGGREGATOR against their valid counterparts through both readers.
+  `TestRFC8654TreatAsWithdrawRemovesInstalledRoutes` observes actual RIB
+  removal, downstream withdrawal and recovery after a malformed extended UPDATE.
+- `TestRFC8654FatalLengthReelectsAlternateBest` requires replacement attributes
+  on recipient TCP after the fatal event and a single Loc-RIB replacement,
+  without transient removal. Source-DOWN recovery queries the selecting RIB
+  through the strict applied-delivery fence and one destination writer operation.
+
+Fixture presence, native execution and fresh discrimination records are separate
+proof obligations.
+RFC 4271 Section 6 does not require a socket write to precede an unrelated
+plugin's Adj-RIB-In cleanup. The route server retains compact withdrawal records
+for its asynchronous sender, and the forwarding queue retains its own work.
+The tests do not yet establish the exact last-owner release/admission ordering;
+see the [RFC summary's proof boundaries](../../../rfc/short/rfc8654.md#proof-boundaries).
 
 <!-- source: internal/core/bgp/capability/rfc8654_extended_message_test.go -->
 <!-- source: internal/component/bgp/reactor/rfc8654_directional_session_test.go -->
 <!-- source: internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go -->
+<!-- source: internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go -->
+<!-- source: internal/component/bgp/reactor/rfc8654_rib_recovery_test.go -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- emitPurgedWithdraws -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, sendBatchedWithdrawals -->
 
 The named FRR interop scenarios exercise a real producer and consumer. An
 OPEN-only fixture relay makes asymmetric advertisements visible to Ze because

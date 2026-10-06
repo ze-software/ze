@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -20,12 +21,12 @@
       "note": "{single-polarity: positive} valid: lowercase should, the duplicate is the operator's allow-shared-router-id opt-out. Both halves of 'unique within an AS' now covered: remote peers by TestRouterIDClaimConcurrentOnlyOneWins (accepted == 1, routerIDConflictError); this speaker's own identifier by TestRFC6286LocalIdentifierUniqueWithinItsAS, which presents the local identifier 0x01020301 from an internal peer (AS 65001 both sides) on handleOpen and requires ErrBadBGPIdentifier, NOTIFICATION 2/3 on the wire and no OpenConfirm. Producer read: Open.ValidateBGPIdentifier (internal && id == localID). Judge break (overlay, open.go: the self check gated on !internal) turned the new unit red, the remote-peer unit green. Revert record on ValidateBGPIdentifier for the new unit; the HEAD unit still carries no record (proof by reading: the exact accepted == 1 assertion).",
       "requirement_sha": "e566efc1c1dda428",
       "tests": {
-        "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "a1fc7aaeb89a3796",
-        "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "4972055763b676a4"
+        "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "4972055763b676a4",
+        "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "a1fc7aaeb89a3796"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "0bb5bef2a07737c8",
-        "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "89120e6676ad8fd9"
+        "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "89120e6676ad8fd9",
+        "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "0bb5bef2a07737c8"
       },
       "verdict": "enforced"
     },
@@ -67,8 +68,8 @@
       "note": "(a) with identical identifiers, preserving the connection of the smaller AS; (b) TestDetectCollisionEqualIdentifierPrefersLargerAS asserts accept/close for peer AS > local AS and peer AS < local AS with equal identifiers; negative rows show unequal identifiers ignore the AS.",
       "requirement_sha": "c8f7ef370693f7ea",
       "tests": {
-        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "c1c4f47a8a24ad7f",
-        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS#2": "c1c4f47a8a24ad7f"
+        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "5c70309331197119",
+        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS#2": "5c70309331197119"
       },
       "units": {
         "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "62e9bf2df59ce7ab",

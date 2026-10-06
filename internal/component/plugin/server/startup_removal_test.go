@@ -470,9 +470,12 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 				if scenario.failedRecovery {
 					require.Eventually(t, func() bool {
 						s.removalMu.Lock()
-						defer s.removalMu.Unlock()
 						attempt := s.removals[old]
-						return attempt != nil && !attempt.recovering && attempt.recoveryErr != nil
+						failed := attempt != nil && !attempt.recovering && attempt.recoveryErr != nil
+						s.removalMu.Unlock()
+						// Recovery publishes its error before releasing transaction ownership.
+						_, transactionDone := s.txLock.inFlight()
+						return failed && transactionDone == nil
 					}, 5*time.Second, time.Millisecond, "failed restoration must retain recovery ownership")
 					require.Nil(t, spawner.pm.GetProcess(producer), "a failed replacement must not leave a dead process slot")
 					require.NoError(t, s.ReloadConfig(t.Context(), committed), "an explicit retry must restore the committed service")

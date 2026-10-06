@@ -123,11 +123,17 @@ type EnvironmentVariable struct {
 	Value string `json:"value"`
 }
 
-// ReadyProbe asks one peer command until it exits successfully.
+// ReadyProbe asks one peer command until it succeeds and stdout contains every
+// Contains string. An empty Contains keeps exit-only readiness. A caller that
+// needs configured protocol state MUST name that state, not process existence.
+// Environment applies only to the probe command. Timeout and Interval MUST be
+// positive; the suite MUST finish readiness before starting the next peer.
 type ReadyProbe struct {
-	Command  []string      `json:"command"`
-	Timeout  time.Duration `json:"timeout"`
-	Interval time.Duration `json:"interval"`
+	Command     []string              `json:"command"`
+	Environment []EnvironmentVariable `json:"environment,omitempty"`
+	Contains    []string              `json:"contains,omitempty"`
+	Timeout     time.Duration         `json:"timeout"`
+	Interval    time.Duration         `json:"interval"`
 }
 
 // PeerConfig declares one participant without assigning it a protocol role.

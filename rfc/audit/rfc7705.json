@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-04",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -89,8 +90,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "d715a5b49c437051",
         "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "d715a5b49c437051",
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN": "5345926bfb42cf4e",
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "5345926bfb42cf4e"
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN": "ed9d1eb5d2dbf8a3",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "ed9d1eb5d2dbf8a3"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "003a1f67dbd4d0ea",
@@ -104,8 +105,8 @@
       "note": "Forbidden: sending an OPEN whose My Autonomous System is neither the global nor the locally configured ASN. TestMigrationOpenCarriesResolvedASN reads the OPEN buildOpen produces and asserts My AS and the Four-octet AS capability equal the global ASN before a Bad Peer AS and the locally configured ASN after it (assert.Equal MyAS, ASN4, capability ASN), red on any other AS. Negative: without migration configured the local AS is sent whatever the fallback flag holds.",
       "requirement_sha": "8e37aa0e967dc55b",
       "tests": {
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "5345926bfb42cf4e",
-        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "5345926bfb42cf4e"
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "ed9d1eb5d2dbf8a3",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "ed9d1eb5d2dbf8a3"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "c42b9fa1f72a9f86",

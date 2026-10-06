@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -47,7 +48,7 @@ environment {
 
 var containerRoles = []string{
 	"ze", peerFRR, peerBIRD, peerGoBGP, peerBMP, peerRPKI, peerInject, peerSpeaker,
-	peerSpeaker2, peerKeepalived, peerStayRTR, peerPMACCT, peerFRRTransit,
+	peerSpeaker2, peerKeepalived, peerStayRTR, peerPMACCT, peerFRRTransit, peerFRRSink,
 }
 
 func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioSource) ([]interoplab.ScenarioPlan, error) {
@@ -330,6 +331,10 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
 		Command:     zeCommand, Ready: ready("true")})
 
+	// FRR-facing OPEN-only relays wait for both native configurations.
+	// Relays to other daemons keep their existing startup positions.
+	var relays [2]extendedRelayPeer
+	relayCount := 0
 	for _, speaker := range []struct {
 		file string
 		name string
@@ -351,14 +356,37 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			rendered.Reset().Str(networkHostAddress(network, 2)).Str(":179").String(),
 		}
 		command = append(command, arguments...)
-		peers = append(peers, interoplab.PeerConfig{Name: speaker.name, Container: containerName(speaker.name, suffix), Image: "ze", Host: speaker.host,
-			Arguments: []string{dockerEntrypointFlag, leBinary}, Command: command})
+		peer := interoplab.PeerConfig{Name: speaker.name, Container: containerName(speaker.name, suffix), Image: "ze", Host: speaker.host,
+			Arguments: []string{dockerEntrypointFlag, leBinary}, Command: command}
+		isRelay := slices.ContainsFunc(arguments, func(argument string) bool {
+			name, _, _ := strings.Cut(argument, "=")
+			return name == "--relay-peer"
+		})
+		frrRelay := ""
+		if isRelay {
+			options, parseErr := parseSpeakerOptions(command[3:])
+			if parseErr != nil {
+				return nil, parseErr
+			}
+			switch options.relayPeer {
+			case networkHostAddress(network, 3) + ":179":
+				frrRelay = peerFRR
+			case networkHostAddress(network, extendedSinkHost) + ":179":
+				frrRelay = peerFRRSink
+			}
+		}
+		if frrRelay == "" {
+			peers = append(peers, peer)
+		} else {
+			relays[relayCount] = extendedRelayPeer{peer: peer, destination: frrRelay}
+			relayCount++
+		}
 	}
 	for _, frr := range []struct {
 		name   string
 		config string
 		host   uint8
-	}{{peerFRR, "frr.conf", 3}, {peerFRRTransit, virtualLinkTransitConfig, 14}} {
+	}{{peerFRR, "frr.conf", 3}, {peerFRRTransit, virtualLinkTransitConfig, 14}, {peerFRRSink, "frr-sink.conf", extendedSinkHost}} {
 		path := filepath.Join(scenario, frr.config)
 		if !regularFile(path) {
 			continue
@@ -390,6 +418,14 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	if path := filepath.Join(scenario, "gobgp.toml"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: 5,
 			Mounts: []interoplab.Mount{mount(path, "/etc/gobgp/gobgp.toml")}, Capabilities: []string{capabilityNetAdmin}})
+	}
+	if relayCount > 0 {
+		// MUST install native configuration barriers before appending the relays.
+		var err error
+		peers, err = prepareExtendedRelayPeers(peers, relays[:relayCount], network)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return prepareVirtualLinkPeers(peers, scenario)
 }

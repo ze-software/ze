@@ -206,10 +206,10 @@ func (f *fibVPP) delVPPRoute(c *incomingChange) error {
 	if err != nil {
 		return err
 	}
-	if key.table != 0 {
-		err = f.backend.delRichRoute(key.prefix, key.table)
-	} else {
+	if key.table == 0 {
 		err = f.backend.delRoute(key.prefix)
+	} else {
+		err = f.backend.delRichRoute(key.prefix, key.table)
 	}
 	if err == nil {
 		delete(f.installed, key)

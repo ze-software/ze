@@ -33,12 +33,12 @@ func TestRFC8092DuplicateLargeCommunityIsNotMalformed(t *testing.T) {
 	}
 	attrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN
-		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x02, 0x06, 2, 1, 0, 0, 0xfd, 0xea, // AS_SEQUENCE 65002 (ASN4).
 		0x40, 0x03, 0x04, 192, 0, 2, 1, // NEXT_HOP
 		0xC0, byte(attribute.AttrLargeCommunity), byte(len(value)),
 	}
 	attrs = append(attrs, value...)
-	s := rfc7311EBGPSession()
+	s := teValidationSession()
 	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(makeUpdateBody(nil, attrs, []byte{24, 10, 40, 0}), 0))
 	require.NoError(t, err, "a duplicate value must not reset the session")
 	require.Equal(t, message.RFC7606ActionNone, action, "a duplicate value must not make the attribute malformed")
@@ -72,7 +72,7 @@ func rfc8092Receive(t *testing.T, value []byte) (retained, sent, published, rece
 	t.Helper()
 	attrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN
-		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x02, 0x06, 2, 1, 0, 0, 0xfd, 0xea, // AS_SEQUENCE 65002 (ASN4).
 		0x40, 0x03, 0x04, 192, 0, 2, 1, // NEXT_HOP
 	}
 	if len(value) > 255 {
@@ -83,7 +83,7 @@ func rfc8092Receive(t *testing.T, value []byte) (retained, sent, published, rece
 	attrs = append(attrs, value...)
 	body := makeUpdateBody(nil, attrs, []byte{24, 10, 40, 0})
 	received = append([]byte{}, body...)
-	s := rfc7311EBGPSession()
+	s := teValidationSession()
 	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
 	require.NoError(t, err, "redundant values must be removed silently, not reported as an error")
 	require.Equal(t, message.RFC7606ActionNone, action, "redundant values must be removed silently, with no RFC 7606 action")

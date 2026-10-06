@@ -416,7 +416,7 @@
       "claim-sha": "21995feda7fe18db",
       "route": "revert",
       "producer": "internal/core/eap/eap.go::Process",
-      "producer-sha": "0e27d8e08a3b2800",
+      "producer-sha": "aa2821afa2d5c285",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -438,7 +438,7 @@
       "claim-sha": "70b5b40a382811f6",
       "route": "revert",
       "producer": "internal/core/eap/eap.go::Process",
-      "producer-sha": "0e27d8e08a3b2800",
+      "producer-sha": "aa2821afa2d5c285",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -482,7 +482,7 @@
       "claim-sha": "de500d9a571e3d61",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::Process",
-      "producer-sha": "e19ea247f6009a55",
+      "producer-sha": "1d3fda7628c9da27",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -504,7 +504,7 @@
       "claim-sha": "92f8aef3fe61455f",
       "route": "revert",
       "producer": "internal/core/eap/eap.go::Process",
-      "producer-sha": "0e27d8e08a3b2800",
+      "producer-sha": "aa2821afa2d5c285",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -1,16 +1,18 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-06",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9687-4.3-1": {
-      "note": "Forbidden behaviour: a SendHoldTimer not started by the OpenConfirm KeepAliveMsg, or started before it. TestRFC9687SendHoldTimerArmedOnEstablished asserts p.armed() true once Event 26 made the session Established; TestRFC9687SendHoldTimerNotArmedBeforeEstablished asserts sendHoldDeadline zero while still in OpenConfirm. The 'if the SendHoldTime is non-zero' clause has no violating input: sendHoldDuration (session_write.go) returns the configured value when positive and otherwise max(sendHoldTimerMin, 2*ReceiveHoldTime), so the effective SendHoldTime is never zero.",
+      "code": {},
+      "note": "Independent stale-unit rejudgment of both current carriers from the native covers map. RFC 9687 Section 4.3, complete revised OpenConfirm Event 26 sentence (rfc/full/rfc9687.txt:199-207): 'If the local system receives a KEEPALIVE message (KeepAliveMsg (Event 26)), the local system: - restarts the HoldTimer, - starts the SendHoldTimer if the SendHoldTime is non-zero, and - changes its state to Established.' Section 4.1 (lines 161-163) additionally states: 'SendHoldTime determines how long a BGP speaker will stay in the Established state before the TCP connection is dropped because no BGP messages can be transmitted to its peer.' Retained positive assertion: internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerArmedOnEstablished (lines 337-343) calls rfc9687Established with a peer HoldTime of 90 seconds; the fixture requires actual OPEN acceptance into OpenConfirm, then actual KEEPALIVE transition into Established, and the test asserts p.armed(), specifically sendHoldDeadline.Load()!=0. Retained negative assertion: TestRFC9687SendHoldTimerNotArmedBeforeEstablished (lines 358-388) supplies the same peer OPEN but no peer KEEPALIVE, requires OpenConfirm, and asserts the exact zero sendHoldDeadline. Thus the tests distinguish the arming event from connection/OPEN setup, not two names on one assertion. Their direct SendHoldTime=10s fixture attribute intentionally isolates this action from the other timers; it is not evidence for the separate configuration constraint in Section 4.4. The effective-zero SendHoldTime branch is not configurable in the current producer: session_write.go::sendHoldDuration (lines 221-226) returns a positive configured value or max(8 minutes,2*ReceiveHoldTime), with the minimum defined at session.go:184. Negotiated-zero HoldTime is a separate Section 4.3 exception, not an assertion newly claimed for these two carriers. Dispatch is explicit at session_read.go:424-425; session_handlers.go::handleKeepalive (lines 282-307) starts the timer in OpenConfirm before delivering EventKeepaliveMsg, and session_write.go::startSendHoldTimer (lines 245-257) stores the deadline and schedules the callback. The lifecycle edit replaces the detached Run launch with rfc9687Run (rfc9687_test.go:67-88), retaining the real Session.Run and its buffered error result while adding a cancel-and-join cleanup before earlier logger restoration and pipe/session cleanup. The negative test previously never consumed its local runResult; its removal removes no expectation. acceptWithReader still owns pipe and timer cleanup (session_test.go:32-55). Both protocol assertions occur before cleanup, so cleanup cannot make a prematurely armed OpenConfirm timer pass the zero assertion. [INFERENCE] Omitting the OpenConfirm arming action fails the positive assertion, while arming at connection/OPEN setup fails the negative assertion. No targeted semantic mutation or check was run for this rejudgment, and no green race execution is used as RFC truth. The inspected rfc/discrimination/rfc9687.json contains no record for this ID; records for other obligations do not supply one.",
       "requirement_sha": "3f7faab18747767f",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerArmedOnEstablished": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerNotArmedBeforeEstablished": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerArmedOnEstablished": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerNotArmedBeforeEstablished": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerArmedOnEstablished": "9f7e6587203a1ed9",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerNotArmedBeforeEstablished": "667e2d0161695964"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimerNotArmedBeforeEstablished": "bec67bdd5eb989ab"
       },
       "verdict": "enforced"
     },
@@ -18,10 +20,10 @@
       "note": "Forbidden: a SendHoldTimer left armed after a transition out of Established. Tagged units drive four transitions over the real Run loop and assert armed() false after: Event 29 expiry, local Cease (TestRFC9687TeardownStopsTheSendHoldTimer), a NOTIFICATION received from the peer and a peer TCP close (TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer), each with armed() true as precondition. The stop lives in closeConn and in Run's deferred stopSendHoldTimer, which every exit path shares; HoldTimer expiry and a ze-sent error NOTIFICATION are not driven but reach the same two stop sites.",
       "requirement_sha": "0354590c6557e9a7",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "c0faef65febf2aca",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "0d228841740c950c",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "ae87532b2b40a28d",
@@ -35,8 +37,8 @@
       "note": "Forbidden behaviour: Event 29 without a local log naming Send Hold Timer Expired, or that log without the expiry. TestRFC9687SendHoldExpiryRunsTheEvent29ActionList asserts the log contains 'send hold timer expired' after the expiry; TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact asserts NotContains one nanosecond short of it.",
       "requirement_sha": "223c4c2478c6c214",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
@@ -48,11 +50,11 @@
       "note": "RFC 9687 section 4.3 adds the Event 29 action list: if SendHoldTimer_Expires occurs, the local system releases all BGP resources, drops TCP and changes to Idle; it also says the SendHoldTimer is stopped following any transition out of Established as part of the release-all-resources action. Read all currently tagged units. TestRFC9687Event29ReleasesTheLivePeersRIB establishes a real Peer through a borrowed plugin server, installs two wire-learned routes in the running bgp-rib plugin before advancing the fake clock, and requires both routes and the peer snapshot entry to disappear, the old session to detach and become Idle, its connection to become nil, and the wire to contain the Send Hold Timer Expired notification. It therefore closes the prior verdict's specific missing RIB-release proof and distinguishes an unrelated teardown. TestRFC9687Event29ReleasesHoldTimerAndConnection requires live Hold/Keepalive timers and TCP one nanosecond before expiry and their release after expiry. TestRFC9687SendHoldExpiryRunsTheEvent29ActionList and TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact additionally contrast SendHold/ConnectRetry resources across the expiry boundary. Read sendHoldTimerExpired and the RIB handleStructuredState down path, which releases and deletes peer storage. The live test proves observable resource removal, not allocator internals or every optional plugin configuration. The startup change waits for the borrowed server's real startup completion before starting peers; it manufactures no DOWN event and removes no assertion. Renewal of its unit-changed positive discrimination record remains required; no new mutant run is claimed.",
       "requirement_sha": "83340d1ef8b36846",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "c0faef65febf2aca",
-        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "0d228841740c950c",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "0d228841740c950c",
         "internal/component/bgp/reactor/rfc9687_rib_release_test.go::TestRFC9687Event29ReleasesTheLivePeersRIB": "2316215f5915829c",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "fc3f1c5978108b49",
@@ -67,8 +69,8 @@
       "note": "Forbidden behaviour: ConnectRetryTimer left running after Event 29. The positive unit arms it as a precondition and asserts IsConnectRetryTimerRunning false after the expiry; the negative asserts it still runs inside the SendHoldTime.",
       "requirement_sha": "3ac305a15007b4c0",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
@@ -80,8 +82,8 @@
       "note": "Forbidden behaviour: the TCP connection left open after Event 29, or dropped before it. Positive: requireConnClosed(t, p.drainErr) after Run returned; negative: the drainErr select fails the test if the connection closed inside the SendHoldTime.",
       "requirement_sha": "bbda20c2fb6b5685",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
@@ -93,8 +95,8 @@
       "note": "Forbidden behaviour: ConnectRetryCounter not incremented by exactly 1 on Event 29. Positive asserts crc == 1 after the expiry, negative asserts crc == 0 before it; an increment of 2 or 0 goes red.",
       "requirement_sha": "5ff282c953c7bad1",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
@@ -106,8 +108,8 @@
       "note": "Forbidden behaviour: a state other than Idle after Event 29. Positive asserts State == StateIdle, negative asserts StateEstablished before the expiry.",
       "requirement_sha": "c70f245f9bce1316",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
@@ -119,10 +121,10 @@
       "note": "RFC 9687 Section 4.3: \"Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.\" Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
       "requirement_sha": "e84a6c54182b7346",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "0d228841740c950c",
         "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "086561be38e103f0",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
@@ -136,8 +138,8 @@
       "note": "Forbidden behaviour: a SendHoldTimer armed when the negotiated HoldTime is zero, or stopped when it is not. TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer asserts armed() false and the session still Established after 10x the SendHoldTime; TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer asserts armed() true and the expiry at a negotiated 90 s. The SendHoldTime-zero half has no violating input: sendHoldDuration never returns zero.",
       "requirement_sha": "2a000ddf5a1a5f33",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "d57d3f91e97fd943",
@@ -149,8 +151,8 @@
       "note": "Forbidden behaviour: a non-zero SendHoldTime not greater than the HoldTime. TestRFC9687SendHoldTimeMustExceedHoldTime requires parsePeerFromTree to error on 480 below 3600 and on 600 equal to 600; TestRFC9687SendHoldTimeAboveHoldTimeAccepted requires 3601 over 3600, 480 over 90 and 480 over 0 to load, and the zero (automatic) value to be exempt. The negotiated HoldTime is min(local, peer), so the check against the local receive-hold-time bounds it.",
       "requirement_sha": "ef5fd390a8175ebb",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeAboveHoldTimeAccepted": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeMustExceedHoldTime": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeAboveHoldTimeAccepted": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeMustExceedHoldTime": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeAboveHoldTimeAccepted": "73b714184f82704b",
@@ -162,8 +164,8 @@
       "note": "The MAY clause obliges nothing. Forbidden behaviour: the connection left open when no message was sent for SendHoldTime, or closed before. Positive: requireConnClosed after advancing exactly rfc9687SendHold; negative: no close one nanosecond short of it.",
       "requirement_sha": "fac7b73512f069ff",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
@@ -175,8 +177,8 @@
       "note": "Forbidden behaviour: no local error naming Send Hold Timer Expired on the expiry, or one without it. Positive asserts the log contains 'send hold timer expired', negative asserts NotContains before the expiry.",
       "requirement_sha": "acdf8d324d2a642d",
       "tests": {
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
-        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+        "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",

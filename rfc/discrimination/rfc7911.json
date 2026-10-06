@@ -47,35 +47,24 @@
     },
     {
       "rid": "RFC7911-5-1",
-      "polarity": "positive",
-      "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
-      "unit-sha": "6948f0ace7d41717",
-      "claim-sha": "d888fb3681a86823",
-      "route": "revert",
-      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
-      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7911-5-1",
       "polarity": "negative",
       "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
       "unit-sha": "6948f0ace7d41717",
       "claim-sha": "70be58a87aed3265",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
+      "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC7911-5-2",
+      "rid": "RFC7911-5-1",
       "polarity": "positive",
       "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
       "unit-sha": "6948f0ace7d41717",
-      "claim-sha": "93cbae52c0f1539e",
+      "claim-sha": "d888fb3681a86823",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
+      "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +75,18 @@
       "claim-sha": "371849fb36ab9dc6",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "435cb0c5ff9c51ce",
+      "producer-sha": "7d637b6d32bc44a0",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
+      "unit-sha": "6948f0ace7d41717",
+      "claim-sha": "93cbae52c0f1539e",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -110,6 +110,17 @@
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
       "producer-sha": "f7e58ddbd5e3ea57",
       "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit",
+      "unit-sha": "ad3fb9eef8bf3332",
+      "claim-sha": "0e223e5ee4210dd9",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+      "producer-sha": "07bd5b4c70e0a99c",
+      "break": "body of buildFwdBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7911-5-4",
@@ -163,7 +174,7 @@
       "claim-sha": "f0c22d1b2242465b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "22001f81984512ae",
+      "producer-sha": "5ff7d5703bc38cb1",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

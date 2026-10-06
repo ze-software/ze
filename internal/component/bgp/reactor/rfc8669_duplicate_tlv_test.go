@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
 // srv6L3ServiceTLV is one SRv6 L3 Service TLV (Prefix-SID TLV type 5): Reserved,
@@ -85,14 +86,19 @@ func rfc8669DuplicateReceive(t *testing.T, safi, attribute40, after string, rsCl
 	if safi == safiLabeled {
 		nlri = "30" + "000641" + "0a0102"
 	}
-	body := labeledReachUpdate(t, safi, ipv4NextHop, nlri)
-	attrOctets := int(body[2])<<8 | int(body[3])
-	attrOctets += len(attribute40)/2 + len(after)/2
-	received, err := hex.DecodeString("0000" + hex.EncodeToString([]byte{byte(attrOctets >> 8), byte(attrOctets)}) +
-		hex.EncodeToString(body[4:]) + attribute40 + after)
+	// The same body subsequently enters an ASN4 EBGP session from AS 65002.
+	// Keep its path and on-link next hop valid beyond the RFC 7606-only step.
+	mp := "0001" + safi + "04c0000201" + "00" + nlri
+	attrs := "40010100" + "40020602010000fdea" +
+		"800e" + hex.EncodeToString([]byte{byte(len(mp) / 2)}) + mp + attribute40 + after
+	attrOctets := len(attrs) / 2
+	received, err := hex.DecodeString("0000" +
+		hex.EncodeToString([]byte{byte(attrOctets >> 8), byte(attrOctets)}) + attrs)
 	require.NoError(t, err, "fixture hex")
 	original := append([]byte{}, received...)
-	wu, action, err := NewSession(rfc8669DuplicateSettings(rsClient)).enforceRFC7606(wireu.NewWireUpdate(received, 0))
+	s := NewSession(rfc8669DuplicateSettings(rsClient))
+	s.negotiated = &capability.Negotiated{ASN4: true}
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(received, 0))
 	return original, wu, action, err
 }
 

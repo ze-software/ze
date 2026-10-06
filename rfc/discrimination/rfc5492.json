@@ -82,7 +82,7 @@
       "rid": "RFC5492-4-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters",
-      "unit-sha": "082ad17a333137a0",
+      "unit-sha": "aae2c86770f21b04",
       "claim-sha": "7bcc19a6d1fa9233",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",

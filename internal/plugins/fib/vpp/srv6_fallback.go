@@ -98,24 +98,29 @@ func (f *fibVPP) checkpointSRv6Fallback(key srv6RouteKey, sid netip.Addr) error 
 
 // beginSRv6Fallback persists intent before creating ordinary forwarding. Known
 // API rejection can roll intent back; uncertain transport results cannot.
-func (f *fibVPP) beginSRv6Fallback(c *incomingChange, key srv6RouteKey) (*srv6Fallback, error) {
+// The previous record is nil when no durable backend or prior record exists.
+// On success, the caller MUST pass it to finishSRv6Fallback for rollback.
+func (f *fibVPP) beginSRv6Fallback(c *incomingChange, key srv6RouteKey, previous **srv6Fallback) error {
+	*previous = nil
 	b, ok := f.srv6Backend.(*govppSRv6Backend)
 	if !ok {
-		return nil, nil
+		return nil
 	}
-	old := b.fallbacks[key]
+	*previous = b.fallbacks[key]
 	growth := 0
-	if old == nil {
+	if *previous == nil {
 		growth = 1
 	}
 	if err := b.reserveState(growth); err != nil {
-		return nil, err
+		return err
 	}
 	pending := &srv6Fallback{Prefix: key.prefix, Table: key.table,
 		NextHop: c.NextHop.String(), MPLS: len(c.Labels) != 0}
-	return old, b.saveFallback(pending)
+	return b.saveFallback(pending)
 }
 
+// finishSRv6Fallback MUST receive the previous record from beginSRv6Fallback.
+// With no durable backend, only the forwarding mutation result is returned.
 func (f *fibVPP) finishSRv6Fallback(key srv6RouteKey, old *srv6Fallback, mutationErr error) error {
 	b, ok := f.srv6Backend.(*govppSRv6Backend)
 	if !ok {

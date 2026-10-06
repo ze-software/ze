@@ -38,7 +38,7 @@ type extendedCapture struct {
 // independently. In particular, a relay-added local advertisement cannot satisfy
 // Ze's receive permission. It also rejects rewritten non-OPENs and invalid framing.
 // RFC 8654 Section 4: "The BGP Extended Message Capability applies to all messages
-// except for OPEN and KEEPALIVE messages."
+// except for OPEN and KEEPALIVE messages".
 func parseExtendedCapture(text string, originalExtended, deliveredExtended bool) (extendedCapture, error) {
 	var result extendedCapture
 	if len(text) > 34*1024*1024 {
@@ -173,10 +173,10 @@ func extendedFramePrefix(frame []byte, subnet byte) bool {
 // RFC 8654 Section 4: "If a BGP message with a length greater than 4,096 octets is
 // received by a BGP listener who has not advertised the BGP Extended Message
 // Capability, the listener will generate a NOTIFICATION with the Error Subcode
-// set to Bad Message Length ([RFC4271], Section 6.1)."
+// set to Bad Message Length ([RFC4271], Section 6.1)".
 func requireExtendedRejection(frame []byte, offendingOctets int) error {
 	if len(frame) != 23 {
-		return errors.New("Bad Message Length NOTIFICATION must contain the offending two-octet length")
+		return errors.New("bad message length NOTIFICATION must contain the offending two-octet length")
 	}
 	if frame[18] != bgpNotification {
 		return errors.New("expected NOTIFICATION")
@@ -193,9 +193,8 @@ func requireExtendedRejection(frame []byte, offendingOctets int) error {
 	return nil
 }
 
-// requireExtendedFRRRoute requires FRR's received path, not its locally originated
-// best path. Both coexist deliberately, because one FRR daemon is the producer
-// and the consumer on two independent eBGP sessions.
+// requireExtendedFRRRoute requires the consumer's received path from Ze, never a
+// locally originated path. A separate FRR daemon produces the source UPDATE.
 func requireExtendedFRRRoute(output, prefix, neighbor string, large bool) error {
 	var route struct {
 		Prefix string `json:"prefix"`

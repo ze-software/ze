@@ -432,12 +432,10 @@ func checkRelayWithdrawalShape(ctx context.Context, check *interoplab.CheckConte
 	const (
 		name   = "bgp-relay-withdraw-shape-frr"
 		prefix = injectPrefixFirst
-		// ze.conf gives ze AS 65001 and the injector AS 65004, and neither peer is
-		// an RS client, so the path FRR owes on the advertisement is ze's own AS
-		// ahead of the injector's. FRR also runs with enforce-first-as, which is a
-		// second, independent way for a lost prepend to redden this scenario.
-		relayedASPath = "65001 65004"
 	)
+	// ze.conf gives ze AS 65001 and the injector AS 65004, and neither peer is
+	// an RS client, so zeInjectorASPath places Ze ahead of the injector.
+	// FRR's enforce-first-as independently rejects a lost prepend.
 	fail := func(assertion int, cause error) error {
 		return checkerFailure(ctx, check.Lab, name, assertion, cause)
 	}
@@ -466,7 +464,7 @@ func checkRelayWithdrawalShape(ctx context.Context, check *interoplab.CheckConte
 	if err != nil {
 		return fail(3, err)
 	}
-	if err := requireFRRASPath(route, relayedASPath); err != nil {
+	if err := requireFRRASPath(route, zeInjectorASPath); err != nil {
 		return fail(3, err)
 	}
 
@@ -1062,7 +1060,6 @@ func checkNoExportBoundary(ctx context.Context, check *interoplab.CheckContext) 
 		// 64985:100, sent AFTER the tagged route. It must reach both observers, and
 		// its arrival at FRR is what proves ze had already decided the tagged one.
 		controlPrefix = "10.11.0.0/24"
-		showTableJSON = "show bgp ipv4 unicast json"
 	)
 	fail := func(assertion int, cause error) error {
 		return checkerFailure(ctx, check.Lab, name, assertion, cause)
@@ -1334,6 +1331,10 @@ func queryFRRSessionGeneration(ctx context.Context, lab interoplab.CheckerLab, n
 	if err != nil {
 		return 0, err
 	}
+	return parseFRRSessionGeneration(output, neighbor)
+}
+
+func parseFRRSessionGeneration(output, neighbor string) (uint64, error) {
 	var peers map[string]struct {
 		State                  string `json:"bgpState"`
 		ConnectionsEstablished uint64 `json:"connectionsEstablished"`

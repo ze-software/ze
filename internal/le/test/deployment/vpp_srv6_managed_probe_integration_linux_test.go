@@ -77,10 +77,10 @@ func TestVPPSRv6ManagedProbe(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
-	conn, err := core.Connect(socketclient.NewVppClient("/run/vpp/api.sock"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// AllPluginsReady releases plugin startup, not the managed VPP API.
+	// Use the production connector's bounded handshake and Connected event;
+	// a stale Unix socket path is not evidence that VPP accepts clients.
+	conn := vppSRv6ManagedConnect(t, ctx)
 	defer func() { conn.Disconnect() }()
 	api := sr.NewServiceClient(conn)
 	vppSRv6AwaitState(t, api, nil)
@@ -123,10 +123,7 @@ func TestVPPSRv6ManagedProbe(t *testing.T) {
 	if newPID == pid {
 		t.Fatal("managed VPP PID did not change")
 	}
-	newConn, err := core.Connect(socketclient.NewVppClient("/run/vpp/api.sock"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	newConn := vppSRv6ManagedConnect(t, ctx)
 	conn = newConn
 	api = sr.NewServiceClient(conn)
 	vppSRv6AwaitState(t, api, nil)
@@ -161,6 +158,29 @@ func TestVPPSRv6ManagedProbe(t *testing.T) {
 		t.Fatal("external plugin shutdown: ", err)
 	}
 	t.Log("srv6 managed lifecycle passed")
+}
+
+// vppSRv6ManagedConnect follows Connector.Connect's API readiness contract.
+// The caller MUST disconnect the returned connection before replacing it.
+func vppSRv6ManagedConnect(t *testing.T, ctx context.Context) *core.Connection {
+	t.Helper()
+	conn, events, err := core.AsyncConnect(socketclient.NewVppClient("/run/vpp/api.sock"), 10, time.Second)
+	if err != nil {
+		t.Fatal("start managed VPP API handshake: ", err)
+	}
+	select {
+	case event := <-events:
+		if event.State == core.Connected {
+			t.Log("managed VPP binary API handshake completed")
+			return conn
+		}
+		conn.Disconnect()
+		t.Fatalf("managed VPP API readiness failed: state=%v error=%v", event.State, event.Error)
+	case <-ctx.Done():
+		conn.Disconnect()
+		t.Fatal("managed VPP API readiness deadline: ", ctx.Err())
+	}
+	return nil
 }
 
 func vppSRv6ManagedPID(t *testing.T) int {

@@ -4,6 +4,7 @@ package engine
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -15,18 +16,36 @@ import (
 // points with encrypted wrong-role and undefined Codes before every EAP round.
 // The real held-back packet must still complete that round at the same Message
 // ID, and the conversation must finish with matching nonzero MSKs. This is an
-// engine wiring test, not interoperability with an independent implementation.
+// engine boundary test, not interoperability with an independent implementation.
+// RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with other codes
+// MUST be silently discarded by both authenticators and peers."
+// RFC requirement: RFC3748-4-5 positive -- encrypted undefined Codes 0, 5 and 255
+// reach both IKE EAP roles without changing SA state, retransmission deadline/count,
+// outbound message ID or last sent message, and neither role sends a UDP response.
+// RFC requirement: RFC3748-4-5 negative -- held-back valid EAP packets at the same
+// IKE message IDs advance both roles and send over UDP after more than twenty
+// ignored packets per round; the exchange derives matching nonzero MSKs and
+// produces an initiator AUTH that the responder verifies.
+// MUTATION: remove the result.Discarded return in fsm.go::handleEAPResponse;
+// the unchanged deadline/retry assertions must fail before any valid control.
+// MUTATION: increment ps.rounds in the undefined-Code arm of core/eap/peer.go;
+// the held-back valid packet must then fail instead of completing the exchange.
 func TestEngineDiscardedEAPCodesPreserveExchange(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, table, ps, authReq := eaplenExchange(t)
-	peerTr, myTr := rtxPeerLink(t, resp)
+	peerTr, myTr := rtxPeerLink(t, resp, ini)
+	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	peerAddr := eaprtxPeerAddr(t, peerTr)
 	ps.handleResponderInbound(resp, parseMsg(t, authReq), transport.Packet{Data: authReq, RemoteAddr: peerAddr}, myTr, log)
 	first := rtxRecv(t, peerTr)
 	if first == nil {
 		t.Fatal("initial IKE_AUTH produced no EAP Request")
 	}
-	handleInbound(ini, transport.Packet{Data: first}, table, nil, log)
+	// RFC 7296 Section 2.16: the first authenticated EAP Request starts the peer.
+	handleInbound(ini, transport.Packet{Data: first}, table, myTr, log)
+	if sent := rtxRecv(t, peerTr); !bytes.Equal(sent, ini.LastSentMsg) {
+		t.Fatal("initial EAP Response was not sent over UDP")
+	}
 	if ini.State != StateEAPInProgress {
 		t.Fatalf("initiator did not start EAP: %v", ini.State)
 	}
@@ -36,6 +55,9 @@ func TestEngineDiscardedEAPCodesPreserveExchange(t *testing.T) {
 		request := ini.LastSentMsg
 		lastReply := resp.LastSentMsg
 		expectedID := resp.ExpectedMsgID
+		resp.RetransmitTime = time.Now().Add(time.Minute)
+		resp.RetransmitCount = 2
+		respTimer, respRetries, respID := resp.RetransmitTime, resp.RetransmitCount, resp.NextMsgID
 		for range 21 {
 			for _, code := range []uint8{0, 5, 255, eap.CodeRequest, eap.CodeSuccess, eap.CodeFailure} {
 				// RFC 3748 Sections 2.2, 2.3 and 4: wrong-role and undefined Codes.
@@ -47,6 +69,9 @@ func TestEngineDiscardedEAPCodesPreserveExchange(t *testing.T) {
 				if !bytes.Equal(resp.LastSentMsg, lastReply) {
 					t.Fatalf("responder answered discarded Code %d", code)
 				}
+				if resp.RetransmitTime != respTimer || resp.RetransmitCount != respRetries || resp.NextMsgID != respID {
+					t.Fatalf("Code %d changed responder retransmission or outbound message state", code)
+				}
 			}
 		}
 		rtxExpectSilence(t, peerTr, myTr, peerAddr, "discarded EAP Codes")
@@ -56,13 +81,18 @@ func TestEngineDiscardedEAPCodesPreserveExchange(t *testing.T) {
 		if reply == nil {
 			t.Fatal("legitimate EAP response produced no IKE_AUTH reply")
 		}
+		if resp.ExpectedMsgID != expectedID+1 || bytes.Equal(resp.LastSentMsg, lastReply) {
+			t.Fatal("valid EAP Response did not advance the responder exchange")
+		}
+		ini.RetransmitTime = time.Now().Add(time.Minute)
+		ini.RetransmitCount = 2
 		id := ini.NextMsgID
 		timer, retries := ini.RetransmitTime, ini.RetransmitCount
 		for range 21 {
 			for _, code := range []uint8{0, 5, 255, eap.CodeResponse} {
 				// RFC 3748 Sections 2.2, 2.3 and 4: admission precedes the round cap.
 				raw := eapAdmissionMessage(t, resp, code, eaplenMessageID(reply), wire.FlagResponse)
-				handleInbound(ini, transport.Packet{Data: raw}, table, nil, log)
+				handleInbound(ini, transport.Packet{Data: raw}, table, myTr, log)
 				if ini.State != StateEAPInProgress || ini.NextMsgID != id {
 					t.Fatalf("Code %d advanced or killed initiator: state=%v messageID=%d", code, ini.State, ini.NextMsgID)
 				}
@@ -71,8 +101,18 @@ func TestEngineDiscardedEAPCodesPreserveExchange(t *testing.T) {
 				}
 			}
 		}
+		rtxExpectSilence(t, peerTr, myTr, peerAddr, "peer discarded EAP Codes")
 		// RFC 3748 Section 4: a legitimate Request or Success still proceeds.
-		handleInbound(ini, transport.Packet{Data: reply}, table, nil, log)
+		handleInbound(ini, transport.Packet{Data: reply}, table, myTr, log)
+		if sent := rtxRecv(t, peerTr); !bytes.Equal(sent, ini.LastSentMsg) {
+			t.Fatal("valid EAP control did not send its next IKE_AUTH over UDP")
+		}
+		if ini.NextMsgID != id+1 || bytes.Equal(ini.LastSentMsg, request) {
+			t.Fatal("valid EAP control did not advance the initiator exchange")
+		}
+		if ini.RetransmitTime.Equal(timer) || ini.RetransmitCount != 0 {
+			t.Fatal("valid EAP control did not renew the retransmission budget")
+		}
 		if ini.State == StateAuthSent {
 			if ini.EAPMSK == ([64]byte{}) || ini.EAPMSK != resp.EAPMSK {
 				t.Fatal("EAP did not finish with matching nonzero MSKs")

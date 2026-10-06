@@ -16,13 +16,25 @@
       "rid": "RFC1997-Well-1",
       "polarity": "positive",
       "unit": "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary",
-      "unit-sha": "54e1cac72d8796c7",
+      "unit-sha": "aa95a93b5c667fb6",
       "claim-sha": "efa588496af48a45",
       "route": "revert",
       "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
       "producer-sha": "1180e31db97ccb63",
       "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "7"
+    },
+    {
+      "rid": "RFC1997-Well-1",
+      "polarity": "negative",
+      "unit": "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary",
+      "unit-sha": "aa95a93b5c667fb6",
+      "claim-sha": "8759f4cd6348e445",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "6"
     },
     {
       "rid": "RFC1997-Well-1",

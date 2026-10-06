@@ -99,8 +99,8 @@ func (f *fibVPP) replaceSRv6WithIP(c *incomingChange, key srv6RouteKey) error {
 		if key.table != f.srv6TableID {
 			return errors.New("MPLS replacement requires the configured VPP table")
 		}
-		old, err := f.beginSRv6Fallback(c, key)
-		if err != nil {
+		var old *srv6Fallback
+		if err := f.beginSRv6Fallback(c, key, &old); err != nil {
 			return err
 		}
 		if err := f.finishSRv6Fallback(key, old, f.mplsBackend.addMPLSRoute(key.prefix, c.NextHop, c.Labels)); err != nil {
@@ -110,8 +110,8 @@ func (f *fibVPP) replaceSRv6WithIP(c *incomingChange, key srv6RouteKey) error {
 		delete(f.installed, key)
 		return nil
 	}
-	old, err := f.beginSRv6Fallback(c, key)
-	if err != nil {
+	var old *srv6Fallback
+	if err := f.beginSRv6Fallback(c, key, &old); err != nil {
 		return err
 	}
 	route := changeToRichRoute(c)
@@ -304,7 +304,7 @@ func newGovppSRv6Backend(ch api.Channel, tableID uint32, store srv6StateStore) *
 // addSRv6Steer MUST acquire a policy before installing a steering reference.
 // RFC 9252 Section 1: "The ingress PE encapsulates the payload in an outer IPv6
 // header where the destination address is the SRv6 Service SID provided by the
-// egress PE."
+// egress PE.".
 func (b *govppSRv6Backend) addSRv6Steer(prefix netip.Prefix, sid netip.Addr, tableID uint32) error {
 	if !prefix.IsValid() {
 		return errors.New("SRv6 steering requires a valid prefix")
@@ -431,7 +431,7 @@ func (b *govppSRv6Backend) steer(route *srv6Route, bsid netip.Addr, remove bool)
 
 // RFC 9252 Section 1: "The ingress PE encapsulates the payload in an outer IPv6
 // header where the destination address is the SRv6 Service SID provided by the
-// egress PE."
+// egress PE.".
 func (b *govppSRv6Backend) acquirePolicy(sid netip.Addr) (*srv6Policy, error) {
 	if policy := b.bySID[sid]; policy != nil {
 		live, err := b.dumpPolicies()

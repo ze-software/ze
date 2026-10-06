@@ -378,11 +378,18 @@ func buildPreferenceSubTLV(pref uint32) []byte {
 	return buf
 }
 
+// RFC 9830 Section 2.4.2: "The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt."
+// The zeroed buffer leaves Flags and RESERVED clear; no S/I behavior is requested.
+//
+// Byte offsets: 0       1        2       3         4..7
+//
+//	Type=13 Length=6 Flags=0 RESERVED=0 MPLS label entry
+//
+// Bits in bytes 4..7: | Label (20) | TC=0 (3) | S=0 (1) | TTL=0 (8) |.
 func buildBindingSIDSubTLV(label uint32) []byte {
 	buf := make([]byte, 8)
 	buf[0] = subTLVBindingSID
 	buf[1] = 6
-	buf[2] = 0x10
 	// RFC 9830 §2.4.2: MPLS label stack entry, S bit MUST be zero.
 	mplsEntry := label << 4
 	buf[4] = byte(mplsEntry >> 16)

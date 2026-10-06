@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 const extendedCaptureBase = "/tmp/extended"
@@ -29,9 +30,65 @@ type extendedRelayFrame struct {
 	Delivered string `json:"delivered,omitempty"`
 }
 
+type extendedRelayPeer struct {
+	peer        interoplab.PeerConfig
+	destination string
+}
+
+// prepareExtendedRelayPeers requires at least one relay. scenarioPeers MUST call
+// it before appending relays, and it MUST install configuration readiness first.
+// A listening BGP port is not readiness: FRR bgp_accept
+// closes a connection while BGP_PEER_START_SUPPRESSED holds. In FRR 10.3.1,
+// peer_unshut_after_cfg clears shut_during_cfg on bgp_config_end and queues
+// BGP_Start for all configured peers; bgp_start refuses suppressed peers.
+// Waiting for each daemon's last passive neighbor's Active state therefore follows
+// config-end, without consuming or replacing an evidence connection.
+// Sources: FRR bgpd/bgpd.c peer_unshut_after_cfg; bgpd/bgp_fsm.c bgp_start.
+func prepareExtendedRelayPeers(peers []interoplab.PeerConfig, relays []extendedRelayPeer, network interoplab.Network) ([]interoplab.PeerConfig, error) {
+	zeIndex := -1
+	for index := range peers {
+		if peers[index].Name == "ze" {
+			zeIndex = index
+		}
+	}
+	if zeIndex < 0 {
+		return nil, errors.New("extended relay requires a configured Ze peer")
+	}
+	command := zeCommand("show bgp peer list")
+	peers[zeIndex].Ready = &interoplab.ReadyProbe{
+		Command: command, Environment: queryEnvironment("ze", command),
+		Contains: make([]string, len(relays)), Timeout: 30 * time.Second, Interval: time.Second,
+	}
+	for index := range relays {
+		relay := relays[index]
+		neighbor := networkHostAddress(network, relay.peer.Host)
+		peers[zeIndex].Ready.Contains[index] = `"` + neighbor + `"`
+		nativeIndex := -1
+		for candidate := range peers {
+			if peers[candidate].Name == relay.destination {
+				nativeIndex = candidate
+				break
+			}
+		}
+		if nativeIndex < 0 {
+			return nil, fmt.Errorf("extended relay requires a configured %s peer", relay.destination)
+		}
+		peers[nativeIndex].Ready = &interoplab.ReadyProbe{
+			Command:  []string{cmdVtysh, "-c", "show bgp neighbor " + neighbor},
+			Contains: []string{"BGP neighbor is " + neighbor, "BGP state = Active (passive)"},
+			Timeout:  30 * time.Second, Interval: time.Second,
+		}
+	}
+	for index := range relays {
+		peers = append(peers, relays[index].peer)
+	}
+	return peers, nil
+}
+
 // runExtendedRelay keeps the fixture container queryable after a fatal session
-// ends. Its transport finishes first; the retained diagnostic and capture files
-// remain available until the configured deadline or Docker teardown.
+// ends. Its caller MUST pass the native configuration readiness barriers before
+// starting this process. Its transport finishes first; the retained diagnostic
+// and capture files remain available until the configured deadline or teardown.
 func runExtendedRelay(options speakerOptions) error {
 	ctx, cancel := context.WithTimeout(context.Background(), options.duration)
 	defer cancel()
@@ -48,11 +105,13 @@ func runExtendedRelay(options speakerOptions) error {
 	return resultErr
 }
 
-// runExtendedRelaySession owns exactly two socket workers for one session. It MUST
-// close both connections and join both workers before returning. Reconnects are
-// forbidden: a reset must not replace the session whose original OPEN was checked.
+// runExtendedRelaySession owns exactly two socket workers for one session. Its
+// caller MUST configure both native peers before starting it; scenarioPeers uses
+// prepareExtendedRelayPeers for that barrier. It MUST close both connections and
+// join both workers before returning. Reconnects are forbidden: a reset must not
+// replace the session whose original OPEN was checked.
 // RFC 8654 Section 3: "The BGP Extended Message Capability is a new BGP capability
-// [RFC5492] defined with Capability Code 6 and Capability Length 0."
+// [RFC5492] defined with Capability Code 6 and Capability Length 0".
 func runExtendedRelaySession(ctx context.Context, options speakerOptions) (resultErr error) {
 	frr, err := dialExtendedRelay(ctx, options.relayPeer)
 	if err != nil {
@@ -87,8 +146,9 @@ func runExtendedRelaySession(ctx context.Context, options speakerOptions) (resul
 	return errors.Join(first, second, stopErr)
 }
 
-// dialExtendedRelay waits only for container startup, bounded by the session
-// context. The harness starts the speaker sidecars before the FRR container.
+// dialExtendedRelay bounds initial connection failures by the session context.
+// Native configuration readiness MUST precede this dial; TCP success alone does
+// not prove that a daemon will admit BGP. A connected socket is never retried.
 func dialExtendedRelay(ctx context.Context, address string) (net.Conn, error) {
 	dialer := net.Dialer{Timeout: time.Second}
 	for ctx.Err() == nil {
@@ -107,7 +167,7 @@ func dialExtendedRelay(ctx context.Context, address string) (net.Conn, error) {
 // sockets and receive its result before returning. The 256-frame ceiling and
 // socket deadline bound disk use, loops and all blocking I/O.
 // RFC 8654 Section 2: "BGP Extended Messages have a maximum message size of
-// 65,535 octets."
+// 65,535 octets".
 func forwardExtendedRelay(target, source net.Conn, advertise bool, path string, results chan<- error) {
 	// RFC 8654 Sections 2-4: capture complete messages and change only OPEN code6.
 	results <- captureExtendedRelay(target, source, advertise, path)
@@ -115,9 +175,9 @@ func forwardExtendedRelay(target, source net.Conn, advertise bool, path string, 
 
 // captureExtendedRelay retains complete original frames after their writes.
 // RFC 8654 Section 4: "The BGP Extended Message Capability applies to all messages
-// except for OPEN and KEEPALIVE messages."
+// except for OPEN and KEEPALIVE messages.".
 func captureExtendedRelay(target io.Writer, source io.Reader, advertise bool, path string) (resultErr error) {
-	capture, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	capture, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // Path comes from the trusted fixture CLI --result, never from BGP bytes; exclusive creation prevents overwrite.
 	if err != nil {
 		return err
 	}

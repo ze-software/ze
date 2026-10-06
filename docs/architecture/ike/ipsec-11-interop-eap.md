@@ -339,7 +339,7 @@ packets per round. It is not an interop result and must not be reported as one.
 Record the real scenario runs separately from this regression; neither a run
 nor a full RFC conformance verdict follows from adding the tests.
 
-<!-- source: internal/component/ike/engine/eap_discard_admission_test.go -- TestEngineDiscardedEAPCodesPreserveExchange -->
+<!-- source: internal/component/ike/engine/rfc3748_eap_discard_admission_test.go -- TestEngineDiscardedEAPCodesPreserveExchange -->
 
 `eap-tls` runs against a STOCK strongSwan, which lands on TLS 1.2 and
 negotiates no RFC 7627 extended master secret. Ze cannot derive the RFC 5216

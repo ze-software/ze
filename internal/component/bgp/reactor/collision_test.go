@@ -15,20 +15,11 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
-// collisionAcceptWithReader handles net.Pipe's synchronous behavior by reading
-// from client while Accept writes.
+// collisionAcceptWithReader shares the pipe reader and session resource
+// ownership of acceptWithReader.
 func collisionAcceptWithReader(t *testing.T, session *Session, server, client net.Conn) {
 	t.Helper()
-	buf := make([]byte, 4096)
-	var wg sync.WaitGroup
-	wg.Go(func() {
-		_, _ = client.Read(buf)
-	})
-
-	err := session.Accept(server)
-	require.NoError(t, err)
-
-	wg.Wait()
+	acceptWithReader(t, session, server, client)
 }
 
 // setupOpenConfirmSession creates a session in OpenConfirm state for collision testing.
