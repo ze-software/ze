@@ -7,7 +7,7 @@
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BGP group before any row edit, parent R-11) |
 | Phase | 2/48 |
 | Handoff | - |
-| Updated | 2026-10-05 |
+| Updated | 2026-10-06 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -665,6 +665,33 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the BGP group.
    - Verify: `./le rfc check` reads no stale verdict in the owned stems
 47. **Phase: un-enrolled R-7 rows** - each row not under "Blocked by" resolved and re-judged by an agent that did not write the test, recorded in the R-7 table above with the date (AC-C7)
 48. **Phase: closure check** - the derived listing holds only "Blocked by" ids (AC-C1), each named in its blocking spec's acceptance criteria
+
+### Linux continuation, 2026-10-06
+
+The child and parent remain open. The checkpoint and rulings under
+`plan/handover/rfc-verdict-test-fix-pass/` still define scope and ownership.
+Completed Linux logs and the session state are preserved outside temporary
+storage in `/home/thomas/ze-recovery/bgp-20261005T230453160053Z/linux-evidence-20261006-resumed.tar.gz`.
+
+This table preserves the earlier pause checkpoint. Subsequent source and
+documentation landing, and the completed AIGP red, are recorded in
+`plan/spec-enum-switch-exhaustiveness.md` and its final-proof archive index.
+Pending runs and commit boundaries below describe that earlier checkpoint.
+
+| Work | Observed result | Next action |
+|------|-----------------|-------------|
+| Normalized OPEN capability values | Saved regressions failed before the producer fix; format/GR/RR race tests passed afterward. Independent review accepted the fix. Commit `a02ab8ba399f` passed all five committed-tree compilation flavors. | Preserve the evidence; the LLGR transition workflow also passed80 physical invocations. |
+| Initial-sync panic unwind | Bounded regressions exposed retained write and peer locks. The affected forwarding/initial-sync race run passed at count20. Native requests19–27 now record named reds instead of stalled teardown. Commit `847eb69d18ad` passed all five committed-tree compilation flavors. | Preserve the bounded red/green and native discrimination evidence. |
+| RR cached forwarding | Both VPN RR workflows passed. Commit `a18e18a6829c` landed the command repair; all five committed-tree compilation flavors passed. | Preserve this evidence; no repeat run owed for this unchanged repair. |
+| Forwarding workflows | Six required workflows passed across the recorded runs. The former ModCopy result was vacuous; independently reviewed replacement `852265267893` has exact two-recipient frames and passed all five compilation flavors. | The replacement workflow and its semantic controls remain unexecuted; do not claim the seventh workflow. |
+| LLGR physical acceptance | Disk-backed runs stopped at1,5,1 and33 completed invocations. The rebuilt memory-backed `llgr-transition` completed80 physical invocations with unchanged deadlines, MAY_ATTACH=0, parallel2, burners2 and any-failure. The wrapper stopped on stress's exit1, meaning "not reproduced", before the other three workflows. | Accept only the named transition80 result. The other three memory-backed80 runs remain owed at the requested pause. |
+| AIGP source cost | The loopback fixture's NEXT_HOP was rejected before AIGP. The container replacement's oracle units and independent review passed. Native execution exposed invalid connect placement, then no passive listener under local ip auto; the wire peer now has a concrete bind address. | Read the current native run after the listener fix. Exact107/withdrawal/111 and original controls must pass before claiming repair. Owner authorized retirement of the obsolete draft and fixture on2026-10-06. |
+| OSPF inter-AS oracle | Fresh positive FRR interop and oracle units passed. Commit `96f653df70` carries the independently reviewed oracle. The remote-ID mutation failed during durable boot initialization, before its semantic assertion. | Keep the mutation unproven. Shared interop documentation still needs a safe commit alongside externally owned hunks. |
+| Canonical RFC work | Corrected FlowSpec request15, requests19–27 and three MED records landed in `613020ee39`. AC-C3 corrections and four native-stamped first unimplemented judgments landed in `70644a181f`. The full RFC check reported241 violations; two cached summary-count complaints were addressed afterward. | Do not claim a green RFC gate. Pending rejudgments and quality corrections remain open; no absent feature was implemented. |
+
+Owner's pause boundary: finish the current AIGP carrier repair, commit all work
+authored in this session, update this plan and write a progress report, then pause.
+Do not start another repair lane. This is not spec closure or scope reduction.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

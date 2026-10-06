@@ -7,7 +7,7 @@
 | Depends | `spec-rfc-requirement-quote-hand-backfill` (closed 2026-09-27, `f265152e15`) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-10-06 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -76,6 +76,15 @@ closes on its own when its packages have no `weak` or `wrong` verdict.
 | 6 | access | L2TP, PPP, PPPoE, RADIUS, TACACS |
 | 7 | routing | IS-IS, RSVP-TE, LDP and the other routing packages |
 | 8 | services | DNS, TFTP, DHCP, flow export, MCP, config and YANG, the rest |
+
+Progress, 2026-10-06: the BGP child's Linux continuation records the verified
+chunks, outstanding evidence and owner-approved AIGP carrier replacement in
+`plan/pre-release/spec-rfc-verdict-fix-bgp.md`, "Linux continuation".
+The RR, initial-sync unwind, normalized OPEN, ModCopy carrier, OSPF oracle and
+authored RFC records/corrections are committed; evidence limits remain explicit.
+Neither child nor parent is closed. The owner requested a pause after the current
+AIGP repair, scoped commits and a progress report, without dropping remaining
+acceptance criteria.
 
 | Stays in the parent | Why |
 |---------------------|-----|
