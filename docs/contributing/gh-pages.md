@@ -55,6 +55,12 @@ external-link isolation, Markdown content and mirrors, shells and media,
 date ordering, draft and undated feed exclusions, and page ownership and cleanup.
 Do not refresh a prose snapshot to make a source edit pass.
 
+Check the painted page as well as its DOM text. The shared reveal animation
+starts on any viewport intersection: a long command reference cannot expose a
+fixed fraction of its total height. DOM text alone does not prove the section
+is visible.
+<!-- source: website/assets/js/site.js -->
+
 The corpus tests materialize all registered derived artifacts once per process.
 This setup requires the checkout's real Git history, including a resolvable
 `HEAD` for the roadmap; a source-only mount is not a substitute. A failed
