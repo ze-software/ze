@@ -1,5 +1,7 @@
 // Design: docs/architecture/traffic/fw-7b-backend-hardening.md -- govppOps production adapter
 // Related: ops.go (vppOps interface), backend_linux.go (Apply/reconcile consumers)
+// Upstream: https://github.com/FDio/vpp/tree/v26.06/src/plugins/policer,
+// policer_api.c and policer_op.c; consumed through GoVPP v0.13.0 binapi/policer.
 
 //go:build linux
 
@@ -13,6 +15,7 @@ import (
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/policer"
+	"go.fd.io/govpp/binapi/policer_types"
 )
 
 // govppOps is the production adapter that implements vppOps on top of a
@@ -67,6 +70,55 @@ func (g *govppOps) dumpPolicers() ([]string, error) {
 		names = append(names, d.Name)
 	}
 	return names, nil
+}
+
+// policerRead checks index ownership and captures the live configuration in the
+// same indexed dump. Callers MUST retain it before updating for failure recovery.
+func (g *govppOps) policerRead(name string, index uint32) (policer.PolicerAddDel, bool, error) {
+	rctx := g.ch.SendMultiRequest(&policer.PolicerDumpV2{PolicerIndex: index})
+	var prior policer.PolicerAddDel
+	found := false
+	for {
+		d := &policer.PolicerDetails{}
+		last, err := rctx.ReceiveReply(d)
+		if err != nil {
+			return prior, false, fmt.Errorf("PolicerDumpV2: %w", err)
+		}
+		if last {
+			return prior, found, nil
+		}
+		if d.Name == name {
+			found = true
+			prior = policer.PolicerAddDel{
+				IsAdd: true, Name: name, Cir: d.Cir, Eir: d.Eir, Cb: d.Cb, Eb: d.Eb,
+				RateType: d.RateType, RoundType: d.RoundType, Type: d.Type,
+				ColorAware: d.ColorAware, ConformAction: d.ConformAction,
+				ExceedAction: d.ExceedAction, ViolateAction: d.ViolateAction,
+			}
+		}
+	}
+}
+
+// policerUpdate changes a previously confirmed policer without deleting its
+// live binding. The create API rejects duplicate names and is not an upsert.
+func (g *govppOps) policerUpdate(index uint32, p *policer.PolicerAddDel) error {
+	req := &policer.PolicerUpdate{
+		PolicerIndex: index,
+		Infos: policer_types.PolicerConfig{
+			Cir: p.Cir, Eir: p.Eir, Cb: p.Cb, Eb: p.Eb,
+			RateType: p.RateType, RoundType: p.RoundType, Type: p.Type,
+			ColorAware: p.ColorAware, ConformAction: p.ConformAction,
+			ExceedAction: p.ExceedAction, ViolateAction: p.ViolateAction,
+		},
+	}
+	reply := &policer.PolicerUpdateReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("PolicerUpdate: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("PolicerUpdate: %w", apiErr)
+	}
+	return nil
 }
 
 // policerAddDel wraps PolicerAddDel with retval checking. Retval != 0 is

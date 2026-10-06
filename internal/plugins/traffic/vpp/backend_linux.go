@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"go.fd.io/govpp/binapi/interface_types"
+	"go.fd.io/govpp/binapi/policer"
 
 	"github.com/ze-software/ze/internal/component/traffic"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
@@ -30,11 +31,9 @@ const waitConnectorPoll = 50 * time.Millisecond
 
 // backend implements traffic.Backend on top of VPP's binary API.
 //
-// Current scope: HTB and TBF qdiscs with EXACTLY ONE class, translated
-// to a single VPP policer bound to interface egress via PolicerOutput.
-// The verifier (see verify.go) rejects multi-class configs, every
-// filter type, and every other qdisc type, so Apply only sees
-// single-class HTB/TBF configs.
+// HTB and TBF classes bind either to interface output or, with steering
+// filters, to the policer-classify pipeline. The verifier rejects unsupported
+// qdiscs and ambiguous multi-class steering.
 //
 // Apply acquires a fresh api.Channel per call (spec Decision 3) and
 // tears it down before returning; no channel is held across calls.
@@ -81,10 +80,10 @@ func newBackend() (traffic.Backend, error) {
 	}, nil
 }
 
-// Apply reconciles VPP's policer state to match the desired InterfaceQoS
-// for each named interface. On error, any VPP state this call programmed
-// is undone via the undo list, leaving VPP in its pre-Apply state so the
-// component's journal rollback can re-apply the previous desired cleanly.
+// Apply reconciles VPP's policer state to match desired InterfaceQoS.
+// On an apply error, the backend MUST undo new resources and restore read-back
+// configurations of updated policers. Recovery failures are returned alongside
+// the apply failure. Startup cleanup remains outside this transaction.
 //
 // ctx is propagated from the traffic component's plugin lifecycle. A canceled
 // ctx short-circuits WaitConnected so a daemon shutdown is not blocked for the
@@ -155,21 +154,22 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 	if err != nil {
 		return fmt.Errorf("traffic-vpp: %w", err)
 	}
-	if err := b.cleanupStartupOrphans(ops, nameIndex, desired); err != nil {
+	if err := b.cleanupStartupOrphans(ops, nameIndex); err != nil {
 		return fmt.Errorf("traffic-vpp: %w", err)
 	}
 
 	newOutputPolicers := make(map[string]map[string]uint32)
 	newQdiscTypes := make(map[string]traffic.QdiscType, len(desired))
 	newClassifyBindings := make(map[string]classifyBinding)
-	var undo []func()
+	var undo []func() error
 	applyErr := b.applyAll(ops, nameIndex, desired, newOutputPolicers, newQdiscTypes, newClassifyBindings, &undo)
 	if applyErr != nil {
-		// Undo what this Apply programmed so VPP returns to its pre-Apply
-		// state before the component's journal rollback re-applies the
-		// previous desired.
+		// The component journal records undo only after Apply succeeds.
+		// This backend MUST recover its own partially applied changes.
 		for _, rollback := range slices.Backward(undo) {
-			rollback()
+			if err := rollback(); err != nil {
+				applyErr = errors.Join(applyErr, fmt.Errorf("rollback: %w", err))
+			}
 		}
 		return fmt.Errorf("traffic-vpp: %w", applyErr)
 	}
@@ -188,65 +188,52 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 	return nil
 }
 
-// cleanupStartupOrphans runs only when this Ze process has no in-memory VPP
-// policer tracker yet. It removes old Ze-named policers that are present in
-// VPP but absent from the desired config, so daemon restart does not leave
-// stale traffic policing behind. Desired Ze policers are unbound, kept, and
-// then rebound by applyAll; foreign policers are ignored.
+// cleanupStartupOrphans reconciles names left by a previous Ze process.
+// PolicerDetails has no index, even for PolicerDumpV2. Delete confirmed owned
+// names before recreating desired policers to recover their real indices:
+// PolicerAddDel is create/delete, NOT upsert. This introduces an unpoliced
+// startup interval and occurs before the apply undo list.
 //
-// Classify tables (protocol filters) are NOT reclaimed here: VPP classify
-// tables are anonymous (no Ze-owned name to match on), so a table left by a
-// previous process cannot be identified at startup. An unbound classify table
-// polices nothing (the policer-classify feature is re-pointed at the fresh
-// tables applyAll creates), so a leak is inert memory, reclaimed only by a VPP
-// restart. In-process reconcile (reconcileClassifyRemovals) does delete tables
-// by their tracked indices. This gap is documented in the spec's Known
-// Limitations.
+// Classify tables are anonymous and are not reclaimed here. A desired
+// classification replaces the old chain heads, but removing classification
+// across Ze restart cannot recover those old bindings from named policers.
+// Same-process reconcile still owns its tracked tables. See the limitation in
+// docs/architecture/traffic/followup-vpp-traffic.md.
+//
+// The encoded interface is exclusively managed by Ze. VPP 26.06 unbind clears
+// its output slot regardless of which policer a concurrent writer put there.
+// Unrelated names and unrelated interfaces are not touched.
 //
 // Called with b.mu held.
 func (b *backend) cleanupStartupOrphans(
 	ops vppOps,
 	nameIndex map[string]interface_types.InterfaceIndex,
-	desired map[string]traffic.InterfaceQoS,
 ) error {
 	if len(b.interfaceOutputPolicers) != 0 {
+		return nil
+	}
+	if len(b.interfaceClassifyBindings) != 0 {
 		return nil
 	}
 	existing, err := ops.dumpPolicers()
 	if err != nil {
 		return fmt.Errorf("dump policers: %w", err)
 	}
-	desiredNames := desiredPolicerNames(desired)
 	for _, name := range existing {
-		if !strings.HasPrefix(name, policerNamePrefix) {
+		ifaceName, owned := ifaceNameFromPolicerName(name)
+		if !owned {
 			continue
 		}
-		if ifaceName, ok := ifaceNameFromPolicerName(name); ok {
-			if swIfIndex, present := nameIndex[ifaceName]; present {
-				if err := ops.policerOutput(name, swIfIndex, false); err != nil {
-					logger().Warn("traffic-vpp: unbind startup ze policer failed",
-						"policer", name, "iface", ifaceName, "err", err)
-				}
+		if swIfIndex, present := nameIndex[ifaceName]; present {
+			if err := ops.policerOutput(name, swIfIndex, false); err != nil {
+				return fmt.Errorf("unbind startup policer %q: %w", name, err)
 			}
 		}
-		if desiredNames[name] {
-			continue
-		}
 		if err := ops.policerDeleteByName(name); err != nil {
-			return fmt.Errorf("delete startup orphan policer %q: %w", name, err)
+			return fmt.Errorf("delete startup policer %q: %w", name, err)
 		}
 	}
 	return nil
-}
-
-func desiredPolicerNames(desired map[string]traffic.InterfaceQoS) map[string]bool {
-	names := make(map[string]bool)
-	for ifaceName, qos := range desired {
-		for _, cls := range qos.Qdisc.Classes {
-			names[policerName(ifaceName, cls.Name)] = true
-		}
-	}
-	return names
 }
 
 func ifaceNameFromPolicerName(name string) (string, bool) {
@@ -254,10 +241,14 @@ func ifaceNameFromPolicerName(name string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	ifaceName, _, ok := strings.Cut(rest, "/")
-	if !ok || ifaceName == "" {
+	separator := strings.LastIndexByte(rest, '/')
+	if separator <= 0 {
 		return "", false
 	}
+	if separator == len(rest)-1 {
+		return "", false
+	}
+	ifaceName := rest[:separator]
 	return ifaceName, true
 }
 
@@ -275,7 +266,7 @@ func (b *backend) applyAll(
 	newOutputPolicers map[string]map[string]uint32,
 	newQdiscTypes map[string]traffic.QdiscType,
 	newClassifyBindings map[string]classifyBinding,
-	undo *[]func(),
+	undo *[]func() error,
 ) error {
 	for ifaceName, qos := range desired {
 		swIfIndex, ok := nameIndex[ifaceName]
@@ -289,15 +280,9 @@ func (b *backend) applyAll(
 	return nil
 }
 
-// applyInterface programs one interface's policers. Distinguishes CREATE
-// (name not in prior state) from UPDATE (name already tracked by a
-// previous Apply) to avoid undoing previously-working state:
-//
-//  1. Undo closures on UPDATE would tear down previously-working state
-//     if a later class/interface fails. The component's journal rollback
-//     would re-apply eventually, but in the window between undo and
-//     rollback the operator's traffic goes unshaped. Undo is queued
-//     only for CREATE operations.
+// applyInterface programs one interface's policers. CREATE undo deletes new
+// resources; UPDATE undo restores the actual read-back configuration in place,
+// without deleting an existing owned policer.
 //
 // UPDATE still replays `PolicerOutput(apply=true)`: VPP-side events can
 // remove the output binding while leaving Ze's in-memory tracker intact.
@@ -313,7 +298,7 @@ func (b *backend) applyInterface(
 	newOutputPolicers map[string]map[string]uint32,
 	newQdiscTypes map[string]traffic.QdiscType,
 	newClassifyBindings map[string]classifyBinding,
-	undo *[]func(),
+	undo *[]func() error,
 ) error {
 	// The verifier rejects an ingress policer. Fail loudly here too: a
 	// programmatic caller (the l2tp shaper) reaches Apply without passing
@@ -346,23 +331,45 @@ func (b *backend) applyInterface(
 
 	for _, cls := range qdisc.Classes {
 		name := policerName(ifaceName, cls.Name)
-		_, wasOutput := prevOutput[name]
+		policerIdx, wasOutput := prevOutput[name]
+		if !wasOutput {
+			policerIdx, _ = prevClassify[name]
+		}
 		_, wasClassify := prevClassify[name]
 		isUpdate := wasOutput || wasClassify
+		var prior policer.PolicerAddDel
+		if isUpdate {
+			var err error
+			prior, isUpdate, err = ops.policerRead(name, policerIdx)
+			if err != nil {
+				return fmt.Errorf("class %q: %w", cls.Name, err)
+			}
+		}
 
 		p, err := policerFromClass(cls, qdisc.Type)
 		if err != nil {
 			return fmt.Errorf("class %q: %w", cls.Name, err)
 		}
 		p.Name = name
-		policerIdx, err := ops.policerAddDel(&p)
+		if isUpdate {
+			err = ops.policerUpdate(policerIdx, &p)
+		} else {
+			policerIdx, err = ops.policerAddDel(&p)
+		}
 		if err != nil {
 			return fmt.Errorf("class %q: %w", cls.Name, err)
 		}
-		if !isUpdate {
+		if isUpdate {
+			*undo = append(*undo, func() error {
+				if err := ops.policerUpdate(policerIdx, &prior); err != nil {
+					return fmt.Errorf("restore policer %q: %w", name, err)
+				}
+				return nil
+			})
+		} else {
 			addedIdx := policerIdx
-			*undo = append(*undo, func() {
-				_ = ops.policerDel(addedIdx)
+			*undo = append(*undo, func() error {
+				return ops.policerDel(addedIdx)
 			})
 		}
 
@@ -384,10 +391,22 @@ func (b *backend) applyInterface(
 		if err := ops.policerOutput(name, swIfIndex, true); err != nil {
 			return fmt.Errorf("class %q: %w", cls.Name, err)
 		}
-		if !isUpdate {
+		needsOutputUndo := !wasOutput || !isUpdate
+		if needsOutputUndo {
 			boundName, boundIdx := name, swIfIndex
-			*undo = append(*undo, func() {
-				_ = ops.policerOutput(boundName, boundIdx, false)
+			var previousName string
+			// The verifier permits only one unfiltered class per interface.
+			// A renamed class replaces that output slot, not a second binding.
+			for oldName := range prevOutput {
+				if oldName != name {
+					previousName = oldName
+				}
+			}
+			*undo = append(*undo, func() error {
+				if previousName != "" {
+					return ops.policerOutput(previousName, boundIdx, true)
+				}
+				return ops.policerOutput(boundName, boundIdx, false)
 			})
 		}
 		thisOutputPolicers[name] = policerIdx
@@ -398,11 +417,24 @@ func (b *backend) applyInterface(
 	// bound to the interface policer-classify feature. The previous binding is
 	// torn down by reconcileClassifyRemovals.
 	if len(steerings) > 0 {
-		binding, err := applyInterfaceClassify(ops, swIfIndex, steerings, classifyPolicers, undo)
+		binding, err := applyInterfaceClassify(ops, swIfIndex, steerings, classifyPolicers, b.interfaceClassifyBindings[ifaceName], undo)
 		if err != nil {
 			return fmt.Errorf("interface %q classify: %w", ifaceName, err)
 		}
 		newClassifyBindings[ifaceName] = binding
+		// VPP updates retain attachments. Migration MUST remove the old
+		// output attachment without deleting the newly classified policer.
+		for name := range prevOutput {
+			if _, migrated := classifyPolicers[name]; !migrated {
+				continue
+			}
+			if err := ops.policerOutput(name, swIfIndex, false); err != nil {
+				return fmt.Errorf("unbind migrated policer %q: %w", name, err)
+			}
+			*undo = append(*undo, func() error {
+				return ops.policerOutput(name, swIfIndex, true)
+			})
+		}
 	}
 
 	newOutputPolicers[ifaceName] = thisOutputPolicers
@@ -425,14 +457,9 @@ func (b *backend) applyInterface(
 // backend's in-memory tracker gets cleared by the caller's
 // `b.interfaceOutputPolicers = newOutputPolicers` assignment).
 //
-// Apply-order transient: Apply programs the NEW state before calling
-// reconcileRemovals, so during the window between the new
-// `PolicerOutput(apply=true)` and the old class's unbind here, both
-// policers sit on VPP's output feature arc and run in series. For a
-// rename c1->c2 with different rates, traffic in this window sees
-// `min(old_rate, new_rate)`. The alternative order (reconcile first,
-// then apply) would open a NO-shaping window instead, which is worse
-// for burst control. Accepting the min-rate transient is deliberate.
+// VPP 26.06 has one output slot per interface, not a list of policers. This
+// cleanup runs after programming new state; output-to-classify migration has
+// already removed its obsolete output attachment in applyInterface.
 //
 // Called with b.mu held.
 func (b *backend) reconcileRemovals(
@@ -456,7 +483,9 @@ func (b *backend) reconcileRemovals(
 			if _, migrated := newClassify[name]; migrated {
 				continue
 			}
-			if ifacePresent {
+			// A newly programmed output already replaced this interface's slot.
+			// Unbinding by the old name would remove the new binding as well.
+			if ifacePresent && len(newSet) == 0 {
 				if err := ops.policerOutput(name, swIfIndex, false); err != nil {
 					lg.Warn("traffic-vpp: unbind stale policer failed (treating as already gone)",
 						"policer", name, "iface", ifaceName, "err", err)

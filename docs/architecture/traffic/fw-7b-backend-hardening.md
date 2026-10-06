@@ -58,6 +58,21 @@ methods.
 with no connector and no channel lifecycle. `Apply` keeps the context, lock and
 connector preamble.
 
+The restart regression also drives `govppOps` through a stateful channel
+consumer. Its real generated `PolicerDetails` wire replies have no index,
+duplicate adds fail, and deleting a policer does not remove its output binding.
+This catches the create-as-upsert mistake that a call-recording fake accepts.
+The channel model covers the VPP 26.06 API contract, not live dataplane behavior.
+<!-- source: internal/plugins/traffic/vpp/restart_linux_test.go -- restartChannel, TestRestartReconcilesNameOnlyPolicerDump -->
+
+The same stateful consumer retains full policer configuration, output slots,
+classify tables, sessions and interface attachments. Failed-rebind and
+later-class regressions assert actual rate restoration from indexed readback,
+not just unchanged backend trackers. Protocol and DSCP migration regressions
+assert removal of the old output attachment and retention of the classified
+policer, plus recovery when the required unbind fails. A restore-failure case
+requires both apply and recovery errors to survive the backend error boundary.
+
 `newGovppOps` is the one place that builds the production adapter, and it
 installs the reply deadline on the channel before it returns. That placement is
 part of the seam contract, not an implementation detail of one call site. GoVPP
@@ -104,9 +119,9 @@ the import would buy coupling and no agreement.
 
 The bound is per ROUND TRIP, not per apply, and the difference is what an
 operator needs to know. One `Apply` issues a sequence of requests: the interface
-dump, the policer dump, then a policer add and an output bind for each class,
-plus the classify table, session and bind for each interface that steers. Each
-one gets its own deadline. On failure the undo list issues more. Against a VPP
+dump, the policer dump, then a policer create or confirmed-index update and an
+output bind for each class, plus classify operations for interfaces that steer.
+Each one gets its own deadline. On failure the undo list issues more. Against a VPP
 that accepts every request and answers none, `b.mu` is therefore held for
 roughly the request count times the deadline, which is minutes for a
 many-interface configuration rather than the 10 seconds the default reads like.

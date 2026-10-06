@@ -262,6 +262,16 @@ func (f *fakeOps) policerAddDel(req *policer.PolicerAddDel) (uint32, error) {
 	return f.nextIdx, nil
 }
 
+func (f *fakeOps) policerRead(name string, index uint32) (policer.PolicerAddDel, bool, error) {
+	f.calls = append(f.calls, fmt.Sprintf("exists:%s:idx=%d", name, index))
+	return policer.PolicerAddDel{Name: name, IsAdd: true}, true, nil
+}
+
+func (f *fakeOps) policerUpdate(index uint32, req *policer.PolicerAddDel) error {
+	f.calls = append(f.calls, fmt.Sprintf("update:%s:idx=%d", req.Name, index))
+	return f.addDelFailOn[req.Name]
+}
+
 func (f *fakeOps) policerDel(idx uint32) error {
 	f.calls = append(f.calls, fmt.Sprintf("del:%d", idx))
 	return f.delFailOn[idx]
@@ -735,9 +745,8 @@ func TestApplyCreatesPolicer(t *testing.T) {
 	}
 }
 
-// VALIDATES: startup orphan scan deletes ze-owned VPP policers that are absent
-// from the desired config, while preserving desired ze policers and foreign
-// policers.
+// VALIDATES: startup reconciliation deletes obsolete Ze policers, recreates
+// desired Ze policers to acquire their indices, and preserves foreign policers.
 // PREVENTS: old Ze process state continuing to police traffic after daemon restart.
 func TestStartupOrphanScanDeletesUndesiredZePolicers(t *testing.T) {
 	b := newOpsBackend()
@@ -758,6 +767,7 @@ func TestStartupOrphanScanDeletesUndesiredZePolicers(t *testing.T) {
 		"output:ze/eth0/old:off:idx=5",
 		"deleteByName:ze/eth0/old",
 		"output:ze/eth0/c1:off:idx=5",
+		"deleteByName:ze/eth0/c1",
 		"addDel:ze/eth0/c1",
 		"output:ze/eth0/c1:on:idx=5",
 	}
@@ -786,7 +796,7 @@ func TestApplyUpdatesPolicer(t *testing.T) {
 		t.Fatalf("second apply: %v", err)
 	}
 
-	want := []string{"dump", "addDel:ze/eth0/c1", "output:ze/eth0/c1:on:idx=5"}
+	want := []string{"dump", "exists:ze/eth0/c1:idx=1", "update:ze/eth0/c1:idx=1", "output:ze/eth0/c1:on:idx=5"}
 	if got := fake2.calls; !equalSlices(got, want) {
 		t.Fatalf("second-apply calls = %v, want %v", got, want)
 	}
@@ -794,8 +804,8 @@ func TestApplyUpdatesPolicer(t *testing.T) {
 
 // VALIDATES: UPDATE rebind failure returns an error without queueing CREATE-style
 // delete/unbind undo for an existing policer.
-// PREVENTS: a failed same-process rebind tearing down previously-working traffic
-// shaping before the component journal can retry the previous desired state.
+// PREVENTS: a failed same-process rebind deleting previously-working traffic
+// shaping while the backend restores the prior policer configuration.
 func TestApplyUpdateRebindFailureDoesNotUndoExistingPolicer(t *testing.T) {
 	b := newOpsBackend()
 	desired := eth0OneClassHTB()
@@ -815,7 +825,7 @@ func TestApplyUpdateRebindFailureDoesNotUndoExistingPolicer(t *testing.T) {
 		t.Fatalf("second apply returned nil, want rebind error")
 	}
 
-	want := []string{"dump", "addDel:ze/eth0/c1", "output:ze/eth0/c1:on:idx=5"}
+	want := []string{"dump", "exists:ze/eth0/c1:idx=1", "update:ze/eth0/c1:idx=1", "output:ze/eth0/c1:on:idx=5", "update:ze/eth0/c1:idx=1"}
 	if got := fake2.calls; !equalSlices(got, want) {
 		t.Fatalf("second-apply calls = %v, want %v", got, want)
 	}
@@ -1008,4 +1018,47 @@ func equalSlices(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// TestClassifyReapplyUsesConfirmedPolicers retains the existing class indices
+// while replacing both family chains. It checks every new session's target
+// rather than accepting a successful fake update alone.
+func TestClassifyReapplyUsesConfirmedPolicers(t *testing.T) {
+	b := newOpsBackend()
+	first := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	if err := applyWithOpsLocked(b, first, twoClassProtoHTB()); err != nil {
+		t.Fatal(err)
+	}
+	prior := maps.Clone(b.interfaceClassifyBindings["eth0"].policers)
+	second := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	second.nextTableIdx = 10
+	if err := applyWithOpsLocked(b, second, twoClassProtoHTB()); err != nil {
+		t.Fatal(err)
+	}
+	if !maps.Equal(prior, b.interfaceClassifyBindings["eth0"].policers) {
+		t.Fatalf("classify policer indices changed: prior=%v live=%v", prior, b.interfaceClassifyBindings["eth0"].policers)
+	}
+	if second.countPrefix("addDel:") != 0 || second.countPrefix("update:") != 2 {
+		t.Fatalf("classify reapply did not update existing policers: %v", second.calls)
+	}
+	for name, idx := range prior {
+		if second.countPrefix(fmt.Sprintf("exists:%s:idx=%d", name, idx)) != 1 {
+			t.Fatalf("index for %q was not confirmed: %v", name, second.calls)
+		}
+		hits := 0
+		for _, call := range second.calls {
+			if strings.HasPrefix(call, "clSession:add:") && strings.Contains(call, fmt.Sprintf(":hit=%d:", idx)) {
+				hits++
+			}
+		}
+		if hits != 2 {
+			t.Fatalf("policer %q has %d new family sessions, want 2: %v", name, hits, second.calls)
+		}
+	}
+	if second.countPrefix("clTable:del:") != 2 || second.countPrefix("polClassify:on:") != 1 {
+		t.Fatalf("old chains were not replaced: %v", second.calls)
+	}
+	if second.countPrefix("del:") != 0 || second.countPrefix("output:") != 0 {
+		t.Fatalf("classify update deleted a live policer or changed output: %v", second.calls)
+	}
 }

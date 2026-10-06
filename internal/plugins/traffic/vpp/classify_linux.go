@@ -87,7 +87,8 @@ func applyInterfaceClassify(
 	swIfIndex interface_types.InterfaceIndex,
 	steerings []classifySteer,
 	policers map[string]uint32,
-	undo *[]func(),
+	previous classifyBinding,
+	undo *[]func() error,
 ) (classifyBinding, error) {
 	binding := classifyBinding{policers: policers}
 
@@ -108,8 +109,12 @@ func applyInterfaceClassify(
 		return classifyBinding{}, fmt.Errorf("policer classify bind: %w", err)
 	}
 	boundIf := swIfIndex
-	*undo = append(*undo, func() {
-		_ = ops.policerClassifySetInterface(boundIf, head4, head6, false)
+	*undo = append(*undo, func() error {
+		hadPreviousBinding := len(previous.ip4Tables) != 0 || len(previous.ip6Tables) != 0
+		if hadPreviousBinding {
+			return ops.policerClassifySetInterface(boundIf, headOrNoTable(previous.ip4Tables), headOrNoTable(previous.ip6Tables), true)
+		}
+		return ops.policerClassifySetInterface(boundIf, head4, head6, false)
 	})
 
 	return binding, nil
@@ -143,7 +148,7 @@ func buildFamilyChain(
 	ops vppOps,
 	fam classifyFamily,
 	steerings []classifySteer,
-	undo *[]func(),
+	undo *[]func() error,
 ) ([]uint32, error) {
 	groups := groupSteeringsByMask(fam, steerings)
 	if len(groups) == 0 {
@@ -158,11 +163,9 @@ func buildFamilyChain(
 			return nil, fmt.Errorf("classify table (%s): %w", familyName(fam), err)
 		}
 		created := tableIdx
-		*undo = append(*undo, func() {
-			if _, derr := ops.classifyAddDelTable(created, nil, classifySkipVectors, noTable, false); derr != nil {
-				logger().Warn("traffic-vpp: undo classify table delete failed",
-					"table", created, "err", derr)
-			}
+		*undo = append(*undo, func() error {
+			_, err := ops.classifyAddDelTable(created, nil, classifySkipVectors, noTable, false)
+			return err
 		})
 		for j, match := range g.matches {
 			if err := ops.classifyAddDelSession(tableIdx, g.policers[j], match, true); err != nil {

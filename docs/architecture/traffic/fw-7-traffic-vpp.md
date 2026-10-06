@@ -87,17 +87,64 @@ with the full new state. The backend tracks which policer names it bound to whic
 interface, so it can diff and remove what the new state no longer references.
 Neither layer duplicates the other's state.
 
-Each `Apply` opens and closes its own GoVPP channel. The backend struct holds
-only a `*vpp.Connector` accessor. This matches fibvpp's per-call channel pattern
-and has no pool-draining risk.
+Each `Apply` opens and closes its own GoVPP channel. The backend holds the
+connector accessor and its last successful binding trackers, not a channel.
+This matches fibvpp's per-call channel pattern.
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- backend, Apply -->
+
+### A Ze restart with external VPP
+
+Startup discovers live policers through `PolicerDump`. Its `PolicerDetails`
+reply has a name and configuration but **no policer index**. `PolicerDumpV2`
+returns the same reply type, so switching dump versions does not supply one.
+The backend cannot adopt an index from dump order.
+<!-- source: internal/plugins/traffic/vpp/ops_linux.go -- dumpPolicers -->
+
+Before the first apply, Ze unbinds and deletes discovered names in its
+`ze/<interface>/<class>` namespace. This includes names still in the config:
+`PolicerAddDel(IsAdd=true)` creates, it does not update an existing name.
+The apply then recreates desired policers and records the returned indices.
+Foreign names are not deleted. An unbind or delete failure aborts startup
+rather than declaring cleanup successful.
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- cleanupStartupOrphans, applyInterface -->
+
+This retains the existing exclusive-interface ownership assumption: a Ze-owned
+name identifies an interface whose policing Ze manages. VPP 26.06's output
+unbind clears that interface's slot without checking which policer occupies it.
+Unrelated names and interfaces remain untouched, but another writer replacing
+policing on the same managed interface is not protected by this API.
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- cleanupStartupOrphans, ifaceNameFromPolicerName -->
+
+This reconciliation has an unpoliced interval between unbind and rebind.
+It is not index-preserving adoption or an atomic replacement. Startup cleanup
+precedes the apply undo list, so a later failure does not restore the removed
+startup objects. Same-process updates use `PolicerUpdate` after confirming that
+the cached index still names the intended policer.
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- applyWithOps, applyInterface -->
+
+The corrected daemon-restart proof exposed duplicate creation on pinned amd64
+VPP 26.06. The earlier v25.10 apply evidence did not prove real Ze replacement:
+stopping a `docker exec` client had left its daemon and VPP state alive.
+The source correction needs a fresh full `./le test deployment vpp-test` run.
+<!-- source: internal/le/test/deployment/vppevidencerun.go -- runTrafficInterface -->
 
 ### Undo list for a partial failure
 
-Every successful `PolicerAddDel`, `PolicerOutput`, `ClassifyAddDelSession` and
-`QosMarkEnableDisable` appends an undo closure to a per-Apply list. On any error
-before commit the undos run in reverse, so VPP is back to its pre-Apply state
-before the component's journal rollback re-applies the previous config. Without
-it, orphaned policers accumulate on a flaky apply path.
+New policers, output bindings, classify tables and sessions append undo closures
+to a per-Apply list. Before updating an existing policer, its indexed ownership
+readback also captures the actual live configuration. On failure, undo runs in
+reverse and restores that configuration in place, without deleting the existing
+policer. Prior tracked classify bindings and migrated or renamed output bindings
+are also restored. A successful output-class rename retains the new binding
+while deleting the old policer: VPP has one output slot per interface, so
+unbinding the old name would clear the replacement too. Every recovery error
+is returned alongside the original apply error; recovery is not an atomic
+dataplane transaction and may itself fail.
+
+Startup cleanup is outside this list. The component journal records its undo
+only after `Apply` succeeds, so it cannot recover a failed `Apply`; recovery
+belongs to the backend.
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- applyWithOps, applyInterface -->
 
 ### Tolerant reconcile after a VPP restart
 

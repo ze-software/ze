@@ -78,14 +78,32 @@ guard.
 
 The classify data model is per-interface, per-family table CHAINS with a
 name-to-index policer map. Reconcile deletes every table in the chain and every
-filtered policer the new state no longer keeps. The output-policer reconcile and
-the classify reconcile guard each other, so a policer migrating between output
-and classify is never deleted twice.
+filtered policer the new state no longer keeps. A migration from output to
+classify keeps the same policer object but explicitly removes its old output
+attachment: VPP 26.06 updates preserve attachments. Failure to unbind aborts the
+apply and triggers backend recovery of the prior configuration and tracked
+bindings. A later failure likewise restores an already removed output binding.
+Recovery errors are returned, not hidden. The two reconcile paths retain
+policers still referenced by the other path rather than deleting migrated objects.
 
 `policerName`, `policerNamePrefix` and `classSteers` live in the
 build-tag-free `translate.go`, so the verifier and the Linux backend share one
 definition. `policerName` uses `textbuf`, which the no-sprintf-alloc hook
 enforces even on the cold verify path.
+
+After a Ze restart, policer discovery returns names but no indices. Startup
+reconciliation therefore recreates named Ze policers before building new
+classify chains. Tracked same-process policers use `PolicerUpdate`, with a
+name check at the cached index first. See [startup reconciliation](fw-7-traffic-vpp.md#a-ze-restart-with-external-vpp)
+for the replacement interval and exclusive-interface ownership assumption.
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- cleanupStartupOrphans, applyInterface -->
+
+Anonymous tables from a previous Ze process are not swept. A desired classify
+configuration replaces its interface's old chain heads, but startup cannot
+recover the old table ownership from policer names. If the restarted config
+removes classification entirely, this path does not identify or unbind those
+old classify chains. This is an existing limitation, not a cleanup guarantee.
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- cleanupStartupOrphans -->
 
 ## Where a rejection comes from
 
@@ -99,4 +117,9 @@ verifier, through `RunVerifier` in `parseAndVerifyTrafficSections` under
 <!-- source: internal/le/test/deployment/actions.go -- Answer -->
 
 Real-VPP evidence is the authoritative apply-tier validation, because the stub
-cannot run a full traffic Apply. Both evidence phases are green on VPP v25.10.
+cannot run a full traffic Apply. The earlier apply evidence was recorded on VPP
+v25.10. It does not establish same-config Ze restart reconciliation on VPP 26.06:
+the corrected daemon-restart proof exposed duplicate policer creation there.
+The source repair requires a fresh full native deployment run before a new
+restart claim.
+<!-- source: internal/le/test/deployment/vppevidencerun.go -- runTrafficInterface, runTrafficClassify -->

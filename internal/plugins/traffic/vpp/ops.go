@@ -18,12 +18,14 @@ import (
 // path uses the `govppOps` adapter in `ops_linux.go`, which is built by
 // `newGovppOps` in `timeout_linux.go` so the reply deadline is always bound.
 //
-// Only six operations live here because only six are used:
+// The policer operations distinguish creation from updates:
 //   - dumpInterfaces: SwInterfaceDump -> name->swIfIndex map
-//   - dumpPolicers:   PolicerDump -> policer names
-//   - policerAddDel:  PolicerAddDel upsert, returns VPP-assigned index
+//   - dumpPolicers:   PolicerDump -> names (the reply has no index)
+//   - policerRead:    PolicerDumpV2 at one index -> name-checked configuration
+//   - policerAddDel:  PolicerAddDel create, returns VPP-assigned index
+//   - policerUpdate:  PolicerUpdate at a confirmed index
 //   - policerDel:     PolicerDel(PolicerIndex)
-//   - deleteByName:    PolicerAddDel(IsAdd=false, Name) for startup cleanup
+//   - deleteByName:   PolicerAddDel(IsAdd=false, Name) for startup cleanup
 //   - policerOutput:  PolicerOutput(Name, SwIfIndex, Apply=true|false)
 //
 // Extending the interface is cheap: add a method, implement on the
@@ -39,6 +41,8 @@ import (
 type vppOps interface {
 	dumpInterfaces() (map[string]interface_types.InterfaceIndex, error)
 	dumpPolicers() ([]string, error)
+	policerRead(name string, index uint32) (policer.PolicerAddDel, bool, error)
+	policerUpdate(index uint32, req *policer.PolicerAddDel) error
 	policerAddDel(req *policer.PolicerAddDel) (uint32, error)
 	policerDel(index uint32) error
 	policerDeleteByName(name string) error
