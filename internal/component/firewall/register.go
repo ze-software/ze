@@ -39,6 +39,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 		Features:                "yang",
 		YANG:                    firewallyang.ZeFirewallConfYANG,
 		ConfigRoots:             []string{configRootFirewall},
+		StartAfter:              []string{"vpp"},
 		InProcessConfigVerifier: VerifyConfig,
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {

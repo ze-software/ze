@@ -39,31 +39,19 @@ type backend struct {
 	mu        sync.Mutex
 	connector func() *vppcomp.Connector
 
-	// aclIndexes maps "ze/<table>/<chain>" -> VPP ACL index.
+	// aclIndexes maps desired "ze/<table>/<chain>" tags to discovered or
+	// successfully created VPP indexes, including after a partial failure.
 	aclIndexes map[string]uint32
-
-	// ifaceACLs tracks which ACL indexes are bound per interface so
-	// reconciliation can rebuild the full ACL list when a chain changes.
-	// Each entry holds input ACLs then output ACLs, with nInput recording
-	// how many are input.
-	ifaceACLs map[interface_types.InterfaceIndex]ifaceACLBinding
 
 	// lastApplied holds the tables from the most recent successful Apply
 	// so ListTables can return them without querying VPP.
 	lastApplied []firewall.Table
 }
 
-// ifaceACLBinding holds the merged input+output ACL vector for one interface.
-type ifaceACLBinding struct {
-	input  []uint32
-	output []uint32
-}
-
 func newBackend() (firewall.Backend, error) {
 	return &backend{
 		connector:  vppcomp.GetActiveConnector,
 		aclIndexes: make(map[string]uint32),
-		ifaceACLs:  make(map[interface_types.InterfaceIndex]ifaceACLBinding),
 	}, nil
 }
 
@@ -135,32 +123,37 @@ func (b *backend) reconcileWithOps(ops vppOps, desired []firewall.Table) error {
 		return fmt.Errorf("firewall-vpp: %w", err)
 	}
 
-	if err := b.cleanupStartupOrphans(ops, desired); err != nil {
+	ownedACLs, err := b.discoverACLs(ops, desired)
+	if err != nil {
 		return fmt.Errorf("firewall-vpp: %w", err)
 	}
 
 	newACLIndexes := make(map[string]uint32)
-	var undo []func()
+	var undo []func() error
 
 	applyErr := b.applyAll(ops, desired, newACLIndexes, &undo)
 	if applyErr != nil {
 		for _, rollback := range slices.Backward(undo) {
-			rollback()
+			if err := rollback(); err != nil {
+				applyErr = errors.Join(applyErr, err)
+			}
 		}
 		return fmt.Errorf("firewall-vpp: %w", applyErr)
 	}
 
-	newIfaceACLs := make(map[interface_types.InterfaceIndex]ifaceACLBinding)
-	if err := b.bindAllACLs(ops, nameIndex, desired, newACLIndexes, newIfaceACLs); err != nil {
-		for _, rollback := range slices.Backward(undo) {
-			rollback()
-		}
+	for _, index := range newACLIndexes {
+		ownedACLs[index] = true
+	}
+	if err := bindAllACLs(ops, nameIndex, desired, newACLIndexes, ownedACLs); err != nil {
+		// An earlier interface write, or a timed-out write, may have bound
+		// a new ACL. MUST retain it until discovery and detachment succeed.
 		return fmt.Errorf("firewall-vpp: %w", err)
 	}
 
-	b.reconcileRemovals(ops, newACLIndexes)
+	if err := reconcileRemovals(ops, ownedACLs, newACLIndexes); err != nil {
+		return fmt.Errorf("firewall-vpp: %w", err)
+	}
 	b.aclIndexes = newACLIndexes
-	b.ifaceACLs = newIfaceACLs
 
 	if err := b.applyNATChains(ops, desired, nameIndex); err != nil {
 		return err
@@ -176,36 +169,38 @@ func (b *backend) reconcileWithOps(ops vppOps, desired []firewall.Table) error {
 	return nil
 }
 
-func (b *backend) cleanupStartupOrphans(ops vppOps, desired []firewall.Table) error {
-	if len(b.aclIndexes) != 0 {
-		return nil
-	}
+// discoverACLs refreshes ownership from VPP on every apply. Cached indexes can
+// have been reused by a foreign controller after a VPP restart. MUST discover
+// before updating or detaching; the returned set includes legacy duplicates.
+func (b *backend) discoverACLs(ops vppOps, desired []firewall.Table) (map[uint32]bool, error) {
 	existing, err := ops.aclDump()
 	if err != nil {
-		return fmt.Errorf("dump ACLs: %w", err)
+		return nil, fmt.Errorf("dump ACLs: %w", err)
 	}
 	desiredTags := desiredACLTags(desired)
+	indexes := make(map[string]uint32, len(desiredTags))
+	owned := make(map[uint32]bool)
 	for _, entry := range existing {
 		if !strings.HasPrefix(entry.Tag, aclTagPrefix) {
 			continue
 		}
-		if desiredTags[entry.Tag] {
+		owned[entry.Index] = true
+		if !desiredTags[entry.Tag] {
 			continue
 		}
-		if err := ops.aclDel(entry.Index); err != nil {
-			lg := logger()
-			lg.Warn("firewall-vpp: delete startup orphan ACL failed (treating as already gone)",
-				"tag", entry.Tag, "idx", entry.Index, "err", err)
+		if index, found := indexes[entry.Tag]; !found || entry.Index < index {
+			indexes[entry.Tag] = entry.Index
 		}
 	}
-	return nil
+	b.aclIndexes = indexes
+	return owned, nil
 }
 
 func desiredACLTags(desired []firewall.Table) map[string]bool {
 	tags := make(map[string]bool)
 	for i := range desired {
 		for j := range desired[i].Chains {
-			if desired[i].Chains[j].IsBase {
+			if desired[i].Chains[j].IsBase && desired[i].Chains[j].Type != firewall.ChainNAT {
 				tags[aclTag(desired[i].Name, desired[i].Chains[j].Name)] = true
 			}
 		}
@@ -217,7 +212,7 @@ func (b *backend) applyAll(
 	ops vppOps,
 	desired []firewall.Table,
 	newACLIndexes map[string]uint32,
-	undo *[]func(),
+	undo *[]func() error,
 ) error {
 	for i := range desired {
 		tbl := &desired[i]
@@ -250,11 +245,16 @@ func (b *backend) applyAll(
 				return fmt.Errorf("table %q chain %q: %w", tbl.Name, ch.Name, err)
 			}
 			newACLIndexes[tag] = aclIdx
+			b.aclIndexes[tag] = aclIdx
 
 			if !isUpdate {
 				capturedIdx := aclIdx
-				*undo = append(*undo, func() {
-					_ = ops.aclDel(capturedIdx)
+				*undo = append(*undo, func() error {
+					if err := ops.aclDel(capturedIdx); err != nil {
+						return fmt.Errorf("rollback ACL %q index %d: %w", tag, capturedIdx, err)
+					}
+					delete(b.aclIndexes, tag)
+					return nil
 				})
 			}
 		}
@@ -285,17 +285,14 @@ func hookIsInput(h firewall.ChainHook) bool {
 //
 // Base chains bind to ALL known interfaces in the direction determined
 // by the chain's hook point.
-func (b *backend) bindAllACLs(
+func bindAllACLs(
 	ops vppOps,
 	nameIndex map[string]interface_types.InterfaceIndex,
 	desired []firewall.Table,
 	aclIndexes map[string]uint32,
-	newIfaceACLs map[interface_types.InterfaceIndex]ifaceACLBinding,
+	ownedACLs map[uint32]bool,
 ) error {
-	zeACLSet := b.allZeACLIndexes(aclIndexes)
-
-	zeInput := make(map[interface_types.InterfaceIndex][]uint32)
-	zeOutput := make(map[interface_types.InterfaceIndex][]uint32)
+	var zeInput, zeOutput []uint32
 	for i := range desired {
 		tbl := &desired[i]
 		for j := range tbl.Chains {
@@ -308,72 +305,35 @@ func (b *backend) bindAllACLs(
 			if !ok {
 				continue
 			}
-			isInput := hookIsInput(ch.Hook)
-			for _, swIfIndex := range nameIndex {
-				if isInput {
-					zeInput[swIfIndex] = append(zeInput[swIfIndex], aclIdx)
-				} else {
-					zeOutput[swIfIndex] = append(zeOutput[swIfIndex], aclIdx)
-				}
+			if hookIsInput(ch.Hook) {
+				zeInput = append(zeInput, aclIdx)
+			} else {
+				zeOutput = append(zeOutput, aclIdx)
 			}
 		}
 	}
 
-	touched := make(map[interface_types.InterfaceIndex]bool)
-	for swIfIndex := range zeInput {
-		touched[swIfIndex] = true
-	}
-	for swIfIndex := range zeOutput {
-		touched[swIfIndex] = true
-	}
-	for swIfIndex := range b.ifaceACLs {
-		touched[swIfIndex] = true
-	}
-
-	for swIfIndex := range touched {
+	// Empty desired state still has to detach discovered startup orphans on
+	// every live interface; process-local binding history cannot supply this.
+	for _, swIfIndex := range nameIndex {
 		existing, err := ops.aclInterfaceListDump(swIfIndex)
 		if err != nil {
 			return fmt.Errorf("dump ACL list for interface %d: %w", swIfIndex, err)
 		}
 
-		foreignInput, foreignOutput := splitForeign(existing, zeACLSet)
-
-		mergedInput := make([]uint32, 0, len(foreignInput)+len(zeInput[swIfIndex]))
-		mergedInput = append(mergedInput, foreignInput...)
-		mergedInput = append(mergedInput, zeInput[swIfIndex]...)
-
-		mergedOutput := make([]uint32, 0, len(foreignOutput)+len(zeOutput[swIfIndex]))
-		mergedOutput = append(mergedOutput, foreignOutput...)
-		mergedOutput = append(mergedOutput, zeOutput[swIfIndex]...)
-
-		acls := make([]uint32, 0, len(mergedInput)+len(mergedOutput))
-		acls = append(acls, mergedInput...)
-		acls = append(acls, mergedOutput...)
-		nInput := uint8(len(mergedInput))
+		foreignInput, foreignOutput := splitForeign(existing, ownedACLs)
+		acls := make([]uint32, 0, len(foreignInput)+len(zeInput)+len(foreignOutput)+len(zeOutput))
+		acls = append(acls, foreignInput...)
+		acls = append(acls, zeInput...)
+		nInput := uint8(len(acls))
+		acls = append(acls, foreignOutput...)
+		acls = append(acls, zeOutput...)
 
 		if err := ops.aclInterfaceSetACLList(swIfIndex, nInput, acls); err != nil {
 			return fmt.Errorf("bind ACLs to interface %d: %w", swIfIndex, err)
 		}
-		newIfaceACLs[swIfIndex] = ifaceACLBinding{
-			input:  mergedInput,
-			output: mergedOutput,
-		}
 	}
 	return nil
-}
-
-// allZeACLIndexes returns the union of currently-tracked and
-// newly-created ze ACL indexes so splitForeign can identify which
-// indexes to strip from existing bindings.
-func (b *backend) allZeACLIndexes(newIndexes map[string]uint32) map[uint32]bool {
-	s := make(map[uint32]bool, len(b.aclIndexes)+len(newIndexes))
-	for _, idx := range b.aclIndexes {
-		s[idx] = true
-	}
-	for _, idx := range newIndexes {
-		s[idx] = true
-	}
-	return s
 }
 
 // splitForeign separates an interface's existing ACL list into
@@ -393,17 +353,18 @@ func splitForeign(existing ifaceACLList, zeACLs map[uint32]bool) (foreignInput, 
 	return foreignInput, foreignOutput
 }
 
-func (b *backend) reconcileRemovals(ops vppOps, newACLIndexes map[string]uint32) {
-	lg := logger()
-	for tag, idx := range b.aclIndexes {
-		if _, keep := newACLIndexes[tag]; keep {
-			continue
-		}
-		if err := ops.aclDel(idx); err != nil {
-			lg.Warn("firewall-vpp: delete stale ACL failed (treating as already gone)",
-				"tag", tag, "idx", idx, "err", err)
+// reconcileRemovals MUST run only after every live interface's read-merge-write
+// has detached the unwanted owned indexes. Desired ACLs remain in place.
+func reconcileRemovals(ops vppOps, ownedACLs map[uint32]bool, newACLIndexes map[string]uint32) error {
+	for _, index := range newACLIndexes {
+		delete(ownedACLs, index)
+	}
+	for index := range ownedACLs {
+		if err := ops.aclDel(index); err != nil {
+			return fmt.Errorf("delete detached ACL index %d: %w", index, err)
 		}
 	}
+	return nil
 }
 
 func (b *backend) ListTables() ([]firewall.Table, error) {

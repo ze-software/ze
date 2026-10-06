@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -22,6 +23,10 @@ type fakeOps struct {
 	ifaceLists      map[interface_types.InterfaceIndex]ifaceACLList
 	calls           []string
 	dumpErr         error
+	aclDumpErr      error
+	listFailOn      map[interface_types.InterfaceIndex]error
+	bindFailAt      int
+	bindAttempts    int
 	addFailOn       map[string]error
 	delFailOn       map[uint32]error
 	bindFailOn      map[interface_types.InterfaceIndex]error
@@ -35,6 +40,7 @@ func newFakeOps(ifaces map[string]interface_types.InterfaceIndex) *fakeOps {
 		ifaceLists:      make(map[interface_types.InterfaceIndex]ifaceACLList),
 		addFailOn:       map[string]error{},
 		delFailOn:       map[uint32]error{},
+		listFailOn:      map[interface_types.InterfaceIndex]error{},
 		bindFailOn:      map[interface_types.InterfaceIndex]error{},
 		natStaticFailOn: map[string]error{},
 	}
@@ -55,28 +61,72 @@ func (f *fakeOps) aclAddReplace(req *govppacl.ACLAddReplace) (uint32, error) {
 	if err, ok := f.addFailOn[req.Tag]; ok {
 		return 0, err
 	}
+	entry := aclDumpEntry{Index: req.ACLIndex, Tag: req.Tag, Rules: slices.Clone(req.R)}
+	if req.ACLIndex != ^uint32(0) {
+		for i := range f.existingACL {
+			if f.existingACL[i].Index == req.ACLIndex {
+				f.existingACL[i] = entry
+				return req.ACLIndex, nil
+			}
+		}
+		return 0, fmt.Errorf("replace nonexistent ACL %d", req.ACLIndex)
+	}
+	for _, existing := range f.existingACL {
+		if existing.Index > f.nextIdx {
+			f.nextIdx = existing.Index
+		}
+	}
 	f.nextIdx++
-	return f.nextIdx, nil
+	entry.Index = f.nextIdx
+	f.existingACL = append(f.existingACL, entry)
+	return entry.Index, nil
 }
 
 func (f *fakeOps) aclDel(aclIndex uint32) error {
 	f.calls = append(f.calls, fmt.Sprintf("del:%d", aclIndex))
-	return f.delFailOn[aclIndex]
+	if err := f.delFailOn[aclIndex]; err != nil {
+		return err
+	}
+	for _, binding := range f.ifaceLists {
+		if slices.Contains(binding.acls, aclIndex) {
+			return fmt.Errorf("ACL %d is still bound", aclIndex)
+		}
+	}
+	for i := range f.existingACL {
+		if f.existingACL[i].Index == aclIndex {
+			f.existingACL = slices.Delete(f.existingACL, i, i+1)
+			return nil
+		}
+	}
+	return fmt.Errorf("delete nonexistent ACL %d", aclIndex)
 }
 
 func (f *fakeOps) aclDump() ([]aclDumpEntry, error) {
 	f.calls = append(f.calls, "aclDump")
+	if f.aclDumpErr != nil {
+		return nil, f.aclDumpErr
+	}
 	return append([]aclDumpEntry(nil), f.existingACL...), nil
 }
 
 func (f *fakeOps) aclInterfaceListDump(swIfIndex interface_types.InterfaceIndex) (ifaceACLList, error) {
 	f.calls = append(f.calls, fmt.Sprintf("ifaceListDump:%d", swIfIndex))
-	return f.ifaceLists[swIfIndex], nil
+	binding := f.ifaceLists[swIfIndex]
+	binding.acls = slices.Clone(binding.acls)
+	return binding, f.listFailOn[swIfIndex]
 }
 
 func (f *fakeOps) aclInterfaceSetACLList(swIfIndex interface_types.InterfaceIndex, nInput uint8, acls []uint32) error {
 	f.calls = append(f.calls, fmt.Sprintf("bind:%d:nIn=%d:acls=%v", swIfIndex, nInput, acls))
-	return f.bindFailOn[swIfIndex]
+	f.bindAttempts++
+	if f.bindFailAt != 0 && f.bindAttempts == f.bindFailAt {
+		return fmt.Errorf("scripted partial bind failure")
+	}
+	if err := f.bindFailOn[swIfIndex]; err != nil {
+		return err
+	}
+	f.ifaceLists[swIfIndex] = ifaceACLList{nInput: nInput, acls: slices.Clone(acls)}
+	return nil
 }
 
 func (f *fakeOps) nat44Enable() error {
@@ -158,7 +208,6 @@ func (f *fakeOps) countPrefix(prefix string) int {
 func newOpsBackend() *backend {
 	return &backend{
 		aclIndexes: make(map[string]uint32),
-		ifaceACLs:  make(map[interface_types.InterfaceIndex]ifaceACLBinding),
 	}
 }
 
@@ -214,7 +263,8 @@ func TestApplyUpdatesACLInPlace(t *testing.T) {
 	}
 	firstIdx := b.aclIndexes["ze/wan/input"]
 
-	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake2 := fake1
+	fake2.calls = nil
 	if err := applyWithOpsLocked(b, fake2, oneChainTable()); err != nil {
 		t.Fatalf("second apply: %v", err)
 	}
@@ -225,7 +275,9 @@ func TestApplyUpdatesACLInPlace(t *testing.T) {
 	if fake2.countPrefix("del:") != 0 {
 		t.Errorf("update path should not delete, got %d del calls", fake2.countPrefix("del:"))
 	}
-	_ = firstIdx
+	if got := b.aclIndexes["ze/wan/input"]; got != firstIdx {
+		t.Errorf("update changed index: got %d, want %d", got, firstIdx)
+	}
 }
 
 func TestApplyUndoOnFailure(t *testing.T) {
@@ -251,6 +303,9 @@ func TestApplyUndoOnFailure(t *testing.T) {
 	if fake.countPrefix("del:") < 1 {
 		t.Errorf("undo should delete the successfully created ACL, got %d del calls", fake.countPrefix("del:"))
 	}
+	if len(fake.existingACL) != 0 || len(b.aclIndexes) != 0 {
+		t.Fatalf("successful undo retained owned state: %v / %v", fake.existingACL, b.aclIndexes)
+	}
 }
 
 func TestApplyReconcileRemovesStaleACLs(t *testing.T) {
@@ -273,7 +328,8 @@ func TestApplyReconcileRemovesStaleACLs(t *testing.T) {
 		t.Fatalf("want 2 ACL indexes after first apply, got %d", len(b.aclIndexes))
 	}
 
-	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake2 := fake1
+	fake2.calls = nil
 	if err := applyWithOpsLocked(b, fake2, oneChainTable()); err != nil {
 		t.Fatalf("second apply: %v", err)
 	}
@@ -396,7 +452,8 @@ func TestBindUnbindsPreviouslyBoundInterfaces(t *testing.T) {
 		t.Fatalf("first apply: %v", err)
 	}
 
-	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake2 := fake1
+	fake2.calls = nil
 	if err := applyWithOpsLocked(b, fake2, []firewall.Table{}); err != nil {
 		t.Fatalf("empty apply: %v", err)
 	}
@@ -467,6 +524,7 @@ func TestDesiredACLTags(t *testing.T) {
 		Chains: []firewall.Chain{
 			{Name: "input", IsBase: true},
 			{Name: "helper", IsBase: false},
+			{Name: "nat", IsBase: true, Type: firewall.ChainNAT},
 		},
 	}}
 	tags := desiredACLTags(tables)
@@ -475,6 +533,9 @@ func TestDesiredACLTags(t *testing.T) {
 	}
 	if tags["ze/wan/helper"] {
 		t.Error("non-base chain should not be in desired tags")
+	}
+	if tags["ze/wan/nat"] {
+		t.Error("NAT chain should not be in desired ACL tags")
 	}
 }
 
@@ -507,7 +568,7 @@ func TestApplyDumpInterfacesFailure(t *testing.T) {
 	}
 }
 
-func TestApplyBindFailureTriggersUndo(t *testing.T) {
+func TestApplyBindFailureRetainsOwnership(t *testing.T) {
 	b := newOpsBackend()
 	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
 	fake.bindFailOn[5] = fmt.Errorf("bind rejected")
@@ -516,12 +577,15 @@ func TestApplyBindFailureTriggersUndo(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when bind fails")
 	}
-	if fake.countPrefix("del:") < 1 {
-		t.Error("bind failure should trigger undo (delete created ACLs)")
+	if fake.countPrefix("del:") != 0 {
+		t.Error("a failed binding write must not delete a possibly bound ACL")
+	}
+	if len(fake.existingACL) != 1 || len(b.aclIndexes) != 1 {
+		t.Errorf("bind failure lost created ACL ownership: %v / %v", fake.existingACL, b.aclIndexes)
 	}
 }
 
-func TestReconcileRemovalsDeleteFailureContinues(t *testing.T) {
+func TestReconcileRemovalsDeleteFailurePropagates(t *testing.T) {
 	b := newOpsBackend()
 	fake1 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
 	twoChains := []firewall.Table{{
@@ -538,17 +602,18 @@ func TestReconcileRemovalsDeleteFailureContinues(t *testing.T) {
 		t.Fatalf("first apply: %v", err)
 	}
 
-	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake2 := fake1
+	fake2.calls = nil
 	for _, idx := range b.aclIndexes {
 		fake2.delFailOn[idx] = fmt.Errorf("delete failed")
 	}
 	err := applyWithOpsLocked(b, fake2, oneChainTable())
-	if err != nil {
-		t.Fatalf("reconcile delete failure should not fail Apply: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "delete failed") {
+		t.Fatalf("reconcile delete failure must fail Apply: %v", err)
 	}
 }
 
-func TestCleanupStartupOrphansDeleteFailureContinues(t *testing.T) {
+func TestCleanupStartupOrphansDeleteFailurePropagates(t *testing.T) {
 	b := newOpsBackend()
 	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
 	fake.existingACL = []aclDumpEntry{
@@ -557,8 +622,8 @@ func TestCleanupStartupOrphansDeleteFailureContinues(t *testing.T) {
 	fake.delFailOn[10] = fmt.Errorf("delete orphan failed")
 
 	err := applyWithOpsLocked(b, fake, oneChainTable())
-	if err != nil {
-		t.Fatalf("orphan delete failure should warn, not fail Apply: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "delete orphan failed") {
+		t.Fatalf("orphan delete failure must fail Apply: %v", err)
 	}
 	if fake.countPrefix("del:10") < 1 {
 		t.Error("should have attempted to delete orphan ACL 10")
@@ -610,7 +675,8 @@ func TestApplyUpdateUsesReplaceIndex(t *testing.T) {
 		t.Fatalf("want 1 ACL index, got %d", len(b.aclIndexes))
 	}
 
-	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake2 := fake1
+	fake2.calls = nil
 	if err := applyWithOpsLocked(b, fake2, oneChainTable()); err != nil {
 		t.Fatalf("second apply: %v", err)
 	}

@@ -565,7 +565,7 @@ func (v *VPP) runFirewall(container, work string) (VPPScenarioReport, error) {
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
-		checks = append(checks, failVPPCheck("applied", tbDetail("real VPP ACL with tag ", VPPFirewallACLTag, " not observed after apply"), text, seen))
+		checks = append(checks, failVPPCheck("applied", tbDetail("expected exactly one real VPP ACL with tag ", VPPFirewallACLTag, " after apply"), text, seen))
 		stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioFirewall, checks), nil
 	}
@@ -587,13 +587,18 @@ func (v *VPP) runFirewall(container, work string) (VPPScenarioReport, error) {
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
+	if !v.waitDaemonLine(seen, daemon, vppFirewallLine) {
+		checks = append(checks, failVPPCheck("restart", "firewall config apply log not observed after restart", "", seen))
+		stopVPPProcess(daemon, seen)
+		return finishVPPScenario(VPPScenarioFirewall, checks), nil
+	}
 	ok, text, err = v.awaitACL(container, true, vppApplyWait)
 	if err != nil {
 		stopVPPProcess(daemon, seen)
 		return VPPScenarioReport{}, err
 	}
 	if !ok {
-		checks = append(checks, failVPPCheck("restart", tbDetail("real VPP ACL ", VPPFirewallACLTag, " missing after ze restart with same config"), text, seen))
+		checks = append(checks, failVPPCheck("restart", tbDetail("expected exactly one real VPP ACL with tag ", VPPFirewallACLTag, " after ze restart with same config"), text, seen))
 		stopVPPProcess(daemon, seen)
 		return finishVPPScenario(VPPScenarioFirewall, checks), nil
 	}
@@ -622,7 +627,12 @@ func (v *VPP) runFirewall(container, work string) (VPPScenarioReport, error) {
 
 func (v *VPP) awaitACL(container string, want bool, timeout time.Duration) (bool, string, error) {
 	return v.awaitQuery(container, "show acl-plugin acl", want, timeout,
-		func(text string) bool { return strings.Contains(text, VPPFirewallACLTag) })
+		func(text string) bool {
+			if want {
+				return strings.Count(text, "tag {"+VPPFirewallACLTag+"}") == 1
+			}
+			return strings.Contains(text, VPPFirewallACLTag)
+		})
 }
 
 func vppACLBound(text string) bool {

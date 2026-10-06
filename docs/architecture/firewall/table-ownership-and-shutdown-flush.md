@@ -176,12 +176,15 @@ without the original drop. Both reconciles retain every other owner's desired ru
 <!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
 <!-- source: internal/component/firewall/registry.go -- RegisterTables, ApplyAll -->
 
-VPP has its own startup cleanup in `reconcileWithOps`: `cleanupStartupOrphans`
-deletes `ze/` ACL tags absent from the desired set, and logs and continues on a
-delete failure. The firewall engine's initial apply already reaches that path.
+VPP discovers actual owned ACL indexes on every `reconcileWithOps`, including
+the firewall engine's initial apply. `discoverACLs` adopts desired `ze/` ACLs
+for in-place updates. `bindAllACLs` removes stale and duplicate owned indexes
+from every live interface while preserving foreign input and output ACLs;
+`reconcileRemovals` then deletes only the detached objects. Discovery, binding
+and deletion failures fail the apply rather than declaring cleanup successful.
 The nft ownership explanation above does not establish that a VPP drop survives
 an incorrectly ordered ddos-local sweep.
-<!-- source: internal/plugins/firewall/vpp/backend_linux.go -- reconcileWithOps, cleanupStartupOrphans -->
+<!-- source: internal/plugins/firewall/vpp/backend_linux.go -- reconcileWithOps, discoverACLs, bindAllACLs, reconcileRemovals -->
 
 The FlowSpec bridge uses the same two-reconcile ownership claim at initial
 configuration, after its firewall dependency has configured the backend. It

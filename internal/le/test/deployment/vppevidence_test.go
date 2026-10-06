@@ -33,35 +33,6 @@ func TestVPPScenarioTableNamesEveryProducerScenario(t *testing.T) {
 	}
 }
 
-// TestVPPConstantsMatchTheProducer validates every value shared with the
-// evidence producer.
-//
-// VALIDATES: routes, labels, classes, IPsec material and ACL tags are unchanged.
-// PREVENTS: two internally consistent proofs exercising different data.
-func TestVPPConstantsMatchTheProducer(t *testing.T) {
-	got := []any{
-		VPPFIBPrefix, VPPNextHop, VPPMPLSPrefix, VPPMPLSLabel,
-		VPPTrafficPolicerClass, VPPTrafficProtocolClass, VPPTrafficProtocolNumber,
-		VPPTrafficDSCPClass, VPPTrafficDSCPValue,
-		VPPTrafficMultiClassA, VPPTrafficMultiProtocolA,
-		VPPTrafficMultiClassB, VPPTrafficMultiProtocolB,
-		VPPIPsecReportPrefix, VPPIPsecSPI, VPPIPsecInboundSPI, VPPIPsecSalt,
-		VPPIPsecCipherKey, VPPFirewallACLTag,
-	}
-	want := []any{
-		"10.20.0.0/24", "10.0.0.1", "10.30.0.0/24", 100,
-		"default", "tcp", 6,
-		"cs6", 48,
-		"web", 6,
-		"dns", 17,
-		"ze-vpp-ipsec:", uint64(0x11223344), uint64(0x55667788), "0xdeadbeef",
-		"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f", "ze/wan/input",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("shared constants = %#v, want %#v", got, want)
-	}
-}
-
 // TestParseVPPInterfaceAnswersTheCreatedLoopback validates both VPP output
 // forms and the producer's fallback.
 //

@@ -39,7 +39,7 @@ const (
 	VPPIPsecInboundSPI       uint64 = 0x55667788
 	VPPIPsecSalt                    = "0xdeadbeef"
 	VPPIPsecCipherKey               = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" //nolint:gosec // G101: a public fixed test vector
-	VPPFirewallACLTag               = "ze/wan/input"
+	VPPFirewallACLTag               = "ze/ze_wan/input"
 )
 
 const vppExternalConfig = `vpp {

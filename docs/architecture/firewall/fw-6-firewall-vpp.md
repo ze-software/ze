@@ -27,9 +27,31 @@ traffic component: `firewall.RegisterVerifier` and `RunVerifier` wired into
 `parseAndVerifyFirewallSections`. The YANG `ze:backend` gate handles the
 leaf-level annotation, and the verifier handles per-expression rejection.
 
+## Startup ordering
+
+The firewall declares `StartAfter: ["vpp"]`. When both components are selected,
+VPP completes its startup tier before firewall configuration applies ACLs.
+The VPP manager starts from `OnStarted`; putting both components in one tier
+would make firewall configuration wait for a connection whose manager cannot
+start until that configuration returns.
+
+This ordering does not load VPP for an nft-only configuration. Connection
+failure still refuses the VPP firewall apply; no timeout or readiness check is
+relaxed.
+<!-- source: internal/component/firewall/register.go -- init -->
+<!-- source: internal/component/vpp/register.go -- runVPPEngine -->
+
 ## Read-merge-write ACL bindings
 
 <!-- source: internal/plugins/firewall/vpp/backend_linux.go -- ACL binding merge, orphan cleanup -->
+
+The configuration parser prefixes table names with `ze_` before handing them
+to a backend. VPP then builds its ACL tag as `ze/<table>/<chain>`: configuration
+table `wan`, chain `input`, produces `ze/ze_wan/input`. Native readback checks
+use that normalized identity for installation, restart and orphan removal.
+<!-- source: internal/component/firewall/config.go -- parseTable -->
+<!-- source: internal/plugins/firewall/vpp/verify.go -- aclTag -->
+<!-- source: internal/le/test/deployment/vppevidencescenarios.go -- VPPFirewallACLTag -->
 
 `ACLInterfaceSetACLList` REPLACES the entire ACL vector on an interface. The
 backend therefore reads the existing bindings with `ACLInterfaceListDump`, strips
@@ -40,11 +62,38 @@ Input and output ACLs go in ONE vector with `nInput` marking the boundary.
 Separate per-direction calls overwrite each other. The first implementation made
 that mistake and review caught it.
 
-## Startup orphan cleanup skips the desired set
+The API's one-octet count represents at most 255 ACL indexes. The merge currently
+lacks an oversized-vector refusal, so preservation above that limit is not
+established; the pre-existing narrowing defect is recorded in
+[`bound-wraps-before-it-refuses`](../../../plan/journal/bound-wraps-before-it-refuses.md).
 
-The first implementation deleted every ze-tagged ACL, including the ones about to
-be recreated, which opened a window with no firewall protection. Cleanup builds a
-`desiredACLTags` set and skips a match.
+## Startup adoption and orphan cleanup
+
+Every reconciliation discovers the live ACL tags and their actual VPP indexes.
+For each desired owned tag, the backend adopts the lowest existing index and
+updates that ACL in place. A same-configuration daemon restart therefore preserves
+the ACL identity instead of creating another ACL with the same tag.
+
+The complete discovered owned-index set includes stale tags and legacy duplicate
+indexes. The backend reads every live interface's ACL vector, removes those
+owned indexes, and merges the desired input and output ACLs in one write.
+Foreign ACL order and the input/output boundary are preserved. Only after all
+interface writes succeed does it delete detached stale and duplicate ACLs.
+This also runs for an empty desired configuration after a daemon restart.
+
+Discovery, binding and deletion failures fail the apply rather than reporting
+successful cleanup. An ACL created before an ACL-programming failure is removed
+if rollback succeeds; rollback errors remain visible. After a binding failure,
+created ACLs remain owned because an earlier interface write may have attached
+them; a failed or timed-out write does not prove that VPP left the interface
+unchanged. Reconciliation is not an atomic transaction: earlier rule replacements
+and interface writes may remain after an error. The next reconciliation
+rediscovers live state rather than trusting a successful-apply cache. Desired
+ACLs are never deleted and recreated merely to recover their identity.
+
+Native readback requires exactly one occurrence of the owned tag after install
+and after the restarted daemon reports its configuration applied. Cleanup still
+requires the tag to be absent.
 
 ## Traps
 
