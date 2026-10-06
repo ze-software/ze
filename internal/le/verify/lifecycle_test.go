@@ -122,7 +122,7 @@ func TestWorktreeIsDetachedThenRemovedAndPruned(t *testing.T) {
 }
 
 func TestBranchPostconditionRefusesAnAttachedWorktree(t *testing.T) {
-	root := t.TempDir()
+	root := newFixtureRepo(t).root
 	sha := strings.Repeat("a", 40)
 	calls := 0
 	fakeGit := func(_ context.Context, _ time.Duration, dir string, args ...string) (commandResult, error) {
@@ -389,7 +389,7 @@ func leactionArguments(key, value string) leaction.Arguments {
 // materialize, walk, or delete a worktree get the worktree bound, and every
 // metadata call keeps the short one.
 func TestGitBoundsSeparateAWholeCheckoutFromARefRead(t *testing.T) {
-	root := t.TempDir()
+	root := newFixtureRepo(t).root
 	sha := strings.Repeat("a", 40)
 	abandoned := filepath.Join(root, "tmp", "verify-worktree", "20260101T000000Z-deadbeef1234")
 	if err := os.MkdirAll(abandoned, 0o750); err != nil {
@@ -467,7 +467,7 @@ func TestRunGitSeparatesADeadlineFromARefusal(t *testing.T) {
 // verify stopped waiting rather than blame git, which reported no refusal, and
 // the worktree git left on disk must be gone when the run returns.
 func TestATimedOutAddIsNamedAsSuchAndReclaimsTheWorktree(t *testing.T) {
-	root := t.TempDir()
+	root := newFixtureRepo(t).root
 	sha := strings.Repeat("b", 40)
 	removals := 0
 	fakeGit := func(_ context.Context, _ time.Duration, _ string, args ...string) (commandResult, error) {
@@ -522,7 +522,7 @@ func TestATimedOutAddIsNamedAsSuchAndReclaimsTheWorktree(t *testing.T) {
 // add stays silent when git created nothing, so a genuine refusal is not
 // reported with a cleanup failure of its own on top.
 func TestARefusedAddReportsGitAndReclaimsNothing(t *testing.T) {
-	root := t.TempDir()
+	root := newFixtureRepo(t).root
 	sha := strings.Repeat("c", 40)
 	removals := 0
 	fakeGit := func(_ context.Context, _ time.Duration, _ string, args ...string) (commandResult, error) {

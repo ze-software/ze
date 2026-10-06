@@ -52,7 +52,7 @@ func TestPythonInvalidCommitDiagnosticParityWithoutVerifyBody(t *testing.T) {
 }
 
 func TestPythonAddFailureDiagnosticNamesShortCommitWithoutVerifyBody(t *testing.T) {
-	root := t.TempDir()
+	root := newFixtureRepo(t).root
 	sha := strings.Repeat("b", 40)
 	fakeGit := func(_ context.Context, _ time.Duration, _ string, args ...string) (commandResult, error) {
 		switch args[0] {
