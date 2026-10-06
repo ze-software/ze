@@ -2008,11 +2008,11 @@ label push uses `IPRouteAddDel` with `LabelStack` on the FibPath, label swap/pop
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, or ECMP
 paths), the backend dispatches to `addRichRoute` which maps route types to VPP path
-types (`FIB_API_PATH_TYPE_DROP`/`ICMP_UNREACH`/`ICMP_PROHIBIT`), propagates metric
-to `FibPath.Weight`, uses per-change table ID, and builds multi-path routes with
-`NPaths > 1`.
+types (`FIB_API_PATH_TYPE_DROP`/`ICMP_UNREACH`/`ICMP_PROHIBIT`), propagates declared
+path weights to `FibPath.Weight`, uses per-change table ID, and builds multi-path
+routes with `NPaths > 1`. The metric does not set the path weight.
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, processMPLSChange, hasRichFields -->
-<!-- source: internal/plugins/fib/vpp/backend.go -- vppRichRoute, richRouteAddDel, routeTypeToVPP -->
+<!-- source: internal/plugins/fib/vpp/backend.go -- vppRichRoute, addRichRoute, addRichRouteInTable, routeTypeToVPP, toFibPath -->
 <!-- source: internal/plugins/fib/vpp/mpls.go -- govppMPLSBackend, mplsBackend interface -->
 <!-- source: internal/plugins/fib/vpp/register.go -- fib-vpp plugin registration -->
 

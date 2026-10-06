@@ -66,7 +66,7 @@ The state-change callback in `peer_run.go`:
 | any other event (RFC 4271 lists 9, 12-13, 20-22) | a second OPEN (`EventBGPOpen`, from `handleOpen`); Ze has no Event 9, 12, 13 or 20, and Events 21 and 22 follow Section 6 (header error above, OPEN refused with Cease before parsing) | `ErrFSMError`; **increments ConnectRetryCounter** | Cease NOTIFICATION from `handleOpen`; no Finite State Machine Error NOTIFICATION is sent in this state | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
-<!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleUpdate, handleNotification, handleUnknownType -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleNotification, handleUnknownType -->
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage, processMessage, handleConnectionClose -->
 
 The reader observes complete original packets before semantic processing.
@@ -221,8 +221,8 @@ grants no reprieve to a CPU-congested daemon.
 |---------|------|--------|
 | State transitions | `internal/component/bgp/fsm/fsm.go` | `handleEstablished` |
 | Message read loop | `internal/component/bgp/reactor/session_read.go` | `readAndProcessMessage`, `processMessage` |
-| Message type handlers | `internal/component/bgp/reactor/session_handlers.go` | `handleUpdate`, `handleKeepalive`, `handleNotification`, `handleRouteRefresh`, `handleUnknownType` |
-| RFC 7606 validation | `internal/component/bgp/reactor/session_read.go` | `processMessage` (calls `enforceRFC7606`) |
+| Control-message handlers | `internal/component/bgp/reactor/session_handlers.go` | `handleKeepalive`, `handleNotification`, `handleRouteRefresh`, `handleUnknownType` |
+| UPDATE validation, delivery and FSM event | `internal/component/bgp/reactor/session_read.go` | `processMessage` (calls `enforceRFC7606` before delivery) |
 | RFC 6793 AS-path reconciliation at ingest | `internal/component/bgp/reactor/session_read.go` | `collapseASPathFamily` (calls `wireu.CollapseAS4Family`) |
 | Prefix-limit enforcement (RFC 4486 / RFC 7607) | `internal/component/bgp/reactor/session_prefix.go` | `checkPrefixLimits` |
 | Hold/keepalive/send-hold timer callbacks | `internal/component/bgp/reactor/session.go` | `NewSession` |
@@ -231,7 +231,7 @@ grants no reprieve to a CPU-congested daemon.
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage, processMessage -->
-<!-- source: internal/component/bgp/reactor/session_handlers.go — handleUpdate, handleKeepalive, handleNotification, handleRouteRefresh, handleUnknownType -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleNotification, handleRouteRefresh, handleUnknownType -->
 <!-- source: internal/component/bgp/reactor/session_prefix.go — checkPrefixLimits -->
 <!-- source: internal/component/bgp/reactor/session.go — NewSession -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — SetCallback closure -->

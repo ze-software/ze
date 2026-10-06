@@ -933,11 +933,12 @@ whose key differs from it), and every walk, `PrefixPath.Route`,
 there. Under
 ADD-PATH `FamilyRIB` keeps a `pathSet` per route key (`opaqueMulti`), as it does
 per CIDR prefix, so the path identifier names a path of the route and never a
-second route (RFC 7911 Section 2). `PeerRIB.AppendKeyPaths` hands every path of
-the key to `gatherKeyCandidatesLocked`, which asks every peer by the route key,
-so the paths of one ADD-PATH session and the same route from a session without
-ADD-PATH meet in one election. A walk hands each path back framed as its
-session sent it. In `FamilyRIB`, a FlowSpec key uses the shortest length field,
+second route (RFC 7911 Section 2). `PeerRIB.AppendKeyPathsRetained` hands every
+retained path of the key to `gatherKeyCandidatesLocked`, which asks every peer
+by the route key, so the paths of one ADD-PATH session and the same route from
+a session without ADD-PATH meet in one election. Callers MUST release each
+retained path after its last read or transfer its handles to another owner.
+A walk hands each path back framed as its session sent it. In `FamilyRIB`, a FlowSpec key uses the shortest length field,
 so both framings of one rule share one stored route (`storage.RouteKey`), and
 `storage.IsCIDRFamily` is the one predicate both stores partition by. Such a
 route is published on `(bgp-rib, best-change)` through
@@ -954,7 +955,8 @@ backends; `FamilyRIB` retains its two build-tagged files
 <!-- source: internal/core/rib/store/store_bart.go -- Store[T] default BART+map dispatch -->
 <!-- source: internal/core/rib/store/store_map.go -- Store[T] map-only under maprib -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore picks BART or opaque map per family -->
-<!-- source: internal/component/bgp/plugins/rib/storage/familyrib_opaque.go -- opaqueRouteKey, RouteKey, routeNLRI, appendKeyPaths -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib_opaque.go -- opaqueRouteKey, RouteKey, routeNLRI, appendKeyPathsRetained -->
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- AppendKeyPathsRetained -->
 <!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetPrefixKey -->
 
 `bestPathRecord` is a named `uint64` -- four 16-bit fields (MetricIdx,
