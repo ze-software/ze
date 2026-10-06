@@ -34,7 +34,7 @@ The governing policy is `ai/rules/points/go-standards/directives/preserve-validi
 
 | Plan or record | Relationship and constraint |
 |----------------|-----------------------------|
-| `plan/spec-enum-switch-exhaustiveness.md` | Owns C/O/P switch classification and the exhaustive-linter cutover. `NewX` does not establish C closure. This spec does not retrofit constructors to justify a panic in that sweep |
+| `docs/contributing/ze-go-style.md`, “Every enum switch has a coverage policy” | Carries the C/O/P switch classification and exhaustive-linter policy established by spec-enum-switch-exhaustiveness. `NewX` does not establish C closure. This spec does not retrofit constructors to justify a panic in that sweep |
 | `plan/spec-ike-missing-transforms.md` | Owns new algorithms and DH table design. Keep its supported set and algorithm implementation independent; adapt encapsulation to the table if that plan lands first |
 | `plan/spec-ike-post-quantum.md` | Owns future key exchange support. No post-quantum or hybrid design enters this migration |
 | `plan/spec-ipsec-opaque-selector-port-mask.md` | Owns acceptance and exact dataplane encoding of OPAQUE. Representation changes here preserve the refusal in the implementation tree unless that separate plan has already changed it |

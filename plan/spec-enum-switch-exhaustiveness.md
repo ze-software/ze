@@ -344,7 +344,7 @@ alias and VRRP observations.
 
 | Blocker | Why it remains open | Required action |
 |---------|---------------------|-----------------|
-| Formal spec closure | The agreed qualified implementation and publication baseline is exercised, but it is not the `ze-close` workflow: historical whole-unit red is not a green entry check, and no final closure certificate or two-commit removal sequence is claimed | Keep the spec open. Formal closure still owes its entry verification, populated closure records and hash-pinned review; do not infer a waiver from RFC-test approval or documentation clearance |
+| Formal spec closure | The qualified implementation/publication baseline is distinct from whole-tree green. The owner closure ruling below explicitly skips security and whole-tree verification while another agent codes | Complete the nonwaived closure records, citation cleanup and hash-pinned non-security review; preserve every historical qualification |
 
 Thomas selected “Approve reviewed changes” for the RFC-tagged test changes in
 `d769ff084b`, `8efffa2104`, `22bba5fded`, `bd02b3b5dd` and `36e00133cf`.
@@ -381,10 +381,10 @@ deployment, nor does either clear unrelated whole-tree verification debt.
 
 | ID | Assumption | Basis | If wrong | Validation | Status |
 |----|------------|-------|----------|------------|--------|
-| A-1 | The baseline switch inventory still names the implementation tree | Shared-tree measurement and source reads | New or moved switches escape the batch list | Rerun the strict inventory only after changes; reconcile added/removed locations and suppressions | Validate at implementation |
-| A-2 | Each C switch receives only locally produced values | Per-switch producer evidence in research | A peer or plugin can trigger a new panic | Read constructor, mutation and caller references before each BUG-default edit; reclassify O if not proved | Validate at implementation |
-| A-3 | Generated/coverage-exempt sources add no missed enum switch | Bounded generated-source research, not a whole-AST proof | “Every switch” overstates coverage | Inspect the declared exceptions and generated-source enum intersections at cutover | Validate at implementation |
-| A-4 | Moving a test-only enum declaration does not add protocol support | Unknown/rejection tests and current decoder defaults | An unsupported algorithm or capability becomes accepted | Keep decode/negotiation refusals and names unchanged; run the named regression tests | Validate at implementation |
+| A-1 | The baseline switch inventory still names the implementation tree | Shared-tree measurement and source reads | New or moved switches escape the batch list | Frozen census plus later source relations supersede the initial list; see closure Mistake Log | broken |
+| A-2 | Each C switch receives only locally produced values | Per-switch producer evidence in research | A peer or plugin can trigger a new panic | Recorded per-switch domain review and independent package reviews; closure security explicitly unverified by owner | confirmed by recorded implementation review |
+| A-3 | Generated/coverage-exempt sources add no missed enum switch | Bounded generated-source research, not a whole-AST proof | “Every switch” overstates coverage | Captured supplementary typing identifies excluded/generated candidates as built-in strings; raw collector errors preserved | confirmed for captured population |
+| A-4 | Moving a test-only enum declaration does not add protocol support | Unknown/rejection tests and current decoder defaults | An unsupported algorithm or capability becomes accepted | Recorded boundary probes preserve unknown capability round-trip and DH/negotiation refusals | confirmed by recorded boundary proof |
 
 ### Risks
 
@@ -551,7 +551,7 @@ Simplicity: existing cases/defaults and upstream linter only. Uniformity: one th
 | Preservation | Named zero, sentinels, same-valued aliases, default masks, fallthrough and code after the switch retain their contract |
 | Test honesty | No weakened negative test, no new unsupported protocol capability, no assertion that only echoes source wiring |
 
-### Deliverables
+### Deliverables Checklist
 
 | Deliverable | Verification |
 |-------------|--------------|
@@ -560,7 +560,21 @@ Simplicity: existing cases/defaults and upstream linter only. Uniformity: one th
 | Safe runtime behavior | Named boundary probes and owning package regression output |
 | Correct guide | Source-aware reading and le doc check verify after implementation edits |
 
-### Review Gate
+### Owner closure ruling, 2026-10-07
+
+> ignore the security and green as we have another agent coding
+
+Thomas authorized proceeding with this closure while another agent codes.
+Security review, its missing checklist, and whole-tree green entry/closure
+verification are **SKIPPED / UNVERIFIED by owner**, not PASS. This does not
+waive the substantive deliverables, documentation, citation cleanup or
+independent non-security review. Historical failures and the frozen census
+remain unchanged. Closure includes no moving implementation from that agent.
+
+The existing Deliverables table above supplies the required four verification
+rows; its heading is normalized without inventing a completed review.
+
+### Historical bounded reviews
 
 Seven independent package reviews covered the original assigned scopes; the `configFormsLevel` P2 finding was corrected and cleared. Subsequent bounded reviews cover runtime/proof repairs, final integration and publication clearance. The final publication supplement retains complete reports from CommandPublicationReview, SourcePopulationReview and FinalAcceptanceDeltaReview. They found no remaining substantive AC-1–12 mismatch in the inspected deltas. Thomas's RFC-test approval and sibling reconciliation are resolved. Formal `ze-close` eligibility remains separate from this qualified acceptance.
 
@@ -1080,3 +1094,226 @@ This is the dated seed inventory, not a generated-code allowlist or a complete c
 | D230 | `internal/plugins/ospf/types/lstype.go` | LSType.String / `types.LSType` | O | Human rendering of shared wire-valued types; type declaration also includes typed scope masks that are not LSAs. |
 | D231 | `internal/plugins/ospf/v3/types/lsa.go` | LSType.Known / `v3/types.LSType` | O | Boundary recognition function must accept unrestricted wire codes as input and preserve masked RI recognition. |
 
+
+## Implementation Summary
+
+### What Was Implemented
+
+The committed implementation starts with the package work recorded at
+`93bb60878ad8`, the supported analyzer upgrade `d0bf51e9af43`, and checkpoint
+`d9844ae724`. The continuation and publication tables above enumerate the
+subsequent repairs through `c4fea842f5` and documentation commit `b783523a4c`.
+The spec record was committed as `22b6b530416be2b121996748cf4f5f979382a60a`;
+closure does not mistake that metadata-only diff for the implementation.
+Later preserved known-red probes in `037c2d2fa1` and `7800fd95f5` are not
+successful tests. The source baseline before this closure is
+`f406b21e82f6`; no concurrent coding is included.
+
+The inventory retains 834 C/O/P identities and 13461 captured observations.
+Its frozen classification and provenance limits are not a fresh whole-tree
+certificate. The final-proof and publication indexes retain runtime,
+discrimination, independent-review and source-continuity evidence.
+
+### Bugs Found/Fixed
+
+The continuation table above records the causal recovery, VPP lifecycle,
+protocol boundary and proof-fixture repairs with their actual positive and
+negative controls. The publication supplement records source-count pruning,
+literal command prose, required fixture inputs and painted-page visibility.
+The original red observations remain red. No product or test code is changed
+by closure.
+
+### Documentation Updates
+
+The durable C/O/P policy is `docs/contributing/ze-go-style.md`, “Every enum
+switch has a coverage policy”, anchored to `.golangci.yml` and upstream
+`switchChecker`. The publication table records the source-linked companion
+pages, regenerated indexes, native documentation PASS and actual browser
+evidence. Closure repoints the live validated-construction policy citation to
+that guide and the BGP progress citation to the final-proof index. It changes
+only the inventory's two spec provenance descriptors, not payload hashes,
+dispositions or observations.
+
+Historical `plan/handover/` references are intentionally unchanged:
+`internal/le/doc/citation/policed.go`, `excludes` and `Excluded`, classifies
+them as records; `internal/le/doc/check/links.go`, `sweepTracked`, preserves
+that exclusion. In particular the census index's bytes stay unchanged because
+the inventory pins their hash. No citation baseline is broadened.
+
+### Deviations from Plan
+
+The owner closure ruling above skips security review and whole-tree green
+verification because another agent is coding. Neither is reported as PASS.
+The initial inventory assumption was broken by the expanded census and was
+replaced by the frozen reconciliation plus explicit post-capture relations.
+The original tool did not enforce alias omissions; the authorized supported
+upgrade, rather than a custom checker, supplies that coverage.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The initial switch list was treated as the population | Complete switches and later source deltas also matter | Native typed census and independent reconciliation | Retain frozen 834-identity inventory and source relations; A-1 broken |
+| approach | Original analyzer missed alias omissions | Direct omission proof was insufficient | Real native alias smoke | Supported exhaustive upgrade; retain direct and alias red/green evidence |
+| approach | DOM text was taken as publication visibility | Reveal threshold prevented painting a very long section | Retained blank screenshot and measured intersection ratio | Threshold-zero repair and actual painted-page evidence |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Explicit C/O/P coverage and global enforcement | Done with recorded evidence limits | Canonical inventory; root exhaustive config; guide | Frozen census, not a claim about another agent's moving tree |
+| Identified runtime/proof repairs and VPP forwarding | Done for accepted qualified scope | Linux continuation and publication evidence tables | Historical full-unit/startup/AIGP qualifications remain; no expanded RFC claim |
+| Preserve historical VRRP recorder | Done | Original evidence archive and historical-archive-proof.json | Non-executable record; original bytes retained |
+| Security and whole-tree green closure checks | Skipped by owner | Owner closure ruling, 2026-10-07 | UNVERIFIED, not PASS |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done, qualified | 834-entry inventory; census and source-relation archives | 19 unavailable historical author artifacts remain a provenance limit |
+| AC-2 | Done, recorded review | C dispositions and seven package reviews | Named and zero/sentinel preservation, not inferred from lint alone |
+| AC-3 | Done, recorded review | Closed producer-domain justifications and boundary observations | No fresh security certification; owner skipped closure security review |
+| AC-4 | Done, recorded proof | Open classifications and seven runtime boundary probes | Original exact unknown/rejection outcomes retained |
+| AC-5 | Done, recorded review | P dispositions and corrected configFormsLevel classification | No blanket exemption |
+| AC-6 | Done, exercised | strict-e00c79db7a884f1a84a5fcb41dbaed82 native probe | Direct and alias omission/add-case/new-member sequence |
+| AC-7 | Done, recorded reconciliation | Marker reconciliation and frozen source census | No newly introduced checker or enforcement opt-in |
+| AC-8 | Done, recorded proof | DH/capability/encoder boundary probes and package reviews | Unsupported values remain unsupported |
+| AC-9 | Done | Guide's enum coverage policy and root config | Sealed-interface limitation remains explicit |
+| AC-10 | Done, qualified | Settled-source 19-population lint and runtime probes | Historical tests are not converted to whole-tree green |
+| AC-11 | Done for accepted scope, qualified | Final-proof archive and named-peer continuation table | Retain shared AIGP red; do not infer additional implementation scope |
+| AC-12 | Done, qualified | Publication supplement and canonical RFC judgments | Weak judgments stay weak; publication local only |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Native omission/subset/direct/alias smoke | Observed historical red/green | Original archive, strict probe result | Not rerun against unchanged inputs |
+| DH, capability, negotiation and encoder boundaries | Observed historical package/boundary proof | Original implementation evidence; final-proof continuation | Missing historical author artifacts explicitly retained |
+| Owning regressions and named peers for repairs | Observed scoped proof | Final-proof archive | Exact passing and failing populations remain distinct |
+| Complete lint | Observed PASS on settled source | Publication archive, landed-native-lint log | All 19 populations; three declared exceptions |
+| Whole-tree unit/functional/verify-worktree | SKIPPED / UNVERIFIED by owner | Owner closure ruling | No refreshed green certificate |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Enum source packages and their existing regressions | Committed | Package checkpoints and source-continuity records above |
+| .golangci.yml and supported dependency graph | Committed | Global default-signifies-exhaustive false; supported tool upgrade |
+| docs/contributing/ze-go-style.md and source-linked pages | Committed | Publication evidence supplies actual derivation and visibility |
+| This spec and its live citers | Closure records | Commit A preserves this record; commit B removes only this spec |
+
+### Audit Summary
+
+- **Total items:** 25 rows across the four audit tables.
+- **Done:** 19 implemented/committed evidence rows, with qualifications stated individually.
+- **Partial:** None silently accepted as full behavior.
+- **Skipped:** 2 security/whole-tree verification rows, expressly authorized.
+- **Changed:** 4 file-population rows distinguish existing committed implementation from closure-only records.
+
+## Goal Validation (closure)
+
+The earlier Goal Validation table is the detailed evidence mapping. Its limits
+remain controlling; this summary does not replace the retained raw results.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Explicit policy across the complete measured population | Census and independent review | 834 identities; census index and publication source relation |
+| Future omissions rejected through the real developer action | Functional negative/positive control | Original strict alias-probe result; missing member fails, explicit member passes |
+| Preserve external boundaries while repairing identified defects | Runtime, race, interop and discrimination | Final-proof archive and continuation table, with AIGP/startup qualifications intact |
+| Correct public claims and actual rendered artifacts | Native derivation and Chromium | Publication supplement: 995 artifacts, 22 producers, painted literal selector |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| No new implementation item is transferred by this closure | Qualified scope and recorded historical limitations are unchanged; security/whole-tree closure checks are owner-skipped, not missing implementation claimed complete | None; existing BGP parent/child scopes remain open and unchanged |
+
+## Review Gate
+
+Round 1 scope: the closure-only spec record, two live sibling citation repoints
+and two inventory provenance strings, plus the intended deletion of this spec.
+Previously committed implementation is represented by the independent package,
+repair and final-acceptance reviews retained in the immutable archives above;
+this round does not claim a fresh rereview of every historical source file.
+The independent closure context did not author that implementation.
+
+Lenses: evidence/logic (preserve qualifiers, provenance and owner attribution)
+and closure integrity (citation consumers, immutable hashes, scoped commits and
+other specs' unchanged ownership). Security is SKIPPED / UNVERIFIED by owner.
+There is no Go delta in this closure, so Go allocation/lifecycle/style and
+protocol behavior checks have no new code to classify.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/enum-switch-exhaustiveness-7487271c-d4f1-4454-972e-5298f85f9b43.md`; four closure files hash-recorded, no implementation files included |
+| `./le spec review check` | OK: clean, 0 code files; this native check does not certify historical implementation or skipped security |
+| Rounds | 1 |
+| Reviewer lenses used | Evidence/logic; closure/citation integrity; security explicitly skipped |
+| Final findings | 0 BLOCKER, 0 ISSUE in closure-only non-security scope; record-only NOTE below |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Deliverables heading and stale closure-entry prose needed the actual owner decision | This record | Normalize existing table and retain verbatim owner ruling; no extra review round |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| Canonical inventory, final-proof index and publication archive | Yes | Read directly during closure; archive members resolve through the publication index |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1–8 | Existing census and implementation proof remain qualified | Read inventory semantics and archived final acceptance/source-continuity reports; no census or outcome rewritten |
+| AC-9 | Durable guide matches global enforcement setting | Read guide C/O/P and sealed-interface paragraphs; .golangci.yml sets default-signifies-exhaustive false |
+| AC-10–12 | Recorded final lint, repair and publication evidence is not whole-tree green | Read publication index and complete independent acceptance reports; owner ruling expressly skips new whole-tree verification |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Native le lint scope action | Disposable EnumSwitchLintContract/EnumSwitchSubsetContract | Historical native red/green is retained; no permanent fixture or new action introduced by closure |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Initial 356-site seed was not the full population; frozen census and post-capture relations replace it |
+| A-2 | confirmed by recorded implementation review; closure security unverified | Per-switch C provenance and independent package reviews; no fresh security claim |
+| A-3 | confirmed for captured population | Two excluded lexical candidates and two generated switches were built-in strings, recorded as supplemental evidence without rewriting raw errors |
+| A-4 | confirmed by recorded boundary proof | Unknown capability round-trip, unsupported DH and negotiation refusals retained in original implementation evidence |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| C/O/P, old/new global enum coverage; separate sealed-interface rule | Guide; root exhaustive config; native omission smoke retained in original archive | Source/config and retained evidence read; no new behavior |
+| Publication and source-linked companion pages | Publication index and full independent reports; historical Documentation tests PASSED log | Historical PASS only; no current whole-tree certificate |
+| Closure citations and historical records | policed.go excludes/Excluded; links.go sweepTracked; live citer edits | Historical archive/index hashes unchanged; live policy reference repointed to surviving guide |
+
+### Actual closure checks, 2026-10-07
+
+All commands used `CGO_ENABLED=0`, the parent session identity and the named
+`./le --name enum-resume` build.
+
+| Command | Actual result | Scope and limit |
+|---------|---------------|-----------------|
+| `repo check` | PASS: all checks passed | Pre-review structural check; not whole-tree runtime proof |
+| `commit audit` | CLEAN: no unexplained test weakening | HEAD to worktree; zero changed test files, not an audit of the historical implementation range |
+| `spec citation` | RED: 15 unrelated dangling references plus line-token drift warnings | No enum target finding. Same 15 already recorded in `plan/journal/claim-outlives-the-evidence-it-cites.md`; no duplicate journal row |
+| `doc check verify` | PASS: Documentation tests PASSED | Ran independently after citation failure; validates documentation, not runtime/security |
+| `spec review record` / `spec review check` | CLEAN / OK, round 1, four hash-recorded files, zero code files | Closure-only independent non-security review; not a new certificate for historical source |
+| Whole-tree lint/unit/functional/verify-worktree and security review | SKIPPED / UNVERIFIED by owner | Owner ruling above; no known red rerun |
+
+The owner's whole-tree-green waiver also covers the unrelated global citation
+red. Enum-only citation clearance remains required. The historical handover
+references excluded by the citation consumer retain their original meaning,
+and the live policy/progress references now resolve to surviving documents.
+No baseline change, unrelated spec repair or duplicate lesson is included.

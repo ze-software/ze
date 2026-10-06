@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "purpose": "Per-switch C/O/P dispositions preserving author history, reconciled to an explicitly captured frozen census. Supplemental builtin-string qualifications do not rewrite raw collector failures; no lint, runtime, current-tree freshness or final acceptance claim.",
-  "spec": "plan/spec-enum-switch-exhaustiveness.md",
+  "spec": "spec-enum-switch-exhaustiveness (historical spec at commit 22b6b530416be2b121996748cf4f5f979382a60a)",
   "date": "2026-10-06",
   "status": "captured-census-reconciled-archived-publication-cleared-qualified-baseline",
   "classification_legend": {
@@ -104941,7 +104941,7 @@
       "inventory_sha256": "52f9020ce1584ec914cead616550378f4096351142e559afcc239bb161e4c43d",
       "schema_version": 1,
       "purpose": "Per-switch C/O/P dispositions preserving author history, reconciled to an explicitly captured frozen census. Supplemental builtin-string qualifications do not rewrite raw collector failures; no lint, runtime, current-tree freshness or final acceptance claim.",
-      "spec": "plan/spec-enum-switch-exhaustiveness.md",
+      "spec": "spec-enum-switch-exhaustiveness (historical spec at commit 22b6b530416be2b121996748cf4f5f979382a60a)",
       "status": "captured-census-reconciled-policy-and-freshness-unresolved",
       "classification_legend": {
         "C": "Closed producer domain; explicit named cases and impossible-value assertion.",

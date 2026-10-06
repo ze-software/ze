@@ -675,7 +675,7 @@ storage in `/home/thomas/ze-recovery/bgp-20261005T230453160053Z/linux-evidence-2
 
 This table preserves the earlier pause checkpoint. Subsequent source and
 documentation landing, and the completed AIGP red, are recorded in
-`plan/spec-enum-switch-exhaustiveness.md` and its final-proof archive index.
+`plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json`; the historical spec-enum-switch-exhaustiveness record is preserved at commit `22b6b530416be2b121996748cf4f5f979382a60a`.
 Pending runs and commit boundaries below describe that earlier checkpoint.
 
 | Work | Observed result | Next action |
