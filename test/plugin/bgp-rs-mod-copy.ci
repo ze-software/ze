@@ -1,27 +1,61 @@
-# bgp-rs-mod-copy -- copy-on-modify through ForwardCached (rs-fastpath-3)
+# bgp-rs-mod-copy -- copy-on-modify through the general ForwardCached rail.
 #
-# VALIDATES: rs-fastpath-3 wiring -- source with AS-override peer behavior
-# exercises the copy-on-modify path via the ForwardCached fast path.
+# VALIDATES: an addressed eBGP RS client receives AS-override and no LOCAL_PREF,
+# while an internal control retains the source AS_PATH and LOCAL_PREF. Reflection
+# legitimately adds ORIGINATOR_ID and CLUSTER_LIST to the internal control.
+# PREVENTS: ForwardCached bypassing modification, or one destination's edits
+# changing the shared source bytes used by another destination.
 #
-# PREVENTS: regression where ForwardCached bypasses buildModifiedPayload.
+# No rs-fast-path: this is the plugin ForwardCached rail, not reactorForwardRS.
+# The previous one-peer carrier sent an invalid external empty AS_PATH with
+# LOCAL_PREF, had no as-override configuration or recipient, and asserted only
+# EOR. That cannot prove copy-on-modify. The source is now internal, making
+# LOCAL_PREF legal, and its populated AS_PATH actually contains target AS 65002.
 
 stdin=source:terminator=EOF_SOURCE
-# The peer has no expectation left once it sends, so without linger it closes
-# the instant its write lands. ze reads that as session-down and purges the
-# peer's routes, which is the state this test's observer polls for.
+# Keep the source and both recipients alive through all wire assertions.
 option=linger:value=true
-option=tcp_connections:value=1
+option=tcp_connections:value=3
 option=timeout:value=15s
+option=bind:value=0.0.0.0
+# Identity, not accept order; all three OPEN handshakes finish before scripts run.
+option=conn_map:value=remote-ip
+option=asn:peer=127.0.0.1:value=65000
+option=asn:peer=127.0.0.2:value=65002
+option=asn:peer=127.0.0.3:value=65000
 
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A0000
-# Hold the connection until rs finishes its replayForPeer goroutine and sends
-# EOR. Without this the peer closes immediately after the send, the BGP FSM
-# drops to IDLE, and rs's AnnounceEOR fails with "no established peers".
+# Preserve the source EOR assertion. The observer also checks all three EOR
+# counters, then addresses a readiness fence ONLY to the source. Unlike the
+# handshake alone, this proves both recipients are registered forward targets.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-EOF_SOURCE
+expect=bgp:conn=1:seq=2:contains=18C00002
 
-# Compiled observer shuts down only after the route-server replay reaches
-# the peer.
+# Subject: ORIGIN=IGP, AS_SEQUENCE[65002,65001] (four-octet ASNs),
+# NEXT_HOP=1.1.1.1, LOCAL_PREF=100, NLRI=10.0.0.0/24.
+# Attributes 4+13+7+7=31 (0x1F); frame 19+4+31+4=58 (0x3A).
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDEA0000FDE94003040101010140050400000064180A0000
+# Target-AS-absent control: same attributes, AS_SEQUENCE[65003,65001],
+# NLRI=10.0.1.0/24. AS-override must leave this populated path alone.
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDEB0000FDE94003040101010140050400000064180A0001
+# Complete the source script only after both recipient queues hold the subjects.
+expect=bgp:conn=1:seq=5:contains=18C00003
+
+# Edited eBGP RS client: 65002 -> 65000, no LOCAL_PREF, no reflection attrs.
+# rs-client suppresses the independent local-AS prepend; only override changes
+# the source path. Attributes 4+13+7=24 (0x18); frame length=51 (0x33).
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDEB0000FDE940030401010101180A0001
+
+# Internal control: original paths and LOCAL_PREF=100, plus legitimate
+# ORIGINATOR_ID=1.2.3.5 (peer/open.go increments source router-id 1.2.3.4)
+# and CLUSTER_LIST=[10.0.0.1]. Its own remote ID is distinct (1.2.3.7).
+# Attributes 31+7+7=45 (0x2D); frame length=72 (0x48).
+expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0048020000002D4001010040020A02020000FDEA0000FDE9400304010101014005040000006480090401020305800A040A000001180A0000
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0048020000002D4001010040020A02020000FDEB0000FDE9400304010101014005040000006480090401020305800A040A000001180A0001
+# Negative isolation assertions run on the same sockets as the positive frames.
+reject=bgp:conn=2:pattern=40050400000064
+reject=bgp:conn=3:pattern=40020A02020000FDE80000FDE9
+EOF_SOURCE
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -36,30 +70,69 @@ plugin {
 bgp {
 	peer source-peer {
 		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
 		}
 		session {
-			asn {
-				local 65000
-				remote 65001
-			}
+			asn { local 65000; remote 65000; }
 			router-id 1.2.3.4
+			route-reflector-client true
+			cluster-id 10.0.0.1
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
-			capability {
-				graceful-restart disable
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+			send [ update ]
+		}
+	}
+	peer edited-ebgp-recipient {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			rs-client true
+			as-override true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
 			}
+			capability { graceful-restart disable; }
 		}
-		behavior {
-			group-updates disable
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
 		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer internal-control {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.6
+			route-reflector-client true
+			cluster-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
 		attach process rs {
 			receive [ update-received state open-received refresh ]
 			send [ update ]

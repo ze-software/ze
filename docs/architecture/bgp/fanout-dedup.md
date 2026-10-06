@@ -102,6 +102,60 @@ the socket assertions and their discrimination proof before promotion.
 
 <!-- source: internal/test/peer/reject.go -- the wire rejection -->
 
+## Cached copy-on-modify socket carrier
+
+`test/plugin/bgp-rs-mod-copy.ci` addresses one edited eBGP recipient and one
+internal control through the general `ForwardCached` rail. It deliberately
+does not enable `rs-fast-path`. The source is internal, so its ORIGIN=IGP,
+NEXT_HOP=1.1.1.1 and LOCAL_PREF=100 survive ingress. Its first UPDATE announces
+10.0.0.0/24 with four-octet AS_SEQUENCE `[65002,65001]`.
+
+The eBGP recipient has remote AS 65002, `session/as-override true` and
+`session/rs-client true`. The last setting excludes the independent local-AS
+prepend from this proof. Its exact frame requires `[65000,65001]` and no
+LOCAL_PREF. The internal control requires the original path and LOCAL_PREF,
+plus the legitimate reflection attributes: ORIGINATOR_ID 1.2.3.5 and
+CLUSTER_LIST `[10.0.0.1]`. These come from the source's OPEN identifier and the
+configured reflector cluster, not from the source UPDATE. This is isolation of
+the source attributes, not a claim that the reflected frame is byte-identical.
+
+A second UPDATE announces 10.0.1.0/24 with `[65003,65001]`. The target ASN is
+absent, so both recipients must retain this populated path; eBGP still omits
+LOCAL_PREF and the internal control still carries reflection attributes.
+Persistent wire rejections also forbid LOCAL_PREF on the external socket and
+the first recipient's overridden path on the internal socket.
+
+One peer process maps connections by remote IP and completes all handshakes
+before running scripts. The dedicated `bgpRSModCopy03` observer waits for EOR
+from all three named addresses before sending a readiness fence only to the
+source. The source sends both subjects after that fence, then expects a second
+source-only fence before its script completes. The observer sends that completion
+fence only after two non-EOR UPDATEs reach each intended recipient, allowing the
+mapped peer harness to advance from the source to the recipient scripts. Exact
+socket expectations remain the verdict on the bytes. The existing 15-second peer
+and 10-second daemon deadlines and crash/cache guards remain unchanged.
+
+The old one-peer fixture supplied no such proof: an external empty AS_PATH
+failed first-AS validation, LOCAL_PREF was discarded on ingress, no destination
+matched, and its observer accepted EOR alone. Adding a delay or retaining that
+observer would not repair the missing stimulus and recipient.
+
+For semantic discrimination, use an isolated Go overlay of
+`internal/component/bgp/reactor/reactor_api_forward.go` that bypasses only the
+`applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)`
+call in `forwardUpdateCore`. Leave LOCAL_PREF handling, reflection,
+materialization and the fast rail unchanged. The first external exact frame
+must fail; the internal frames and target-AS-absent second external frame must
+remain unchanged. This identifies AS replacement rather than generic forwarding
+as the changed behavior. A separate absent-recipient control can remove only
+`edited-ebgp-recipient` from a draft configuration and reduce the peer harness's
+`tcp_connections` to two, leaving the observer unchanged: it must fail the
+three-address EOR gate, never credit the internal recipient for the missing
+target. Neither control has been executed as part of authoring this repair.
+
+<!-- source: internal/test/fixture/plugin_fixture_03_mod_copy.go -- bgpRSModCopy03 -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore, applyASOverride -->
+
 ## Traps
 
 **A guard field that no test exercises is decorative.** `fwdDedupTable.begin`

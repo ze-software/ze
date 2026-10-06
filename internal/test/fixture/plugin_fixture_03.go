@@ -45,7 +45,7 @@ func init() {
 	Register("plugin/bgp-rs-fastpath-ebgp-shared", observe03("shutdown-after-up", routeServerObserver03(2, true)))
 	Register("plugin/bgp-rs-fastpath-ibgp-identity", observe03("shutdown-after-up", routeServerObserver03(1, false)))
 	Register("plugin/bgp-rs-fastpath", observe03("bgp-rs-fastpath", bgpRSFastpath03))
-	Register("plugin/bgp-rs-mod-copy", observe03("shutdown-after-up", routeServerObserver03(1, false)))
+	Register("plugin/bgp-rs-mod-copy", observe03("shutdown-after-up", bgpRSModCopy03))
 	Register("plugin/bgp-rs-perf-pprof", observePort03("pprof-probe", bgpRSPprof03))
 	Register("plugin/rfc6793-ingest-collapse", observe03("shutdown-after-up", routeServerObserver03(2, true)))
 	Register("plugin/rfc6793-narrow-to-old-speaker", observe03("shutdown-after-up", routeServerObserver03(2, true)))
