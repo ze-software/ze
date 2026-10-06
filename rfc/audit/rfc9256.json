@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-10-06",
   "requirements": {
     "RFC9256-2.6-3": {
       "note": "TestRFC9256SymbolicNamesAreNotIdentifiers drives parseConfigRoute: differing policy and candidate-path names give byte-identical NLRI keys while the names still reach the Tunnel Encapsulation attribute (positive), and a shared name with a different distinguisher gives distinct keys (negative), so the name never takes part in identity.",
@@ -13,6 +13,15 @@
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers#2": "be89953f30d19ac4"
       },
       "verdict": "enforced"
+    },
+    "RFC9256-4-7": {
+      "code": {
+        "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildSegmentSubSubTLV": "06f199ddc509585d",
+        "internal/component/bgp/plugins/nlri/srpolicy/config.go::parseSegmentList": "53226e586c8e5f13"
+      },
+      "note": "RFC 9256 \u00a74 repeats the same combined permission for Types I, J and K. All three optional fields and all three types are retained by this row and its annotation. parseSegmentList accepts only type-a/type-b and rejects other types; buildSegmentSubSubTLV emits only A/B. Type B SID behavior/structure support is a separate existing permission (RFC9256-4-2), not evidence for I/J/K. No implementation or tagged conformance test exists for the new row; record the optional implementation gap without adding the feature.",
+      "requirement_sha": "4cf8ed5d1c30a0a8",
+      "verdict": "unimplemented"
     },
     "RFC9256-5.1-4": {
       "note": "ze verifies no SID reachability, so every SID must be Type A or B; TestRFC9256SegmentTypesAreAOrB shows parseSegmentList and buildSegmentSubSubTLV emit only sub-TLV 1 and 13 and that type-c, type-d, type-i and type-k are refused; the row carries its single-polarity marker.",

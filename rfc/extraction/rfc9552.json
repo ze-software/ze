@@ -188,7 +188,10 @@
     {
       "id": "5.3.2.7",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9552-5.3.2.7-1"
+      ]
     },
     {
       "id": "5.3.3",
@@ -689,15 +692,15 @@
     {
       "id": "5.3.2.2:2",
       "quote": "The following bits are defined, and the reserved bits MUST be set to zero and SHOULD be ignored on receipt:",
-      "disposition": "mapped",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Both sentences surrounding Table 9 govern the same six reserved bits of the MPLS Protocol Mask TLV. RFC9552-5.3.2.2-3 quotes the post-table sentence, preserving the transmit MUST and the stronger receive MUST; satisfying it also satisfies this pre-table receive SHOULD. Correction 2026-10-06 records the common producers and existing proof.",
       "mapped-to": "RFC9552-5.3.2.2-3"
     },
     {
       "id": "5.3.2.2:3",
       "quote": "The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Restates the reserved-bit obligation the preceding sentence in the same TLV description states, which RFC9552-5.3.2.2-3 carries in full.",
+      "disposition": "mapped",
       "mapped-to": "RFC9552-5.3.2.2-3"
     },
     {

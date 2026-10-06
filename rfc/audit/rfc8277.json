@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-06",
   "requirements": {
     "RFC8277-2-2": {
       "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. All three transmitters now covered with whole-NLRI literals: LabeledUnicast.WriteTo by TestLabeledSingleLabelSection22Encoding (HEAD, require.Equal on the whole encoding), and UpdateBuilder.BuildLabeledUnicastNLRIBytes (plain and ADD-PATH) and buildVPNNLRIBytes by TestRFC8277BuilderLabelLayout (20 000641 0a, 00000007 20 000641 0a, 60 000641 <RD> 0a; recorded revert of WriteLabelValues; judge overlay dropping the S line of WriteLabelValues reds every case). {single-polarity: positive} is valid: a one-label stack has one layout and Length is computed from the input, so no input reaches a non-Section-2.2 encoding; the reason now names all three transmitters (correction paragraph in rfc/corrections/rfc8277.md). Residual: the HEAD WriteTo unit has no discrimination record of its own.",
@@ -189,6 +189,15 @@
         "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "63adabba424c50c7"
       },
       "verdict": "enforced"
+    },
+    "RFC8277-3.2.2-3": {
+      "code": {
+        "internal/component/bgp/message/update_build_labeled.go::BuildLabeledUnicastNLRIBytes": "d9a21e276d6d82f1",
+        "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler": "46b72e8590298c28"
+      },
+      "note": "RFC 8277 \u00a73.2.2 requires a Section 2.4 withdrawal of the earlier same-AFI/SAFI/prefix fewer-label route when the speaker decides not to propagate the replacement stack to a peer that cannot handle it. This is a distinct trigger from \u00a73.2.1. mpReachNextHopHandler changes the next hop and copies the NLRI without a label-count decision, and BuildLabeledUnicastNLRIBytes encodes every supplied label. Multiple Labels Capability negotiation/count handling remains absent. The existing TestLabeledPropagationChangedNextHopReusesReceivedLabelGap observes unchanged labels with a changed next hop, not the required withdrawal. Record the missing behavior explicitly; absence does not establish vacuous conformance or authorize development.",
+      "requirement_sha": "523787d86a868dc6",
+      "verdict": "unimplemented"
     }
   },
   "rfc": "rfc8277"
