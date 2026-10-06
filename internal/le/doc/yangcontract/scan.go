@@ -19,11 +19,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
+	docindex "github.com/ze-software/ze/internal/le/doc/index"
 )
 
 // checker is one run of the drift gate over one tree.
@@ -125,15 +127,18 @@ func (c *checker) countMatchingLines(path string, re *regexp.Regexp) int {
 
 // walkFailure decides what a walk error means for the tree under check.
 //
-// A walk ROOT that does not exist ends the walk and says nothing: a tree with
-// no test/ holds no functional tests. Anything else is a part of the tree this
-// scan cannot read, so it is recorded and the walk CONTINUES: one closed
-// directory must not cost the rest of the tree its counts.
+// An absent path ends the walk without a finding: a tree with no test/ holds
+// no functional tests. Other failures are recorded. A failed root ends its
+// walk; a failed descendant lets the walk continue so one closed directory
+// does not cost the rest of the tree its counts.
 func (c *checker) walkFailure(walkRoot, path string, err error) error {
-	if path == walkRoot || vanished(path) {
+	if vanished(path) {
 		return filepath.SkipAll
 	}
 	c.noteUnopenable(path, err)
+	if path == walkRoot {
+		return filepath.SkipAll
+	}
 	return nil
 }
 
@@ -183,25 +188,9 @@ func (c *checker) countInteropScenarios(scenariosDir string) int {
 	return count
 }
 
-// countFuzzTargets answers how many fuzz targets the tree holds.
+// countFuzzTargets answers how many fuzz targets the first-party source tree holds.
 func (c *checker) countFuzzTargets(root string) int {
-	count := 0
-	re := regexp.MustCompile(`^func Fuzz`)
-	//nolint:errcheck // walkFailure records every failure; the walk's own answer adds nothing
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return c.walkFailure(root, path, err)
-		}
-		if d.IsDir() || !strings.HasSuffix(d.Name(), "_test.go") {
-			return nil
-		}
-		if strings.Contains(path, "vendor") {
-			return nil
-		}
-		count += c.countMatchingLines(path, re)
-		return nil
-	})
-	return count
+	return c.countGoFunctions(root, root, regexp.MustCompile(`^func Fuzz`))
 }
 
 // countGoTestFunctions answers how many Go test functions the product tree
@@ -210,19 +199,44 @@ func (c *checker) countGoTestFunctions(root string) int {
 	count := 0
 	re := regexp.MustCompile(`^func Test`)
 	for _, area := range []string{"internal", "pkg", "cmd"} {
-		areaRoot := filepath.Join(root, area)
-		//nolint:errcheck // walkFailure records every failure; the walk's own answer adds nothing
-		_ = filepath.WalkDir(areaRoot, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return c.walkFailure(areaRoot, path, err)
-			}
-			if d.IsDir() || !strings.HasSuffix(d.Name(), "_test.go") {
+		count += c.countGoFunctions(root, filepath.Join(root, area), re)
+	}
+	return count
+}
+
+// countGoFunctions uses the documentation index's source population. Pruning
+// directories before descent keeps runtime evidence and module caches out of
+// both the counts and the read failures without hiding failures in source.
+func (c *checker) countGoFunctions(root, walkRoot string, re *regexp.Regexp) int {
+	count := 0
+	skipDirs := docindex.SkipDirs()
+	modCache := filepath.Join(root, docindex.ModCache)
+	//nolint:errcheck // walkFailure records every failure; the walk's own answer adds nothing
+	_ = filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return c.walkFailure(walkRoot, path, err)
+		}
+		if d.IsDir() {
+			if path == walkRoot {
 				return nil
 			}
-			count += c.countMatchingLines(path, re)
+			if slices.Contains(skipDirs, d.Name()) {
+				return filepath.SkipDir
+			}
+			if strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			if path == modCache {
+				return filepath.SkipDir
+			}
 			return nil
-		})
-	}
+		}
+		if !strings.HasSuffix(d.Name(), "_test.go") {
+			return nil
+		}
+		count += c.countMatchingLines(path, re)
+		return nil
+	})
 	return count
 }
 

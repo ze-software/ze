@@ -106,6 +106,19 @@ Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.
 
+The fuzz count reads first-party `_test.go` files from the working tree,
+including files not yet committed. It uses the documentation index's source
+population: it does not enter dot-prefixed directories, `vendor`, `tmp`,
+`testdata`, `node_modules`, or `gokrazy/modcache`. Runtime evidence and module
+cache copies therefore contribute neither targets nor read failures. The Go
+unit-test count applies the same exclusions within `internal`, `pkg`, and `cmd`.
+A source file or directory that cannot be read still produces a finding,
+including a failed scan root. Absent optional roots contribute no files and
+no finding. A partial count is not evidence that a published claim is correct.
+
+<!-- source: internal/le/doc/yangcontract/scan.go -- countFuzzTargets, countGoTestFunctions, countGoFunctions -->
+<!-- source: internal/le/doc/index/docstocode.go -- SkipDirs, ModCache, walkGo -->
+
 ### `./le doc yang-contract command-contract`
 
 ```
