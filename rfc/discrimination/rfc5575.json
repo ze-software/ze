@@ -90,6 +90,50 @@
       "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5575-4-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop",
+      "unit-sha": "6ea1fa0eaaa4341c",
+      "claim-sha": "8e4e9b7094c946f1",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
+      "producer-sha": "95ae776972eaa76b",
+      "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop",
+      "unit-sha": "6ea1fa0eaaa4341c",
+      "claim-sha": "66bbc553318e2723",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_plugin.go::buildMPReachPlugin",
+      "producer-sha": "2caeeeab51b10bd9",
+      "break": "body of buildMPReachPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop",
+      "unit-sha": "99380f4df4a96ca2",
+      "claim-sha": "4188624aa7a446e9",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
+      "producer-sha": "00c66da121f7c3e0",
+      "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop",
+      "unit-sha": "99380f4df4a96ca2",
+      "claim-sha": "c1cf343cad43174a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
+      "producer-sha": "183dde33bd18124a",
+      "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5575-5.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival",

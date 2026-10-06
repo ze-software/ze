@@ -130,7 +130,7 @@
       "claim-sha": "7df8fbe9376aa8b9",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
-      "producer-sha": "494dadd2baaba793",
+      "producer-sha": "800d6972f5d93ffa",
       "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -534,22 +534,22 @@
       "rid": "RFC4271-5.1.5-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB",
-      "unit-sha": "1a85135c7ddf47d3",
+      "unit-sha": "8d6b665ab561e683",
       "claim-sha": "4d14f085cfbf76ac",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "22001f81984512ae",
+      "producer-sha": "5ff7d5703bc38cb1",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-5.1.5-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB",
-      "unit-sha": "1a85135c7ddf47d3",
+      "unit-sha": "8d6b665ab561e683",
       "claim-sha": "898a5b498f3be10a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "22001f81984512ae",
+      "producer-sha": "5ff7d5703bc38cb1",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2082,6 +2082,39 @@
       "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
       "producer-sha": "a25995d8706e455b",
       "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDBeforeLaterCriteria",
+      "unit-sha": "3beef40856345ce6",
+      "claim-sha": "375acbb9fbb889dd",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::retainLowestMED",
+      "producer-sha": "a95b8595178403d9",
+      "break": "body of retainLowestMED replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDEarlierCriteria",
+      "unit-sha": "bbaf454c738e3f96",
+      "claim-sha": "a3ab2d133ec0011b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::selectBestCandidates",
+      "producer-sha": "2f1d07c11c858e50",
+      "break": "body of selectBestCandidates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange",
+      "unit-sha": "ca09dfed6d58969a",
+      "claim-sha": "387cc2d40cba20af",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+      "producer-sha": "c47b40a9c22c0721",
+      "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9.1.2.2-3",
