@@ -1,6 +1,6 @@
 # `show l2tp observer`
 
-Show recent events for a session (debug aid).
+Show recent events for a session \(debug aid\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show recent events for a session (debug aid).
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the event ring buffer for one session ID or 'all'. Use it to find why a session failed to establish.
+Returns the event ring buffer for one session ID or \'all\'\. Use it to find why a session failed to establish\.
 
 ## Arguments
 

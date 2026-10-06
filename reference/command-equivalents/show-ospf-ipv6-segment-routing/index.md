@@ -1,6 +1,6 @@
 # `show ospf ipv6 segment-routing`
 
-Show OSPFv3 (IPv6) Segment Routing state (RFC 8666).
+Show OSPFv3 \(IPv6\) Segment Routing state \(RFC 8666\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPFv3 (IPv6) Segment Routing state (RFC 8666).
 - Command pipes: none
 - Pipe aliases: none
 
-The configured SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.
+The configured SRGB\/SRLB label ranges\, the advertised SR\-Algorithm\, this node\'s node Prefix\-SIDs\, and the Adjacency\-SIDs allocated per adjacency\.
 
 ## Arguments
 

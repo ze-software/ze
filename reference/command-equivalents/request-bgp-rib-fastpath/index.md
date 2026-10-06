@@ -1,6 +1,6 @@
 # `request bgp rib fastpath`
 
-Switch or report the zero-copy forward-handle fast path.
+Switch or report the zero\-copy forward\-handle fast path\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Switch or report the zero-copy forward-handle fast path.
 - Command pipes: none
 - Pipe aliases: none
 
-The fast path hands a forward handle to the Loc-RIB consumer without copying the route. enable and disable switch it, and status reports the counters. Each of the three answers the same counter snapshot.
+The fast path hands a forward handle to the Loc\-RIB consumer without copying the route\. enable and disable switch it\, and status reports the counters\. Each of the three answers the same counter snapshot\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `action` | enum | yes | `enable`, `disable`, `status` | enable, disable or status | One of the three words. Any other word is refused by name. |
+| `action` | enum | yes | `enable`, `disable`, `status` | enable\, disable or status | One of the three words\. Any other word is refused by name\. |
 
 ## Mapping intents
 

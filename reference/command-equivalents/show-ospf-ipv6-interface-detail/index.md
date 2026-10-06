@@ -1,6 +1,6 @@
 # `show ospf ipv6 interface detail`
 
-Show the full per-interface OSPFv3 state (spec-ospf-ext-14).
+Show the full per\-interface OSPFv3 state \(spec\-ospf\-ext\-14\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the full per-interface OSPFv3 state (spec-ospf-ext-14).
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the ISM state, the DR and BDR by Router ID, the timers, the local Interface ID, and the Instance ID.
+Returns the ISM state\, the DR and BDR by Router ID\, the timers\, the local Interface ID\, and the Instance ID\.
 
 ## Arguments
 

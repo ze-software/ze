@@ -1,6 +1,6 @@
 # `show debug`
 
-Show live debug state from the running daemon.
+Show live debug state from the running daemon\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show live debug state from the running daemon.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists every registered subsystem with its current log level and any active flag or scope filters. Unlike 'debug show' (which reads the stored profile), this reflects actual runtime state.
+Lists every registered subsystem with its current log level and any active flag or scope filters\. Unlike \'debug show\' \(which reads the stored profile\)\, this reflects actual runtime state\.
 
 ## Arguments
 

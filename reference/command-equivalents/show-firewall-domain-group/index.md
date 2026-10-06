@@ -1,6 +1,6 @@
 # `show firewall domain-group`
 
-Show what each configured domain group's DNS names resolve to.
+Show what each configured domain group\'s DNS names resolve to\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show what each configured domain group's DNS names resolve to.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each group with its names, the addresses Ze is enforcing for them, when each name last resolved, and what the last answer said. Read this before a commit to confirm a group has data.
+Lists each group with its names\, the addresses Ze is enforcing for them\, when each name last resolved\, and what the last answer said\. Read this before a commit to confirm a group has data\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | no | any value of this type | Group name; omit to list every group | A group from the firewall configuration. A name no group carries is an error that lists the groups present. |
+| `name` | string | no | any value of this type | Group name\; omit to list every group | A group from the firewall configuration\. A name no group carries is an error that lists the groups present\. |
 
 ## Mapping intents
 

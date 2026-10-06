@@ -1,6 +1,6 @@
 # `show flow export`
 
-Show flow export (NetFlow/IPFIX) collector status.
+Show flow export \(NetFlow\/IPFIX\) collector status\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show flow export (NetFlow/IPFIX) collector status.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, lists all configured collectors. With 'name <name>', shows details for that collector including protocol stats and errors. Returns not-configured when no exporter is active.
+Without arguments\, lists all configured collectors\. With \'name \<name\>\'\, shows details for that collector including protocol stats and errors\. Returns not\-configured when no exporter is active\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | no | any value of this type | Collector name (used with 'name <name>'). | The value is the key of a configured collector. Ze returns that one collector with its protocol counters and errors, and answers 'collector not found' for any other value. |
+| `name` | string | no | any value of this type | Collector name \(used with \'name \<name\>\'\)\. | The value is the key of a configured collector\. Ze returns that one collector with its protocol counters and errors\, and answers \'collector not found\' for any other value\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `show bgp reject-asn`
 
-Show every reject-asn list.
+Show every reject\-asn list\.
 
 ## Ze command
 
@@ -19,9 +19,9 @@ Show every reject-asn list.
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
-- Pipe aliases: `peers`: The peer rows, without the aggregate fields (`display peers`); `summary`: The aggregate fields, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
+- Pipe aliases: `peers`: The peer rows\, without the aggregate fields (`display peers`); `summary`: The aggregate fields\, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
 
-Lists each configured reject-asn list with every ASN it holds, the effective position set for that ASN, the network the curated table names for it, and how many peers name the list on import and on export. An ASN the curated table does not know prints with no annotation.
+Lists each configured reject\-asn list with every ASN it holds\, the effective position set for that ASN\, the network the curated table names for it\, and how many peers name the list on import and on export\. An ASN the curated table does not know prints with no annotation\.
 
 ## Arguments
 

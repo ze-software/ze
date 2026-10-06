@@ -1,6 +1,6 @@
 # `show ospf database`
 
-Show the OSPF link-state database.
+Show the OSPF link\-state database\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the OSPF link-state database.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each LSA with its LS Type, Link State ID, Advertising Router, sequence number, age, and checksum.
+Lists each LSA with its LS Type\, Link State ID\, Advertising Router\, sequence number\, age\, and checksum\.
 
 ## Arguments
 

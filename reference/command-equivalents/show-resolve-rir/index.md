@@ -1,6 +1,6 @@
 # `show resolve rir`
 
-Show which Regional Internet Registry holds an AS number.
+Show which Regional Internet Registry holds an AS number\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show which Regional Internet Registry holds an AS number.
 - Command pipes: none
 - Pipe aliases: none
 
-Reads the RIR delegation table that ships with the binary, or the newer copy an earlier 'update resolve rir' stored. Reaches no network. Reports the registry, its whois server, and the delegated range that holds the AS number. An AS number in no delegated range and a table that cannot be read are two different answers.
+Reads the RIR delegation table that ships with the binary\, or the newer copy an earlier \'update resolve rir\' stored\. Reaches no network\. Reports the registry\, its whois server\, and the delegated range that holds the AS number\. An AS number in no delegated range and a table that cannot be read are two different answers\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | union | yes | any value of this type | AS number to look up. | The AS number in plain decimal or in asdot notation, which Ze parses to one 32-bit value before it searches the delegation table. |
+| `asn` | union | yes | any value of this type | AS number to look up\. | The AS number in plain decimal or in asdot notation\, which Ze parses to one 32\-bit value before it searches the delegation table\. |
 
 ## Mapping intents
 

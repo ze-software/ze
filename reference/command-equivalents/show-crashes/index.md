@@ -1,6 +1,6 @@
 # `show crashes`
 
-View saved crash reports, and whether kernel capture is armed.
+View saved crash reports\, and whether kernel capture is armed\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ View saved crash reports, and whether kernel capture is armed.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, lists every stored report with its kind: 'panic' for a Go panic this daemon caught, 'kernel' for a kernel fault recovered from the reserved region on the following boot. The listing also carries a readiness block, which reports configured and armed separately because the reservation is a kernel boot argument and a commit alone does not arm it. Use 'latest' to see the newest report or 'name <filename>' to print one. Send the output to support when reporting a crash.
+Without arguments\, lists every stored report with its kind\: \'panic\' for a Go panic this daemon caught\, \'kernel\' for a kernel fault recovered from the reserved region on the following boot\. The listing also carries a readiness block\, which reports configured and armed separately because the reservation is a kernel boot argument and a commit alone does not arm it\. Use \'latest\' to see the newest report or \'name \<filename\>\' to print one\. Send the output to support when reporting a crash\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | no | any value of this type | Crash report name (used with 'name <filename>'). | The file name of one stored report, as the listing prints it. Ze reads that file from the crash directory and prints it. A name holding a slash or '..' is refused. |
+| `name` | string | no | any value of this type | Crash report name \(used with \'name \<filename\>\'\)\. | The file name of one stored report\, as the listing prints it\. Ze reads that file from the crash directory and prints it\. A name holding a slash or \'\.\.\' is refused\. |
 
 ## Mapping intents
 

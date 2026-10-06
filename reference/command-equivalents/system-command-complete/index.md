@@ -1,6 +1,6 @@
 # `system command complete`
 
-List the completion candidates for a partial command.
+List the completion candidates for a partial command\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ List the completion candidates for a partial command.
 - Command pipes: none
 - Pipe aliases: none
 
-Ze completes a command NAME from the partial text. Write 'args' before the command name to complete an ARGUMENT of that command instead, in the form 'system command complete args <cmd> [<completed>...] <partial>'.
+Ze completes a command NAME from the partial text\. Write \'args\' before the command name to complete an ARGUMENT of that command instead\, in the form \'system command complete args \<cmd\> \[\<completed\>\.\.\.\] \<partial\>\'\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `partial` | string | yes | any value of this type | Partial command text | The text typed so far. The candidates match it on a case-insensitive prefix, and a prefix that matches nothing answers an empty list. |
+| `partial` | string | yes | any value of this type | Partial command text | The text typed so far\. The candidates match it on a case\-insensitive prefix\, and a prefix that matches nothing answers an empty list\. |
 
 ## Mapping intents
 

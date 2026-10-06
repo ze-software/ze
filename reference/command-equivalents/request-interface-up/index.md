@@ -1,6 +1,6 @@
 # `request interface up`
 
-Bring an interface up.
+Bring an interface up\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Bring an interface up.
 - Command pipes: none
 - Pipe aliases: none
 
-Only the administrative state changes. show interface reports the operational state, which a dummy, bridge or veth reports as unknown rather than up.
+Only the administrative state changes\. show interface reports the operational state\, which a dummy\, bridge or veth reports as unknown rather than up\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The interface that up, down, mtu and mac act on. Each of those commands inherits it, and migrate names its own interfaces instead. |
+| `name` | string | yes | any value of this type | Interface name | The interface that up\, down\, mtu and mac act on\. Each of those commands inherits it\, and migrate names its own interfaces instead\. |
 
 ## Mapping intents
 

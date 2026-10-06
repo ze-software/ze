@@ -1,6 +1,6 @@
 # `show system platform`
 
-Show what kind of platform the daemon is running on.
+Show what kind of platform the daemon is running on\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show what kind of platform the daemon is running on.
 - Command pipes: none
 - Pipe aliases: none
 
-Reports whether this is gokrazy, systemd, container, plain-linux, or darwin, along with platform-specific capabilities.
+Reports whether this is gokrazy\, systemd\, container\, plain\-linux\, or darwin\, along with platform\-specific capabilities\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show bgp rib status`
 
-Get a quick RIB overview without dumping routes.
+Get a quick RIB overview without dumping routes\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Get a quick RIB overview without dumping routes.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows total peers, received/accepted/advertised route counts, and per-family breakdowns. Use this to confirm convergence after a peer comes up.
+Shows total peers\, received\/accepted\/advertised route counts\, and per\-family breakdowns\. Use this to confirm convergence after a peer comes up\.
 
 ## Arguments
 

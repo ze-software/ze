@@ -1,6 +1,6 @@
 # `show traffic control`
 
-Show traffic control (QoS) configuration per interface.
+Show traffic control \(QoS\) configuration per interface\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show traffic control (QoS) configuration per interface.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, lists every interface with its qdisc type and class/filter counts. With an interface name, shows the full qdisc and class breakdown. Use this to verify your shaping is applied.
+Without arguments\, lists every interface with its qdisc type and class\/filter counts\. With an interface name\, shows the full qdisc and class breakdown\. Use this to verify your shaping is applied\.
 
 ## Arguments
 

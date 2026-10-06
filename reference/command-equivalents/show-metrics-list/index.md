@@ -1,6 +1,6 @@
 # `show metrics list`
 
-List all registered metric names (no values).
+List all registered metric names \(no values\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all registered metric names (no values).
 - Command pipes: none
 - Pipe aliases: none
 
-Useful for discovering what metrics exist before querying them.
+Useful for discovering what metrics exist before querying them\.
 
 ## Arguments
 

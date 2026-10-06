@@ -1,6 +1,6 @@
 # `show pki certificate name bundle pem`
 
-Export the certificate, its intermediates and its private key as one PEM stream.
+Export the certificate\, its intermediates and its private key as one PEM stream\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Export the certificate, its intermediates and its private key as one PEM stream.
 - Command pipes: none
 - Pipe aliases: none
 
-Device certificates only: a CA certificate in the store holds no private key.
+Device certificates only\: a CA certificate in the store holds no private key\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Certificate name | The name of a device certificate in the store. A CA name and a device certificate with no private key are each refused. |
+| `name` | string | yes | any value of this type | Certificate name | The name of a device certificate in the store\. A CA name and a device certificate with no private key are each refused\. |
 
 ## Mapping intents
 

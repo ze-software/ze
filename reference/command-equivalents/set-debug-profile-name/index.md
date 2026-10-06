@@ -1,6 +1,6 @@
 # `set debug profile name`
 
-Save the current debug state as a named profile.
+Save the current debug state as a named profile\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Save the current debug state as a named profile.
 - Command pipes: none
 - Pipe aliases: none
 
-It copies what the daemon is writing NOW into a named slot. The default slot is left as it is, so saving a profile does not change what the running daemon logs.
+It copies what the daemon is writing NOW into a named slot\. The default slot is left as it is\, so saving a profile does not change what the running daemon logs\.
 
 ## Arguments
 

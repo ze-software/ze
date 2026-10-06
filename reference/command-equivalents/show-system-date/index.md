@@ -1,6 +1,6 @@
 # `show system date`
 
-Show the daemon's current wall-clock time and timezone.
+Show the daemon\'s current wall\-clock time and timezone\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the daemon's current wall-clock time and timezone.
 - Command pipes: none
 - Pipe aliases: none
 
-Useful for correlating log timestamps when the box is in a different timezone than you are.
+Useful for correlating log timestamps when the box is in a different timezone than you are\.
 
 ## Arguments
 

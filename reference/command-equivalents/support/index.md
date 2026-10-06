@@ -1,6 +1,6 @@
 # `support`
 
-Collect logs, config, state and diagnostics into one archive.
+Collect logs\, config\, state and diagnostics into one archive\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Collect logs, config, state and diagnostics into one archive.
 - Command pipes: none
 - Pipe aliases: none
 
-Send the archive to support when you report an issue. Modules can be selected or excluded, and a time window narrows what the archive holds.
+Send the archive to support when you report an issue\. Modules can be selected or excluded\, and a time window narrows what the archive holds\.
 
 ## Arguments
 

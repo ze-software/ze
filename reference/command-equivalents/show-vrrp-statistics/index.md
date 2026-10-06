@@ -1,6 +1,6 @@
 # `show vrrp statistics`
 
-Show per-virtual-router counters.
+Show per\-virtual\-router counters\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show per-virtual-router counters.
 - Command pipes: none
 - Pipe aliases: none
 
-Advertisements sent and received, priority-zero advertisements, gratuitous ARP and unsolicited neighbor advertisement bursts, receive-validation errors by reason, and the derived skew and master-down timers in microseconds (a VRRPv3 skew is sub-millisecond).
+Advertisements sent and received\, priority\-zero advertisements\, gratuitous ARP and unsolicited neighbor advertisement bursts\, receive\-validation errors by reason\, and the derived skew and master\-down timers in microseconds \(a VRRPv3 skew is sub\-millisecond\)\.
 
 ## Arguments
 

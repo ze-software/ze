@@ -1,6 +1,6 @@
 # `show anomaly detect`
 
-Show the recent behavioral anomaly incidents.
+Show the recent behavioral anomaly incidents\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the recent behavioral anomaly incidents.
 - Command pipes: none
 - Pipe aliases: none
 
-Each incident carries the source entity, the cohort, the fired features with their deviation z-scores, the combined score, and the severity. The detector only reports. The anomaly shape responder (Spec 2b) acts on the report.
+Each incident carries the source entity\, the cohort\, the fired features with their deviation z\-scores\, the combined score\, and the severity\. The detector only reports\. The anomaly shape responder \(Spec 2b\) acts on the report\.
 
 ## Arguments
 

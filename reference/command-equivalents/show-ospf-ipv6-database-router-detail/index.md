@@ -1,6 +1,6 @@
 # `show ospf ipv6 database router detail`
 
-Decode each OSPFv3 Router-LSA body.
+Decode each OSPFv3 Router\-LSA body\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Decode each OSPFv3 Router-LSA body.
 - Command pipes: none
 - Pipe aliases: none
 
-Each body decodes into its interface records: the type, the metric, the Interface ID, the neighbor Interface ID and the neighbor Router ID. RFC 5340 Section 2.2 states that a Router-LSA no longer contains a network address and expresses topology only.
+Each body decodes into its interface records\: the type\, the metric\, the Interface ID\, the neighbor Interface ID and the neighbor Router ID\. RFC 5340 Section 2\.2 states that a Router\-LSA no longer contains a network address and expresses topology only\.
 
 ## Arguments
 

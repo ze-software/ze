@@ -1,6 +1,6 @@
 # `show isis hostname`
 
-Show the IS-IS dynamic-hostname mapping (RFC 5301).
+Show the IS\-IS dynamic\-hostname mapping \(RFC 5301\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the IS-IS dynamic-hostname mapping (RFC 5301).
 - Command pipes: none
 - Pipe aliases: none
 
-Maps each System ID to the hostname it advertises in TLV 137.
+Maps each System ID to the hostname it advertises in TLV 137\.
 
 ## Arguments
 

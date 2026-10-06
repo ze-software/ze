@@ -1,6 +1,6 @@
 # `plugin command help`
 
-Show one plugin command's summary, explanation, arguments, and source plugin.
+Show one plugin command\'s summary\, explanation\, arguments\, and source plugin\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show one plugin command's summary, explanation, arguments, and source plugin.
 - Command pipes: none
 - Pipe aliases: none
 
-The name is looked up in the plugin registry only, so a built-in command is reported as unknown. The answer carries the summary, the long explanation, the argument form and the plugin that registered it.
+The name is looked up in the plugin registry only\, so a built\-in command is reported as unknown\. The answer carries the summary\, the long explanation\, the argument form and the plugin that registered it\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Plugin command name | The full command name, as plugin command list prints it. A name no plugin registered fails with unknown plugin command. |
+| `name` | string | yes | any value of this type | Plugin command name | The full command name\, as plugin command list prints it\. A name no plugin registered fails with unknown plugin command\. |
 
 ## Mapping intents
 

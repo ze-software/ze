@@ -1,6 +1,6 @@
 # `show warnings`
 
-Show active warnings across all subsystems.
+Show active warnings across all subsystems\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show active warnings across all subsystems.
 - Command pipes: none
 - Pipe aliases: none
 
-Displays any conditions that need your attention (degraded peers, resource limits approaching, etc.). Use 'source <name>' to filter to a single subsystem.
+Displays any conditions that need your attention \(degraded peers\, resource limits approaching\, etc\.\)\. Use \'source \<name\>\' to filter to a single subsystem\.
 
 ## Arguments
 

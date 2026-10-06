@@ -1,6 +1,6 @@
 # `show pki certificates`
 
-List all loaded certificates with expiry dates.
+List all loaded certificates with expiry dates\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all loaded certificates with expiry dates.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows name, type (CA or device), subject, issuer, expiry, and validity status. Check here to find certificates approaching expiration.
+Shows name\, type \(CA or device\)\, subject\, issuer\, expiry\, and validity status\. Check here to find certificates approaching expiration\.
 
 ## Arguments
 

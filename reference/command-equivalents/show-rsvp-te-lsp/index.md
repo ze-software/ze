@@ -1,6 +1,6 @@
 # `show rsvp-te lsp`
 
-Show RSVP-TE label-switched paths.
+Show RSVP\-TE label\-switched paths\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show RSVP-TE label-switched paths.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out labels for each LSP.
+Returns state\, role \(ingress\/transit\/egress\)\, reserved bandwidth\, and in\/out labels for each LSP\.
 
 ## Arguments
 

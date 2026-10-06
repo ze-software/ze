@@ -1,6 +1,6 @@
 # `plugin session ready`
 
-Signal that this plugin process finished its initialization.
+Signal that this plugin process finished its initialization\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Signal that this plugin process finished its initialization.
 - Command pipes: none
 - Pipe aliases: none
 
-The reactor counts one signal for each configured plugin process, and it stops waiting when the count reaches that total. A daemon that runs without a reactor accepts the command and acts on nothing.
+The reactor counts one signal for each configured plugin process\, and it stops waiting when the count reaches that total\. A daemon that runs without a reactor accepts the command and acts on nothing\.
 
 ## Arguments
 

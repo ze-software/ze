@@ -1,6 +1,6 @@
 # `show command list`
 
-List every command the daemon knows about.
+List every command the daemon knows about\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List every command the daemon knows about.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns dispatch key and description for each. Useful for scripting or discovering commands not shown in the top-level help.
+Returns dispatch key and description for each\. Useful for scripting or discovering commands not shown in the top\-level help\.
 
 ## Arguments
 

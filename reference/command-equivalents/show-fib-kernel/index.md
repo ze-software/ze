@@ -1,6 +1,6 @@
 # `show fib kernel`
 
-Show the routes this backend programmed into the Linux forwarding table.
+Show the routes this backend programmed into the Linux forwarding table\.
 
 ## Ze command
 

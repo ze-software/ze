@@ -1,6 +1,6 @@
 # `show system memory`
 
-Show how much memory the daemon is using, from the OS's view.
+Show how much memory the daemon is using\, from the OS\'s view\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show how much memory the daemon is using, from the OS's view.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status (Linux only). This is what the operating system reports the process is using. For the Go runtime allocator view (heap, GC), use 'show runtime memory'.
+Returns VmRSS\, VmSize\, VmSwap\, and thread count from \/proc\/self\/status \(Linux only\)\. This is what the operating system reports the process is using\. For the Go runtime allocator view \(heap\, GC\)\, use \'show runtime memory\'\.
 
 ## Arguments
 

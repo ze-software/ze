@@ -1,6 +1,6 @@
 # `show bmp sessions`
 
-Show active BMP receiver sessions.
+Show active BMP receiver sessions\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show active BMP receiver sessions.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each session with connection state and message counters. Check here to confirm your BMP collector is receiving data.
+Lists each session with connection state and message counters\. Check here to confirm your BMP collector is receiving data\.
 
 ## Arguments
 

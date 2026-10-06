@@ -1,6 +1,6 @@
 # `show bgp encode`
 
-Turn a route announcement into wire-format hex.
+Turn a route announcement into wire\-format hex\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Turn a route announcement into wire-format hex.
 - Command pipes: none
 - Pipe aliases: none
 
-Takes a route in API syntax and returns the BGP UPDATE as a hex string. Use it to build a test payload, to feed ze-test, or to verify that an announcement encodes correctly.
+Takes a route in API syntax and returns the BGP UPDATE as a hex string\. Use it to build a test payload\, to feed ze\-test\, or to verify that an announcement encodes correctly\.
 
 ## Arguments
 

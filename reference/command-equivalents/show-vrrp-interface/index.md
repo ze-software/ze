@@ -1,6 +1,6 @@
 # `show vrrp interface`
 
-Show the VRRP virtual routers hosted on one interface.
+Show the VRRP virtual routers hosted on one interface\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the VRRP virtual routers hosted on one interface.
 - Command pipes: none
 - Pipe aliases: none
 
-One interface can host several virtual routers. Each one has its own VRID and its own election. This view can therefore report more than one state for one link.
+One interface can host several virtual routers\. Each one has its own VRID and its own election\. This view can therefore report more than one state for one link\.
 
 ## Arguments
 

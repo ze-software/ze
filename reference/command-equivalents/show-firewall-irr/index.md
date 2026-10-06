@@ -1,6 +1,6 @@
 # `show firewall irr`
 
-Show IRR filter status for all cached ASN/AS-SET entries.
+Show IRR filter status for all cached ASN\/AS\-SET entries\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show IRR filter status for all cached ASN/AS-SET entries.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each cached entry with prefix counts, last refresh time, and error status. Use this to confirm that IRR prefix-lists are loaded and current before committing firewall config.
+Lists each cached entry with prefix counts\, last refresh time\, and error status\. Use this to confirm that IRR prefix\-lists are loaded and current before committing firewall config\.
 
 ## Arguments
 

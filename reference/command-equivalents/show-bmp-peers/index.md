@@ -1,6 +1,6 @@
 # `show bmp peers`
 
-Show BGP peers as seen through BMP monitoring.
+Show BGP peers as seen through BMP monitoring\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show BGP peers as seen through BMP monitoring.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists peers reported via BMP with their state and route statistics.
+Lists peers reported via BMP with their state and route statistics\.
 
 ## Arguments
 

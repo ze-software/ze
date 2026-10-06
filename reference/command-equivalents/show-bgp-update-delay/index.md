@@ -1,6 +1,6 @@
 # `show bgp update-delay`
 
-Show the startup convergence hold and what it waits for.
+Show the startup convergence hold and what it waits for\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the startup convergence hold and what it waits for.
 - Command pipes: none
 - Pipe aliases: none
 
-The command takes no argument, because the hold belongs to the speaker and not to a peer. configured says an operator set bgp update-delay max-delay. holding says this speaker is withholding its first advertisement right now, and released says the hold has ended. reason names the condition that ended it: converged, establish-wait or max-delay. expected-peers, peers-held and peers-converged say what the hold is still waiting for, so you can name the neighbor that has not finished. Read this command when a speaker has come up and advertised nothing: it separates a hold that is working from a daemon that is wedged.
+The command takes no argument\, because the hold belongs to the speaker and not to a peer\. configured says an operator set bgp update\-delay max\-delay\. holding says this speaker is withholding its first advertisement right now\, and released says the hold has ended\. reason names the condition that ended it\: converged\, establish\-wait or max\-delay\. expected\-peers\, peers\-held and peers\-converged say what the hold is still waiting for\, so you can name the neighbor that has not finished\. Read this command when a speaker has come up and advertised nothing\: it separates a hold that is working from a daemon that is wedged\.
 
 ## Arguments
 

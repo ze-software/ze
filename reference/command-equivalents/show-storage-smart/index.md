@@ -1,6 +1,6 @@
 # `show storage smart`
 
-Show disk health via SMART data.
+Show disk health via SMART data\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show disk health via SMART data.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns health status, temperature, power-on hours, and self-test schedule for each block device. Replace drives that report failing health before they cause data loss.
+Returns health status\, temperature\, power\-on hours\, and self\-test schedule for each block device\. Replace drives that report failing health before they cause data loss\.
 
 ## Arguments
 

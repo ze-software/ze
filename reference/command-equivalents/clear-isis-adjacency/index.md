@@ -1,6 +1,6 @@
 # `clear isis adjacency`
 
-Tear down every IS-IS adjacency so neighbors re-form.
+Tear down every IS\-IS adjacency so neighbors re\-form\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Tear down every IS-IS adjacency so neighbors re-form.
 - Command pipes: none
 - Pipe aliases: none
 
-Adjacencies re-learn from the next Hello; the circuit is not closed and the configuration is unchanged.
+Adjacencies re\-learn from the next Hello\; the circuit is not closed and the configuration is unchanged\.
 
 ## Arguments
 

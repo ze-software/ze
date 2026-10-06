@@ -1,6 +1,6 @@
 # `show as112`
 
-AS112 node status.
+AS112 node status\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ AS112 node status.
 - Command pipes: none
 - Pipe aliases: none
 
-Enabled, address-family, hostname/facility/location, allow-from count, served zone count, and the current SOA serial.
+Enabled\, address\-family\, hostname\/facility\/location\, allow\-from count\, served zone count\, and the current SOA serial\.
 
 ## Arguments
 

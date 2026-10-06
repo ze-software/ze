@@ -1,6 +1,6 @@
 # `show ospf ipv6 database segment-routing`
 
-Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and extended LSAs.
+Summarise the OSPFv3 Segment Routing content \(RFC 8666\) carried in the RI and extended LSAs\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and ex
 - Command pipes: none
 - Pipe aliases: none
 
-This is a summary rather than a decode. The Segment Routing content lives in the Router Information LSA and in the extended LSAs, and the two commands above decode those LSAs in full.
+This is a summary rather than a decode\. The Segment Routing content lives in the Router Information LSA and in the extended LSAs\, and the two commands above decode those LSAs in full\.
 
 ## Arguments
 

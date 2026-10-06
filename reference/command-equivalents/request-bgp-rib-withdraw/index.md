@@ -1,6 +1,6 @@
 # `request bgp rib withdraw`
 
-Withdraw a route from the Adj-RIB-In.
+Withdraw a route from the Adj\-RIB\-In\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Withdraw a route from the Adj-RIB-In.
 - Command pipes: none
 - Pipe aliases: none
 
-Removes a previously injected or received route from a peer's Adj-RIB-In, triggering best-path recomputation.
+Removes a previously injected or received route from a peer\'s Adj\-RIB\-In\, triggering best\-path recomputation\.
 
 ## Arguments
 

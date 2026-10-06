@@ -1,6 +1,6 @@
 # `show l2tp statistics`
 
-Show aggregate L2TP protocol counters.
+Show aggregate L2TP protocol counters\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show aggregate L2TP protocol counters.
 - Command pipes: none
 - Pipe aliases: none
 
-Tunnels and sessions established, control messages sent and received, retransmits, and errors. It is the first command to run for L2TP health.
+Tunnels and sessions established\, control messages sent and received\, retransmits\, and errors\. It is the first command to run for L2TP health\.
 
 ## Arguments
 

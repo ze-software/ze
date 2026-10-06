@@ -1,6 +1,6 @@
 # `show config diff`
 
-Compare two configuration versions side by side.
+Compare two configuration versions side by side\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Compare two configuration versions side by side.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows what was added, removed, or changed. Commonly used with rollback revisions to review what changed before you roll back.
+Shows what was added\, removed\, or changed\. Commonly used with rollback revisions to review what changed before you roll back\.
 
 ## Arguments
 

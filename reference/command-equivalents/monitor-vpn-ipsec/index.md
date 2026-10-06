@@ -1,6 +1,6 @@
 # `monitor vpn ipsec`
 
-Watch IPsec SA events as they happen.
+Watch IPsec SA events as they happen\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Watch IPsec SA events as they happen.
 - Command pipes: none
 - Pipe aliases: none
 
-Streams sa-up, sa-down, child-up, child-down, and child-rekey events. Use it to debug a tunnel flap or a rekey problem.
+Streams sa\-up\, sa\-down\, child\-up\, child\-down\, and child\-rekey events\. Use it to debug a tunnel flap or a rekey problem\.
 
 ## Arguments
 

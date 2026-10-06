@@ -1,6 +1,6 @@
 # `show bgp health`
 
-Quick health check for all your BGP peers.
+Quick health check for all your BGP peers\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Quick health check for all your BGP peers.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer *' when you just need a status overview.
+Lists every peer with address\, state\, ASN\, and uptime\. Reports how many are not Established\. Much faster than \'show bgp peer \*\' when you just need a status overview\.
 
 ## Arguments
 

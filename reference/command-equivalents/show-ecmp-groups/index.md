@@ -1,6 +1,6 @@
 # `show ecmp-groups`
 
-Show each prefix the system RIB holds equal-cost paths for, whether or not Ze programs them.
+Show each prefix the system RIB holds equal\-cost paths for\, whether or not Ze programs them\.
 
 ## Ze command
 

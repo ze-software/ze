@@ -1,6 +1,6 @@
 # `monitor event`
 
-Stream live events as they happen.
+Stream live events as they happen\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Stream live events as they happen.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows a real-time feed of internal events. Filter with include <pattern> or exclude <pattern> to focus on what matters. Patterns match event type names.
+Shows a real\-time feed of internal events\. Filter with include \<pattern\> or exclude \<pattern\> to focus on what matters\. Patterns match event type names\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show subscriber id detail`
 
-Show everything about one subscriber session.
+Show everything about one subscriber session\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show everything about one subscriber session.
 - Command pipes: none
 - Pipe aliases: none
 
-Pass the session ID. Returns access type, assigned addresses, authentication state, uptime, and traffic counters.
+Pass the session ID\. Returns access type\, assigned addresses\, authentication state\, uptime\, and traffic counters\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | yes | any value of this type | Subscriber session ID. | The id column of the show subscriber table. An L2TP session is named l2tp-<tunnel-id>-<session-id> and a PPPoE session pppoe-<ifindex>-<session-id>. An unknown id is refused with 'session not found'. |
+| `id` | string | yes | any value of this type | Subscriber session ID\. | The id column of the show subscriber table\. An L2TP session is named l2tp\-\<tunnel\-id\>\-\<session\-id\> and a PPPoE session pppoe\-\<ifindex\>\-\<session\-id\>\. An unknown id is refused with \'session not found\'\. |
 
 ## Mapping intents
 

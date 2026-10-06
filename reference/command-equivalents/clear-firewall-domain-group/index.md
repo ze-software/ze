@@ -1,6 +1,6 @@
 # `clear firewall domain-group`
 
-Remove the addresses Ze cached for a domain group.
+Remove the addresses Ze cached for a domain group\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Remove the addresses Ze cached for a domain group.
 - Command pipes: none
 - Pipe aliases: none
 
-Drops the group's addresses from memory and from the persisted cache, then re-applies the firewall tables. Config that still names the group fails to verify until it is resolved again with 'update firewall domain-group <name>'.
+Drops the group\'s addresses from memory and from the persisted cache\, then re\-applies the firewall tables\. Config that still names the group fails to verify until it is resolved again with \'update firewall domain\-group \<name\>\'\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Domain group name | A group from the firewall configuration. The cache entries of that group's names are purged, and a name no group carries is an error. |
+| `name` | string | yes | any value of this type | Domain group name | A group from the firewall configuration\. The cache entries of that group\'s names are purged\, and a name no group carries is an error\. |
 
 ## Mapping intents
 

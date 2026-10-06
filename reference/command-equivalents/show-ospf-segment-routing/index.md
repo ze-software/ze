@@ -1,6 +1,6 @@
 # `show ospf segment-routing`
 
-Show OSPFv2 (IPv4) Segment Routing state (RFC 8665).
+Show OSPFv2 \(IPv4\) Segment Routing state \(RFC 8665\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPFv2 (IPv4) Segment Routing state (RFC 8665).
 - Command pipes: none
 - Pipe aliases: none
 
-The configured SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.
+The configured SRGB\/SRLB label ranges\, the advertised SR\-Algorithm\, this node\'s node Prefix\-SIDs\, and the Adjacency\-SIDs allocated per adjacency\.
 
 ## Arguments
 

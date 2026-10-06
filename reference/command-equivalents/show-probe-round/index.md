@@ -1,6 +1,6 @@
 # `show probe-round`
 
-Run a parallel traceroute probe round to a target.
+Run a parallel traceroute probe round to a target\.
 
 ## Ze command
 
@@ -21,16 +21,16 @@ Run a parallel traceroute probe round to a target.
 - Command pipes: none
 - Pipe aliases: none
 
-Sends all probes concurrently for faster results than sequential traceroute. Returns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed.
+Sends all probes concurrently for faster results than sequential traceroute\. Returns per\-hop RTT and IP\. Use probes and max\-hops to tune accuracy vs speed\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `dest` | string | no | any value of this type | Target host or IP address. | The value is the first bare word of the command. A host name is resolved in either address family, and the family of the answer selects ICMPv4 or ICMPv6. |
-| `probes` | uint | no | any value of this type | Number of probes per hop. | The value is accepted in the range 1 to 10 and then not read: a probe round sends one probe at each time-to-live. |
-| `max-hops` | uint | no | any value of this type | Maximum number of hops. | The value is the largest time-to-live Ze probes, 1 to 64. Absent, or set to 30, the round probes 16 hops. |
-| `timeout` | string | no | any value of this type | Timeout duration. | The value is accepted in Go duration syntax, 1s to 30s, and then not read: a probe round waits one second for every answer. |
+| `dest` | string | no | any value of this type | Target host or IP address\. | The value is the first bare word of the command\. A host name is resolved in either address family\, and the family of the answer selects ICMPv4 or ICMPv6\. |
+| `probes` | uint | no | any value of this type | Number of probes per hop\. | The value is accepted in the range 1 to 10 and then not read\: a probe round sends one probe at each time\-to\-live\. |
+| `max-hops` | uint | no | any value of this type | Maximum number of hops\. | The value is the largest time\-to\-live Ze probes\, 1 to 64\. Absent\, or set to 30\, the round probes 16 hops\. |
+| `timeout` | string | no | any value of this type | Timeout duration\. | The value is accepted in Go duration syntax\, 1s to 30s\, and then not read\: a probe round waits one second for every answer\. |
 
 ## Mapping intents
 

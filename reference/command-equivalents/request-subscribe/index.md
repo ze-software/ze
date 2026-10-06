@@ -1,6 +1,6 @@
 # `request subscribe`
 
-Start receiving events of one or more types.
+Start receiving events of one or more types\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Start receiving events of one or more types.
 - Command pipes: none
 - Pipe aliases: none
 
-Events are delivered asynchronously to your plugin session until you unsubscribe. Use 'show event list' to see available event types.
+Events are delivered asynchronously to your plugin session until you unsubscribe\. Use \'show event list\' to see available event types\.
 
 ## Arguments
 

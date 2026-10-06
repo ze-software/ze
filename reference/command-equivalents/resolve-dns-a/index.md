@@ -1,6 +1,6 @@
 # `resolve dns a`
 
-Look up IPv4 addresses (A records) for a hostname.
+Look up IPv4 addresses \(A records\) for a hostname\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Look up IPv4 addresses (A records) for a hostname.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer is the list of IPv4 addresses. A valid cache entry answers without a query, and a fresh answer is cached for the TTL the server gave.
+The answer is the list of IPv4 addresses\. A valid cache entry answers without a query\, and a fresh answer is cached for the TTL the server gave\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `hostname` | string | yes | any value of this type | Hostname to look up. | A DNS name of 1 to 253 characters, which the router's own resolver queries. The first word after the command is the name, and a call with no name is refused with a usage line. |
+| `hostname` | string | yes | any value of this type | Hostname to look up\. | A DNS name of 1 to 253 characters\, which the router\'s own resolver queries\. The first word after the command is the name\, and a call with no name is refused with a usage line\. |
 
 ## Mapping intents
 

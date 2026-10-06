@@ -1,6 +1,6 @@
 # `show ospf ldp-sync`
 
-Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138).
+Show OSPF LDP\-IGP synchronization state \(RFC 5443\, RFC 6138\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138).
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each ldp-sync interface with its state (not-synchronized / hold-down / synchronized), remaining hold-down, effective metric, and whether it is stuck not-synchronized after having been synchronized.
+Lists each ldp\-sync interface with its state \(not\-synchronized \/ hold\-down \/ synchronized\)\, remaining hold\-down\, effective metric\, and whether it is stuck not\-synchronized after having been synchronized\.
 
 ## Arguments
 

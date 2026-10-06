@@ -1,6 +1,6 @@
 # `show ospf ipv6 instance`
 
-Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2).
+Enumerate the active OSPFv3 address\-family instances \(RFC 5838 section 2\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2).
 - Command pipes: none
 - Pipe aliases: none
 
-Each instance carries its address family, its Instance ID, its area count, and its neighbor count.
+Each instance carries its address family\, its Instance ID\, its area count\, and its neighbor count\.
 
 ## Arguments
 

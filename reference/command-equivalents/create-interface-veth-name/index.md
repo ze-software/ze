@@ -1,6 +1,6 @@
 # `create interface veth name`
 
-Create a veth pair (two linked virtual Ethernet interfaces).
+Create a veth pair \(two linked virtual Ethernet interfaces\)\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Create a veth pair (two linked virtual Ethernet interfaces).
 - Command pipes: none
 - Pipe aliases: none
 
-The peer name is the second value and is required. A second create of the same name changes nothing and reports that the pair is present.
+The peer name is the second value and is required\. A second create of the same name changes nothing and reports that the pair is present\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The name of the first end of the pair. A pair already present under that name is reported, and nothing changes. |
-| `peer` | string | yes | any value of this type | Peer interface name | The name of the second end. Both ends appear in the kernel after the one command. |
+| `name` | string | yes | any value of this type | Interface name | The name of the first end of the pair\. A pair already present under that name is reported\, and nothing changes\. |
+| `peer` | string | yes | any value of this type | Peer interface name | The name of the second end\. Both ends appear in the kernel after the one command\. |
 
 ## Mapping intents
 

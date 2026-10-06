@@ -1,6 +1,6 @@
 # `show event namespaces`
 
-List all event namespaces and how many events each has logged.
+List all event namespaces and how many events each has logged\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all event namespaces and how many events each has logged.
 - Command pipes: none
 - Pipe aliases: none
 
-Tells you which subsystems are generating events and how active they are.
+Tells you which subsystems are generating events and how active they are\.
 
 ## Arguments
 

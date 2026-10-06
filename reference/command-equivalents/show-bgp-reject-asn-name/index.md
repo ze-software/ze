@@ -1,6 +1,6 @@
 # `show bgp reject-asn name`
 
-Show one reject-asn list.
+Show one reject\-asn list\.
 
 ## Ze command
 
@@ -19,15 +19,15 @@ Show one reject-asn list.
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
-- Pipe aliases: `peers`: The peer rows, without the aggregate fields (`display peers`); `summary`: The aggregate fields, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
+- Pipe aliases: `peers`: The peer rows\, without the aggregate fields (`display peers`); `summary`: The aggregate fields\, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
 
-The same answer for a single list, for a config that holds many.
+The same answer for a single list\, for a config that holds many\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Reject-ASN list name | The name of one configured reject-asn list. A name no list carries is refused, and the answer names the missing list. |
+| `name` | string | yes | any value of this type | Reject\-ASN list name | The name of one configured reject\-asn list\. A name no list carries is refused\, and the answer names the missing list\. |
 
 ## Mapping intents
 

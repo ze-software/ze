@@ -1,6 +1,6 @@
 # `show interface type`
 
-Show only interfaces of a given type.
+Show only interfaces of a given type\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show only interfaces of a given type.
 - Command pipes: none
 - Pipe aliases: none
 
-Types include ethernet, bridge, vxlan, wireguard, tunnel, bond, and more. If you pick an invalid type, the error lists all valid ones.
+Types include ethernet\, bridge\, vxlan\, wireguard\, tunnel\, bond\, and more\. If you pick an invalid type\, the error lists all valid ones\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `type` | string | yes | any value of this type | Ze interface type to filter by | The type name the backend reports for an interface, compared without regard to case. When no interface has it, the error lists the types present. |
+| `type` | string | yes | any value of this type | Ze interface type to filter by | The type name the backend reports for an interface\, compared without regard to case\. When no interface has it\, the error lists the types present\. |
 
 ## Mapping intents
 

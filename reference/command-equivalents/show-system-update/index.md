@@ -1,6 +1,6 @@
 # `show system update`
 
-Check if a firmware update is available.
+Check if a firmware update is available\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Check if a firmware update is available.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows the running version, latest available version, and when the last check ran. Use 'update system firmware check' to trigger an immediate re-check.
+Shows the running version\, latest available version\, and when the last check ran\. Use \'update system firmware check\' to trigger an immediate re\-check\.
 
 ## Arguments
 

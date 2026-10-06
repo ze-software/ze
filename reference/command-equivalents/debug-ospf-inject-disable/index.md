@@ -1,6 +1,6 @@
 # `debug ospf inject disable`
 
-Disable OSPF debug LSA injection.
+Disable OSPF debug LSA injection\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Disable OSPF debug LSA injection.
 - Command pipes: none
 - Pipe aliases: none
 
-One flag covers both address families, so this stops IPv4 and IPv6 injection together. An inject after it fails with 'debug injection not enabled (run `debug ospf inject enable`)'. The flag is never written to the config, so a reboot returns the router to injection off.
+One flag covers both address families\, so this stops IPv4 and IPv6 injection together\. An inject after it fails with \'debug injection not enabled \(run \`debug ospf inject enable\`\)\'\. The flag is never written to the config\, so a reboot returns the router to injection off\.
 
 ## Arguments
 

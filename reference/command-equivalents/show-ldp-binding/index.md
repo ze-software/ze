@@ -1,6 +1,6 @@
 # `show ldp binding`
 
-Show LDP FEC-to-label bindings.
+Show LDP FEC\-to\-label bindings\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show LDP FEC-to-label bindings.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists local and remote label bindings for each FEC (prefix). Use this to verify label distribution is working.
+Lists local and remote label bindings for each FEC \(prefix\)\. Use this to verify label distribution is working\.
 
 ## Arguments
 

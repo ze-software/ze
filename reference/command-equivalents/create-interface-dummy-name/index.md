@@ -1,6 +1,6 @@
 # `create interface dummy name`
 
-Create a dummy (loopback-style) interface.
+Create a dummy \(loopback\-style\) interface\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Create a dummy (loopback-style) interface.
 - Command pipes: none
 - Pipe aliases: none
 
-The command is idempotent. When a unit or address command under it fails, and this command created the interface, the interface is deleted again.
+The command is idempotent\. When a unit or address command under it fails\, and this command created the interface\, the interface is deleted again\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The name of the dummy to create. A name that holds an interface of another type is refused, and the error names both types. |
+| `name` | string | yes | any value of this type | Interface name | The name of the dummy to create\. A name that holds an interface of another type is refused\, and the error names both types\. |
 
 ## Mapping intents
 

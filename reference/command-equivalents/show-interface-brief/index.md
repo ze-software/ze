@@ -1,6 +1,6 @@
 # `show interface brief`
 
-One-line summary per interface: name, state, IP, and MTU.
+One\-line summary per interface\: name\, state\, IP\, and MTU\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ One-line summary per interface: name, state, IP, and MTU.
 - Command pipes: none
 - Pipe aliases: none
 
-It is the quick way to see what is up and what addresses are assigned.
+It is the quick way to see what is up and what addresses are assigned\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show ospf route fast-reroute`
 
-Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286).
+Show OSPF fast\-reroute \(LFA \/ TI\-LFA\) backups \(RFC 5286\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286).
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each prefix's primary next-hops with their pre-computed loop-free backup, protection class (node/link/downstream), and TI-LFA repair label stack. Unprotected primaries are shown as unprotected.
+Lists each prefix\'s primary next\-hops with their pre\-computed loop\-free backup\, protection class \(node\/link\/downstream\)\, and TI\-LFA repair label stack\. Unprotected primaries are shown as unprotected\.
 
 ## Arguments
 

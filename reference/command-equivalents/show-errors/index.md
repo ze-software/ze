@@ -1,6 +1,6 @@
 # `show errors`
 
-Show recent errors across all subsystems, newest first.
+Show recent errors across all subsystems\, newest first\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show recent errors across all subsystems, newest first.
 - Command pipes: none
 - Pipe aliases: none
 
-This is the first place to look when something goes wrong. Filter with source <name> to narrow to one subsystem, count <N> to limit output.
+This is the first place to look when something goes wrong\. Filter with source \<name\> to narrow to one subsystem\, count \<N\> to limit output\.
 
 ## Arguments
 

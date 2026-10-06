@@ -1,6 +1,6 @@
 # `show route`
 
-Show the kernel routing table.
+Show the kernel routing table\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Show the kernel routing table.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists installed routes with next-hop, interface, protocol, and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap the output.
+Lists installed routes with next\-hop\, interface\, protocol\, and metric\. Pass a CIDR prefix or \'default\' to filter\, or a route limit to cap the output\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `prefix` | string | no | any value of this type | CIDR prefix filter | A prefix in CIDR form, or the word default. Only routes for that prefix are listed, and every route is listed when it is absent. |
-| `limit` | uint | no | any value of this type | Maximum number of routes | The largest number of routes the answer carries, given after the word limit. The default is 100000, and the answer says when it was truncated. |
+| `prefix` | string | no | any value of this type | CIDR prefix filter | A prefix in CIDR form\, or the word default\. Only routes for that prefix are listed\, and every route is listed when it is absent\. |
+| `limit` | uint | no | any value of this type | Maximum number of routes | The largest number of routes the answer carries\, given after the word limit\. The default is 100000\, and the answer says when it was truncated\. |
 
 ## Mapping intents
 

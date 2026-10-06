@@ -1,6 +1,6 @@
 # `request bgp adj-rib-in enable-validation`
 
-Turn the validation gate on, so each new route waits in the pending state.
+Turn the validation gate on\, so each new route waits in the pending state\.
 
 ## Ze command
 

@@ -1,6 +1,6 @@
 # `show plugin list`
 
-List the plugins compiled into this binary.
+List the plugins compiled into this binary\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List the plugins compiled into this binary.
 - Command pipes: none
 - Pipe aliases: none
 
-Each row carries the plugin name, what it does, the address families it handles, the RFCs it implements, the BGP capability codes it owns, the setup outcome its own init() recorded (succeeded, soft-failure, hard-failure or unknown) and the reason the plugin gave. A plugin that recorded nothing is listed as unknown, never omitted, and a plugin that recorded and then did not register keeps its row. The outcome replays a past event: it was recorded once, before main(), and this command reads it back. 'show health' answers the other question, by running a probe now and reporting what the daemon is doing at this moment.
+Each row carries the plugin name\, what it does\, the address families it handles\, the RFCs it implements\, the BGP capability codes it owns\, the setup outcome its own init\(\) recorded \(succeeded\, soft\-failure\, hard\-failure or unknown\) and the reason the plugin gave\. A plugin that recorded nothing is listed as unknown\, never omitted\, and a plugin that recorded and then did not register keeps its row\. The outcome replays a past event\: it was recorded once\, before main\(\)\, and this command reads it back\. \'show health\' answers the other question\, by running a probe now and reporting what the daemon is doing at this moment\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `request peer teardown`
 
-Tear down a peer session.
+Tear down a peer session\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Tear down a peer session.
 - Command pipes: none
 - Pipe aliases: none
 
-The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255. Ze sends an RFC 8203 shutdown communication message with subcode 2, administrative shutdown, and with subcode 4, administrative reset, and with no other subcode. The message follows the subcode on the command line, and the answer echoes the truncated text that went on the wire.
+The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255\. Ze sends an RFC 8203 shutdown communication message with subcode 2\, administrative shutdown\, and with subcode 4\, administrative reset\, and with no other subcode\. The message follows the subcode on the command line\, and the answer echoes the truncated text that went on the wire\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
-| `cease-subcode` | uint | yes | any value of this type | BGP cease NOTIFICATION subcode | The value is a whole number from 0 to 255, and a value outside that range is refused. Ze puts it in the Cease NOTIFICATION it sends before it closes the session. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
+| `cease-subcode` | uint | yes | any value of this type | BGP cease NOTIFICATION subcode | The value is a whole number from 0 to 255\, and a value outside that range is refused\. Ze puts it in the Cease NOTIFICATION it sends before it closes the session\. |
 
 ## Mapping intents
 

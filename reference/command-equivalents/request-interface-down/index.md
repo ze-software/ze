@@ -1,6 +1,6 @@
 # `request interface down`
 
-Shut down an interface.
+Shut down an interface\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Shut down an interface.
 - Command pipes: none
 - Pipe aliases: none
 
-Only the administrative state changes. A name bound to hardware by a selector is refused when the selector resolves to no device, so the shutdown cannot reach another port.
+Only the administrative state changes\. A name bound to hardware by a selector is refused when the selector resolves to no device\, so the shutdown cannot reach another port\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The interface that up, down, mtu and mac act on. Each of those commands inherits it, and migrate names its own interfaces instead. |
+| `name` | string | yes | any value of this type | Interface name | The interface that up\, down\, mtu and mac act on\. Each of those commands inherits it\, and migrate names its own interfaces instead\. |
 
 ## Mapping intents
 

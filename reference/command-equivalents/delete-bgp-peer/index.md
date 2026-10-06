@@ -1,6 +1,6 @@
 # `delete bgp peer`
 
-Remove a peer from the running config.
+Remove a peer from the running config\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Remove a peer from the running config.
 - Command pipes: none
 - Pipe aliases: none
 
-Tears down the TCP session and deletes the peer from the running configuration. Does not modify the config file on disk.
+Tears down the TCP session and deletes the peer from the running configuration\. Does not modify the config file on disk\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. Ze tears down and deletes each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Ze tears down and deletes each peer it matches\. |
 
 ## Mapping intents
 

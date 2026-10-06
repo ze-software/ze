@@ -1,6 +1,6 @@
 # `request bgp rib inject`
 
-Inject a synthetic route into the Adj-RIB-In.
+Inject a synthetic route into the Adj\-RIB\-In\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Inject a synthetic route into the Adj-RIB-In.
 - Command pipes: none
 - Pipe aliases: none
 
-Behaves as if the route was received from a peer. Use this for testing policy filters or simulating route announcements.
+Behaves as if the route was received from a peer\. Use this for testing policy filters or simulating route announcements\.
 
 ## Arguments
 

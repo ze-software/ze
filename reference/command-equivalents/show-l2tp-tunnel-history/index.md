@@ -1,6 +1,6 @@
 # `show l2tp tunnel history`
 
-Show state transitions for a tunnel over time.
+Show state transitions for a tunnel over time\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show state transitions for a tunnel over time.
 - Command pipes: none
 - Pipe aliases: none
 
-Timestamped FSM entries showing how the tunnel reached its current state. Use this to diagnose a tunnel establishment failure.
+Timestamped FSM entries showing how the tunnel reached its current state\. Use this to diagnose a tunnel establishment failure\.
 
 ## Arguments
 

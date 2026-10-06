@@ -1,6 +1,6 @@
 # `clear ospf process`
 
-Full OSPF reset: tear down every adjacency and re-run SPF.
+Full OSPF reset\: tear down every adjacency and re\-run SPF\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Full OSPF reset: tear down every adjacency and re-run SPF.
 - Command pipes: none
 - Pipe aliases: none
 
-Adjacencies re-form from the next Hello; the configuration is unchanged.
+Adjacencies re\-form from the next Hello\; the configuration is unchanged\.
 
 ## Arguments
 

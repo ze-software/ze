@@ -1,6 +1,6 @@
 # `update system firmware restart`
 
-Reboot into the already-staged firmware.
+Reboot into the already\-staged firmware\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Reboot into the already-staged firmware.
 - Command pipes: none
 - Pipe aliases: none
 
-No download happens. Use this after 'update system firmware download' when you are ready to activate the new version.
+No download happens\. Use this after \'update system firmware download\' when you are ready to activate the new version\.
 
 ## Arguments
 

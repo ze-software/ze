@@ -1,6 +1,6 @@
 # `request bgp adj-rib-in replay`
 
-Replay the stored routes of every other peer to one target peer.
+Replay the stored routes of every other peer to one target peer\.
 
 ## Ze command
 

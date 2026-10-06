@@ -1,6 +1,6 @@
 # `show ospf virtual-links`
 
-Show OSPF virtual links (RFC 2328 section 15).
+Show OSPF virtual links \(RFC 2328 section 15\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPF virtual links (RFC 2328 section 15).
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each configured virtual link with its transit area, remote router-id, adjacency state, computed cost, and transit next hop.
+Lists each configured virtual link with its transit area\, remote router\-id\, adjacency state\, computed cost\, and transit next hop\.
 
 ## Arguments
 

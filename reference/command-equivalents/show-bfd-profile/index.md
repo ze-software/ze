@@ -1,6 +1,6 @@
 # `show bfd profile`
 
-Show BFD timer profiles with effective values.
+Show BFD timer profiles with effective values\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show BFD timer profiles with effective values.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns min-tx, min-rx, and detect-multiplier after inheritance. Use 'show bfd profile' for every profile or 'show bfd profile name <name>' for one profile.
+Returns min\-tx\, min\-rx\, and detect\-multiplier after inheritance\. Use \'show bfd profile\' for every profile or \'show bfd profile name \<name\>\' for one profile\.
 
 ## Arguments
 

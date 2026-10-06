@@ -1,6 +1,6 @@
 # `show l2tp tunnel id`
 
-Show full detail for one L2TP tunnel.
+Show full detail for one L2TP tunnel\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show full detail for one L2TP tunnel.
 - Command pipes: none
 - Pipe aliases: none
 
-Pass the local tunnel ID. Returns control channel state, peer endpoint, hello interval, and all assigned sessions.
+Pass the local tunnel ID\. Returns control channel state\, peer endpoint\, hello interval\, and all assigned sessions\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | yes | any value of this type | Local tunnel ID. | The decimal local tunnel ID from the show l2tp tunnel table. Zero is refused because RFC 2661 reserves it, and an unknown ID is refused with 'no tunnel with local-tid'. |
+| `id` | string | yes | any value of this type | Local tunnel ID\. | The decimal local tunnel ID from the show l2tp tunnel table\. Zero is refused because RFC 2661 reserves it\, and an unknown ID is refused with \'no tunnel with local\-tid\'\. |
 
 ## Mapping intents
 

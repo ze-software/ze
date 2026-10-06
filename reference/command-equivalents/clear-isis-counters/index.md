@@ -1,6 +1,6 @@
 # `clear isis counters`
 
-Reset IS-IS observational counters and the SPF log.
+Reset IS\-IS observational counters and the SPF log\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Reset IS-IS observational counters and the SPF log.
 - Command pipes: none
 - Pipe aliases: none
 
-Monotonic Prometheus series are not reset; the SPF-run history is cleared.
+Monotonic Prometheus series are not reset\; the SPF\-run history is cleared\.
 
 ## Arguments
 

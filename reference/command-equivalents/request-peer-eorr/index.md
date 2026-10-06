@@ -1,6 +1,6 @@
 # `request peer eorr`
 
-Finish an Enhanced Route Refresh cycle (RFC 7313).
+Finish an Enhanced Route Refresh cycle \(RFC 7313\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Finish an Enhanced Route Refresh cycle (RFC 7313).
 - Command pipes: none
 - Pipe aliases: none
 
-The peer purges any routes not re-advertised since the matching BORR. Only send this after the peer has finished re-advertising.
+The peer purges any routes not re\-advertised since the matching BORR\. Only send this after the peer has finished re\-advertising\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 
 ## Mapping intents
 

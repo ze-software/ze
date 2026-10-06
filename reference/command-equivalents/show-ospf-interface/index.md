@@ -1,6 +1,6 @@
 # `show ospf interface`
 
-Show OSPF-enabled interfaces.
+Show OSPF\-enabled interfaces\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPF-enabled interfaces.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns area, network-type, cost, ISM state, DR/BDR, hello/dead intervals, priority, and passive flag per interface.
+Returns area\, network\-type\, cost\, ISM state\, DR\/BDR\, hello\/dead intervals\, priority\, and passive flag per interface\.
 
 ## Arguments
 

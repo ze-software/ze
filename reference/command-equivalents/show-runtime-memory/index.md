@@ -1,6 +1,6 @@
 # `show runtime memory`
 
-Show the Go runtime allocator memory stats.
+Show the Go runtime allocator memory stats\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the Go runtime allocator memory stats.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns allocated bytes, heap in-use, total allocations, GC cycles, and last GC pause duration. Compare over time to spot leaks. For the OS-level process memory (RSS/VSZ) use 'show system memory'.
+Returns allocated bytes\, heap in\-use\, total allocations\, GC cycles\, and last GC pause duration\. Compare over time to spot leaks\. For the OS\-level process memory \(RSS\/VSZ\) use \'show system memory\'\.
 
 ## Arguments
 

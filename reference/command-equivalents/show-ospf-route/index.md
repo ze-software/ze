@@ -1,6 +1,6 @@
 # `show ospf route`
 
-Show OSPF-computed routes.
+Show OSPF\-computed routes\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPF-computed routes.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each prefix with its path type (intra/inter/external-1/2), cost, next-hops, and area.
+Lists each prefix with its path type \(intra\/inter\/external\-1\/2\)\, cost\, next\-hops\, and area\.
 
 ## Arguments
 

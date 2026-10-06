@@ -1,6 +1,6 @@
 # `create interface bridge name`
 
-Create a Linux bridge for L2 forwarding.
+Create a Linux bridge for L2 forwarding\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Create a Linux bridge for L2 forwarding.
 - Command pipes: none
 - Pipe aliases: none
 
-The command is idempotent. When a unit or address command under it fails, and this command created the bridge, the bridge is deleted again.
+The command is idempotent\. When a unit or address command under it fails\, and this command created the bridge\, the bridge is deleted again\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The name of the bridge to create. A name that holds an interface of another type is refused, and the error names both types. |
+| `name` | string | yes | any value of this type | Interface name | The name of the bridge to create\. A name that holds an interface of another type is refused\, and the error names both types\. |
 
 ## Mapping intents
 

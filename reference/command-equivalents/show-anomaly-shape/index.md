@@ -1,6 +1,6 @@
 # `show anomaly shape`
 
-Show the shadow-first anomaly responder status.
+Show the shadow\-first anomaly responder status\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the shadow-first anomaly responder status.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the mode (shadow or armed), the action, and the kill-switch state. It also returns the armed source entities with their live firewall actions.
+Returns the mode \(shadow or armed\)\, the action\, and the kill\-switch state\. It also returns the armed source entities with their live firewall actions\.
 
 ## Arguments
 

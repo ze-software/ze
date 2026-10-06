@@ -1,6 +1,6 @@
 # `show ospf database external`
 
-Show only AS-external-LSAs (Type 5).
+Show only AS\-external\-LSAs \(Type 5\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show only AS-external-LSAs (Type 5).
 - Command pipes: none
 - Pipe aliases: none
 
-RFC 2328 Section 12.4.4 states that an AS boundary router originates an AS-external-LSA. The LSA describes a route to a destination in another Autonomous System, and it is flooded throughout the AS. Ze reads the AS-wide store for it, so no area appears in the answer.
+RFC 2328 Section 12\.4\.4 states that an AS boundary router originates an AS\-external\-LSA\. The LSA describes a route to a destination in another Autonomous System\, and it is flooded throughout the AS\. Ze reads the AS\-wide store for it\, so no area appears in the answer\.
 
 ## Arguments
 

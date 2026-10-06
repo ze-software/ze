@@ -1,6 +1,6 @@
 # `show vpn ipsec status`
 
-Quick IPsec health check.
+Quick IPsec health check\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Quick IPsec health check.
 - Command pipes: none
 - Pipe aliases: none
 
-Reports whether the IKE engine is running, how many peers are configured, and how many IKE SAs are Established.
+Reports whether the IKE engine is running\, how many peers are configured\, and how many IKE SAs are Established\.
 
 ## Arguments
 

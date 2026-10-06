@@ -1,6 +1,6 @@
 # `show metrics values`
 
-Dump all metrics in Prometheus text format.
+Dump all metrics in Prometheus text format\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Dump all metrics in Prometheus text format.
 - Command pipes: none
 - Pipe aliases: none
 
-Outputs every registered metric with labels and values. Suitable for feeding into Prometheus, Grafana, or curl-based monitoring.
+Outputs every registered metric with labels and values\. Suitable for feeding into Prometheus\, Grafana\, or curl\-based monitoring\.
 
 ## Arguments
 

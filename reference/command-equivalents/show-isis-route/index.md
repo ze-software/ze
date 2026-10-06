@@ -1,6 +1,6 @@
 # `show isis route`
 
-Show IS-IS-computed routes.
+Show IS\-IS\-computed routes\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show IS-IS-computed routes.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each prefix the SPF installed with its metric, level, up/down bit, and next-hops (address and outgoing interface).
+Lists each prefix the SPF installed with its metric\, level\, up\/down bit\, and next\-hops \(address and outgoing interface\)\.
 
 ## Arguments
 

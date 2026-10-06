@@ -1,6 +1,6 @@
 # `show capture`
 
-Show captured control-plane messages.
+Show captured control\-plane messages\.
 
 ## Ze command
 
@@ -21,16 +21,16 @@ Show captured control-plane messages.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns protocol messages you previously enabled capture for. Without a protocol keyword, shows all protocols. Use this to debug session establishment issues.
+Returns protocol messages you previously enabled capture for\. Without a protocol keyword\, shows all protocols\. Use this to debug session establishment issues\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `protocol` | enum | no | `l2tp`, `bgp` | Protocol filter. | Restricts the answer to one protocol key. Absent, the answer carries an l2tp key and a bgp key, each holding its messages or 'capture not enabled'. |
-| `tunnel-id` | string | no | any value of this type | L2TP tunnel ID filter. | Keeps only the L2TP messages of the tunnel with this local tunnel ID. The BGP messages are not affected. |
-| `count` | uint | no | any value of this type | Maximum number of messages. | At most this many messages are returned for each protocol. Absent or 0, every buffered message is returned. |
-| `peer` | string | no | any value of this type | Peer address filter. | Keeps only the messages exchanged with this peer address, for L2TP and BGP alike. |
+| `protocol` | enum | no | `l2tp`, `bgp` | Protocol filter\. | Restricts the answer to one protocol key\. Absent\, the answer carries an l2tp key and a bgp key\, each holding its messages or \'capture not enabled\'\. |
+| `tunnel-id` | string | no | any value of this type | L2TP tunnel ID filter\. | Keeps only the L2TP messages of the tunnel with this local tunnel ID\. The BGP messages are not affected\. |
+| `count` | uint | no | any value of this type | Maximum number of messages\. | At most this many messages are returned for each protocol\. Absent or 0\, every buffered message is returned\. |
+| `peer` | string | no | any value of this type | Peer address filter\. | Keeps only the messages exchanged with this peer address\, for L2TP and BGP alike\. |
 
 ## Mapping intents
 

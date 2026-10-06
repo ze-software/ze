@@ -1,6 +1,6 @@
 # `show anomaly observe`
 
-Show the behavioral anomaly incident lifecycle, newest first.
+Show the behavioral anomaly incident lifecycle\, newest first\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the behavioral anomaly incident lifecycle, newest first.
 - Command pipes: none
 - Pipe aliases: none
 
-Per incident: the source entity, cohort, fired features with their deviation z-scores, combined score, severity, start time, end time, and whether it is still active. Finalized incidents stay in the list, so this shows a finished incident's duration, which `show anomaly detect` cannot.
+Per incident\: the source entity\, cohort\, fired features with their deviation z\-scores\, combined score\, severity\, start time\, end time\, and whether it is still active\. Finalized incidents stay in the list\, so this shows a finished incident\'s duration\, which \`show anomaly detect\` cannot\.
 
 ## Arguments
 

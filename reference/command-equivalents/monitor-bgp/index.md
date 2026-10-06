@@ -1,6 +1,6 @@
 # `monitor bgp`
 
-Live BGP peer dashboard that refreshes automatically.
+Live BGP peer dashboard that refreshes automatically\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Live BGP peer dashboard that refreshes automatically.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows all peers with state, uptime, and prefix counts. State changes highlight as they happen. Ctrl-C to stop.
+Shows all peers with state\, uptime\, and prefix counts\. State changes highlight as they happen\. Ctrl\-C to stop\.
 
 ## Arguments
 

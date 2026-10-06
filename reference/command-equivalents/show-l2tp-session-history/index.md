@@ -1,6 +1,6 @@
 # `show l2tp session history`
 
-Show state transitions for a session over time.
+Show state transitions for a session over time\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show state transitions for a session over time.
 - Command pipes: none
 - Pipe aliases: none
 
-Timestamped FSM entries for session establishment. Use this when a subscriber's session fails to come up.
+Timestamped FSM entries for session establishment\. Use this when a subscriber\'s session fails to come up\.
 
 ## Arguments
 

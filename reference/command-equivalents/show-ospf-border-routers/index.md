@@ -1,6 +1,6 @@
 # `show ospf border-routers`
 
-Show routes to OSPF area-border and AS-boundary routers.
+Show routes to OSPF area\-border and AS\-boundary routers\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show routes to OSPF area-border and AS-boundary routers.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each reachable ABR/ASBR with its router-id, cost, next-hops, and area.
+Lists each reachable ABR\/ASBR with its router\-id\, cost\, next\-hops\, and area\.
 
 ## Arguments
 

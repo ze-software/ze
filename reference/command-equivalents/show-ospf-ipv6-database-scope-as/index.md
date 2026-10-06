@@ -1,6 +1,6 @@
 # `show ospf ipv6 database scope as`
 
-Show only AS-scope (S2/S1 = 10) LSAs.
+Show only AS\-scope \(S2\/S1 \= 10\) LSAs\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show only AS-scope (S2/S1 = 10) LSAs.
 - Command pipes: none
 - Pipe aliases: none
 
-RFC 5340 Section 2.3 states that an AS-scope LSA is flooded throughout the routing domain, and that a router which originates one is an AS Boundary Router. Ze reads the AS-wide store for it, and no area appears in the answer.
+RFC 5340 Section 2\.3 states that an AS\-scope LSA is flooded throughout the routing domain\, and that a router which originates one is an AS Boundary Router\. Ze reads the AS\-wide store for it\, and no area appears in the answer\.
 
 ## Arguments
 

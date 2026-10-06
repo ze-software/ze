@@ -1,6 +1,6 @@
 # `request config archive`
 
-Save a snapshot of the current running configuration.
+Save a snapshot of the current running configuration\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Save a snapshot of the current running configuration.
 - Command pipes: none
 - Pipe aliases: none
 
-Captures the config into the store for later rollback or comparison. Optional name labels the snapshot; defaults to a timestamp.
+Captures the config into the store for later rollback or comparison\. Optional name labels the snapshot\; defaults to a timestamp\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `clear l2tp session id`
 
-Disconnect one subscriber session.
+Disconnect one subscriber session\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Disconnect one subscriber session.
 - Command pipes: none
 - Pipe aliases: none
 
-Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id <id> [reason <text>] [cause <code>].
+Sends a CDN to gracefully close the session\. Pass the local session ID\: clear l2tp session id \<id\> \[reason \<text\>\] \[cause \<code\>\]\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show pki certificate name fingerprint`
 
-Show the hash of the certificate, to verify its identity against the one another system reports.
+Show the hash of the certificate\, to verify its identity against the one another system reports\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show the hash of the certificate, to verify its identity against the one another
 - Command pipes: none
 - Pipe aliases: none
 
-Without an algorithm, SHA-256.
+Without an algorithm\, SHA\-256\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Certificate name | The name of a CA or device certificate in the store. The hash is taken over its DER bytes. An unknown name is refused, and the refusal lists the names the store holds. |
+| `name` | string | yes | any value of this type | Certificate name | The name of a CA or device certificate in the store\. The hash is taken over its DER bytes\. An unknown name is refused\, and the refusal lists the names the store holds\. |
 
 ## Mapping intents
 

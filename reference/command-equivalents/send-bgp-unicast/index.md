@@ -1,6 +1,6 @@
 # `send bgp unicast`
 
-Originate a unicast route on demand.
+Originate a unicast route on demand\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Originate a unicast route on demand.
 - Command pipes: none
 - Pipe aliases: none
 
-The address family follows the prefix, so it is ipv4 unicast or ipv6 unicast. The ORIGIN is IGP, and the next hop is this router unless next-hop names one.
+The address family follows the prefix\, so it is ipv4 unicast or ipv6 unicast\. The ORIGIN is IGP\, and the next hop is this router unless next\-hop names one\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, a comma-separated list of those, or * for every peer. The message goes to each session the selector matches. |
-| `prefix` | string | yes | any value of this type | Prefix to originate, in CIDR form | The value is an IPv4 or IPv6 prefix with its length, such as 192.0.2.0/24. The address family of the route follows from the prefix. A value that is not a prefix is refused. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, a comma\-separated list of those\, or \* for every peer\. The message goes to each session the selector matches\. |
+| `prefix` | string | yes | any value of this type | Prefix to originate\, in CIDR form | The value is an IPv4 or IPv6 prefix with its length\, such as 192\.0\.2\.0\/24\. The address family of the route follows from the prefix\. A value that is not a prefix is refused\. |
 
 ## Mapping intents
 

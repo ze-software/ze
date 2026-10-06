@@ -1,6 +1,6 @@
 # `show pppoe interfaces`
 
-Show which interfaces are accepting PPPoE sessions.
+Show which interfaces are accepting PPPoE sessions\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show which interfaces are accepting PPPoE sessions.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each PPPoE-enabled interface with its service name, session limit, and how many sessions are active now.
+Lists each PPPoE\-enabled interface with its service name\, session limit\, and how many sessions are active now\.
 
 ## Arguments
 

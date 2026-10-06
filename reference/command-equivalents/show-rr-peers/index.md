@@ -1,6 +1,6 @@
 # `show rr peers`
 
-Show route reflector client peers.
+Show route reflector client peers\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show route reflector client peers.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each RR client with session state and reflected route counts.
+Lists each RR client with session state and reflected route counts\.
 
 ## Arguments
 

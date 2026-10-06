@@ -1,6 +1,6 @@
 # `show host dmi`
 
-Show the box's identity from SMBIOS/DMI.
+Show the box\'s identity from SMBIOS\/DMI\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the box's identity from SMBIOS/DMI.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns system vendor, board name, BIOS version, and chassis type. Useful for inventory or confirming which hardware model you are on.
+Returns system vendor\, board name\, BIOS version\, and chassis type\. Useful for inventory or confirming which hardware model you are on\.
 
 ## Arguments
 

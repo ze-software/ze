@@ -1,6 +1,6 @@
 # `show system profile`
 
-Capture a runtime profile for performance analysis.
+Capture a runtime profile for performance analysis\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Capture a runtime profile for performance analysis.
 - Command pipes: none
 - Pipe aliases: none
 
-Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs (instant snapshots). Output is pprof format you can open with 'go tool pprof'. Send the file to support for deep analysis.
+Types\: cpu \(requires duration\, e\.g\. 30s\)\, heap\, goroutine\, allocs \(instant snapshots\)\. Output is pprof format you can open with \'go tool pprof\'\. Send the file to support for deep analysis\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `type` | enum | no | `cpu`, `heap`, `goroutine`, `allocs` | Profile type. | The word is optional and the default is heap. Only cpu runs for a time and reads duration. The three others return at once. The response carries the pprof bytes as base64 in data, with format pprof-base64. |
-| `duration` | string | no | any value of this type | Profile duration. | The value is a Go duration with a unit, from 1s to 60s, and the default is 10s. Only a cpu profile reads it. A second cpu profile is refused while one runs. |
+| `type` | enum | no | `cpu`, `heap`, `goroutine`, `allocs` | Profile type\. | The word is optional and the default is heap\. Only cpu runs for a time and reads duration\. The three others return at once\. The response carries the pprof bytes as base64 in data\, with format pprof\-base64\. |
+| `duration` | string | no | any value of this type | Profile duration\. | The value is a Go duration with a unit\, from 1s to 60s\, and the default is 10s\. Only a cpu profile reads it\. A second cpu profile is refused while one runs\. |
 
 ## Mapping intents
 

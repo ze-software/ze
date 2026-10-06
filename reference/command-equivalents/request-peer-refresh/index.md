@@ -1,6 +1,6 @@
 # `request peer refresh`
 
-Ask a peer to re-send all routes (RFC 2918).
+Ask a peer to re\-send all routes \(RFC 2918\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Ask a peer to re-send all routes (RFC 2918).
 - Command pipes: none
 - Pipe aliases: none
 
-Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The peer will re-advertise its entire Adj-RIB-Out.
+Sends a ROUTE\-REFRESH message for the specified AFI\/SAFI\. The peer will re\-advertise its entire Adj\-RIB\-Out\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 
 ## Mapping intents
 

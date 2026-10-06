@@ -1,6 +1,6 @@
 # `resolve peeringdb max-prefix`
 
-Get max-prefix limits for an ASN from PeeringDB.
+Get max\-prefix limits for an ASN from PeeringDB\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Get max-prefix limits for an ASN from PeeringDB.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns IPv4 and IPv6 prefix limits. Apply via the config editor.
+Returns IPv4 and IPv6 prefix limits\. Apply via the config editor\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | union | yes | any value of this type | AS number. | The AS number in plain decimal or in asdot notation, which Ze parses to one 32-bit value before the query. A spelling that parses to no AS number is refused. |
+| `asn` | union | yes | any value of this type | AS number\. | The AS number in plain decimal or in asdot notation\, which Ze parses to one 32\-bit value before the query\. A spelling that parses to no AS number is refused\. |
 
 ## Mapping intents
 

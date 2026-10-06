@@ -1,6 +1,6 @@
 # `show vpn ipsec dataplane policy`
 
-Show the Security Policy Database the kernel holds.
+Show the Security Policy Database the kernel holds\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the Security Policy Database the kernel holds.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each policy with its selector prefixes and ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that installed it. A policy with no matching SA is the failure this command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this tree.
+Lists each policy with its selector prefixes and ports\, direction\, priority\, upper\-layer protocol\, if\_id\, tunnel endpoints\, and the peer that installed it\. A policy with no matching SA is the failure this command exists to show\. RFC 4301 Section 4\.4 keeps the SPD and the SAD separate\, and so does this tree\.
 
 ## Arguments
 

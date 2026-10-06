@@ -1,6 +1,6 @@
 # `show system cpu`
 
-Show CPU utilization context for the daemon.
+Show CPU utilization context for the daemon\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show CPU utilization context for the daemon.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns goroutine count, logical CPU count, and GOMAXPROCS setting. Useful when the box feels sluggish and you want to see if Ze is hogging threads.
+Returns goroutine count\, logical CPU count\, and GOMAXPROCS setting\. Useful when the box feels sluggish and you want to see if Ze is hogging threads\.
 
 ## Arguments
 

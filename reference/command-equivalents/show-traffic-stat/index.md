@@ -1,6 +1,6 @@
 # `show traffic stat`
 
-Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).
+Show aggregated traffic snapshot \(interface rates\, top talkers\, top ports\, severity\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show aggregated traffic snapshot (interface rates, top talkers, top ports, sever
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.
+Without arguments\, shows all interfaces\. With \'name \<interface\>\'\, filters to one interface\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | no | any value of this type | Interface name filter | The name of one interface, matched exactly against the interface names in the snapshot. A name in no row leaves the answer empty. |
+| `name` | string | no | any value of this type | Interface name filter | The name of one interface\, matched exactly against the interface names in the snapshot\. A name in no row leaves the answer empty\. |
 
 ## Mapping intents
 

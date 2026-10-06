@@ -1,6 +1,6 @@
 # `show arp`
 
-Show the IPv4 ARP table (shortcut for 'show neighbor ipv4').
+Show the IPv4 ARP table \(shortcut for \'show neighbor ipv4\'\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the IPv4 ARP table (shortcut for 'show neighbor ipv4').
 - Command pipes: none
 - Pipe aliases: none
 
-Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only. Use 'show neighbor' for both families or 'show neighbor ipv6' for the IPv6 ND table.
+Lists IPv4 ARP entries with MAC address and state\. ARP is IPv4\-only\. Use \'show neighbor\' for both families or \'show neighbor ipv6\' for the IPv6 ND table\.
 
 ## Arguments
 

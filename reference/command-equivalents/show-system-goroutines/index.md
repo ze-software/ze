@@ -1,6 +1,6 @@
 # `show system goroutines`
 
-Dump goroutine stacks for debugging hangs or deadlocks.
+Dump goroutine stacks for debugging hangs or deadlocks\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Dump goroutine stacks for debugging hangs or deadlocks.
 - Command pipes: none
 - Pipe aliases: none
 
-Modes: summary (groups by state), blocked (only lock/channel waiters), full (all stacks). Default: summary. Share the output with support when the daemon stops responding.
+Modes\: summary \(groups by state\)\, blocked \(only lock\/channel waiters\)\, full \(all stacks\)\. Default\: summary\. Share the output with support when the daemon stops responding\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `mode` | enum | no | `summary`, `blocked`, `full` | Display mode. | The word is optional and the default is summary. The blocked list carries each waiting goroutine with its id, its state and its stack, after the same totals. A full dump is one text block of up to 16 MB, so keep it for a hang. |
+| `mode` | enum | no | `summary`, `blocked`, `full` | Display mode\. | The word is optional and the default is summary\. The blocked list carries each waiting goroutine with its id\, its state and its stack\, after the same totals\. A full dump is one text block of up to 16 MB\, so keep it for a hang\. |
 
 ## Mapping intents
 

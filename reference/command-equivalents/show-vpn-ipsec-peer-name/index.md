@@ -1,6 +1,6 @@
 # `show vpn ipsec peer name`
 
-Show full detail for one IPsec peer.
+Show full detail for one IPsec peer\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show full detail for one IPsec peer.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns IKE SA state, all child SAs with traffic selectors, and byte counts.
+Returns IKE SA state\, all child SAs with traffic selectors\, and byte counts\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Configured IPsec peer name. | The value is the key of a site-to-site peer entry, at most 255 characters. Ze returns every IKE SA that peer holds, and answers 'peer not found' when none is up. |
+| `name` | string | yes | any value of this type | Configured IPsec peer name\. | The value is the key of a site\-to\-site peer entry\, at most 255 characters\. Ze returns every IKE SA that peer holds\, and answers \'peer not found\' when none is up\. |
 
 ## Mapping intents
 

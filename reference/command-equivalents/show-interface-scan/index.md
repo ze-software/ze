@@ -1,6 +1,6 @@
 # `show interface scan`
 
-Discover and classify all OS interfaces.
+Discover and classify all OS interfaces\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Discover and classify all OS interfaces.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns name, Ze type (ethernet, bridge, vxlan, etc.), and MAC for each interface found. Pipe to table, yaml, or json for different views. Use it during initial setup to see what the box has.
+Returns name\, Ze type \(ethernet\, bridge\, vxlan\, etc\.\)\, and MAC for each interface found\. Pipe to table\, yaml\, or json for different views\. Use it during initial setup to see what the box has\.
 
 ## Arguments
 

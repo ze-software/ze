@@ -1,6 +1,6 @@
 # `show interface name detail`
 
-Show full detail for one interface.
+Show full detail for one interface\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show full detail for one interface.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer is the whole record the backend holds for that interface, and the counters are part of it. An unknown name is reported as the backend's own error.
+The answer is the whole record the backend holds for that interface\, and the counters are part of it\. An unknown name is reported as the backend\'s own error\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The interface whose record is shown. The backend looks it up by this name, and an unknown name answers the backend's error. |
+| `name` | string | yes | any value of this type | Interface name | The interface whose record is shown\. The backend looks it up by this name\, and an unknown name answers the backend\'s error\. |
 
 ## Mapping intents
 

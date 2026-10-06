@@ -1,6 +1,6 @@
 # `request cache retain`
 
-Prevent eviction of a cached message.
+Prevent eviction of a cached message\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Prevent eviction of a cached message.
 - Command pipes: none
 - Pipe aliases: none
 
-A retained entry is not evicted when it expires, so it stays listed until 'release' undoes the retain or 'expire' removes it. The ID leaf accepts a comma-separated list, and each ID is acted on in turn with a failure reported per ID.
+A retained entry is not evicted when it expires\, so it stays listed until \'release\' undoes the retain or \'expire\' removes it\. The ID leaf accepts a comma\-separated list\, and each ID is acted on in turn with a failure reported per ID\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | yes | any value of this type | Cache entry ID, or a comma-separated list of IDs. | One decimal cache entry ID, as show cache lists it, or several joined by commas. A comma-separated value runs the action once for each ID and reports a failure for each ID that is not in the cache. A value that is not a decimal number is refused as an invalid cache id. |
+| `id` | string | yes | any value of this type | Cache entry ID\, or a comma\-separated list of IDs\. | One decimal cache entry ID\, as show cache lists it\, or several joined by commas\. A comma\-separated value runs the action once for each ID and reports a failure for each ID that is not in the cache\. A value that is not a decimal number is refused as an invalid cache id\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `clear bgp rib out`
 
-Re-advertise all routes to a peer.
+Re\-advertise all routes to a peer\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Re-advertise all routes to a peer.
 - Command pipes: none
 - Pipe aliases: none
 
-Triggers a full Adj-RIB-Out replay to the selected peers. Useful after a policy change to push updated attributes without tearing down the session. Selector: IP, name, AS pattern, glob, or *.
+Triggers a full Adj\-RIB\-Out replay to the selected peers\. Useful after a policy change to push updated attributes without tearing down the session\. Selector\: IP\, name\, AS pattern\, glob\, or \*\.
 
 ## Arguments
 

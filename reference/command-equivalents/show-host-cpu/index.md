@@ -1,6 +1,6 @@
 # `show host cpu`
 
-Show what CPUs are in this box.
+Show what CPUs are in this box\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show what CPUs are in this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns vendor, model, core/thread topology, hybrid layout, scaling driver, current/min/max frequencies, and throttle counts.
+Returns vendor\, model\, core\/thread topology\, hybrid layout\, scaling driver\, current\/min\/max frequencies\, and throttle counts\.
 
 ## Arguments
 

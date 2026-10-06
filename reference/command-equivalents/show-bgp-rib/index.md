@@ -1,6 +1,6 @@
 # `show bgp rib`
 
-Query routes in the BGP RIB.
+Query routes in the BGP RIB\.
 
 ## Ze command
 
@@ -18,10 +18,10 @@ Query routes in the BGP RIB.
 - Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
-- Command pipes: `advertised`: Select advertised routes; `community <value>`: Filter by standard community; `count`: Count matching routes without serializing rows; `family <value>`: Filter by AFI/SAFI; `first <value>`: Take first N routes; `graph`: Render AS-path topology graph; `histogram`: Count routes by family and prefix length; `last <value>`: Take last N routes; `match <value>`: Cross-field structured match; `path <value>`: Filter by AS path; `peer <value>`: Filter by peer; `prefix <value>`: Filter by prefix; `received`: Select received routes
+- Command pipes: `advertised`: Select advertised routes; `community <value>`: Filter by standard community; `count`: Count matching routes without serializing rows; `family <value>`: Filter by AFI\/SAFI; `first <value>`: Take first N routes; `graph`: Render AS\-path topology graph; `histogram`: Count routes by family and prefix length; `last <value>`: Take last N routes; `match <value>`: Cross\-field structured match; `path <value>`: Filter by AS path; `peer <value>`: Filter by peer; `prefix <value>`: Filter by prefix; `received`: Select received routes
 - Pipe aliases: none
 
-Look at received or advertised routes with flexible filters: peer, family, prefix, AS path regex, community, match expression. Pipe operators: \| count, \| histogram, \| graph. This is the main route inspection command.
+Look at received or advertised routes with flexible filters\: peer\, family\, prefix\, AS path regex\, community\, match expression\. Pipe operators\: \| count\, \| histogram\, \| graph\. This is the main route inspection command\.
 
 ## Arguments
 

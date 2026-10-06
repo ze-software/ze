@@ -1,6 +1,6 @@
 # `show vpn ipsec sa`
 
-Show all IKE and Child Security Associations.
+Show all IKE and Child Security Associations\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show all IKE and Child Security Associations.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists every SA with peer, negotiated algorithms, byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child SA traffic selectors. It is the main IPsec status command.
+Lists every SA with peer\, negotiated algorithms\, byte counts\, rekey timers\, and uptime\. Includes SPIs\, NAT detection\, and child SA traffic selectors\. It is the main IPsec status command\.
 
 ## Arguments
 

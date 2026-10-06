@@ -1,6 +1,6 @@
 # `show system conntrack`
 
-Show the kernel connection tracking table.
+Show the kernel connection tracking table\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the kernel connection tracking table.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns conntrack entry count, table size, timeouts, and loaded modules. Requires the nft backend. Check this when you suspect conntrack table exhaustion is dropping traffic.
+Returns conntrack entry count\, table size\, timeouts\, and loaded modules\. Requires the nft backend\. Check this when you suspect conntrack table exhaustion is dropping traffic\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `clear vrrp statistics`
 
-Reset every VRRP virtual router's counters to zero.
+Reset every VRRP virtual router\'s counters to zero\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Reset every VRRP virtual router's counters to zero.
 - Command pipes: none
 - Pipe aliases: none
 
-Protocol state is untouched: clearing counters never triggers a failover.
+Protocol state is untouched\: clearing counters never triggers a failover\.
 
 ## Arguments
 

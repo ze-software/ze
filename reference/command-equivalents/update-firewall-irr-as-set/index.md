@@ -1,6 +1,6 @@
 # `update firewall irr as-set`
 
-Fetch or refresh IRR prefix-list for an AS-SET.
+Fetch or refresh IRR prefix\-list for an AS\-SET\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Fetch or refresh IRR prefix-list for an AS-SET.
 - Command pipes: none
 - Pipe aliases: none
 
-Queries the IRR server and saves resolved prefixes to the zefs cache.
+Queries the IRR server and saves resolved prefixes to the zefs cache\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type | AS-SET name | The RPSL set name, for example AS-EXAMPLE or RIPE::AS-EXAMPLE. Letters, digits, hyphen, underscore, colon and period are accepted, and the name is the cache key. |
+| `as-set` | string | yes | any value of this type | AS\-SET name | The RPSL set name\, for example AS\-EXAMPLE or RIPE\:\:AS\-EXAMPLE\. Letters\, digits\, hyphen\, underscore\, colon and period are accepted\, and the name is the cache key\. |
 
 ## Mapping intents
 

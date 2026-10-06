@@ -1,6 +1,6 @@
 # `show l2tp session traffic`
 
-Show traffic counters for a subscriber's PPP interface.
+Show traffic counters for a subscriber\'s PPP interface\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show traffic counters for a subscriber's PPP interface.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns byte and packet counts, error counters, and current rates. Compare with CQM data to get the full picture of subscriber health.
+Returns byte and packet counts\, error counters\, and current rates\. Compare with CQM data to get the full picture of subscriber health\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `request commit`
 
-Group route changes into named atomic commits.
+Group route changes into named atomic commits\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Group route changes into named atomic commits.
 - Command pipes: none
 - Pipe aliases: none
 
-Actions: start (begin a commit), end (finalize), eor (signal end of RIB), rollback (undo), show (inspect), withdraw (remove all routes in a commit), list (show all commits). Grammar: request commit <action> <name> [args].
+Actions\: start \(begin a commit\)\, end \(finalize\)\, eor \(signal end of RIB\)\, rollback \(undo\)\, show \(inspect\)\, withdraw \(remove all routes in a commit\)\, list \(show all commits\)\. Grammar\: request commit \<action\> \<name\> \[args\]\.
 
 ## Arguments
 

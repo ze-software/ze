@@ -1,6 +1,6 @@
 # `show l2tp sessions`
 
-List all active L2TP sessions.
+List all active L2TP sessions\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all active L2TP sessions.
 - Command pipes: none
 - Pipe aliases: none
 
-One line per session: local/remote ID, parent tunnel, subscriber login, and uptime.
+One line per session\: local\/remote ID\, parent tunnel\, subscriber login\, and uptime\.
 
 ## Arguments
 

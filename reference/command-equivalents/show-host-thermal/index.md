@@ -1,6 +1,6 @@
 # `show host thermal`
 
-Show temperature sensors and thermal throttle events.
+Show temperature sensors and thermal throttle events\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show temperature sensors and thermal throttle events.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns hwmon sensor readings and per-CPU throttle counters. Non-zero throttle counts mean the box has been running hot enough to slow down.
+Returns hwmon sensor readings and per\-CPU throttle counters\. Non\-zero throttle counts mean the box has been running hot enough to slow down\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show event recent`
 
-Show recent events, newest first.
+Show recent events\, newest first\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show recent events, newest first.
 - Command pipes: none
 - Pipe aliases: none
 
-Each event includes timestamp, namespace, and type. Filter with namespace <name> to focus on one area, count <N> to limit output. Useful for reconstructing what happened before an incident.
+Each event includes timestamp\, namespace\, and type\. Filter with namespace \<name\> to focus on one area\, count \<N\> to limit output\. Useful for reconstructing what happened before an incident\.
 
 ## Arguments
 

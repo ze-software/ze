@@ -1,6 +1,6 @@
 # `show vpp runtime`
 
-Show VPP graph node processing statistics.
+Show VPP graph node processing statistics\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show VPP graph node processing statistics.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns per-node packet counts, vectors, clocks, and suspends. Helps you find which node is the bottleneck. Requires the VPP backend.
+Returns per\-node packet counts\, vectors\, clocks\, and suspends\. Helps you find which node is the bottleneck\. Requires the VPP backend\.
 
 ## Arguments
 

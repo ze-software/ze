@@ -1,6 +1,6 @@
 # `show plugin declarations config`
 
-Read the plugin blocks of a config file as well.
+Read the plugin blocks of a config file as well\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Read the plugin blocks of a config file as well.
 - Command pipes: none
 - Pipe aliases: none
 
-The keyword types the value after it, so the reader of the command line knows the token is a config file and not a plugin name. The file is read with the daemon's own loader, so the answer covers the plugins the daemon would start from it.
+The keyword types the value after it\, so the reader of the command line knows the token is a config file and not a plugin name\. The file is read with the daemon\'s own loader\, so the answer covers the plugins the daemon would start from it\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `path` | string | yes | any value of this type | Path of the config file whose plugin blocks are read | One filesystem path, or - for a config arriving on stdin. A path that names no readable file is refused before the read, and a second path after it is refused. |
+| `path` | string | yes | any value of this type | Path of the config file whose plugin blocks are read | One filesystem path\, or \- for a config arriving on stdin\. A path that names no readable file is refused before the read\, and a second path after it is refused\. |
 
 ## Mapping intents
 

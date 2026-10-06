@@ -1,6 +1,6 @@
 # `show bmp rib`
 
-Show routes received via BMP monitoring sessions.
+Show routes received via BMP monitoring sessions\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show routes received via BMP monitoring sessions.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the BMP RIB content. Use this to verify what your collector is seeing from remote peers.
+Returns the BMP RIB content\. Use this to verify what your collector is seeing from remote peers\.
 
 ## Arguments
 

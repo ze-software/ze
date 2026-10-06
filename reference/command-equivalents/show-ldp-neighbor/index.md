@@ -1,6 +1,6 @@
 # `show ldp neighbor`
 
-Show LDP neighbors and their session state.
+Show LDP neighbors and their session state\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show LDP neighbors and their session state.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns peer address, transport address, session state, and hold time for each LDP neighbor.
+Returns peer address\, transport address\, session state\, and hold time for each LDP neighbor\.
 
 ## Arguments
 

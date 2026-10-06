@@ -1,6 +1,6 @@
 # `show isis spf-log`
 
-Show recent IS-IS SPF runs.
+Show recent IS\-IS SPF runs\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show recent IS-IS SPF runs.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the most recent SPF runs with their timestamp, level, trigger, duration, and node count.
+Returns the most recent SPF runs with their timestamp\, level\, trigger\, duration\, and node count\.
 
 ## Arguments
 

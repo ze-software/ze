@@ -1,6 +1,6 @@
 # `show route lookup`
 
-Look up which route the kernel would use for a given IP.
+Look up which route the kernel would use for a given IP\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Look up which route the kernel would use for a given IP.
 - Command pipes: none
 - Pipe aliases: none
 
-Performs a longest-prefix-match and returns the matching route with gateway, interface, protocol, and metric.
+Performs a longest\-prefix\-match and returns the matching route with gateway\, interface\, protocol\, and metric\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `ip` | string | yes | any value of this type | Destination IP address to look up | One IPv4 or IPv6 address without a prefix length. The kernel answers with the route it selects for a packet to that address. |
+| `ip` | string | yes | any value of this type | Destination IP address to look up | One IPv4 or IPv6 address without a prefix length\. The kernel answers with the route it selects for a packet to that address\. |
 
 ## Mapping intents
 

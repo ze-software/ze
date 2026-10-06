@@ -1,6 +1,6 @@
 {
   "schema-version": 1,
-  "revision": "07a64cdf9af4dc77647147ced277b41df6d0279f",
+  "revision": "b783523a4c1ead2b11f90bf89db30e50565f0567",
   "input-digest": "80cb84ace6c2ee1b017bcd2d324fc1edea37139d5bcbb88b361f0bd9414b3de4",
   "qualification": "Inventory preview pending owner classification. Bucket assignments are recorded facts; required/optional classification is not yet approved.",
   "measure": "spec work items; counts do not measure effort or release readiness",
@@ -34,7 +34,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md",
       "diagnostics": []
     },
     {
@@ -47,7 +47,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-commit-message-file-carries-its-own-suffix.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-commit-message-file-carries-its-own-suffix.md",
       "diagnostics": []
     },
     {
@@ -60,7 +60,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-commit-stages-in-a-private-index.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-commit-stages-in-a-private-index.md",
       "diagnostics": []
     },
     {
@@ -73,7 +73,7 @@
       "phase": "7/8",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-crash-capture.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-crash-capture.md",
       "diagnostics": []
     },
     {
@@ -86,7 +86,7 @@
       "phase": "4/11",
       "set": "-",
       "updated": "2026-10-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-enum-switch-exhaustiveness.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-enum-switch-exhaustiveness.md",
       "diagnostics": []
     },
     {
@@ -99,7 +99,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-flap-test-cannot-build-its-own-stimulus.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-flap-test-cannot-build-its-own-stimulus.md",
       "diagnostics": []
     },
     {
@@ -112,7 +112,7 @@
       "phase": "3/4",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant.md",
       "diagnostics": []
     },
     {
@@ -125,7 +125,7 @@
       "phase": "7/8",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-unexport-package-private-symbols.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-unexport-package-private-symbols.md",
       "diagnostics": []
     },
     {
@@ -138,7 +138,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-interop-image-copies-a-prebuilt-ze.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-interop-image-copies-a-prebuilt-ze.md",
       "diagnostics": []
     },
     {
@@ -151,7 +151,7 @@
       "phase": "5/5",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-esp-dual-form-receive.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-esp-dual-form-receive.md",
       "diagnostics": []
     },
     {
@@ -164,7 +164,7 @@
       "phase": "8/8",
       "set": "-",
       "updated": "2026-09-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-rfc9190.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-rfc9190.md",
       "diagnostics": []
     },
     {
@@ -177,7 +177,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ledger-shards-per-commit-session.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ledger-shards-per-commit-session.md",
       "diagnostics": []
     },
     {
@@ -190,7 +190,7 @@
       "phase": "5/6",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-password-weakness-warning.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-password-weakness-warning.md",
       "diagnostics": []
     },
     {
@@ -203,7 +203,7 @@
       "phase": "5/5",
       "set": "perf-next",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-perf-next-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-perf-next-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -216,7 +216,7 @@
       "phase": "5/5",
       "set": "-",
       "updated": "2026-09-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-plugin-query-mode.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-plugin-query-mode.md",
       "diagnostics": []
     },
     {
@@ -229,7 +229,7 @@
       "phase": "5/8",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-route-config-plugin-migration.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-route-config-plugin-migration.md",
       "diagnostics": []
     },
     {
@@ -242,7 +242,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md",
       "diagnostics": []
     },
     {
@@ -255,7 +255,7 @@
       "phase": "5/5",
       "set": "verify-scope",
       "updated": "2026-09-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-verify-scope-5-suite-coverage-map.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-verify-scope-5-suite-coverage-map.md",
       "diagnostics": []
     },
     {
@@ -268,7 +268,7 @@
       "phase": "5/5",
       "set": "-",
       "updated": "2026-09-20",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-release-roadmap.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-release-roadmap.md",
       "diagnostics": []
     },
     {
@@ -281,7 +281,7 @@
       "phase": "-",
       "set": "anomaly",
       "updated": "2026-07-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-anomaly-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-anomaly-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -294,7 +294,7 @@
       "phase": "-",
       "set": "anomaly",
       "updated": "2026-07-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-anomaly-7-as-entities-cohorts.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-anomaly-7-as-entities-cohorts.md",
       "diagnostics": []
     },
     {
@@ -307,7 +307,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-decode-render.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-decode-render.md",
       "diagnostics": []
     },
     {
@@ -320,7 +320,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-firewall-arp-nd-matches.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-firewall-arp-nd-matches.md",
       "diagnostics": []
     },
     {
@@ -333,7 +333,7 @@
       "phase": "0/2 (research)",
       "set": "-",
       "updated": "2026-08-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-netns-test-dut-tags.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-netns-test-dut-tags.md",
       "diagnostics": []
     },
     {
@@ -346,7 +346,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md",
       "diagnostics": []
     },
     {
@@ -359,7 +359,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ike-missing-transforms.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ike-missing-transforms.md",
       "diagnostics": []
     },
     {
@@ -372,7 +372,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-07-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-improve-4-conformance-fixtures.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-improve-4-conformance-fixtures.md",
       "diagnostics": []
     },
     {
@@ -385,7 +385,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-07-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-improve-6-yang-coverage.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-improve-6-yang-coverage.md",
       "diagnostics": []
     },
     {
@@ -398,7 +398,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-improve-8-fuzz-decode-context.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-improve-8-fuzz-decode-context.md",
       "diagnostics": []
     },
     {
@@ -411,7 +411,7 @@
       "phase": "-",
       "set": "ipsec",
       "updated": "2026-06-20",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-12-esn.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-12-esn.md",
       "diagnostics": []
     },
     {
@@ -424,7 +424,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-journal-class-lifecycle.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-journal-class-lifecycle.md",
       "diagnostics": []
     },
     {
@@ -437,7 +437,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-lint-ratchet-clock-and-discarded-errors.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-lint-ratchet-clock-and-discarded-errors.md",
       "diagnostics": []
     },
     {
@@ -450,7 +450,7 @@
       "phase": "-",
       "set": "ospf-ext",
       "updated": "2026-06-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ospf-ext-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ospf-ext-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -463,7 +463,7 @@
       "phase": "0/3",
       "set": "rename",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rename-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rename-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -476,7 +476,7 @@
       "phase": "-",
       "set": "rename",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rename-1-ike-packet.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rename-1-ike-packet.md",
       "diagnostics": []
     },
     {
@@ -489,7 +489,7 @@
       "phase": "-",
       "set": "rename",
       "updated": "2026-07-22",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rename-2-bgp-packet.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rename-2-bgp-packet.md",
       "diagnostics": []
     },
     {
@@ -502,7 +502,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-deferred-confederation-otc.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-deferred-confederation-otc.md",
       "diagnostics": []
     },
     {
@@ -515,7 +515,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-evpn-route-type-match.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-evpn-route-type-match.md",
       "diagnostics": []
     },
     {
@@ -528,7 +528,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-remote-as-auto.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-remote-as-auto.md",
       "diagnostics": []
     },
     {
@@ -541,7 +541,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bridge-disable-learning.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bridge-disable-learning.md",
       "diagnostics": []
     },
     {
@@ -554,7 +554,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-05-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-cmd-deprecation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-cmd-deprecation.md",
       "diagnostics": []
     },
     {
@@ -567,7 +567,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dhcp-log-level.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dhcp-log-level.md",
       "diagnostics": []
     },
     {
@@ -580,7 +580,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-eap-tls-authenticator-empty-message-guard.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-eap-tls-authenticator-empty-message-guard.md",
       "diagnostics": []
     },
     {
@@ -593,7 +593,7 @@
       "phase": "-",
       "set": "filter-wire",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-filter-wire-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-filter-wire-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -606,7 +606,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-finish-vpp-stub.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-finish-vpp-stub.md",
       "diagnostics": []
     },
     {
@@ -619,7 +619,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-firewall-prefix-normalize.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-firewall-prefix-normalize.md",
       "diagnostics": []
     },
     {
@@ -632,7 +632,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-firewall-remote-group.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-firewall-remote-group.md",
       "diagnostics": []
     },
     {
@@ -645,7 +645,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-22",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-bgp-off-plugin-functional.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-bgp-off-plugin-functional.md",
       "diagnostics": []
     },
     {
@@ -658,7 +658,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-functional-suite-pins-the-unshipped-backend.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-functional-suite-pins-the-unshipped-backend.md",
       "diagnostics": []
     },
     {
@@ -671,7 +671,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-05-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fleet-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fleet-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -684,7 +684,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-hardware-watchdog.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-hardware-watchdog.md",
       "diagnostics": []
     },
     {
@@ -697,7 +697,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ike-ppk.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ike-ppk.md",
       "diagnostics": []
     },
     {
@@ -710,7 +710,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ike-reauth.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ike-reauth.md",
       "diagnostics": []
     },
     {
@@ -723,7 +723,7 @@
       "phase": "RESEARCH",
       "set": "install",
       "updated": "2026-06-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-install-9-cloud-init.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-install-9-cloud-init.md",
       "diagnostics": []
     },
     {
@@ -736,7 +736,7 @@
       "phase": "-",
       "set": "ipsec",
       "updated": "2026-05-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-11-mobike.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-11-mobike.md",
       "diagnostics": []
     },
     {
@@ -749,7 +749,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-lifetime-volume.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-lifetime-volume.md",
       "diagnostics": []
     },
     {
@@ -762,7 +762,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-vpp-policy-interface.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-vpp-policy-interface.md",
       "diagnostics": []
     },
     {
@@ -775,7 +775,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-isis-spf-lsp-timers.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-isis-spf-lsp-timers.md",
       "diagnostics": []
     },
     {
@@ -788,7 +788,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-06-30",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-kernel-lockdown-hardening.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-kernel-lockdown-hardening.md",
       "diagnostics": []
     },
     {
@@ -801,7 +801,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-knowledge-routing.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-knowledge-routing.md",
       "diagnostics": []
     },
     {
@@ -814,7 +814,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-liveness-event-tears-down-bgp-peer.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-liveness-event-tears-down-bgp-peer.md",
       "diagnostics": []
     },
     {
@@ -827,7 +827,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-11",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-login-service-authorisation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-login-service-authorisation.md",
       "diagnostics": []
     },
     {
@@ -840,7 +840,7 @@
       "phase": "-",
       "set": "pol",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-pol-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-pol-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -853,7 +853,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-review-plugin-registration-manifest.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-review-plugin-registration-manifest.md",
       "diagnostics": []
     },
     {
@@ -866,7 +866,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ssh-fido2-keys.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ssh-fido2-keys.md",
       "diagnostics": []
     },
     {
@@ -879,7 +879,7 @@
       "phase": "Research and design draft; implementation not authorized",
       "set": "-",
       "updated": "2026-10-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-validated-construction-and-state-types.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-validated-construction-and-state-types.md",
       "diagnostics": []
     },
     {
@@ -892,7 +892,7 @@
       "phase": "-",
       "set": "vrf",
       "updated": "2026-04-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vrf-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vrf-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -905,7 +905,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-11",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-web-plugin-extension-registry.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-web-plugin-extension-registry.md",
       "diagnostics": []
     },
     {
@@ -918,7 +918,7 @@
       "phase": "-",
       "set": "ze-website",
       "updated": "2026-08-17",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ze-website-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ze-website-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -931,7 +931,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-apply-refuses-to-destroy-live-session-state.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-apply-refuses-to-destroy-live-session-state.md",
       "diagnostics": []
     },
     {
@@ -944,7 +944,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bcp194-5-damping.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bcp194-5-damping.md",
       "diagnostics": []
     },
     {
@@ -957,7 +957,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-deferred-community-name-leaf.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-deferred-community-name-leaf.md",
       "diagnostics": []
     },
     {
@@ -970,7 +970,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-pcap-decode-real-capture-fixture.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-pcap-decode-real-capture-fixture.md",
       "diagnostics": []
     },
     {
@@ -983,7 +983,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-peer-metric-labels.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-peer-metric-labels.md",
       "diagnostics": []
     },
     {
@@ -996,7 +996,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-vpn-attr-set.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-vpn-attr-set.md",
       "diagnostics": []
     },
     {
@@ -1009,7 +1009,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-13",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-blackhole-authorization-from-irr.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-blackhole-authorization-from-irr.md",
       "diagnostics": []
     },
     {
@@ -1022,7 +1022,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-changed-source-to-functional-suite-map.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-changed-source-to-functional-suite-map.md",
       "diagnostics": []
     },
     {
@@ -1035,7 +1035,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-17",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ci-coverage-remaining-surfaces.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ci-coverage-remaining-surfaces.md",
       "diagnostics": []
     },
     {
@@ -1048,7 +1048,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ci-peer-harness-contract-backlog.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ci-peer-harness-contract-backlog.md",
       "diagnostics": []
     },
     {
@@ -1061,7 +1061,7 @@
       "phase": "0/1",
       "set": "-",
       "updated": "2026-08-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-cli-operator-defined-aliases.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-cli-operator-defined-aliases.md",
       "diagnostics": []
     },
     {
@@ -1074,7 +1074,7 @@
       "phase": "0/1",
       "set": "-",
       "updated": "2026-08-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-cli-pipe-column-modifiers.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-cli-pipe-column-modifiers.md",
       "diagnostics": []
     },
     {
@@ -1087,7 +1087,7 @@
       "phase": "0/1",
       "set": "-",
       "updated": "2026-08-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-cli-retired-command-hint.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-cli-retired-command-hint.md",
       "diagnostics": []
     },
     {
@@ -1100,7 +1100,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-09",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-code-can-land-with-no-design-doc.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-code-can-land-with-no-design-doc.md",
       "diagnostics": []
     },
     {
@@ -1113,7 +1113,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-at-rest-encryption.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-at-rest-encryption.md",
       "diagnostics": []
     },
     {
@@ -1126,7 +1126,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-operation-oldconfig-has-no-reader.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-operation-oldconfig-has-no-reader.md",
       "diagnostics": []
     },
     {
@@ -1139,7 +1139,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-authoring-checks.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-authoring-checks.md",
       "diagnostics": []
     },
     {
@@ -1152,7 +1152,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-deviation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-deviation.md",
       "diagnostics": []
     },
     {
@@ -1165,7 +1165,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-if-feature.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-if-feature.md",
       "diagnostics": []
     },
     {
@@ -1178,7 +1178,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-type-bits.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-type-bits.md",
       "diagnostics": []
     },
     {
@@ -1191,7 +1191,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-type-identityref.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-type-identityref.md",
       "diagnostics": []
     },
     {
@@ -1204,7 +1204,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-type-instance-identifier.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-type-instance-identifier.md",
       "diagnostics": []
     },
     {
@@ -1217,7 +1217,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-type-leafref.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-type-leafref.md",
       "diagnostics": []
     },
     {
@@ -1230,7 +1230,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-config-yang-version-submodule.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-config-yang-version-submodule.md",
       "diagnostics": []
     },
     {
@@ -1243,7 +1243,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-connection-management-command.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-connection-management-command.md",
       "diagnostics": []
     },
     {
@@ -1256,7 +1256,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-crypto-policy.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-crypto-policy.md",
       "diagnostics": []
     },
     {
@@ -1269,7 +1269,7 @@
       "phase": "-",
       "set": "dataplane-seams",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dataplane-seams-1-route-type-numbering.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dataplane-seams-1-route-type-numbering.md",
       "diagnostics": []
     },
     {
@@ -1282,7 +1282,7 @@
       "phase": "-",
       "set": "dataplane-seams",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dataplane-seams-2-backend-typed-index.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dataplane-seams-2-backend-typed-index.md",
       "diagnostics": []
     },
     {
@@ -1295,7 +1295,7 @@
       "phase": "-",
       "set": "dataplane-seams",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dataplane-seams-3-route-egress-interface.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dataplane-seams-3-route-egress-interface.md",
       "diagnostics": []
     },
     {
@@ -1308,7 +1308,7 @@
       "phase": "-",
       "set": "dataplane-seams",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dataplane-seams-4-control-packet-rx.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dataplane-seams-4-control-packet-rx.md",
       "diagnostics": []
     },
     {
@@ -1321,7 +1321,7 @@
       "phase": "-",
       "set": "dataplane-seams",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dataplane-seams-5-copp-non-tcp.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dataplane-seams-5-copp-non-tcp.md",
       "diagnostics": []
     },
     {
@@ -1334,7 +1334,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ddos-direction-allowlist-deferred-per-source-drop-term.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ddos-direction-allowlist-deferred-per-source-drop-term.md",
       "diagnostics": []
     },
     {
@@ -1347,7 +1347,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ddos-per-destination-detection.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ddos-per-destination-detection.md",
       "diagnostics": []
     },
     {
@@ -1360,7 +1360,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ddos-show-hook.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ddos-show-hook.md",
       "diagnostics": [
         "title unavailable"
       ]
@@ -1375,7 +1375,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dhcp-pool-options.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dhcp-pool-options.md",
       "diagnostics": []
     },
     {
@@ -1388,7 +1388,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-dhcpv6-server.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-dhcpv6-server.md",
       "diagnostics": []
     },
     {
@@ -1401,7 +1401,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-doctor-codes-move-to-their-owners.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-doctor-codes-move-to-their-owners.md",
       "diagnostics": []
     },
     {
@@ -1414,7 +1414,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-eap-tls-anonymous-nai.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-eap-tls-anonymous-nai.md",
       "diagnostics": []
     },
     {
@@ -1427,7 +1427,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-eap-tls-certificate-profile.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-eap-tls-certificate-profile.md",
       "diagnostics": []
     },
     {
@@ -1440,7 +1440,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-eap-tls-tls10.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-eap-tls-tls10.md",
       "diagnostics": []
     },
     {
@@ -1453,7 +1453,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fail-open-call-site-drain.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fail-open-call-site-drain.md",
       "diagnostics": []
     },
     {
@@ -1466,7 +1466,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-finish-report-bus.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-finish-report-bus.md",
       "diagnostics": []
     },
     {
@@ -1479,7 +1479,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-finish-web-cli-ux.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-finish-web-cli-ux.md",
       "diagnostics": []
     },
     {
@@ -1492,7 +1492,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-parse-suite-helper-cannot-invoke-ze.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-parse-suite-helper-cannot-invoke-ze.md",
       "diagnostics": []
     },
     {
@@ -1505,7 +1505,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-rfc-summary-protocol-only-rule-contradicts-annotations.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-rfc-summary-protocol-only-rule-contradicts-annotations.md",
       "diagnostics": []
     },
     {
@@ -1518,7 +1518,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-sleeps-qemu-bulk.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-sleeps-qemu-bulk.md",
       "diagnostics": []
     },
     {
@@ -1531,7 +1531,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-stress-repro-counts-a-run-that-never-started.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-stress-repro-counts-a-run-that-never-started.md",
       "diagnostics": []
     },
     {
@@ -1544,7 +1544,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-strongswan-tls13-certreq-authorities.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-strongswan-tls13-certreq-authorities.md",
       "diagnostics": []
     },
     {
@@ -1557,7 +1557,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-05-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fleet-1-device-registry.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fleet-1-device-registry.md",
       "diagnostics": []
     },
     {
@@ -1570,7 +1570,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-05-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fleet-2-config-templates.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fleet-2-config-templates.md",
       "diagnostics": []
     },
     {
@@ -1583,7 +1583,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-05-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fleet-3-audit-trail.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fleet-3-audit-trail.md",
       "diagnostics": []
     },
     {
@@ -1596,7 +1596,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-05-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fleet-4-inventory-health.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fleet-4-inventory-health.md",
       "diagnostics": []
     },
     {
@@ -1609,7 +1609,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-05-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fleet-5-staged-rollout.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fleet-5-staged-rollout.md",
       "diagnostics": []
     },
     {
@@ -1622,7 +1622,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-06-26",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fleet-7-config-reconnect-resolution.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fleet-7-config-reconnect-resolution.md",
       "diagnostics": []
     },
     {
@@ -1635,7 +1635,7 @@
       "phase": "-",
       "set": "flow-export",
       "updated": "2026-05-29",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-flow-export-3-sampled-scale.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-flow-export-3-sampled-scale.md",
       "diagnostics": []
     },
     {
@@ -1648,7 +1648,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-followup-pki-chain.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-followup-pki-chain.md",
       "diagnostics": []
     },
     {
@@ -1661,7 +1661,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-gr-advanced.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-gr-advanced.md",
       "diagnostics": []
     },
     {
@@ -1674,7 +1674,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-20",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-gr-fixtures-bypass-config-loading.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-gr-fixtures-bypass-config-loading.md",
       "diagnostics": []
     },
     {
@@ -1687,7 +1687,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-harness-fail-open-guard-backlog.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-harness-fail-open-guard-backlog.md",
       "diagnostics": []
     },
     {
@@ -1700,7 +1700,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ike-post-quantum.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ike-post-quantum.md",
       "diagnostics": []
     },
     {
@@ -1713,7 +1713,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-improve-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-improve-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -1726,7 +1726,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-improve-1-nb-transactions.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-improve-1-nb-transactions.md",
       "diagnostics": []
     },
     {
@@ -1739,7 +1739,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-installed-count-memory-magnitude-undisclosed.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-installed-count-memory-magnitude-undisclosed.md",
       "diagnostics": []
     },
     {
@@ -1752,7 +1752,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-interop-wire-capture.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-interop-wire-capture.md",
       "diagnostics": []
     },
     {
@@ -1765,7 +1765,7 @@
       "phase": "-",
       "set": "ipsec",
       "updated": "2026-05-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -1778,7 +1778,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-auth-piggyback.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-auth-piggyback.md",
       "diagnostics": []
     },
     {
@@ -1791,7 +1791,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-dataplane-selector.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-dataplane-selector.md",
       "diagnostics": []
     },
     {
@@ -1804,7 +1804,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-31",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-ipcomp.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-ipcomp.md",
       "diagnostics": []
     },
     {
@@ -1817,7 +1817,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-non-first-fragments-also.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-non-first-fragments-also.md",
       "diagnostics": []
     },
     {
@@ -1830,7 +1830,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-opaque-selector-port-mask.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-opaque-selector-port-mask.md",
       "diagnostics": []
     },
     {
@@ -1843,7 +1843,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-pad-dual-family-range.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-pad-dual-family-range.md",
       "diagnostics": []
     },
     {
@@ -1856,7 +1856,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-spd-selection.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-spd-selection.md",
       "diagnostics": []
     },
     {
@@ -1869,7 +1869,7 @@
       "phase": "SCOPE approved; RESEARCH and DESIGN pending",
       "set": "-",
       "updated": "2026-09-11",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ipsec-vpp-dataplane-readback.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ipsec-vpp-dataplane-readback.md",
       "diagnostics": []
     },
     {
@@ -1882,7 +1882,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-13",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-irr-filtering-both-directions.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-irr-filtering-both-directions.md",
       "diagnostics": []
     },
     {
@@ -1895,7 +1895,7 @@
       "phase": "-",
       "set": "knowledge",
       "updated": "2026-08-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-knowledge-0-umbrella-deferred-model-selection-policy.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-knowledge-0-umbrella-deferred-model-selection-policy.md",
       "diagnostics": []
     },
     {
@@ -1908,7 +1908,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-30",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-l2tp-ipv6-subscriber.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-l2tp-ipv6-subscriber.md",
       "diagnostics": []
     },
     {
@@ -1921,7 +1921,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-l2tp-new-avp-definitions.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-l2tp-new-avp-definitions.md",
       "diagnostics": []
     },
     {
@@ -1934,7 +1934,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-l2tp-proxy-authentication.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-l2tp-proxy-authentication.md",
       "diagnostics": []
     },
     {
@@ -1947,7 +1947,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ldp-atm-frame-relay.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ldp-atm-frame-relay.md",
       "diagnostics": []
     },
     {
@@ -1960,7 +1960,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ldp-capability-advertisement.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ldp-capability-advertisement.md",
       "diagnostics": []
     },
     {
@@ -1973,7 +1973,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ldp-capability-status-codes.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ldp-capability-status-codes.md",
       "diagnostics": []
     },
     {
@@ -1986,7 +1986,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ldp-label-request-path.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ldp-label-request-path.md",
       "diagnostics": []
     },
     {
@@ -1999,7 +1999,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ldp-loop-detection.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ldp-loop-detection.md",
       "diagnostics": []
     },
     {
@@ -2012,7 +2012,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ldp-vendor-private-tlvs.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ldp-vendor-private-tlvs.md",
       "diagnostics": []
     },
     {
@@ -2025,7 +2025,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-13",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-le-builds-every-personality.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-le-builds-every-personality.md",
       "diagnostics": []
     },
     {
@@ -2038,7 +2038,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-le-every-area-dispatches-through-one-table.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-le-every-area-dispatches-through-one-table.md",
       "diagnostics": []
     },
     {
@@ -2051,7 +2051,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-le-one-verb-one-job.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-le-one-verb-one-job.md",
       "diagnostics": []
     },
     {
@@ -2064,7 +2064,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-mcp2026-5-state-resources.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-mcp2026-5-state-resources.md",
       "diagnostics": []
     },
     {
@@ -2077,7 +2077,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-native-action-job-admission.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-native-action-job-admission.md",
       "diagnostics": []
     },
     {
@@ -2090,7 +2090,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ntp-server.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ntp-server.md",
       "diagnostics": []
     },
     {
@@ -2103,7 +2103,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-parallel-agents-verify-a-tree-nobody-authored.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-parallel-agents-verify-a-tree-nobody-authored.md",
       "diagnostics": []
     },
     {
@@ -2116,7 +2116,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-plugin-alias-reaches-the-client.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-plugin-alias-reaches-the-client.md",
       "diagnostics": []
     },
     {
@@ -2129,7 +2129,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-09",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-plugin-declaration-fields-on-registration.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-plugin-declaration-fields-on-registration.md",
       "diagnostics": []
     },
     {
@@ -2142,7 +2142,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-plugin-declaration-names-a-path-it-serves.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-plugin-declaration-names-a-path-it-serves.md",
       "diagnostics": []
     },
     {
@@ -2155,7 +2155,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-09",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-plugin-runner-inertness.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-plugin-runner-inertness.md",
       "diagnostics": []
     },
     {
@@ -2168,7 +2168,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ppp-discard-request-sender.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ppp-discard-request-sender.md",
       "diagnostics": []
     },
     {
@@ -2181,7 +2181,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-pppoe-generic-error-tag.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-pppoe-generic-error-tag.md",
       "diagnostics": []
     },
     {
@@ -2194,7 +2194,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-pppoe-relay-agent.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-pppoe-relay-agent.md",
       "diagnostics": []
     },
     {
@@ -2207,7 +2207,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-publish-the-regenerated-command-catalog.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-publish-the-regenerated-command-catalog.md",
       "diagnostics": []
     },
     {
@@ -2220,7 +2220,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-radius-acct-timewheel.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-radius-acct-timewheel.md",
       "diagnostics": []
     },
     {
@@ -2233,7 +2233,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-radius-chap-eap-admin.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-radius-chap-eap-admin.md",
       "diagnostics": []
     },
     {
@@ -2246,7 +2246,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-reactor-split.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-reactor-split.md",
       "diagnostics": []
     },
     {
@@ -2259,7 +2259,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-record-answers-payload-handlers-outside-the-rib-walks.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-record-answers-payload-handlers-outside-the-rib-walks.md",
       "diagnostics": []
     },
     {
@@ -2272,7 +2272,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-refactor-commit-proof-by-per-function-diff.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-refactor-commit-proof-by-per-function-diff.md",
       "diagnostics": []
     },
     {
@@ -2285,7 +2285,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-22",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-reject-literal-has-a-producer.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-reject-literal-has-a-producer.md",
       "diagnostics": []
     },
     {
@@ -2298,7 +2298,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rfc-anchor-resolution-check.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rfc-anchor-resolution-check.md",
       "diagnostics": []
     },
     {
@@ -2311,7 +2311,7 @@
       "phase": "-",
       "set": "rfc-evidence-strength",
       "updated": "2026-09-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rfc-evidence-strength-5-black-box-conformance.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rfc-evidence-strength-5-black-box-conformance.md",
       "diagnostics": []
     },
     {
@@ -2324,7 +2324,7 @@
       "phase": "-",
       "set": "rfc-evidence-strength",
       "updated": "2026-09-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rfc-evidence-strength-6-error-handling-fuzz.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rfc-evidence-strength-6-error-handling-fuzz.md",
       "diagnostics": []
     },
     {
@@ -2337,7 +2337,7 @@
       "phase": "0/1",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-router-advertisement-options-out-of-scope.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-router-advertisement-options-out-of-scope.md",
       "diagnostics": []
     },
     {
@@ -2350,7 +2350,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvp-intserv-host-flows.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvp-intserv-host-flows.md",
       "diagnostics": []
     },
     {
@@ -2363,7 +2363,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvp-multicast-wildcard.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvp-multicast-wildcard.md",
       "diagnostics": []
     },
     {
@@ -2376,7 +2376,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvp-policy-control.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvp-policy-control.md",
       "diagnostics": []
     },
     {
@@ -2389,7 +2389,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvp-udp-encapsulation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvp-udp-encapsulation.md",
       "diagnostics": []
     },
     {
@@ -2402,7 +2402,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvpte-atm-frame-relay-labels.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvpte-atm-frame-relay-labels.md",
       "diagnostics": []
     },
     {
@@ -2415,7 +2415,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvpte-bypass-bandwidth-protection.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvpte-bypass-bandwidth-protection.md",
       "diagnostics": []
     },
     {
@@ -2428,7 +2428,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvpte-hello-extension.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvpte-hello-extension.md",
       "diagnostics": []
     },
     {
@@ -2441,7 +2441,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvpte-ipv6-lsp-tunnel.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvpte-ipv6-lsp-tunnel.md",
       "diagnostics": []
     },
     {
@@ -2454,7 +2454,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvpte-non-rsvp-neighbors.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvpte-non-rsvp-neighbors.md",
       "diagnostics": []
     },
     {
@@ -2467,7 +2467,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvpte-resource-affinities.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvpte-resource-affinities.md",
       "diagnostics": []
     },
     {
@@ -2480,7 +2480,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rsvpte-sender-policing.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rsvpte-sender-policing.md",
       "diagnostics": []
     },
     {
@@ -2493,7 +2493,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rules-situation-index.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rules-situation-index.md",
       "diagnostics": []
     },
     {
@@ -2506,7 +2506,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-shrink-only-baseline-cannot-see-a-relocation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-shrink-only-baseline-cannot-see-a-relocation.md",
       "diagnostics": []
     },
     {
@@ -2519,7 +2519,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-06-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-srv6-labeled-unicast.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-srv6-labeled-unicast.md",
       "diagnostics": []
     },
     {
@@ -2532,7 +2532,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-srv6-static-segments.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-srv6-static-segments.md",
       "diagnostics": []
     },
     {
@@ -2545,7 +2545,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-stale-spec-frame-check.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-stale-spec-frame-check.md",
       "diagnostics": []
     },
     {
@@ -2558,7 +2558,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-standard-families-register-outside-the-bgp-tag.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-standard-families-register-outside-the-bgp-tag.md",
       "diagnostics": []
     },
     {
@@ -2571,7 +2571,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-streaming-answer-protocol.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-streaming-answer-protocol.md",
       "diagnostics": []
     },
     {
@@ -2584,7 +2584,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-stress-repro-refuses-a-stale-binary.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-stress-repro-refuses-a-stale-binary.md",
       "diagnostics": []
     },
     {
@@ -2597,7 +2597,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-tcp-ao-rfc5925.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-tcp-ao-rfc5925.md",
       "diagnostics": []
     },
     {
@@ -2610,7 +2610,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-testing-latched-counter-vacuity-trap.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-testing-latched-counter-vacuity-trap.md",
       "diagnostics": []
     },
     {
@@ -2623,7 +2623,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-traceroute-unprivileged-socket.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-traceroute-unprivileged-socket.md",
       "diagnostics": []
     },
     {
@@ -2636,7 +2636,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-two-verifies-share-one-run-end-to-end.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-two-verifies-share-one-run-end-to-end.md",
       "diagnostics": []
     },
     {
@@ -2649,7 +2649,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-unrecognized-field-value-must-fail-loudly.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-unrecognized-field-value-must-fail-loudly.md",
       "diagnostics": []
     },
     {
@@ -2662,7 +2662,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-unused-code-hidden-behind-exported-symbols.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-unused-code-hidden-behind-exported-symbols.md",
       "diagnostics": []
     },
     {
@@ -2675,7 +2675,7 @@
       "phase": "-",
       "set": "verify-scope",
       "updated": "2026-08-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-verify-scope-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-verify-scope-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -2688,7 +2688,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vpp-loopback-mac.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vpp-loopback-mac.md",
       "diagnostics": []
     },
     {
@@ -2701,7 +2701,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vpp-mac-change-capability.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vpp-mac-change-capability.md",
       "diagnostics": []
     },
     {
@@ -2714,7 +2714,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vpp-numa-smt.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vpp-numa-smt.md",
       "diagnostics": []
     },
     {
@@ -2727,7 +2727,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vpp-slaac-tap-premise.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vpp-slaac-tap-premise.md",
       "diagnostics": []
     },
     {
@@ -2740,7 +2740,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-29",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vrf.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vrf.md",
       "diagnostics": []
     },
     {
@@ -2753,7 +2753,7 @@
       "phase": "-",
       "set": "vrrp",
       "updated": "2026-07-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vrrp-7-vpp.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vrrp-7-vpp.md",
       "diagnostics": []
     },
     {
@@ -2766,7 +2766,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-vrrp-deferred-keepalived-interop-scenarios.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-vrrp-deferred-keepalived-interop-scenarios.md",
       "diagnostics": []
     },
     {
@@ -2779,7 +2779,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-web-testing-gaps.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-web-testing-gaps.md",
       "diagnostics": []
     },
     {
@@ -2792,7 +2792,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-wildcard-bind-excuses-a-binder-from-an-address-move.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-wildcard-bind-excuses-a-binder-from-an-address-move.md",
       "diagnostics": []
     },
     {
@@ -2805,7 +2805,7 @@
       "phase": "-",
       "set": "wire-edit",
       "updated": "2026-08-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md",
       "diagnostics": []
     },
     {
@@ -2818,7 +2818,7 @@
       "phase": "-",
       "set": "wire-edit",
       "updated": "2026-08-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression.md",
       "diagnostics": []
     },
     {
@@ -2831,7 +2831,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-31",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-yang-config-leaf-short-and-long-help.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-yang-config-leaf-short-and-long-help.md",
       "diagnostics": []
     },
     {
@@ -2844,7 +2844,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ze-api-callback-pump.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ze-api-callback-pump.md",
       "diagnostics": []
     },
     {
@@ -2857,7 +2857,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md",
       "diagnostics": []
     },
     {
@@ -2870,7 +2870,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-fixit-dns-rfc1035-conformance.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-fixit-dns-rfc1035-conformance.md",
       "diagnostics": []
     },
     {
@@ -2883,7 +2883,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-08-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-improve-3-event-replay-deferred-deterministic-scheduler.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-improve-3-event-replay-deferred-deterministic-scheduler.md",
       "diagnostics": []
     },
     {
@@ -2896,7 +2896,7 @@
       "phase": "-",
       "set": "ospf-ext",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-ospf-ext-13-l3vpn-dn-bit.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-ospf-ext-13-l3vpn-dn-bit.md",
       "diagnostics": []
     },
     {
@@ -2909,7 +2909,7 @@
       "phase": "-",
       "set": "rename",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-rename-3-wireu-fold.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-rename-3-wireu-fold.md",
       "diagnostics": []
     },
     {
@@ -2922,7 +2922,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-support-export.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-support-export.md",
       "diagnostics": []
     },
     {
@@ -2935,7 +2935,7 @@
       "phase": "-",
       "set": "wire-edit",
       "updated": "2026-08-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-wire-edit-2-deferred-ci-substitution.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-wire-edit-2-deferred-ci-substitution.md",
       "diagnostics": []
     },
     {
@@ -2948,7 +2948,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/spec-bgp-local-as-inbound-append.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/spec-bgp-local-as-inbound-append.md",
       "diagnostics": []
     },
     {
@@ -2961,7 +2961,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-announce-build-key-is-the-builder-argument-set.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-announce-build-key-is-the-builder-argument-set.md",
       "diagnostics": []
     },
     {
@@ -2974,7 +2974,7 @@
       "phase": "5/6",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-announce-grammar-stated-and-enforced.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-announce-grammar-stated-and-enforced.md",
       "diagnostics": []
     },
     {
@@ -2987,7 +2987,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-14",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-as-migration.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-as-migration.md",
       "diagnostics": []
     },
     {
@@ -3000,7 +3000,7 @@
       "phase": "1/7",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-local-as-options.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-local-as-options.md",
       "diagnostics": []
     },
     {
@@ -3013,7 +3013,7 @@
       "phase": "3/3",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bmp-statistics-timeout-sends-no-report.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bmp-statistics-timeout-sends-no-report.md",
       "diagnostics": []
     },
     {
@@ -3026,7 +3026,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-config-set-never-echoes-a-secret.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-config-set-never-echoes-a-secret.md",
       "diagnostics": []
     },
     {
@@ -3039,7 +3039,7 @@
       "phase": "6/7",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-connected-static-reach-the-locrib.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-connected-static-reach-the-locrib.md",
       "diagnostics": []
     },
     {
@@ -3052,7 +3052,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-eap-tls-certificate-revocation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-eap-tls-certificate-revocation.md",
       "diagnostics": []
     },
     {
@@ -3065,7 +3065,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fib-depth.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fib-depth.md",
       "diagnostics": []
     },
     {
@@ -3078,7 +3078,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-redistribution-chain-drops-silently.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-redistribution-chain-drops-silently.md",
       "diagnostics": []
     },
     {
@@ -3091,7 +3091,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-generated-command-usage.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-generated-command-usage.md",
       "diagnostics": []
     },
     {
@@ -3104,7 +3104,7 @@
       "phase": "6/6",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-kernel-capability-gate.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-kernel-capability-gate.md",
       "diagnostics": []
     },
     {
@@ -3117,7 +3117,7 @@
       "phase": "1/10",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-lifecycle-invariants.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-lifecycle-invariants.md",
       "diagnostics": []
     },
     {
@@ -3130,7 +3130,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ospf-accept-lifetime-receive-window.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ospf-accept-lifetime-receive-window.md",
       "diagnostics": []
     },
     {
@@ -3143,7 +3143,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ospf-rfc3101-nssa-defaults.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ospf-rfc3101-nssa-defaults.md",
       "diagnostics": []
     },
     {
@@ -3156,7 +3156,7 @@
       "phase": "1/1",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ppp-pap-reanswer-after-auth.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ppp-pap-reanswer-after-auth.md",
       "diagnostics": []
     },
     {
@@ -3169,7 +3169,7 @@
       "phase": "1/1",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-pppoe-client-pap-retry.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-pppoe-client-pap-retry.md",
       "diagnostics": []
     },
     {
@@ -3182,7 +3182,7 @@
       "phase": "1/1",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-pppoe-lcp-option-reject.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-pppoe-lcp-option-reject.md",
       "diagnostics": []
     },
     {
@@ -3195,7 +3195,7 @@
       "phase": "1/1",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-pppoe-padt-ends-session.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-pppoe-padt-ends-session.md",
       "diagnostics": []
     },
     {
@@ -3208,7 +3208,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rsvp-message-validation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rsvp-message-validation.md",
       "diagnostics": []
     },
     {
@@ -3221,7 +3221,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rsvpte-ero-strict-loose-hops.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rsvpte-ero-strict-loose-hops.md",
       "diagnostics": []
     },
     {
@@ -3234,7 +3234,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-static-route-tag-reaches-no-consumer.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-static-route-tag-reaches-no-consumer.md",
       "diagnostics": []
     },
     {
@@ -3247,7 +3247,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-13",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-yang-rpc-declarations-with-no-handler.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-yang-rpc-declarations-with-no-handler.md",
       "diagnostics": []
     },
     {
@@ -3260,7 +3260,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bcp194-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bcp194-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -3273,7 +3273,7 @@
       "phase": "3b/6",
       "set": "-",
       "updated": "2026-08-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bcp194-1-communities.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bcp194-1-communities.md",
       "diagnostics": []
     },
     {
@@ -3286,7 +3286,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-remove-takes-the-working-tree-copy.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-remove-takes-the-working-tree-copy.md",
       "diagnostics": []
     },
     {
@@ -3299,7 +3299,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfc4301-architecture-gaps.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfc4301-architecture-gaps.md",
       "diagnostics": []
     },
     {
@@ -3312,7 +3312,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-test-children-run-in-the-checkout-root.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-test-children-run-in-the-checkout-root.md",
       "diagnostics": []
     },
     {
@@ -3325,7 +3325,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-11",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-add-path-limit-send-receive.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-add-path-limit-send-receive.md",
       "diagnostics": []
     },
     {
@@ -3338,7 +3338,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-filtered-route-storage.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-filtered-route-storage.md",
       "diagnostics": []
     },
     {
@@ -3351,7 +3351,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-26",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-ls-receiver-fault-management.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-ls-receiver-fault-management.md",
       "diagnostics": []
     },
     {
@@ -3364,7 +3364,7 @@
       "phase": "0/N (research)",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-netns.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-netns.md",
       "diagnostics": [
         "title unavailable"
       ]
@@ -3379,7 +3379,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-per-peer-received-counter.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-per-peer-received-counter.md",
       "diagnostics": []
     },
     {
@@ -3392,7 +3392,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-config-bound-authority.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-config-bound-authority.md",
       "diagnostics": []
     },
     {
@@ -3405,7 +3405,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-firewall-dynamic-address-group.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-firewall-dynamic-address-group.md",
       "diagnostics": []
     },
     {
@@ -3418,7 +3418,7 @@
       "phase": "research complete, design complete, nothing implemented",
       "set": "-",
       "updated": "2026-09-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-ca-root-location.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-ca-root-location.md",
       "diagnostics": []
     },
     {
@@ -3431,7 +3431,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-selector-narrows-through-a-pipe.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-selector-narrows-through-a-pipe.md",
       "diagnostics": []
     },
     {
@@ -3444,7 +3444,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-31",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ipsec-remote-access.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ipsec-remote-access.md",
       "diagnostics": []
     },
     {
@@ -3457,7 +3457,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-lcp-restart-counters.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-lcp-restart-counters.md",
       "diagnostics": []
     },
     {
@@ -3470,7 +3470,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-11",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md",
       "diagnostics": []
     },
     {
@@ -3483,7 +3483,7 @@
       "phase": "-",
       "set": "mpls",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-mpls-9-rsvp-te-one-to-one-backup.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-mpls-9-rsvp-te-one-to-one-backup.md",
       "diagnostics": []
     },
     {
@@ -3496,7 +3496,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-pki-show-private-key.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-pki-show-private-key.md",
       "diagnostics": []
     },
     {
@@ -3509,7 +3509,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-09",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md",
       "diagnostics": []
     },
     {
@@ -3522,7 +3522,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-review-bus-async-fanout.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-review-bus-async-fanout.md",
       "diagnostics": []
     },
     {
@@ -3535,7 +3535,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-review-redistribute-orchestrator.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-review-redistribute-orchestrator.md",
       "diagnostics": []
     },
     {
@@ -3548,7 +3548,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-review-sdk-boundary-versioning.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-review-sdk-boundary-versioning.md",
       "diagnostics": []
     },
     {
@@ -3561,7 +3561,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-review-typed-config-decode.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-review-typed-config-decode.md",
       "diagnostics": []
     },
     {
@@ -3574,7 +3574,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-30",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md",
       "diagnostics": []
     },
     {
@@ -3587,7 +3587,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-30",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rpki-invalid-accepted-and-state-policy.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rpki-invalid-accepted-and-state-policy.md",
       "diagnostics": []
     },
     {
@@ -3600,7 +3600,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-srv6-bestpath-resolvability.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-srv6-bestpath-resolvability.md",
       "diagnostics": []
     },
     {
@@ -3613,7 +3613,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-09",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-subscriber-utilisation-has-no-operator-view.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-subscriber-utilisation-has-no-operator-view.md",
       "diagnostics": []
     },
     {
@@ -3626,7 +3626,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-tombstone-forwarding-policy.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-tombstone-forwarding-policy.md",
       "diagnostics": []
     },
     {
@@ -3639,7 +3639,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-update-block-name-is-the-list-key.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-update-block-name-is-the-list-key.md",
       "diagnostics": []
     },
     {
@@ -3652,7 +3652,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-vpp-interface-in-use.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-vpp-interface-in-use.md",
       "diagnostics": []
     },
     {
@@ -3665,7 +3665,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-11",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md",
       "diagnostics": []
     },
     {
@@ -3678,7 +3678,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bcp194-2-role-policy.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bcp194-2-role-policy.md",
       "diagnostics": []
     },
     {
@@ -3691,7 +3691,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bcp194-3-session.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bcp194-3-session.md",
       "diagnostics": []
     },
     {
@@ -3704,7 +3704,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bcp194-4-prefix.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bcp194-4-prefix.md",
       "diagnostics": []
     },
     {
@@ -3717,7 +3717,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bcp194-6-remaining-rfc8195-functions.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bcp194-6-remaining-rfc8195-functions.md",
       "diagnostics": []
     },
     {
@@ -3730,7 +3730,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-11",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bfd-link-local-peer-zone.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bfd-link-local-peer-zone.md",
       "diagnostics": []
     },
     {
@@ -3743,7 +3743,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-graceful-restart-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-graceful-restart-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -3756,7 +3756,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-link-local-only-next-hop.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-link-local-only-next-hop.md",
       "diagnostics": []
     },
     {
@@ -3769,7 +3769,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-llgr-per-family-config.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-llgr-per-family-config.md",
       "diagnostics": []
     },
     {
@@ -3782,7 +3782,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-ls-receiver-accept-and-limit-controls.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-ls-receiver-accept-and-limit-controls.md",
       "diagnostics": []
     },
     {
@@ -3795,7 +3795,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-next-hop-auto-rewrites-for-ebgp.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-next-hop-auto-rewrites-for-ebgp.md",
       "diagnostics": []
     },
     {
@@ -3808,7 +3808,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-open-session-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-open-session-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -3821,7 +3821,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-prefix-sid-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-prefix-sid-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -3834,7 +3834,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-reload-rich-peer-no-bounce.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-reload-rich-peer-no-bounce.md",
       "diagnostics": []
     },
     {
@@ -3847,7 +3847,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-rib-state-subtree-has-no-producer.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-rib-state-subtree-has-no-producer.md",
       "diagnostics": []
     },
     {
@@ -3860,7 +3860,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md",
       "diagnostics": []
     },
     {
@@ -3873,7 +3873,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-sr-policy-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-sr-policy-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -3886,7 +3886,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-update-propagation-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-update-propagation-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -3899,7 +3899,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bgp-withdraw-only-exported-routes.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bgp-withdraw-only-exported-routes.md",
       "diagnostics": []
     },
     {
@@ -3912,7 +3912,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bmp-route-action-redistribute-acts-as-monitor.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bmp-route-action-redistribute-acts-as-monitor.md",
       "diagnostics": []
     },
     {
@@ -3925,7 +3925,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bmp-sflow-export-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bmp-sflow-export-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -3938,7 +3938,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-bridge-member-removal-never-detaches-port.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-bridge-member-removal-never-detaches-port.md",
       "diagnostics": []
     },
     {
@@ -3951,7 +3951,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-cli-question-mark-cannot-be-typed.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-cli-question-mark-cannot-be-typed.md",
       "diagnostics": []
     },
     {
@@ -3964,7 +3964,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-config-fmt-preserves-operator-information.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-config-fmt-preserves-operator-information.md",
       "diagnostics": []
     },
     {
@@ -3977,7 +3977,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-config-leaf-consumption-gate.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-config-leaf-consumption-gate.md",
       "diagnostics": []
     },
     {
@@ -3990,7 +3990,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-config-verify-rejects-unknown-keys.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-config-verify-rejects-unknown-keys.md",
       "diagnostics": []
     },
     {
@@ -4003,7 +4003,7 @@
       "phase": "-",
       "set": "dataplane-seams",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-dataplane-seams-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-dataplane-seams-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -4016,7 +4016,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ddos-baseline-warmup-maturity.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ddos-baseline-warmup-maturity.md",
       "diagnostics": []
     },
     {
@@ -4029,7 +4029,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ddos-blind-detector-diagnostic.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ddos-blind-detector-diagnostic.md",
       "diagnostics": []
     },
     {
@@ -4042,7 +4042,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md",
       "diagnostics": []
     },
     {
@@ -4055,7 +4055,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-declared-commands-without-leaves.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-declared-commands-without-leaves.md",
       "diagnostics": []
     },
     {
@@ -4068,7 +4068,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-dhcpv4-client-drops-lease-every-period.md",
       "diagnostics": []
     },
     {
@@ -4081,7 +4081,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-dhcpv6-client-never-requests-a-delegated-prefix.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-dhcpv6-client-never-requests-a-delegated-prefix.md",
       "diagnostics": []
     },
     {
@@ -4094,7 +4094,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-eap-tls-identity-authorization.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-eap-tls-identity-authorization.md",
       "diagnostics": []
     },
     {
@@ -4107,7 +4107,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-every-binder-root-stops-and-starts-around-an-address-move.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-every-binder-root-stops-and-starts-around-an-address-move.md",
       "diagnostics": []
     },
     {
@@ -4120,7 +4120,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fib-vpp-enabled-and-batching-leaves.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fib-vpp-enabled-and-batching-leaves.md",
       "diagnostics": []
     },
     {
@@ -4133,7 +4133,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-ddos-baseline-restore-staleness.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-ddos-baseline-restore-staleness.md",
       "diagnostics": []
     },
     {
@@ -4146,7 +4146,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-ddos-frag-flood-family.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-ddos-frag-flood-family.md",
       "diagnostics": []
     },
     {
@@ -4159,7 +4159,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-ddos-incident-heartbeat-wiring.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-ddos-incident-heartbeat-wiring.md",
       "diagnostics": []
     },
     {
@@ -4172,7 +4172,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-ddos-incident-lifecycle-on-teardown.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-ddos-incident-lifecycle-on-teardown.md",
       "diagnostics": []
     },
     {
@@ -4185,7 +4185,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-ddos-incident-outbound-durability.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-ddos-incident-outbound-durability.md",
       "diagnostics": []
     },
     {
@@ -4198,7 +4198,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fixit-vpp-vlan-promiscuous.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fixit-vpp-vlan-promiscuous.md",
       "diagnostics": []
     },
     {
@@ -4211,7 +4211,7 @@
       "phase": "-",
       "set": "fleet",
       "updated": "2026-06-26",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fleet-6-config-freeze.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fleet-6-config-freeze.md",
       "diagnostics": []
     },
     {
@@ -4224,7 +4224,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-12",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-gnu-option-syntax-across-every-program.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-gnu-option-syntax-across-every-program.md",
       "diagnostics": []
     },
     {
@@ -4237,7 +4237,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-iface-delete-parent-before-vlan-rolls-back.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-iface-delete-parent-before-vlan-rolls-back.md",
       "diagnostics": []
     },
     {
@@ -4250,7 +4250,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ike-dpd-demand-driven.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ike-dpd-demand-driven.md",
       "diagnostics": []
     },
     {
@@ -4263,7 +4263,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ike-eap-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ike-eap-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -4276,7 +4276,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ike-fragmentation-rfc7383.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ike-fragmentation-rfc7383.md",
       "diagnostics": []
     },
     {
@@ -4289,7 +4289,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ike-responder-eap-preserves-state-on-unauthenticated-input.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ike-responder-eap-preserves-state-on-unauthenticated-input.md",
       "diagnostics": []
     },
     {
@@ -4302,7 +4302,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ike-responder-refuses-esn-in-ike-sa-proposal.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ike-responder-refuses-esn-in-ike-sa-proposal.md",
       "diagnostics": []
     },
     {
@@ -4315,7 +4315,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-31",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ike-virtual-ip-assignment.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ike-virtual-ip-assignment.md",
       "diagnostics": []
     },
     {
@@ -4328,7 +4328,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-improve-2-gnmi-state.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-improve-2-gnmi-state.md",
       "diagnostics": []
     },
     {
@@ -4341,7 +4341,7 @@
       "phase": "-",
       "set": "improve",
       "updated": "2026-07-08",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-improve-5-panic-boundaries.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-improve-5-panic-boundaries.md",
       "diagnostics": []
     },
     {
@@ -4354,7 +4354,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-interface-monitor-container-names-no-behavior.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-interface-monitor-container-names-no-behavior.md",
       "diagnostics": []
     },
     {
@@ -4367,7 +4367,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ipsec-close-action-and-dpd-action-select-nothing.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ipsec-close-action-and-dpd-action-select-nothing.md",
       "diagnostics": []
     },
     {
@@ -4380,7 +4380,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ipsec-key-exchange-ikev1-runs-ikev2.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ipsec-key-exchange-ikev1-runs-ikev2.md",
       "diagnostics": []
     },
     {
@@ -4393,7 +4393,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ipsec-vti-bind-installs-if-id-zero.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ipsec-vti-bind-installs-if-id-zero.md",
       "diagnostics": []
     },
     {
@@ -4406,7 +4406,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ldp-keepalive-expiry-notification.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ldp-keepalive-expiry-notification.md",
       "diagnostics": []
     },
     {
@@ -4419,7 +4419,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-mcp-protected-resource-metadata-path.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-mcp-protected-resource-metadata-path.md",
       "diagnostics": []
     },
     {
@@ -4432,7 +4432,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ospf-max-metric-startup-shutdown-windows.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ospf-max-metric-startup-shutdown-windows.md",
       "diagnostics": []
     },
     {
@@ -4445,7 +4445,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ospf-nssa-translator-reachability.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ospf-nssa-translator-reachability.md",
       "diagnostics": []
     },
     {
@@ -4458,7 +4458,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-peer-deactivate-and-bulk-route-purge.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-peer-deactivate-and-bulk-route-purge.md",
       "diagnostics": []
     },
     {
@@ -4471,7 +4471,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-peer-leaves-the-peer-parser-never-reads.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-peer-leaves-the-peer-parser-never-reads.md",
       "diagnostics": []
     },
     {
@@ -4484,7 +4484,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-ppp-ipv6-link-local-never-assigned.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-ppp-ipv6-link-local-never-assigned.md",
       "diagnostics": []
     },
     {
@@ -4497,7 +4497,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-radius-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-radius-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -4510,7 +4510,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-reactor-tuning-leaves-reach-no-reader.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-reactor-tuning-leaves-reach-no-reader.md",
       "diagnostics": []
     },
     {
@@ -4523,7 +4523,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-restore-path-exceeds-create-path.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-restore-path-exceeds-create-path.md",
       "diagnostics": []
     },
     {
@@ -4536,7 +4536,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfc2545-next-hop-truncated-to-sixteen-bytes.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfc2545-next-hop-truncated-to-sixteen-bytes.md",
       "diagnostics": []
     },
     {
@@ -4549,7 +4549,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md",
       "diagnostics": []
     },
     {
@@ -4562,7 +4562,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfc5176-remaining-defect-classes.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfc5176-remaining-defect-classes.md",
       "diagnostics": []
     },
     {
@@ -4575,7 +4575,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-route-source-attribute.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-route-source-attribute.md",
       "diagnostics": []
     },
     {
@@ -4588,7 +4588,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rpc-published-name-does-not-reach-its-handler.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rpc-published-name-does-not-reach-its-handler.md",
       "diagnostics": []
     },
     {
@@ -4601,7 +4601,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rpki-cache-preference-and-source-marking.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rpki-cache-preference-and-source-marking.md",
       "diagnostics": []
     },
     {
@@ -4614,7 +4614,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rsvpte-frr-link-protection-fallback.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rsvpte-frr-link-protection-fallback.md",
       "diagnostics": []
     },
     {
@@ -4627,7 +4627,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-show-bgp-decode-encode-answer-structured-data.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-show-bgp-decode-encode-answer-structured-data.md",
       "diagnostics": []
     },
     {
@@ -4640,7 +4640,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-show-bgp-one-name-for-the-peer-address.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-show-bgp-one-name-for-the-peer-address.md",
       "diagnostics": []
     },
     {
@@ -4653,7 +4653,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-show-bgp-operators-over-identity-keyed-rows.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-show-bgp-operators-over-identity-keyed-rows.md",
       "diagnostics": []
     },
     {
@@ -4666,7 +4666,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-show-bgp-rib-best-row-top-level-fields.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-show-bgp-rib-best-row-top-level-fields.md",
       "diagnostics": []
     },
     {
@@ -4679,7 +4679,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-software-version-mode-implements-two-of-four.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-software-version-mode-implements-two-of-four.md",
       "diagnostics": []
     },
     {
@@ -4692,7 +4692,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-06-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-srv6-evpn-label-width.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-srv6-evpn-label-width.md",
       "diagnostics": []
     },
     {
@@ -4705,7 +4705,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-startup-deferred-reapply-idempotency.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-startup-deferred-reapply-idempotency.md",
       "diagnostics": []
     },
     {
@@ -4718,7 +4718,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-static-routes-take-the-bgp-group-shape.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-static-routes-take-the-bgp-group-shape.md",
       "diagnostics": []
     },
     {
@@ -4731,7 +4731,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-27",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-vrrp-owner-arp-rfc-defects.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-vrrp-owner-arp-rfc-defects.md",
       "diagnostics": []
     },
     {
@@ -4744,7 +4744,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-watchdog-withdraw-read-by-presence.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-watchdog-withdraw-read-by-presence.md",
       "diagnostics": []
     },
     {
@@ -4757,7 +4757,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-managed-server-hardening.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-managed-server-hardening.md",
       "diagnostics": []
     },
     {
@@ -4770,7 +4770,7 @@
       "phase": "5/5",
       "set": "-",
       "updated": "2026-08-17",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfc4271-med-ibgp-readvertisement.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfc4271-med-ibgp-readvertisement.md",
       "diagnostics": []
     },
     {
@@ -4783,7 +4783,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-eap-identifier.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-eap-identifier.md",
       "diagnostics": []
     },
     {
@@ -4796,7 +4796,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md",
       "diagnostics": []
     },
     {
@@ -4809,7 +4809,7 @@
       "phase": "6/6",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md",
       "diagnostics": []
     },
     {
@@ -4822,7 +4822,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-fib-p4-leaves-reach-a-noop-backend.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-fib-p4-leaves-reach-a-noop-backend.md",
       "diagnostics": []
     },
     {
@@ -4835,7 +4835,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/immediate/spec-tunnel-outer-ttl-on-the-vpp-backend.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/immediate/spec-tunnel-outer-ttl-on-the-vpp-backend.md",
       "diagnostics": []
     },
     {
@@ -4848,7 +4848,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-evidence-gate.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-evidence-gate.md",
       "diagnostics": []
     },
     {
@@ -4861,7 +4861,7 @@
       "phase": "2/48",
       "set": "-",
       "updated": "2026-10-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-fix-bgp.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-fix-bgp.md",
       "diagnostics": []
     },
     {
@@ -4874,7 +4874,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-test-fix-pass.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-test-fix-pass.md",
       "diagnostics": []
     },
     {
@@ -4887,7 +4887,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rsvp-refresh-timing.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rsvp-refresh-timing.md",
       "diagnostics": []
     },
     {
@@ -4900,7 +4900,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rsvp-resv-error-tear.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rsvp-resv-error-tear.md",
       "diagnostics": []
     },
     {
@@ -4913,7 +4913,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rsvp-routing-and-interface-integration.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rsvp-routing-and-interface-integration.md",
       "diagnostics": []
     },
     {
@@ -4926,7 +4926,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rsvpte-frr-backup-path-signaling.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rsvpte-frr-backup-path-signaling.md",
       "diagnostics": []
     },
     {
@@ -4939,7 +4939,7 @@
       "phase": "10/10",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-site-renderers-in-go.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-site-renderers-in-go.md",
       "diagnostics": []
     },
     {
@@ -4952,7 +4952,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-build.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-build.md",
       "diagnostics": []
     },
     {
@@ -4965,7 +4965,7 @@
       "phase": "implementation",
       "set": "-",
       "updated": "2026-10-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-clause-scoped-proof.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-clause-scoped-proof.md",
       "diagnostics": []
     },
     {
@@ -4978,7 +4978,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-fix-access.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-fix-access.md",
       "diagnostics": []
     },
     {
@@ -4991,7 +4991,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-fix-bfd.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-fix-bfd.md",
       "diagnostics": []
     },
     {
@@ -5004,7 +5004,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-fix-ike-eap.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-fix-ike-eap.md",
       "diagnostics": []
     },
     {
@@ -5017,7 +5017,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-fix-ospf.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-fix-ospf.md",
       "diagnostics": []
     },
     {
@@ -5030,7 +5030,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-fix-routing.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-fix-routing.md",
       "diagnostics": []
     },
     {
@@ -5043,7 +5043,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-28",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-verdict-fix-services.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-verdict-fix-services.md",
       "diagnostics": []
     },
     {
@@ -5056,7 +5056,7 @@
       "phase": "-",
       "set": "rfcgate",
       "updated": "2026-08-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md",
       "diagnostics": []
     },
     {
@@ -5069,7 +5069,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-a-gate-reports-the-population-it-judged.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-a-gate-reports-the-population-it-judged.md",
       "diagnostics": []
     },
     {
@@ -5082,7 +5082,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-26",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md",
       "diagnostics": []
     },
     {
@@ -5095,7 +5095,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-05-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -5108,7 +5108,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-05-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-1-surface-inventory.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-1-surface-inventory.md",
       "diagnostics": []
     },
     {
@@ -5121,7 +5121,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-05-25",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-2-bgp-protocol.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-2-bgp-protocol.md",
       "diagnostics": []
     },
     {
@@ -5134,7 +5134,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-05-25",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-8-docs-onboarding.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-8-docs-onboarding.md",
       "diagnostics": []
     },
     {
@@ -5147,7 +5147,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-10",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-distribution.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-distribution.md",
       "diagnostics": []
     },
     {
@@ -5160,7 +5160,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-deferred-unbootable-suite-musts.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-deferred-unbootable-suite-musts.md",
       "diagnostics": []
     },
     {
@@ -5173,7 +5173,7 @@
       "phase": "-",
       "set": "rfc-evidence-strength",
       "updated": "2026-09-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-strength-0-umbrella.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-strength-0-umbrella.md",
       "diagnostics": []
     },
     {
@@ -5186,7 +5186,7 @@
       "phase": "-",
       "set": "rfc-evidence-strength",
       "updated": "2026-09-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-strength-1-targeted-mutant-ratchet.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-strength-1-targeted-mutant-ratchet.md",
       "diagnostics": []
     },
     {
@@ -5199,7 +5199,7 @@
       "phase": "-",
       "set": "rfc-evidence-strength",
       "updated": "2026-09-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-strength-3-owed-musts-and-enrolment.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-strength-3-owed-musts-and-enrolment.md",
       "diagnostics": []
     },
     {
@@ -5212,7 +5212,7 @@
       "phase": "-",
       "set": "rfc-evidence-strength",
       "updated": "2026-09-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-strength-4-prose-second-walk.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-strength-4-prose-second-walk.md",
       "diagnostics": []
     },
     {
@@ -5225,7 +5225,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-a-test-passes-at-any-concurrency.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-a-test-passes-at-any-concurrency.md",
       "diagnostics": []
     },
     {
@@ -5238,7 +5238,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-config-yang-list-key-leaf-list.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-config-yang-list-key-leaf-list.md",
       "diagnostics": []
     },
     {
@@ -5251,7 +5251,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-config-yang-loader-structural-checks.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-config-yang-loader-structural-checks.md",
       "diagnostics": []
     },
     {
@@ -5264,7 +5264,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md",
       "diagnostics": []
     },
     {
@@ -5277,7 +5277,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-config-yang-when-unique-choice.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-config-yang-when-unique-choice.md",
       "diagnostics": []
     },
     {
@@ -5290,7 +5290,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-eor-treats-route-processes-as-peers.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-eor-treats-route-processes-as-peers.md",
       "diagnostics": []
     },
     {
@@ -5303,7 +5303,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-excluded-requirement-owes-an-observable-test.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-excluded-requirement-owes-an-observable-test.md",
       "diagnostics": []
     },
     {
@@ -5316,7 +5316,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-16",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-finish-appliance-qemu-evidence.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-finish-appliance-qemu-evidence.md",
       "diagnostics": []
     },
     {
@@ -5329,7 +5329,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-finish-l2tp.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-finish-l2tp.md",
       "diagnostics": []
     },
     {
@@ -5342,7 +5342,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-18",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-fixit-version-cannot-identify-a-build.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-fixit-version-cannot-identify-a-build.md",
       "diagnostics": []
     },
     {
@@ -5355,7 +5355,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-17",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-followup-rfc-enrollment.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-followup-rfc-enrollment.md",
       "diagnostics": []
     },
     {
@@ -5368,7 +5368,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-07-23",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-gokrazy-builddir-tmp-deferred-build-flow-unification.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-gokrazy-builddir-tmp-deferred-build-flow-unification.md",
       "diagnostics": []
     },
     {
@@ -5381,7 +5381,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-interop-suite-red.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-interop-suite-red.md",
       "diagnostics": []
     },
     {
@@ -5394,7 +5394,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-06",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md",
       "diagnostics": []
     },
     {
@@ -5407,7 +5407,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-ldp-address-advertisement.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-ldp-address-advertisement.md",
       "diagnostics": []
     },
     {
@@ -5420,7 +5420,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-ldp-md5-authentication.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-ldp-md5-authentication.md",
       "diagnostics": []
     },
     {
@@ -5433,7 +5433,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-21",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-pppoe-virtual-interface-proof.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-pppoe-virtual-interface-proof.md",
       "diagnostics": []
     },
     {
@@ -5446,7 +5446,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-prefix-count-installed-proven-against-a-real-peer.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-prefix-count-installed-proven-against-a-real-peer.md",
       "diagnostics": []
     },
     {
@@ -5459,7 +5459,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-3-config-cli.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-3-config-cli.md",
       "diagnostics": []
     },
     {
@@ -5472,7 +5472,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-4-web-lg-api.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-4-web-lg-api.md",
       "diagnostics": []
     },
     {
@@ -5485,7 +5485,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-5-plugins-rib.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-5-plugins-rib.md",
       "diagnostics": []
     },
     {
@@ -5498,7 +5498,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-6-system-linux.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-6-system-linux.md",
       "diagnostics": []
     },
     {
@@ -5511,7 +5511,7 @@
       "phase": "-",
       "set": "release-audit",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-release-audit-7-resilience-security.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-release-audit-7-resilience-security.md",
       "diagnostics": []
     },
     {
@@ -5524,7 +5524,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-deferred-ike-eap-tranche.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-deferred-ike-eap-tranche.md",
       "diagnostics": []
     },
     {
@@ -5537,7 +5537,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-deferred-isis-rsvpte-ldp-tranche.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-deferred-isis-rsvpte-ldp-tranche.md",
       "diagnostics": []
     },
     {
@@ -5550,7 +5550,7 @@
       "phase": "-",
       "set": "rfc-evidence-strength",
       "updated": "2026-09-24",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-evidence-strength-2-revert-upgrade-burndown.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-evidence-strength-2-revert-upgrade-burndown.md",
       "diagnostics": []
     },
     {
@@ -5563,7 +5563,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-extraction-boilerplate-split-loses-an-obligation.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-extraction-boilerplate-split-loses-an-obligation.md",
       "diagnostics": []
     },
     {
@@ -5576,7 +5576,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-ledger-gap-count-reader.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-ledger-gap-count-reader.md",
       "diagnostics": []
     },
     {
@@ -5589,7 +5589,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-ledger-rows-for-the-thirty-two-undeclared.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-ledger-rows-for-the-thirty-two-undeclared.md",
       "diagnostics": []
     },
     {
@@ -5602,7 +5602,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-01",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc-requirement-reattribution.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc-requirement-reattribution.md",
       "diagnostics": []
     },
     {
@@ -5615,7 +5615,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc3748-undeclared-met-obligations.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc3748-undeclared-met-obligations.md",
       "diagnostics": []
     },
     {
@@ -5628,7 +5628,7 @@
       "phase": "0/1",
       "set": "-",
       "updated": "2026-09-07",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfc4861-rfc8106-enrolment.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfc4861-rfc8106-enrolment.md",
       "diagnostics": []
     },
     {
@@ -5641,7 +5641,7 @@
       "phase": "-",
       "set": "rfcgate",
       "updated": "2026-08-04",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfcgate-5-should-level.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfcgate-5-should-level.md",
       "diagnostics": []
     },
     {
@@ -5654,7 +5654,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-10-03",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-selfupdate-manifest-authenticity.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-selfupdate-manifest-authenticity.md",
       "diagnostics": []
     },
     {
@@ -5667,7 +5667,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-test-synchronisation-is-a-fence-never-a-clock.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-test-synchronisation-is-a-fence-never-a-clock.md",
       "diagnostics": []
     },
     {
@@ -5680,7 +5680,7 @@
       "phase": "design required",
       "set": "-",
       "updated": "2026-10-02",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-vpp-srv6-service-policy.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-vpp-srv6-service-policy.md",
       "diagnostics": []
     },
     {
@@ -5693,7 +5693,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-15",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-ze-config-fmt.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-ze-config-fmt.md",
       "diagnostics": []
     },
     {
@@ -5706,7 +5706,7 @@
       "phase": "-",
       "set": "-",
       "updated": "2026-08-05",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfcgate-1b-rfc7296-pilot-deferred-child-rekey-refusal-proof.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfcgate-1b-rfc7296-pilot-deferred-child-rekey-refusal-proof.md",
       "diagnostics": []
     },
     {
@@ -5719,7 +5719,7 @@
       "phase": "-",
       "set": "rfcgate",
       "updated": "2026-09-19",
-      "source-url": "https://github.com/ze-software/ze/blob/07a64cdf9af4dc77647147ced277b41df6d0279f/plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md",
+      "source-url": "https://github.com/ze-software/ze/blob/b783523a4c1ead2b11f90bf89db30e50565f0567/plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md",
       "diagnostics": []
     }
   ]

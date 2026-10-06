@@ -1,6 +1,6 @@
 # `debug ip ospf inject opaque`
 
-Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).
+Inject a crafted IPv4 opaque LSA into the local LSDB \(RFC 5250\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).
 - Command pipes: none
 - Pipe aliases: none
 
-The default Opaque Type is Private-Use so a test LSA never collides with a standards-track consumer. Requires `debug ospf inject enable`.
+The default Opaque Type is Private\-Use so a test LSA never collides with a standards\-track consumer\. Requires \`debug ospf inject enable\`\.
 
 ## Arguments
 

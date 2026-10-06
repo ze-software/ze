@@ -1,6 +1,6 @@
 # `resolve irr expand`
 
-Expand an AS-SET into its member AS numbers.
+Expand an AS\-SET into its member AS numbers\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Expand an AS-SET into its member AS numbers.
 - Command pipes: none
 - Pipe aliases: none
 
-Recursively resolves nested AS-SET objects via WHOIS into a flat list. Useful for building prefix filters from IRR data.
+Recursively resolves nested AS\-SET objects via WHOIS into a flat list\. Useful for building prefix filters from IRR data\.
 
 ## Arguments
 

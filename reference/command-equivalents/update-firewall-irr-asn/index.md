@@ -1,6 +1,6 @@
 # `update firewall irr asn`
 
-Fetch or refresh IRR prefix-list for an ASN.
+Fetch or refresh IRR prefix\-list for an ASN\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Fetch or refresh IRR prefix-list for an ASN.
 - Command pipes: none
 - Pipe aliases: none
 
-Queries the IRR server and saves resolved prefixes to the zefs cache. Creates the cache entry if it does not exist.
+Queries the IRR server and saves resolved prefixes to the zefs cache\. Creates the cache entry if it does not exist\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type | ASN number | The AS number, 1 to 4294967294, in plain or dotted form. The cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name one entry. |
+| `asn` | string | yes | any value of this type | ASN number | The AS number\, 1 to 4294967294\, in plain or dotted form\. The cache key is the decimal spelling with an AS prefix\, so 1\.10 and 65546 name one entry\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `show class-of-service`
 
-Show each class-of-service profile with its ingress and egress marking maps.
+Show each class\-of\-service profile with its ingress and egress marking maps\.
 
 ## Ze command
 

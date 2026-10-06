@@ -1,6 +1,6 @@
 # `show host storage`
 
-Show storage devices attached to this box.
+Show storage devices attached to this box\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show storage devices attached to this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns size, model, transport type (nvme, sata, mmc, virtio), rotational flag, and NVMe firmware version where applicable.
+Returns size\, model\, transport type \(nvme\, sata\, mmc\, virtio\)\, rotational flag\, and NVMe firmware version where applicable\.
 
 ## Arguments
 

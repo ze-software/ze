@@ -19,7 +19,7 @@ Show RPKI validation counters with one row for each cache server
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
-- Pipe aliases: `summary`: The validation counters, without the cache server rows (`display vrp-count validation-enabled sessions-total sessions-established sessions-synced aspa-enabled aspa-records`)
+- Pipe aliases: `summary`: The validation counters\, without the cache server rows (`display vrp-count validation-enabled sessions-total sessions-established sessions-synced aspa-enabled aspa-records`)
 
 ## Arguments
 

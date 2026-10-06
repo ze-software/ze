@@ -1,6 +1,6 @@
 # `monitor ping`
 
-Continuous ping with live loss and RTT statistics.
+Continuous ping with live loss and RTT statistics\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Continuous ping with live loss and RTT statistics.
 - Command pipes: none
 - Pipe aliases: none
 
-Pings <target> until you stop it. Adjust interval and timeout as needed. Shows running min/avg/max RTT and packet loss.
+Pings \<target\> until you stop it\. Adjust interval and timeout as needed\. Shows running min\/avg\/max RTT and packet loss\.
 
 ## Arguments
 

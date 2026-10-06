@@ -1,6 +1,6 @@
 # `show vpp trace start`
 
-Start capturing packets in the VPP dataplane.
+Start capturing packets in the VPP dataplane\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Start capturing packets in the VPP dataplane.
 - Command pipes: none
 - Pipe aliases: none
 
-Default input node is dpdk-input, default count is 100 (max 10000). After starting, use 'show vpp trace show' to retrieve the captured packets. Requires the VPP backend.
+Default input node is dpdk\-input\, default count is 100 \(max 10000\)\. After starting\, use \'show vpp trace show\' to retrieve the captured packets\. Requires the VPP backend\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `plugin help`
 
-List the subcommands the plugin verb accepts.
+List the subcommands the plugin verb accepts\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List the subcommands the plugin verb accepts.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer is the two words session and command. It is a constant of the daemon, so it does not grow when a plugin registers a command.
+The answer is the two words session and command\. It is a constant of the daemon\, so it does not grow when a plugin registers a command\.
 
 ## Arguments
 

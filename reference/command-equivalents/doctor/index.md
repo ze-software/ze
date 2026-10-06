@@ -1,6 +1,6 @@
 # `doctor`
 
-Check that this system is ready to run Ze.
+Check that this system is ready to run Ze\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Check that this system is ready to run Ze.
 - Command pipes: none
 - Pipe aliases: none
 
-The checks cover kernel features, file descriptor limits, listening sockets and the dependencies Ze needs. Run it before the first start, and again after a change to the platform.
+The checks cover kernel features\, file descriptor limits\, listening sockets and the dependencies Ze needs\. Run it before the first start\, and again after a change to the platform\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show pki certificate name`
 
-Inspect a specific certificate in detail.
+Inspect a specific certificate in detail\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Inspect a specific certificate in detail.
 - Command pipes: none
 - Pipe aliases: none
 
-Each export form is a command of its own.
+Each export form is a command of its own\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Certificate name | The name of a CA or device certificate in the store. An unknown name is refused, and the refusal lists the names the store holds. |
+| `name` | string | yes | any value of this type | Certificate name | The name of a CA or device certificate in the store\. An unknown name is refused\, and the refusal lists the names the store holds\. |
 
 ## Mapping intents
 

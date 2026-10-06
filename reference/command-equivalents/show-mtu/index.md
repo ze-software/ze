@@ -1,6 +1,6 @@
 # `show mtu`
 
-Measure the path MTU and size the IPsec tunnels from it.
+Measure the path MTU and size the IPsec tunnels from it\.
 
 ## Ze command
 
@@ -21,15 +21,15 @@ Measure the path MTU and size the IPsec tunnels from it.
 - Command pipes: none
 - Pipe aliases: none
 
-Measures the path MTU to every configured IPsec peer and to the reference address, derives the ESP ceiling of each tunnel from its negotiated transform, and reports whether each tunnel interface is oversized, tight, under-utilized or correct, with the configuration commands that fix it. The run changes nothing on the router. With host <address>, one address is measured instead of the peers.
+Measures the path MTU to every configured IPsec peer and to the reference address\, derives the ESP ceiling of each tunnel from its negotiated transform\, and reports whether each tunnel interface is oversized\, tight\, under\-utilized or correct\, with the configuration commands that fix it\. The run changes nothing on the router\. With host \<address\>\, one address is measured instead of the peers\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `host` | union | no | any value of this type | Measure one address instead of the IPsec peers. | The value follows the host keyword and is one IPv4 or IPv6 address. Ze measures the path MTU to that address alone and skips the peers and the reference address. A name is refused: the run sends probes to the address as typed. |
-| `search` | enum | no | `exhaustive` | exhaustive: a slower run that probes every size and discards the cached and reported path MTU. | The bare word exhaustive makes the run slower and its figure comes from probing every size on the wire: the path MTU the kernel remembered and the value a router reported are both discarded, so a stale or poisoned cache value cannot reach the answer. |
-| `view` | enum | no | `detail` | detail: report every probe sent and every reply received. | The bare word detail adds, per target, the size of every probe sent and the answer each one received, so an operator can follow how the value was found. |
+| `host` | union | no | any value of this type | Measure one address instead of the IPsec peers\. | The value follows the host keyword and is one IPv4 or IPv6 address\. Ze measures the path MTU to that address alone and skips the peers and the reference address\. A name is refused\: the run sends probes to the address as typed\. |
+| `search` | enum | no | `exhaustive` | exhaustive\: a slower run that probes every size and discards the cached and reported path MTU\. | The bare word exhaustive makes the run slower and its figure comes from probing every size on the wire\: the path MTU the kernel remembered and the value a router reported are both discarded\, so a stale or poisoned cache value cannot reach the answer\. |
+| `view` | enum | no | `detail` | detail\: report every probe sent and every reply received\. | The bare word detail adds\, per target\, the size of every probe sent and the answer each one received\, so an operator can follow how the value was found\. |
 
 ## Mapping intents
 

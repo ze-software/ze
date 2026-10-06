@@ -1,6 +1,6 @@
 # `show plugin declarations`
 
-Show what each plugin declares about its command surface.
+Show what each plugin declares about its command surface\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show what each plugin declares about its command surface.
 - Command pipes: none
 - Pipe aliases: none
 
-Each row names one plugin, says whether its code is in this binary or in another one, and carries the commands it serves and the pipe aliases it puts on them. Add 'config <path>' and the plugins that file declares gain a row too, external ones included. A plugin whose declaration could not be read keeps its row and says why in the state field, so a plugin is never missing from the answer. 'show plugin list' answers the other question, which plugins this binary carries and what each plugin's own init() recorded.
+Each row names one plugin\, says whether its code is in this binary or in another one\, and carries the commands it serves and the pipe aliases it puts on them\. Add \'config \<path\>\' and the plugins that file declares gain a row too\, external ones included\. A plugin whose declaration could not be read keeps its row and says why in the state field\, so a plugin is never missing from the answer\. \'show plugin list\' answers the other question\, which plugins this binary carries and what each plugin\'s own init\(\) recorded\.
 
 ## Arguments
 

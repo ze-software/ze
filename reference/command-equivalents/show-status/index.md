@@ -1,6 +1,6 @@
 # `show status`
 
-Show process status, uptime, and resource usage.
+Show process status\, uptime\, and resource usage\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show process status, uptime, and resource usage.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer carries the uptime, the peer count and the daemon start time. This command needs a running reactor, so a daemon that has none refuses it.
+The answer carries the uptime\, the peer count and the daemon start time\. This command needs a running reactor\, so a daemon that has none refuses it\.
 
 ## Arguments
 

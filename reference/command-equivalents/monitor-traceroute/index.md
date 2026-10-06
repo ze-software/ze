@@ -1,6 +1,6 @@
 # `monitor traceroute`
 
-Live mtr-style traceroute that updates continuously.
+Live mtr\-style traceroute that updates continuously\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Live mtr-style traceroute that updates continuously.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows each hop with running RTT statistics. Keeps probing so you can watch path changes and latency shifts over time.
+Shows each hop with running RTT statistics\. Keeps probing so you can watch path changes and latency shifts over time\.
 
 ## Arguments
 

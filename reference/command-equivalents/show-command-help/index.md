@@ -1,6 +1,6 @@
 # `show command help`
 
-Show usage and arguments for a specific command.
+Show usage and arguments for a specific command\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show usage and arguments for a specific command.
 - Command pipes: none
 - Pipe aliases: none
 
-Gives you the full description, expected arguments, and usage pattern for one command.
+Gives you the full description\, expected arguments\, and usage pattern for one command\.
 
 ## Arguments
 

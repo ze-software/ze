@@ -1,6 +1,6 @@
 # `request reload`
 
-Reload the configuration without restarting.
+Reload the configuration without restarting\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Reload the configuration without restarting.
 - Command pipes: none
 - Pipe aliases: none
 
-Ze reads the config from disk, verifies it with every plugin that asked for the config roots, and then applies it to each. Every plugin verifies before any plugin applies. A failure at any step answers 'reload failed: <error>'.
+Ze reads the config from disk\, verifies it with every plugin that asked for the config roots\, and then applies it to each\. Every plugin verifies before any plugin applies\. A failure at any step answers \'reload failed\: \<error\>\'\.
 
 ## Arguments
 

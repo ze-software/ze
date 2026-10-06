@@ -229,6 +229,17 @@ why, and no check runs.</p>
 <p>Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.</p>
+<p>The fuzz count reads first-party <code>_test.go</code> files from the working tree,
+including files not yet committed. It uses the documentation index's source
+population: it does not enter dot-prefixed directories, <code>vendor</code>, <code>tmp</code>,
+<code>testdata</code>, <code>node_modules</code>, or <code>gokrazy/modcache</code>. Runtime evidence and module
+cache copies therefore contribute neither targets nor read failures. The Go
+unit-test count applies the same exclusions within <code>internal</code>, <code>pkg</code>, and <code>cmd</code>.
+A source file or directory that cannot be read still produces a finding,
+including a failed scan root. Absent optional roots contribute no files and
+no finding. A partial count is not evidence that a published claim is correct.</p>
+<!-- source: internal/le/doc/yangcontract/scan.go -- countFuzzTargets, countGoTestFunctions, countGoFunctions -->
+<!-- source: internal/le/doc/index/docstocode.go -- SkipDirs, ModCache, walkGo -->
 <h3 id="le-doc-yang-contract-command-contract"><code>./le doc yang-contract command-contract</code></h3>
 <pre><code># Command Validation
 
@@ -693,7 +704,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 6 October 2026 22:02 UTC</span>
                 </div>
             </div>
         </footer>

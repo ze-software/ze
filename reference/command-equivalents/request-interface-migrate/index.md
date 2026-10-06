@@ -1,6 +1,6 @@
 # `request interface migrate`
 
-Move IP addresses between interfaces with minimal downtime.
+Move IP addresses between interfaces with minimal downtime\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Move IP addresses between interfaces with minimal downtime.
 - Command pipes: none
 - Pipe aliases: none
 
-Takes a source interface, a target interface, and the address to move. Adds addresses to the target before removing them from the source (make-before-break).
+Takes a source interface\, a target interface\, and the address to move\. Adds addresses to the target before removing them from the source \(make\-before\-break\)\.
 
 ## Arguments
 

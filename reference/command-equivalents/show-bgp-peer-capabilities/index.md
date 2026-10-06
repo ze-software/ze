@@ -1,6 +1,6 @@
 # `show bgp peer capabilities`
 
-Show what capabilities were negotiated with a peer.
+Show what capabilities were negotiated with a peer\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show what capabilities were negotiated with a peer.
 - Command pipes: none
 - Pipe aliases: none
 
-The row carries the peer address and the FSM state. Once the OPEN exchange completed, a negotiated map follows with the address families, the extended message capability, enhanced route refresh, and 4-byte ASN support. negotiated.paths-limit carries nonzero limits keyed by family: send is the peer's maximum paths per prefix enforced on our outbound updates; receive is our advertised receive request, not a locally enforced inbound limit. Zero or absent limits are omitted. A selector that matches no peer is refused with 'no matching peers'.
+The row carries the peer address and the FSM state\. Once the OPEN exchange completed\, a negotiated map follows with the address families\, the extended message capability\, enhanced route refresh\, and 4\-byte ASN support\. negotiated\.paths\-limit carries nonzero limits keyed by family\: send is the peer\'s maximum paths per prefix enforced on our outbound updates\; receive is our advertised receive request\, not a locally enforced inbound limit\. Zero or absent limits are omitted\. A selector that matches no peer is refused with \'no matching peers\'\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches, except 'list', which reads every peer. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Every command under \'show bgp peer\' reads the peers it matches\, except \'list\'\, which reads every peer\. |
 
 ## Mapping intents
 

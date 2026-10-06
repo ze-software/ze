@@ -1,6 +1,6 @@
 # `delete interface name`
 
-Delete an interface from the kernel.
+Delete an interface from the kernel\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Delete an interface from the kernel.
 - Command pipes: none
 - Pipe aliases: none
 
-The dispatcher calls this same command to undo a compound create. An interface it created is deleted when the unit or address step after it fails.
+The dispatcher calls this same command to undo a compound create\. An interface it created is deleted when the unit or address step after it fails\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The interface to delete. The unit and address forms below keep this interface and remove one unit or one address of it. |
+| `name` | string | yes | any value of this type | Interface name | The interface to delete\. The unit and address forms below keep this interface and remove one unit or one address of it\. |
 
 ## Mapping intents
 

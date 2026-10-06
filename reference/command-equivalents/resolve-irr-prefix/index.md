@@ -1,6 +1,6 @@
 # `resolve irr prefix`
 
-Get all prefixes announced by an AS-SET's members.
+Get all prefixes announced by an AS\-SET\'s members\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Get all prefixes announced by an AS-SET's members.
 - Command pipes: none
 - Pipe aliases: none
 
-Expands the AS-SET, then returns every route/route6 object for each member ASN. Use this to build or verify prefix filters.
+Expands the AS\-SET\, then returns every route\/route6 object for each member ASN\. Use this to build or verify prefix filters\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `resolve cymru asn-name`
 
-Find out who owns an AS number.
+Find out who owns an AS number\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Find out who owns an AS number.
 - Command pipes: none
 - Pipe aliases: none
 
-Queries Team Cymru DNS to return the organization name for the ASN.
+Queries Team Cymru DNS to return the organization name for the ASN\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | union | yes | any value of this type | AS number. | The AS number in plain decimal or in asdot notation, which Ze parses to one 32-bit value before the query. A spelling that parses to no AS number is refused. |
+| `asn` | union | yes | any value of this type | AS number\. | The AS number in plain decimal or in asdot notation\, which Ze parses to one 32\-bit value before the query\. A spelling that parses to no AS number is refused\. |
 
 ## Mapping intents
 

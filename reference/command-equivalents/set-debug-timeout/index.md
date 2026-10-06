@@ -1,6 +1,6 @@
 # `set debug timeout`
 
-Set how long debug output stays enabled.
+Set how long debug output stays enabled\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Set how long debug output stays enabled.
 - Command pipes: none
 - Pipe aliases: none
 
-The duration is written as 30m, 1h or 90s, seconds are rounded up to minutes, and the longest accepted value is 24h. Zero disables the timer.
+The duration is written as 30m\, 1h or 90s\, seconds are rounded up to minutes\, and the longest accepted value is 24h\. Zero disables the timer\.
 
 ## Arguments
 

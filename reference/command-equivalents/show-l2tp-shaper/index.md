@@ -1,6 +1,6 @@
 # `show l2tp shaper`
 
-Show each shaped subscriber session with its download and upload rate.
+Show each shaped subscriber session with its download and upload rate\.
 
 ## Ze command
 

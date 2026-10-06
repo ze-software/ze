@@ -1,6 +1,6 @@
 # `clear firewall irr asn`
 
-Remove the cached IRR prefix-list for an ASN.
+Remove the cached IRR prefix\-list for an ASN\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Remove the cached IRR prefix-list for an ASN.
 - Command pipes: none
 - Pipe aliases: none
 
-Drops the entry from memory and from the persisted cache, then re-applies the firewall tables. Config that still references the ASN fails to verify until it is fetched again with 'update firewall irr asn <asn>'.
+Drops the entry from memory and from the persisted cache\, then re\-applies the firewall tables\. Config that still references the ASN fails to verify until it is fetched again with \'update firewall irr asn \<asn\>\'\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type | ASN number | The AS number, 1 to 4294967294, in plain or dotted form. The entry purged is the one the update command stored under the decimal spelling. |
+| `asn` | string | yes | any value of this type | ASN number | The AS number\, 1 to 4294967294\, in plain or dotted form\. The entry purged is the one the update command stored under the decimal spelling\. |
 
 ## Mapping intents
 

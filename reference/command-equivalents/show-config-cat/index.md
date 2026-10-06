@@ -1,6 +1,6 @@
 # `show config cat`
 
-Print the full text of a stored configuration snapshot.
+Print the full text of a stored configuration snapshot\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Print the full text of a stored configuration snapshot.
 - Command pipes: none
 - Pipe aliases: none
 
-Outputs the config as-is.
+Outputs the config as\-is\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | yes | any value of this type | Stored configuration snapshot id. | The value is a key that show config list prints. Ze reads that file from the configuration store and writes its bytes unchanged. |
+| `id` | string | yes | any value of this type | Stored configuration snapshot id\. | The value is a key that show config list prints\. Ze reads that file from the configuration store and writes its bytes unchanged\. |
 
 ## Mapping intents
 

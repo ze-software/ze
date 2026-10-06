@@ -1,6 +1,6 @@
 # `show mpls forwarding`
 
-Show MPLS forwarding entries installed in the kernel.
+Show MPLS forwarding entries installed in the kernel\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show MPLS forwarding entries installed in the kernel.
 - Command pipes: none
 - Pipe aliases: none
 
-Each entry shows the incoming label, swap/push/pop operation, and outgoing next-hop. Pass 'limit N' to cap large tables. Linux only.
+Each entry shows the incoming label\, swap\/push\/pop operation\, and outgoing next\-hop\. Pass \'limit N\' to cap large tables\. Linux only\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `limit` | uint | no | any value of this type | Maximum number of entries. | The value is a positive integer. Ze returns at most that many entries and sets truncated to true when the kernel holds more. Absent, the value is 100000. |
+| `limit` | uint | no | any value of this type | Maximum number of entries\. | The value is a positive integer\. Ze returns at most that many entries and sets truncated to true when the kernel holds more\. Absent\, the value is 100000\. |
 
 ## Mapping intents
 

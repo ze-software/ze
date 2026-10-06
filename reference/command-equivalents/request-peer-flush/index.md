@@ -1,6 +1,6 @@
 # `request peer flush`
 
-Wait until all queued updates for a peer are sent.
+Wait until all queued updates for a peer are sent\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Wait until all queued updates for a peer are sent.
 - Command pipes: none
 - Pipe aliases: none
 
-The command returns once the forward pool has drained, so a test asserts on what the peer received without a fixed sleep. A selector of '*' flushes every peer. The wait is bounded at 30 seconds.
+The command returns once the forward pool has drained\, so a test asserts on what the peer received without a fixed sleep\. A selector of \'\*\' flushes every peer\. The wait is bounded at 30 seconds\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 
 ## Mapping intents
 

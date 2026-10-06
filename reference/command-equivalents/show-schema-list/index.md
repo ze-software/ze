@@ -1,6 +1,6 @@
 # `show schema list`
 
-List all YANG schemas loaded by the daemon.
+List all YANG schemas loaded by the daemon\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all YANG schemas loaded by the daemon.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows module name, namespace, and revision for each schema.
+Shows module name\, namespace\, and revision for each schema\.
 
 ## Arguments
 

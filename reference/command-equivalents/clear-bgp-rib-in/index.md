@@ -1,6 +1,6 @@
 # `clear bgp rib in`
 
-Remove all routes received from a peer.
+Remove all routes received from a peer\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Remove all routes received from a peer.
 - Command pipes: none
 - Pipe aliases: none
 
-Wipes the Adj-RIB-In for matched peers. They will need to re-advertise everything (or you can send a route-refresh). Selector: IP, name, AS pattern, glob, or *.
+Wipes the Adj\-RIB\-In for matched peers\. They will need to re\-advertise everything \(or you can send a route\-refresh\)\. Selector\: IP\, name\, AS pattern\, glob\, or \*\.
 
 ## Arguments
 

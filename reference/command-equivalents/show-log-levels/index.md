@@ -1,6 +1,6 @@
 # `show log levels`
 
-Show what log level each subsystem is using.
+Show what log level each subsystem is using\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show what log level each subsystem is using.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists every registered logger with its current level. Use 'request log level' to change a level at runtime without restarting.
+Lists every registered logger with its current level\. Use \'request log level\' to change a level at runtime without restarting\.
 
 ## Arguments
 

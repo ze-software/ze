@@ -1,6 +1,6 @@
 # `update system firmware rollback`
 
-Roll back to the previous firmware and restart.
+Roll back to the previous firmware and restart\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Roll back to the previous firmware and restart.
 - Command pipes: none
 - Pipe aliases: none
 
-Reverts to the prior image. Only available on platforms with A/B partitioning (e.g. gokrazy). Use this if the new version has issues.
+Reverts to the prior image\. Only available on platforms with A\/B partitioning \(e\.g\. gokrazy\)\. Use this if the new version has issues\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `delete interface name address`
 
-Remove an IP address from an interface.
+Remove an IP address from an interface\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Remove an IP address from an interface.
 - Command pipes: none
 - Pipe aliases: none
 
-Give the address in the same CIDR form it was added with. The interface stays, and only that address goes.
+Give the address in the same CIDR form it was added with\. The interface stays\, and only that address goes\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The interface that holds the address. Its other addresses stay. |
-| `prefix` | union | yes | any value of this type | Address in CIDR form | An IPv4 or IPv6 address with its prefix length. Ze passes the string to the netlink backend, so it must match the string the add used. |
+| `name` | string | yes | any value of this type | Interface name | The interface that holds the address\. Its other addresses stay\. |
+| `prefix` | union | yes | any value of this type | Address in CIDR form | An IPv4 or IPv6 address with its prefix length\. Ze passes the string to the netlink backend\, so it must match the string the add used\. |
 
 ## Mapping intents
 

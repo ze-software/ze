@@ -1,6 +1,6 @@
 # `show vrrp`
 
-Show every VRRP virtual router.
+Show every VRRP virtual router\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show every VRRP virtual router.
 - Command pipes: none
 - Pipe aliases: none
 
-Per router: its group name, VRID, address family, state (initialize, backup, master), configured and effective priority, virtual addresses, and the macvlan device that carries the virtual MAC.
+Per router\: its group name\, VRID\, address family\, state \(initialize\, backup\, master\)\, configured and effective priority\, virtual addresses\, and the macvlan device that carries the virtual MAC\.
 
 ## Arguments
 

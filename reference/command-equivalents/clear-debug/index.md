@@ -1,6 +1,6 @@
 # `clear debug`
 
-Clear the default debug profile.
+Clear the default debug profile\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Clear the default debug profile.
 - Command pipes: none
 - Pipe aliases: none
 
-It writes an empty profile into the default slot AND applies it, so the stored default and the running daemon both stop. A named profile is not touched.
+It writes an empty profile into the default slot AND applies it\, so the stored default and the running daemon both stop\. A named profile is not touched\.
 
 ## Arguments
 

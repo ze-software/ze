@@ -1,6 +1,6 @@
 # `clear interface counters`
 
-Zero the Rx/Tx counters for every managed interface.
+Zero the Rx\/Tx counters for every managed interface\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Zero the Rx/Tx counters for every managed interface.
 - Command pipes: none
 - Pipe aliases: none
 
-One call resets every interface the backend manages, and the answer reports the scope as all. Nothing else about the interfaces changes.
+One call resets every interface the backend manages\, and the answer reports the scope as all\. Nothing else about the interfaces changes\.
 
 ## Arguments
 

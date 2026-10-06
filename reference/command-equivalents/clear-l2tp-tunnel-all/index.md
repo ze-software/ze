@@ -1,6 +1,6 @@
 # `clear l2tp tunnel all`
 
-Tear down every L2TP tunnel on this box.
+Tear down every L2TP tunnel on this box\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Tear down every L2TP tunnel on this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Sends StopCCN for all tunnels. Every subscriber session is disconnected. Use with care during maintenance.
+Sends StopCCN for all tunnels\. Every subscriber session is disconnected\. Use with care during maintenance\.
 
 ## Arguments
 

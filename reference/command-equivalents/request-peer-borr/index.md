@@ -1,6 +1,6 @@
 # `request peer borr`
 
-Start an Enhanced Route Refresh cycle (RFC 7313).
+Start an Enhanced Route Refresh cycle \(RFC 7313\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Start an Enhanced Route Refresh cycle (RFC 7313).
 - Command pipes: none
 - Pipe aliases: none
 
-Tells the peer to mark existing routes as stale. After re-sending, send EORR to purge anything not refreshed.
+Tells the peer to mark existing routes as stale\. After re\-sending\, send EORR to purge anything not refreshed\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 
 ## Mapping intents
 

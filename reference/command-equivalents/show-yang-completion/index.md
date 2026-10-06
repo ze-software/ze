@@ -1,6 +1,6 @@
 # `show yang completion`
 
-Show YANG paths available for tab completion.
+Show YANG paths available for tab completion\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show YANG paths available for tab completion.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists every valid completion point in the command tree.
+Lists every valid completion point in the command tree\.
 
 ## Arguments
 

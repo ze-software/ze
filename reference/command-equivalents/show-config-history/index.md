@@ -1,6 +1,6 @@
 # `show config history`
 
-List available configuration rollback points.
+List available configuration rollback points\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List available configuration rollback points.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows revisions with timestamps and commit metadata. Pair with 'show config diff' to review changes before rolling back.
+Shows revisions with timestamps and commit metadata\. Pair with \'show config diff\' to review changes before rolling back\.
 
 ## Arguments
 

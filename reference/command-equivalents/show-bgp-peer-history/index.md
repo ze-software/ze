@@ -1,6 +1,6 @@
 # `show bgp peer history`
 
-Show FSM state transitions for a peer over time.
+Show FSM state transitions for a peer over time\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show FSM state transitions for a peer over time.
 - Command pipes: none
 - Pipe aliases: none
 
-Each row reads as a sentence: when the transition happened, the state it left, the state it reached, and the reason. Only the first matched peer is read, so a wildcard selector with no argument is refused with 'no peer specified'. A peer whose transitions were never recorded answers 'no history for peer'.
+Each row reads as a sentence\: when the transition happened\, the state it left\, the state it reached\, and the reason\. Only the first matched peer is read\, so a wildcard selector with no argument is refused with \'no peer specified\'\. A peer whose transitions were never recorded answers \'no history for peer\'\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches, except 'list', which reads every peer. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Every command under \'show bgp peer\' reads the peers it matches\, except \'list\'\, which reads every peer\. |
 
 ## Mapping intents
 

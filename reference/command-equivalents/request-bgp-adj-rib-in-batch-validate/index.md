@@ -1,6 +1,6 @@
 # `request bgp adj-rib-in batch-validate`
 
-Apply up to 256 validation decisions in one call.
+Apply up to 256 validation decisions in one call\.
 
 ## Ze command
 

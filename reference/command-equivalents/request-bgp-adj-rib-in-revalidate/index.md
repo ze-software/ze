@@ -1,6 +1,6 @@
 # `request bgp adj-rib-in revalidate`
 
-Answer the installed routes of one prefix, so a validator can validate them again.
+Answer the installed routes of one prefix\, so a validator can validate them again\.
 
 ## Ze command
 

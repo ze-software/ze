@@ -1,6 +1,6 @@
 # `show log recent`
 
-Show recent log entries from the in-memory ring.
+Show recent log entries from the in\-memory ring\.
 
 ## Ze command
 
@@ -21,15 +21,15 @@ Show recent log entries from the in-memory ring.
 - Command pipes: none
 - Pipe aliases: none
 
-Filters (all optional): level <lvl>, component <name>, count <N>. Newest entries first. Useful when you cannot access the log file directly.
+Filters \(all optional\)\: level \<lvl\>\, component \<name\>\, count \<N\>\. Newest entries first\. Useful when you cannot access the log file directly\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `level` | enum | no | `disabled`, `debug`, `info`, `warn`, `err` | Filter by log level | Keeps the entries whose level equals this value, and no other level. Without it every level is shown. |
-| `component` | string | no | any value of this type | Filter by component name | Keeps the entries whose component name equals this value exactly. Without it every component is shown. |
-| `count` | uint | no | any value of this type | Maximum number of entries | Stops the answer after this many entries, newest first. It MUST be 1 or more, and without it every buffered entry is shown. |
+| `level` | enum | no | `disabled`, `debug`, `info`, `warn`, `err` | Filter by log level | Keeps the entries whose level equals this value\, and no other level\. Without it every level is shown\. |
+| `component` | string | no | any value of this type | Filter by component name | Keeps the entries whose component name equals this value exactly\. Without it every component is shown\. |
+| `count` | uint | no | any value of this type | Maximum number of entries | Stops the answer after this many entries\, newest first\. It MUST be 1 or more\, and without it every buffered entry is shown\. |
 
 ## Mapping intents
 

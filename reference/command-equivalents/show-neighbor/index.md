@@ -1,6 +1,6 @@
 # `show neighbor`
 
-Show the ARP and neighbor discovery table.
+Show the ARP and neighbor discovery table\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show the ARP and neighbor discovery table.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states. Pass ipv4 or ipv6 to filter by address family. No argument shows both. For the IPv4-only view, 'show arp' is a shortcut.
+Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states\. Pass ipv4 or ipv6 to filter by address family\. No argument shows both\. For the IPv4\-only view\, \'show arp\' is a shortcut\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `family` | enum | no | `ipv4`, `ipv6`, `any`, `all` | Address family filter | Selects the address family the answer carries. The default when it is absent is both families. |
+| `family` | enum | no | `ipv4`, `ipv6`, `any`, `all` | Address family filter | Selects the address family the answer carries\. The default when it is absent is both families\. |
 
 ## Mapping intents
 

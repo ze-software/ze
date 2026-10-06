@@ -1,6 +1,6 @@
 # `monitor traffic stat`
 
-Start streaming traffic monitor (per-second snapshots).
+Start streaming traffic monitor \(per\-second snapshots\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Start streaming traffic monitor (per-second snapshots).
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.
+Without arguments\, shows all interfaces\. With \'name \<interface\>\'\, filters to one interface\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | no | any value of this type | Interface name filter | The name of one interface, matched exactly against the interface names in each snapshot. Every other interface is left out of the stream. |
+| `name` | string | no | any value of this type | Interface name filter | The name of one interface\, matched exactly against the interface names in each snapshot\. Every other interface is left out of the stream\. |
 
 ## Mapping intents
 

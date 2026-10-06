@@ -1,6 +1,6 @@
 # `show l2tp echo`
 
-Show LCP echo health for a subscriber session.
+Show LCP echo health for a subscriber session\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show LCP echo health for a subscriber session.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns echo request and reply counters and round-trip times. Rising loss or high RTT indicates a degraded line.
+Returns echo request and reply counters and round\-trip times\. Rising loss or high RTT indicates a degraded line\.
 
 ## Arguments
 

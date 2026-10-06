@@ -1,6 +1,6 @@
 # `show ospf spf detail`
 
-Explain why each route won the SPF calculation (spec-ospf-ext-14).
+Explain why each route won the SPF calculation \(spec\-ospf\-ext\-14\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Explain why each route won the SPF calculation (spec-ospf-ext-14).
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the candidate paths considered for each prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break. The command is read-only, so the route table and the SPF run count do not change.
+Returns the candidate paths considered for each prefix\, the winning cost\, and the RFC 2328 section 16\.4 path\-preference tie\-break\. The command is read\-only\, so the route table and the SPF run count do not change\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show event delivery`
 
-Show which peers feed which attached processes.
+Show which peers feed which attached processes\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show which peers feed which attached processes.
 - Command pipes: none
 - Pipe aliases: none
 
-One block per peer, one row per `attach process` block on it: the event types that process is fed, and the message types it may send toward that peer. A token the event registry does not know is listed as unresolved and carries no edge. Answer to 'why does my program see nothing from this peer'.
+One block per peer\, one row per \`attach process\` block on it\: the event types that process is fed\, and the message types it may send toward that peer\. A token the event registry does not know is listed as unresolved and carries no edge\. Answer to \'why does my program see nothing from this peer\'\.
 
 ## Arguments
 

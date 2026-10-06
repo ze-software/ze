@@ -1,6 +1,6 @@
 # `show env get`
 
-Show one environment variable in detail.
+Show one environment variable in detail\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show one environment variable in detail.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the variable name, current value, default, and what it controls.
+Returns the variable name\, current value\, default\, and what it controls\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Environment variable name | The variable's full name as Ze registered it, matched exactly. A name Ze never declared is refused, even when the process inherited it. |
+| `name` | string | yes | any value of this type | Environment variable name | The variable\'s full name as Ze registered it\, matched exactly\. A name Ze never declared is refused\, even when the process inherited it\. |
 
 ## Mapping intents
 

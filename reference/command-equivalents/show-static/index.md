@@ -1,6 +1,6 @@
 # `show static`
 
-Show static routes defined in the configuration.
+Show static routes defined in the configuration\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show static routes defined in the configuration.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each static route with its prefix, next-hop, and interface.
+Lists each static route with its prefix\, next\-hop\, and interface\.
 
 ## Arguments
 

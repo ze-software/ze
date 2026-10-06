@@ -1,6 +1,6 @@
 # `show fib vpp`
 
-Show the routes this backend programmed into the VPP forwarding table.
+Show the routes this backend programmed into the VPP forwarding table\.
 
 ## Ze command
 

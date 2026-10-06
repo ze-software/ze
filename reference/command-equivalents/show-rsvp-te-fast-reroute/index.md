@@ -1,6 +1,6 @@
 # `show rsvp-te fast-reroute`
 
-Show RSVP-TE Fast Reroute (RFC 4090) protection state.
+Show RSVP\-TE Fast Reroute \(RFC 4090\) protection state\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show RSVP-TE Fast Reroute (RFC 4090) protection state.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns each configured facility-backup bypass LSP and each protected LSP with its armed bypass, mode, and whether local protection is available and in use.
+Returns each configured facility\-backup bypass LSP and each protected LSP with its armed bypass\, mode\, and whether local protection is available and in use\.
 
 ## Arguments
 

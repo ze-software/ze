@@ -1,6 +1,6 @@
 # `show pppoe`
 
-PPPoE session and protocol state.
+PPPoE session and protocol state\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ PPPoE session and protocol state.
 - Command pipes: none
 - Pipe aliases: none
 
-Without a subcommand, shows a summary of active sessions.
+Without a subcommand\, shows a summary of active sessions\.
 
 ## Arguments
 

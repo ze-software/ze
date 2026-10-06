@@ -1,6 +1,6 @@
 # `show l2tp cqm`
 
-Show subscriber line quality (CQM latency buckets).
+Show subscriber line quality \(CQM latency buckets\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show subscriber line quality (CQM latency buckets).
 - Command pipes: none
 - Pipe aliases: none
 
-Pass a login name for one subscriber or 'summary' for an overview. Use it to diagnose a poor subscriber experience.
+Pass a login name for one subscriber or \'summary\' for an overview\. Use it to diagnose a poor subscriber experience\.
 
 ## Arguments
 

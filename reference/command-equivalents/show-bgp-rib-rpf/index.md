@@ -1,6 +1,6 @@
 # `show bgp rib rpf`
 
-Reverse-path forwarding lookup in the Loc-RIB.
+Reverse\-path forwarding lookup in the Loc\-RIB\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Reverse-path forwarding lookup in the Loc-RIB.
 - Command pipes: none
 - Pipe aliases: none
 
-Performs a longest-prefix-match and returns the best-path entry. Use this to verify RPF checks would pass for a given source.
+Performs a longest\-prefix\-match and returns the best\-path entry\. Use this to verify RPF checks would pass for a given source\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show version`
 
-Show the running Ze version and build date.
+Show the running Ze version and build date\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the running Ze version and build date.
 - Command pipes: none
 - Pipe aliases: none
 
-You can verify which release is deployed on this box.
+You can verify which release is deployed on this box\.
 
 ## Arguments
 

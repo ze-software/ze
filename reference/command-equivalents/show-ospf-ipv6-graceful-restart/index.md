@@ -1,6 +1,6 @@
 # `show ospf ipv6 graceful-restart`
 
-Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187).
+Show OSPFv3 \(IPv6\) Graceful Restart state \(RFC 5187\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187).
 - Command pipes: none
 - Pipe aliases: none
 
-The restarter state (in-restart or not, grace end, reason) and the per-neighbor helper sessions (which neighbors are being helped and their remaining grace).
+The restarter state \(in\-restart or not\, grace end\, reason\) and the per\-neighbor helper sessions \(which neighbors are being helped and their remaining grace\)\.
 
 ## Arguments
 

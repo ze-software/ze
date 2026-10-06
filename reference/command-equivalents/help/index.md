@@ -1,6 +1,6 @@
 # `help`
 
-Show available commands at this level.
+Show available commands at this level\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show available commands at this level.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists every registered command verb with a brief description.
+Lists every registered command verb with a brief description\.
 
 ## Arguments
 

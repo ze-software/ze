@@ -1,6 +1,6 @@
 # `show vpn ipsec dataplane sa`
 
-Show the Security Association Database the kernel holds.
+Show the Security Association Database the kernel holds\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show the Security Association Database the kernel holds.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each installed ESP SA with its SPI, addresses, mode, algorithms, replay window, byte and packet counters, and timestamps. Give 'spi <spi>' to show all matching SAs. Without a selector the command dumps every SA, which on a device with many tunnels is one row per SA.
+Lists each installed ESP SA with its SPI\, addresses\, mode\, algorithms\, replay window\, byte and packet counters\, and timestamps\. Give \'spi \<spi\>\' to show all matching SAs\. Without a selector the command dumps every SA\, which on a device with many tunnels is one row per SA\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `spi` | uint | no | any value of this type | Show all SAs with this SPI. | The value is decimal. Ze keeps only the SAs whose SPI equals it, and the inbound SA and the outbound SA of one tunnel carry different SPIs, so one value names one direction. The value 0 is refused. |
+| `spi` | uint | no | any value of this type | Show all SAs with this SPI\. | The value is decimal\. Ze keeps only the SAs whose SPI equals it\, and the inbound SA and the outbound SA of one tunnel carry different SPIs\, so one value names one direction\. The value 0 is refused\. |
 
 ## Mapping intents
 

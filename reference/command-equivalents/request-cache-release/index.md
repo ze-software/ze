@@ -1,6 +1,6 @@
 # `request cache release`
 
-Ack without forwarding (cache consumer) or undo retain (API).
+Ack without forwarding \(cache consumer\) or undo retain \(API\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Ack without forwarding (cache consumer) or undo retain (API).
 - Command pipes: none
 - Pipe aliases: none
 
-The meaning depends on the caller. A cache consumer acknowledges the message and does not forward it. An API caller undoes an earlier retain. The ID leaf accepts a comma-separated list, and each ID is acted on in turn.
+The meaning depends on the caller\. A cache consumer acknowledges the message and does not forward it\. An API caller undoes an earlier retain\. The ID leaf accepts a comma\-separated list\, and each ID is acted on in turn\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | yes | any value of this type | Cache entry ID, or a comma-separated list of IDs. | One decimal cache entry ID, as show cache lists it, or several joined by commas. A comma-separated value runs the action once for each ID and reports a failure for each ID that is not in the cache. A value that is not a decimal number is refused as an invalid cache id. |
+| `id` | string | yes | any value of this type | Cache entry ID\, or a comma\-separated list of IDs\. | One decimal cache entry ID\, as show cache lists it\, or several joined by commas\. A comma\-separated value runs the action once for each ID and reports a failure for each ID that is not in the cache\. A value that is not a decimal number is refused as an invalid cache id\. |
 
 ## Mapping intents
 

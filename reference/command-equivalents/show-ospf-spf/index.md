@@ -1,6 +1,6 @@
 # `show ospf spf`
 
-Show recent OSPF SPF runs.
+Show recent OSPF SPF runs\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show recent OSPF SPF runs.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the most recent per-area SPF runs with their timestamp, duration, node count, and pending state.
+Returns the most recent per\-area SPF runs with their timestamp\, duration\, node count\, and pending state\.
 
 ## Arguments
 

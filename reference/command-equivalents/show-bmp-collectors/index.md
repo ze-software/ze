@@ -1,6 +1,6 @@
 # `show bmp collectors`
 
-Show BMP collector connection status.
+Show BMP collector connection status\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show BMP collector connection status.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists configured collectors with connection state, sent message counts, and error statistics. Check here if your collector is not receiving data.
+Lists configured collectors with connection state\, sent message counts\, and error statistics\. Check here if your collector is not receiving data\.
 
 ## Arguments
 

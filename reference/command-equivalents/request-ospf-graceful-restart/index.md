@@ -1,6 +1,6 @@
 # `request ospf graceful-restart`
 
-Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).
+Trigger a planned OSPFv2 graceful restart \(RFC 3623 section 2\.1\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).
 - Command pipes: none
 - Pipe aliases: none
 
-The engine originates one Grace-LSA per interface, persists the non-volatile restart fact, and suppresses route churn so the FIB is retained across the ensuing control-plane restart. Refused when graceful-restart is not configured.
+The engine originates one Grace\-LSA per interface\, persists the non\-volatile restart fact\, and suppresses route churn so the FIB is retained across the ensuing control\-plane restart\. Refused when graceful\-restart is not configured\.
 
 ## Arguments
 

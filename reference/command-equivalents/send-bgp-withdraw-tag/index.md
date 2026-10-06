@@ -1,6 +1,6 @@
 # `send bgp withdraw tag`
 
-Withdraw the announcements carrying a tag.
+Withdraw the announcements carrying a tag\.
 
 ## Ze command
 
@@ -21,15 +21,15 @@ Withdraw the announcements carrying a tag.
 - Command pipes: none
 - Pipe aliases: none
 
-A key of * withdraws every tagged announcement. An absent value withdraws every value of the key.
+A key of \* withdraws every tagged announcement\. An absent value withdraws every value of the key\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, a comma-separated list of those, or * for every peer. The message goes to each session the selector matches. |
-| `key` | string | yes | any value of this type | Tag key, or * for every tagged announcement | The value is the key an announcement was made with, compared as text. Ze withdraws each announcement made to the selector that carries it. A key of * withdraws every tagged announcement made to the selector. |
-| `value` | string | no | any value of this type | Tag value, or every value of the key when absent | The value is the tag value an announcement was made with, compared as text. With it, Ze withdraws the announcements under the key that carry this value alone. Absent, or *, every value of the key is withdrawn. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, a comma\-separated list of those\, or \* for every peer\. The message goes to each session the selector matches\. |
+| `key` | string | yes | any value of this type | Tag key\, or \* for every tagged announcement | The value is the key an announcement was made with\, compared as text\. Ze withdraws each announcement made to the selector that carries it\. A key of \* withdraws every tagged announcement made to the selector\. |
+| `value` | string | no | any value of this type | Tag value\, or every value of the key when absent | The value is the tag value an announcement was made with\, compared as text\. With it\, Ze withdraws the announcements under the key that carry this value alone\. Absent\, or \*\, every value of the key is withdrawn\. |
 
 ## Mapping intents
 

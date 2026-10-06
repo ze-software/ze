@@ -1,6 +1,6 @@
 # `show config list`
 
-List all configuration files stored in the database.
+List all configuration files stored in the database\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all configuration files stored in the database.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows archived snapshots and the active config.
+Shows archived snapshots and the active config\.
 
 ## Arguments
 

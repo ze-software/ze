@@ -1,6 +1,6 @@
 # `show pppoe statistics`
 
-Show PPPoE protocol message counters.
+Show PPPoE protocol message counters\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show PPPoE protocol message counters.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns PADI, PADO, PADR, PADS, PADT counts, active sessions, and errors. A rising PADI count with flat PADS means sessions are not completing.
+Returns PADI\, PADO\, PADR\, PADS\, PADT counts\, active sessions\, and errors\. A rising PADI count with flat PADS means sessions are not completing\.
 
 ## Arguments
 

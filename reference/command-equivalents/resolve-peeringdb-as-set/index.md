@@ -1,6 +1,6 @@
 # `resolve peeringdb as-set`
 
-Find the IRR AS-SET registered for an ASN in PeeringDB.
+Find the IRR AS\-SET registered for an ASN in PeeringDB\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Find the IRR AS-SET registered for an ASN in PeeringDB.
 - Command pipes: none
 - Pipe aliases: none
 
-Feed the result into 'resolve irr expand' to get the full member list.
+Feed the result into \'resolve irr expand\' to get the full member list\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | union | yes | any value of this type | AS number. | The AS number in plain decimal or in asdot notation, which Ze parses to one 32-bit value before the query. A spelling that parses to no AS number is refused. |
+| `asn` | union | yes | any value of this type | AS number\. | The AS number in plain decimal or in asdot notation\, which Ze parses to one 32\-bit value before the query\. A spelling that parses to no AS number is refused\. |
 
 ## Mapping intents
 

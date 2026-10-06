@@ -1,6 +1,6 @@
 # `help command`
 
-List every command this binary carries with its summary.
+List every command this binary carries with its summary\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ List every command this binary carries with its summary.
 - Command pipes: none
 - Pipe aliases: none
 
-A filter word keeps the commands whose path holds it, and the answer renders as JSON for a program to read.
+A filter word keeps the commands whose path holds it\, and the answer renders as JSON for a program to read\.
 
 ## Arguments
 

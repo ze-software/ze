@@ -1,6 +1,6 @@
 # `plugin ack`
 
-Choose sync or async event delivery.
+Choose sync or async event delivery\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Choose sync or async event delivery.
 - Command pipes: none
 - Pipe aliases: none
 
-sync: Ze waits for your plugin to acknowledge each event before sending the next one. Safer but slower. async: events fire without waiting, giving higher throughput at the cost of backpressure control.
+sync\: Ze waits for your plugin to acknowledge each event before sending the next one\. Safer but slower\. async\: events fire without waiting\, giving higher throughput at the cost of backpressure control\.
 
 ## Arguments
 

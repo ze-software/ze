@@ -1,6 +1,6 @@
 # `show bgp peer rib`
 
-Show RIB data scoped to one peer.
+Show RIB data scoped to one peer\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show RIB data scoped to one peer.
 - Command pipes: none
 - Pipe aliases: none
 
-The command forwards to the RIB plugin with the peer selector attached, so the RIB plugin MUST be loaded for it to answer. 'show bgp rib' reads the same plugin without a peer scope.
+The command forwards to the RIB plugin with the peer selector attached\, so the RIB plugin MUST be loaded for it to answer\. \'show bgp rib\' reads the same plugin without a peer scope\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches, except 'list', which reads every peer. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Every command under \'show bgp peer\' reads the peers it matches\, except \'list\'\, which reads every peer\. |
 
 ## Mapping intents
 

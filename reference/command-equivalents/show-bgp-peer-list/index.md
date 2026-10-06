@@ -1,6 +1,6 @@
 # `show bgp peer list`
 
-List your peers, one line each.
+List your peers\, one line each\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List your peers, one line each.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows name, address, ASN, state, and uptime. Quick overview without the per-peer detail.
+Shows name\, address\, ASN\, state\, and uptime\. Quick overview without the per\-peer detail\.
 
 ## Arguments
 

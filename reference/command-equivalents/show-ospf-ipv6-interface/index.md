@@ -1,6 +1,6 @@
 # `show ospf ipv6 interface`
 
-Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.
+Show OSPFv3 \(IPv6\-family\) interfaces and their RFC 4552 IPsec status\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns per interface whether IPsec is configured, the protocol (ah/esp) and SPI, and whether the kernel SA is installed. The key is never shown.
+Returns per interface whether IPsec is configured\, the protocol \(ah\/esp\) and SPI\, and whether the kernel SA is installed\. The key is never shown\.
 
 ## Arguments
 

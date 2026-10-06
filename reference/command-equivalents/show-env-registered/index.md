@@ -1,6 +1,6 @@
 # `show env registered`
 
-List every registered environment variable with metadata.
+List every registered environment variable with metadata\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List every registered environment variable with metadata.
 - Command pipes: none
 - Pipe aliases: none
 
-Includes type, default, description, and whether it is currently set.
+Includes type\, default\, description\, and whether it is currently set\.
 
 ## Arguments
 

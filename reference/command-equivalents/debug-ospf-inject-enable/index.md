@@ -1,6 +1,6 @@
 # `debug ospf inject enable`
 
-Enable OSPF debug LSA injection (shared across both address families).
+Enable OSPF debug LSA injection \(shared across both address families\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Enable OSPF debug LSA injection (shared across both address families).
 - Command pipes: none
 - Pipe aliases: none
 
-Off by default.
+Off by default\.
 
 ## Arguments
 

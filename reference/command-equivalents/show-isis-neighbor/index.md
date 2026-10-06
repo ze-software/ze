@@ -1,6 +1,6 @@
 # `show isis neighbor`
 
-Show IS-IS adjacencies.
+Show IS\-IS adjacencies\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show IS-IS adjacencies.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the neighbor System ID, interface, level, adjacency state, and hold time for each IS-IS neighbor.
+Returns the neighbor System ID\, interface\, level\, adjacency state\, and hold time for each IS\-IS neighbor\.
 
 ## Arguments
 

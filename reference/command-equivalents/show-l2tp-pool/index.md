@@ -1,6 +1,6 @@
 # `show l2tp pool`
 
-Show the IPv4 and IPv6 subscriber address pools and what each has allocated.
+Show the IPv4 and IPv6 subscriber address pools and what each has allocated\.
 
 ## Ze command
 

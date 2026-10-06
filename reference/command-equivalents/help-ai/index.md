@@ -1,6 +1,6 @@
 # `help ai`
 
-Print the agent reference this binary builds from its own registries.
+Print the agent reference this binary builds from its own registries\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Print the agent reference this binary builds from its own registries.
 - Command pipes: none
 - Pipe aliases: none
 
-The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON for a program to read.
+The sections are cli\, api\, mcp\, dispatch and all\, and the answer renders as JSON for a program to read\.
 
 ## Arguments
 

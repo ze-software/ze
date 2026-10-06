@@ -1,6 +1,6 @@
 # `show ospf database router`
 
-Show only Router-LSAs (Type 1).
+Show only Router\-LSAs \(Type 1\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show only Router-LSAs (Type 1).
 - Command pipes: none
 - Pipe aliases: none
 
-RFC 2328 Section 12.4.1 states that every router originates a Router-LSA. The LSA describes the collected states of the router's interfaces to one area. It is flooded throughout a single area only, and Ze reads the per-area store for it.
+RFC 2328 Section 12\.4\.1 states that every router originates a Router\-LSA\. The LSA describes the collected states of the router\'s interfaces to one area\. It is flooded throughout a single area only\, and Ze reads the per\-area store for it\.
 
 ## Arguments
 

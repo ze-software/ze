@@ -1,6 +1,6 @@
 # `show l2tp`
 
-L2TP tunnel, session, and subscriber state.
+L2TP tunnel\, session\, and subscriber state\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ L2TP tunnel, session, and subscriber state.
 - Command pipes: none
 - Pipe aliases: none
 
-Without a subcommand, shows a summary of tunnels and sessions.
+Without a subcommand\, shows a summary of tunnels and sessions\.
 
 ## Arguments
 

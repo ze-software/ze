@@ -1,6 +1,6 @@
 # `request reboot`
 
-Gracefully shutdown then reboot the system.
+Gracefully shutdown then reboot the system\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Gracefully shutdown then reboot the system.
 - Command pipes: none
 - Pipe aliases: none
 
-Ze writes the accepted answer first, then runs the reboot. The answer message is 'reboot initiated'. A daemon with no reboot function configured fails with 'reboot not available'.
+Ze writes the accepted answer first\, then runs the reboot\. The answer message is \'reboot initiated\'\. A daemon with no reboot function configured fails with \'reboot not available\'\.
 
 ## Arguments
 

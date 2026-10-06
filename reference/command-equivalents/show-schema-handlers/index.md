@@ -1,6 +1,6 @@
 # `show schema handlers`
 
-Show which handler serves each YANG module.
+Show which handler serves each YANG module\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show which handler serves each YANG module.
 - Command pipes: none
 - Pipe aliases: none
 
-Maps module names to their implementing Go handler.
+Maps module names to their implementing Go handler\.
 
 ## Arguments
 

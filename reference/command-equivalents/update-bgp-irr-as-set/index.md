@@ -1,6 +1,6 @@
 # `update bgp irr as-set`
 
-Refresh IRR prefix-list for a specific AS-SET.
+Refresh IRR prefix\-list for a specific AS\-SET\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Refresh IRR prefix-list for a specific AS-SET.
 - Command pipes: none
 - Pipe aliases: none
 
-Re-queries the IRR server for all peers using the given AS-SET name.
+Re\-queries the IRR server for all peers using the given AS\-SET name\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type | AS-SET name. | The AS-SET name as the peer configuration spells it, compared as an exact string. Every enrolled ASN that resolves through this AS-SET is refreshed, and a name no enrolled ASN uses is refused. |
+| `as-set` | string | yes | any value of this type | AS\-SET name\. | The AS\-SET name as the peer configuration spells it\, compared as an exact string\. Every enrolled ASN that resolves through this AS\-SET is refreshed\, and a name no enrolled ASN uses is refused\. |
 
 ## Mapping intents
 

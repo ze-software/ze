@@ -1,6 +1,6 @@
 # `show ospf ipv6 spf detail`
 
-Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged.
+Explain why each OSPFv3 route won \(spec\-ospf\-ext\-14\)\, AF\/Instance\-ID tagged\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged.
 - Command pipes: none
 - Pipe aliases: none
 
-The command is read-only.
+The command is read\-only\.
 
 ## Arguments
 

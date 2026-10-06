@@ -1,6 +1,6 @@
 # `request as112 healthcheck`
 
-Send one authoritative query and check the AS112 answer.
+Send one authoritative query and check the AS112 answer\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Send one authoritative query and check the AS112 answer.
 - Command pipes: none
 - Pipe aliases: none
 
-The query goes to an anycast service address, or to the given target. The exit code is 0 only when the expected AS112 answer comes back. Finding M4: the tool a healthcheck probe calls, since dig is not on the gokrazy appliance and 'ze resolve dns' cannot target a specific server.
+The query goes to an anycast service address\, or to the given target\. The exit code is 0 only when the expected AS112 answer comes back\. Finding M4\: the tool a healthcheck probe calls\, since dig is not on the gokrazy appliance and \'ze resolve dns\' cannot target a specific server\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `target` | string | no | any value of this type | Anycast service address to query. | An IP address, queried on port 53. When it is absent the query goes to the on-box loopback of the configured address family: 127.0.0.1, or ::1 when address-family is ipv6-only. |
+| `target` | string | no | any value of this type | Anycast service address to query\. | An IP address\, queried on port 53\. When it is absent the query goes to the on\-box loopback of the configured address family\: 127\.0\.0\.1\, or \:\:1 when address\-family is ipv6\-only\. |
 
 ## Mapping intents
 

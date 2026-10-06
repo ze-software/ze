@@ -1,6 +1,6 @@
 # `show traffic feature`
 
-Show neutral per-source traffic feature signals.
+Show neutral per\-source traffic feature signals\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show neutral per-source traffic feature signals.
 - Command pipes: none
 - Pipe aliases: none
 
-The signals are fan-out (distinct destinations), out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing. Without arguments, shows the top source entities. With 'name <address>', filters to one source.
+The signals are fan\-out \(distinct destinations\)\, out\/in byte ratio \(exfiltration\)\, destination\-port entropy\, new\-peer\, rare\-port\/proto\, and coarse beaconing\. Without arguments\, shows the top source entities\. With \'name \<address\>\'\, filters to one source\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | no | any value of this type | Source address filter | A source IP address, compared as text against each entry's address. Only the entries with that exact address are listed. |
+| `name` | string | no | any value of this type | Source address filter | A source IP address\, compared as text against each entry\'s address\. Only the entries with that exact address are listed\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `delete debug profile name`
 
-Delete a named debug profile.
+Delete a named debug profile\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Delete a named debug profile.
 - Command pipes: none
 - Pipe aliases: none
 
-It removes the stored slot and nothing else. The running daemon keeps whatever it is writing, so deleting the profile that is live does not turn its output off.
+It removes the stored slot and nothing else\. The running daemon keeps whatever it is writing\, so deleting the profile that is live does not turn its output off\.
 
 ## Arguments
 

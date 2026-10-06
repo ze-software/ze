@@ -1,6 +1,6 @@
 # `show isis interface`
 
-Show IS-IS-enabled circuits.
+Show IS\-IS\-enabled circuits\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show IS-IS-enabled circuits.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns level, circuit type, metric, hello interval, hold multiplier, passive flag, DIS state, and the count of Up adjacencies per circuit.
+Returns level\, circuit type\, metric\, hello interval\, hold multiplier\, passive flag\, DIS state\, and the count of Up adjacencies per circuit\.
 
 ## Arguments
 

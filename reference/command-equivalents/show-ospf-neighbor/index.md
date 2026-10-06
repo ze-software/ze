@@ -1,6 +1,6 @@
 # `show ospf neighbor`
 
-Show OSPF neighbors.
+Show OSPF neighbors\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show OSPF neighbors.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns each neighbor's router-id, interface, adjacency state, DR/BDR, priority, dead time, and address.
+Returns each neighbor\'s router\-id\, interface\, adjacency state\, DR\/BDR\, priority\, dead time\, and address\.
 
 ## Arguments
 

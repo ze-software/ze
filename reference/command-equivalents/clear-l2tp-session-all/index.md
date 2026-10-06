@@ -1,6 +1,6 @@
 # `clear l2tp session all`
 
-Disconnect every L2TP session on this box.
+Disconnect every L2TP session on this box\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Disconnect every L2TP session on this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Sends CDN for all sessions across all tunnels. The tunnels stay up. Use with care.
+Sends CDN for all sessions across all tunnels\. The tunnels stay up\. Use with care\.
 
 ## Arguments
 

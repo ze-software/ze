@@ -1,6 +1,6 @@
 # `show ddos incidents`
 
-Show the recent DDoS incident ring (newest first).
+Show the recent DDoS incident ring \(newest first\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the recent DDoS incident ring (newest first).
 - Command pipes: none
 - Pipe aliases: none
 
-Per incident: the target vector (prefix/proto/port), attack family, top source addresses, peak pps/bps, start/end time, and whether it is still active.
+Per incident\: the target vector \(prefix\/proto\/port\)\, attack family\, top source addresses\, peak pps\/bps\, start\/end time\, and whether it is still active\.
 
 ## Arguments
 

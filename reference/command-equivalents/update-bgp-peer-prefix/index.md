@@ -1,6 +1,6 @@
 # `update bgp peer prefix`
 
-Refresh max-prefix limits from PeeringDB.
+Refresh max\-prefix limits from PeeringDB\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Refresh max-prefix limits from PeeringDB.
 - Command pipes: none
 - Pipe aliases: none
 
-Queries PeeringDB for each matched peer's ASN, applies the configured margin, and writes the result to the config draft. Run 'config commit' to apply.
+Queries PeeringDB for each matched peer\'s ASN\, applies the configured margin\, and writes the result to the config draft\. Run \'config commit\' to apply\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'prefix' refreshes the maximums of each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'prefix\' refreshes the maximums of each peer it matches\. |
 
 ## Mapping intents
 

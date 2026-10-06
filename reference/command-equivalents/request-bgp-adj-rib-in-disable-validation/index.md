@@ -1,6 +1,6 @@
 # `request bgp adj-rib-in disable-validation`
 
-Remove RPKI gating without changing independent route authorization.
+Remove RPKI gating without changing independent route authorization\.
 
 ## Ze command
 

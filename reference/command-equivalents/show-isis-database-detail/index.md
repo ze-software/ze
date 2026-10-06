@@ -1,6 +1,6 @@
 # `show isis database detail`
 
-Show the IS-IS link-state database with TLV detail.
+Show the IS\-IS link\-state database with TLV detail\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the IS-IS link-state database with TLV detail.
 - Command pipes: none
 - Pipe aliases: none
 
-Expands each LSP into its decoded TLVs (type, length, value) so you can read exactly what each node advertises. It carries the same fields as the summary view, the own field included.
+Expands each LSP into its decoded TLVs \(type\, length\, value\) so you can read exactly what each node advertises\. It carries the same fields as the summary view\, the own field included\.
 
 ## Arguments
 

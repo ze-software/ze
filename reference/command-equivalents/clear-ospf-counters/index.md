@@ -1,6 +1,6 @@
 # `clear ospf counters`
 
-Reset the OSPF SPF-run history.
+Reset the OSPF SPF\-run history\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Reset the OSPF SPF-run history.
 - Command pipes: none
 - Pipe aliases: none
 
-Monotonic Prometheus series are not reset; the SPF-run log is cleared.
+Monotonic Prometheus series are not reset\; the SPF\-run log is cleared\.
 
 ## Arguments
 

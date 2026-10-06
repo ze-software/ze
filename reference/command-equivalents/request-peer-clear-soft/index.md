@@ -1,6 +1,6 @@
 # `request peer clear soft`
 
-Soft-clear a peer without dropping the session.
+Soft\-clear a peer without dropping the session\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Soft-clear a peer without dropping the session.
 - Command pipes: none
 - Pipe aliases: none
 
-Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer to re-send all routes. No session bounce, no traffic impact.
+Sends ROUTE\-REFRESH for every negotiated AFI\/SAFI\, causing the peer to re\-send all routes\. No session bounce\, no traffic impact\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `show host kernel`
 
-Show the running kernel version and boot parameters.
+Show the running kernel version and boot parameters\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the running kernel version and boot parameters.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns kernel release, command line, CPU microcode revision, boot time, and security-relevant CPU flags (spectre mitigations, etc.).
+Returns kernel release\, command line\, CPU microcode revision\, boot time\, and security\-relevant CPU flags \(spectre mitigations\, etc\.\)\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show data registered`
 
-List the key patterns registered by all subsystems.
+List the key patterns registered by all subsystems\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List the key patterns registered by all subsystems.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists the storage key patterns registered by subsystems.
+Lists the storage key patterns registered by subsystems\.
 
 ## Arguments
 

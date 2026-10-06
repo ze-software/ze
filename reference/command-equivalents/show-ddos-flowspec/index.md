@@ -1,6 +1,6 @@
 # `show ddos flowspec`
 
-Show the upstream FlowSpec and RTBH DDoS mitigation status.
+Show the upstream FlowSpec and RTBH DDoS mitigation status\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the upstream FlowSpec and RTBH DDoS mitigation status.
 - Command pipes: none
 - Pipe aliases: none
 
-The status names whether a rule is announced now, the target vector that rule covers, and whether the leak-probe is running.
+The status names whether a rule is announced now\, the target vector that rule covers\, and whether the leak\-probe is running\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show yang doc`
 
-Generate command reference docs from YANG schemas.
+Generate command reference docs from YANG schemas\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Generate command reference docs from YANG schemas.
 - Command pipes: none
 - Pipe aliases: none
 
-Produces structured documentation with descriptions, arguments, and usage patterns for every registered command.
+Produces structured documentation with descriptions\, arguments\, and usage patterns for every registered command\.
 
 ## Arguments
 

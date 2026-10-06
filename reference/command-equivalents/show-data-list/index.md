@@ -1,6 +1,6 @@
 # `show data list`
 
-List the keys in the selected store.
+List the keys in the selected store\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List the keys in the selected store.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists the keys in the selected store. Use 'show data cat <key>' to read one value.
+Lists the keys in the selected store\. Use \'show data cat \<key\>\' to read one value\.
 
 ## Arguments
 

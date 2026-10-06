@@ -1,6 +1,6 @@
 # `show schema methods`
 
-List all RPC methods defined in YANG API modules.
+List all RPC methods defined in YANG API modules\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all RPC methods defined in YANG API modules.
 - Command pipes: none
 - Pipe aliases: none
 
-Useful for plugin developers to discover available operations.
+Useful for plugin developers to discover available operations\.
 
 ## Arguments
 

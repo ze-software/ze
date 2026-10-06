@@ -1,6 +1,6 @@
 # `show traceroute`
 
-Trace the network path from this router to a target.
+Trace the network path from this router to a target\.
 
 ## Ze command
 
@@ -21,17 +21,17 @@ Trace the network path from this router to a target.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows each hop with its IP and round-trip time. Dest can be an IP or hostname. Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT measurements.
+Shows each hop with its IP and round\-trip time\. Dest can be an IP or hostname\. Defaults\: 30 max hops\, 3 probes per hop\. Increase probes for more reliable RTT measurements\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `dest` | string | no | any value of this type | Target host or IP address. | The value is the first bare word of the command. A host name is resolved in either address family, and the family of the answer selects ICMPv4 or ICMPv6. |
-| `max-hops` | uint | no | any value of this type | Maximum number of hops. | The value is the largest time-to-live Ze probes, 1 to 64. The trace stops early when the target answers. Absent, the value is 30. |
-| `timeout` | string | no | any value of this type | Timeout duration. | The value is the time Ze waits for one probe, in Go duration syntax, 1s to 30s. Absent, the value is 3s. |
-| `probes` | uint | no | any value of this type | Number of probes per hop. | The value is the number of probes Ze sends at each time-to-live, 1 to 10, and each probe reports its own round-trip time. Absent, the value is 3. |
-| `do-not-fragment` | enum | no | `honor-cache`, `bypass-cache` | Set the Don't Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it. | The keyword takes one of two values. honor-cache sets the Don't Fragment bit and honors the kernel's cached path MTU: a probe larger than the cached value is refused at send time, and a router's Fragmentation Needed answer updates the cache. bypass-cache sets the bit and ignores the cached value, so the probe is put on the wire at its full size. Absent, the kernel fragments a probe larger than the path, which is the behavior of before the keyword existed. |
+| `dest` | string | no | any value of this type | Target host or IP address\. | The value is the first bare word of the command\. A host name is resolved in either address family\, and the family of the answer selects ICMPv4 or ICMPv6\. |
+| `max-hops` | uint | no | any value of this type | Maximum number of hops\. | The value is the largest time\-to\-live Ze probes\, 1 to 64\. The trace stops early when the target answers\. Absent\, the value is 30\. |
+| `timeout` | string | no | any value of this type | Timeout duration\. | The value is the time Ze waits for one probe\, in Go duration syntax\, 1s to 30s\. Absent\, the value is 3s\. |
+| `probes` | uint | no | any value of this type | Number of probes per hop\. | The value is the number of probes Ze sends at each time\-to\-live\, 1 to 10\, and each probe reports its own round\-trip time\. Absent\, the value is 3\. |
+| `do-not-fragment` | enum | no | `honor-cache`, `bypass-cache` | Set the Don\'t Fragment bit\; honor\-cache obeys the cached path MTU\, bypass\-cache ignores it\. | The keyword takes one of two values\. honor\-cache sets the Don\'t Fragment bit and honors the kernel\'s cached path MTU\: a probe larger than the cached value is refused at send time\, and a router\'s Fragmentation Needed answer updates the cache\. bypass\-cache sets the bit and ignores the cached value\, so the probe is put on the wire at its full size\. Absent\, the kernel fragments a probe larger than the path\, which is the behavior of before the keyword existed\. |
 
 ## Mapping intents
 

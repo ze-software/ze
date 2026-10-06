@@ -1,6 +1,6 @@
 # `show config graph`
 
-Show how components and peers depend on each other, as JSON.
+Show how components and peers depend on each other\, as JSON\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Show how components and peers depend on each other, as JSON.
 - Command pipes: none
 - Pipe aliases: none
 
-It takes a config file path, or - to read the file on stdin. Inactive blocks are pruned before the graph is built, so a deactivated peer contributes no edge and the answer describes the config as it would run.
+It takes a config file path\, or \- to read the file on stdin\. Inactive blocks are pruned before the graph is built\, so a deactivated peer contributes no edge and the answer describes the config as it would run\.
 
 ## Arguments
 

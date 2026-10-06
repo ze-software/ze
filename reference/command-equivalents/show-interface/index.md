@@ -1,6 +1,6 @@
 # `show interface`
 
-Show network interfaces on this box.
+Show network interfaces on this box\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show network interfaces on this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, returns all interfaces with full detail. Subcommands: brief, type <t>, errors, rate [<name>], name <name> detail, name <name> counters.
+Without arguments\, returns all interfaces with full detail\. Subcommands\: brief\, type \<t\>\, errors\, rate \[\<name\>\]\, name \<name\> detail\, name \<name\> counters\.
 
 ## Arguments
 

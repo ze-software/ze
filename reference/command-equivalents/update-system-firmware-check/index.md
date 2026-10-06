@@ -1,6 +1,6 @@
 # `update system firmware check`
 
-Check for a new firmware version right now.
+Check for a new firmware version right now\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Check for a new firmware version right now.
 - Command pipes: none
 - Pipe aliases: none
 
-Bypasses the scheduled interval timer and contacts the update server immediately. Compare the result with 'show system update'.
+Bypasses the scheduled interval timer and contacts the update server immediately\. Compare the result with \'show system update\'\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `request unsubscribe`
 
-Stop receiving events you previously subscribed to.
+Stop receiving events you previously subscribed to\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Stop receiving events you previously subscribed to.
 - Command pipes: none
 - Pipe aliases: none
 
-Removes the subscription for the specified event type from your current plugin session.
+Removes the subscription for the specified event type from your current plugin session\.
 
 ## Arguments
 

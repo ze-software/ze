@@ -1,6 +1,6 @@
 # `show ddos local`
 
-Show the on-host DDoS mitigation status.
+Show the on\-host DDoS mitigation status\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the on-host DDoS mitigation status.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer states whether an nft drop rule is installed now, and the target vector it covers: prefix, protocol, or port.
+The answer states whether an nft drop rule is installed now\, and the target vector it covers\: prefix\, protocol\, or port\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `update bgp irr all`
 
-Refresh all IRR prefix-lists immediately.
+Refresh all IRR prefix\-lists immediately\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Refresh all IRR prefix-lists immediately.
 - Command pipes: none
 - Pipe aliases: none
 
-Re-queries the IRR server for every enrolled ASN and atomically swaps prefix-lists on success. Failed refreshes preserve the existing prefix-list and report an error.
+Re\-queries the IRR server for every enrolled ASN and atomically swaps prefix\-lists on success\. Failed refreshes preserve the existing prefix\-list and report an error\.
 
 ## Arguments
 

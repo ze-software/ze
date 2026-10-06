@@ -1,6 +1,6 @@
 # `show ospf ipv6`
 
-Show the OSPFv3 (IPv6) address-family instances (RFC 5838).
+Show the OSPFv3 \(IPv6\) address\-family instances \(RFC 5838\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the OSPFv3 (IPv6) address-family instances (RFC 5838).
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each configured address family (ipv6-unicast, ipv6-multicast, ipv4-unicast, ipv4-multicast) with its Instance ID, router-id, and neighbor/interface counts, so multiple AF instances on a link are distinguishable.
+Lists each configured address family \(ipv6\-unicast\, ipv6\-multicast\, ipv4\-unicast\, ipv4\-multicast\) with its Instance ID\, router\-id\, and neighbor\/interface counts\, so multiple AF instances on a link are distinguishable\.
 
 ## Arguments
 

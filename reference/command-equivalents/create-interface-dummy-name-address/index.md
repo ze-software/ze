@@ -1,6 +1,6 @@
 # `create interface dummy name address`
 
-Add an IP address to the dummy.
+Add an IP address to the dummy\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Add an IP address to the dummy.
 - Command pipes: none
 - Pipe aliases: none
 
-The address is written in CIDR form, for example 10.0.0.1/32. The dummy is created first when it is absent, and deleted again when this step fails.
+The address is written in CIDR form\, for example 10\.0\.0\.1\/32\. The dummy is created first when it is absent\, and deleted again when this step fails\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The dummy that receives the address. The dispatcher creates it first when it is absent. |
-| `prefix` | union | yes | any value of this type | Address in CIDR form | An IPv4 or IPv6 address with its prefix length, for example 10.0.0.1/32. Ze passes the string to the netlink backend. |
+| `name` | string | yes | any value of this type | Interface name | The dummy that receives the address\. The dispatcher creates it first when it is absent\. |
+| `prefix` | union | yes | any value of this type | Address in CIDR form | An IPv4 or IPv6 address with its prefix length\, for example 10\.0\.0\.1\/32\. Ze passes the string to the netlink backend\. |
 
 ## Mapping intents
 

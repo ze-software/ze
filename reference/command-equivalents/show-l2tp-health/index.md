@@ -1,6 +1,6 @@
 # `show l2tp health`
 
-Find your worst L2TP sessions at a glance.
+Find your worst L2TP sessions at a glance\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Find your worst L2TP sessions at a glance.
 - Command pipes: none
 - Pipe aliases: none
 
-Sorts sessions by echo loss ratio (worst first). Shows subscriber login, session state, echo count, average RTT, and CQM bucket count. Reports how many sessions are degraded.
+Sorts sessions by echo loss ratio \(worst first\)\. Shows subscriber login\, session state\, echo count\, average RTT\, and CQM bucket count\. Reports how many sessions are degraded\.
 
 ## Arguments
 

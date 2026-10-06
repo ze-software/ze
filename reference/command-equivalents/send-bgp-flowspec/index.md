@@ -1,6 +1,6 @@
 # `send bgp flowspec`
 
-Originate a FlowSpec rule on demand (RFC 8955).
+Originate a FlowSpec rule on demand \(RFC 8955\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Originate a FlowSpec rule on demand (RFC 8955).
 - Command pipes: none
 - Pipe aliases: none
 
-The match components come from ze-flowspec-cmd, which augments this container. They are the FlowSpec codec vocabulary, and the plugin that owns it declares them, so this module never restates another plugin's words. An augmented container carries no declaration order, so the components sort by name and land in front of the action and the options declared here.
+The match components come from ze\-flowspec\-cmd\, which augments this container\. They are the FlowSpec codec vocabulary\, and the plugin that owns it declares them\, so this module never restates another plugin\'s words\. An augmented container carries no declaration order\, so the components sort by name and land in front of the action and the options declared here\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, a comma-separated list of those, or * for every peer. The message goes to each session the selector matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, a comma\-separated list of those\, or \* for every peer\. The message goes to each session the selector matches\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `debug ipv6 ospf inject lsa`
 
-Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).
+Inject a crafted OSPFv3 LSA into the local LSDB \(RFC 5340\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).
 - Command pipes: none
 - Pipe aliases: none
 
-The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is rejected). Requires `debug ospf inject enable`.
+The flooding scope is derived from the LS Type S2\/S1 bits \(a reserved scope is rejected\)\. Requires \`debug ospf inject enable\`\.
 
 ## Arguments
 

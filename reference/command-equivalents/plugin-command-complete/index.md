@@ -1,6 +1,6 @@
 # `plugin command complete`
 
-List the completion candidates for a partial plugin command.
+List the completion candidates for a partial plugin command\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ List the completion candidates for a partial plugin command.
 - Command pipes: none
 - Pipe aliases: none
 
-The candidates come from the plugin registry only, and a command marked hidden is left out. A built-in command is never offered here.
+The candidates come from the plugin registry only\, and a command marked hidden is left out\. A built\-in command is never offered here\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `partial` | string | yes | any value of this type | Partial command text | The text typed so far. The candidates match it on a case-insensitive prefix over the plugin command names. |
+| `partial` | string | yes | any value of this type | Partial command text | The text typed so far\. The candidates match it on a case\-insensitive prefix over the plugin command names\. |
 
 ## Mapping intents
 

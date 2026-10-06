@@ -1,6 +1,6 @@
 # `clear dns cache record`
 
-Evict DNS cache entries for one record name, or one name and type when a type is provided.
+Evict DNS cache entries for one record name\, or one name and type when a type is provided\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Evict DNS cache entries for one record name, or one name and type when a type is
 - Command pipes: none
 - Pipe aliases: none
 
-Add type <record-type> after the name to evict one type, and give no other tail. An unknown type is reported inside the answer rather than as an error.
+Add type \<record\-type\> after the name to evict one type\, and give no other tail\. An unknown type is reported inside the answer rather than as an error\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Record name to evict. | The cache key, compared as an exact string. Alone, it evicts every type cached under the name and the answer counts the entries removed. |
-| `type` | enum | no | `A`, `AAAA`, `MX`, `NS`, `TXT`, `CNAME`, `PTR` | Optional DNS record type to evict for the named record. | Written after the type keyword, it evicts that one type and leaves the other types of the name in place. The answer reports found true or false. |
+| `name` | string | yes | any value of this type | Record name to evict\. | The cache key\, compared as an exact string\. Alone\, it evicts every type cached under the name and the answer counts the entries removed\. |
+| `type` | enum | no | `A`, `AAAA`, `MX`, `NS`, `TXT`, `CNAME`, `PTR` | Optional DNS record type to evict for the named record\. | Written after the type keyword\, it evicts that one type and leaves the other types of the name in place\. The answer reports found true or false\. |
 
 ## Mapping intents
 

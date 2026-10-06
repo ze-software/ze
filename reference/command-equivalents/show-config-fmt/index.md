@@ -1,6 +1,6 @@
 # `show config fmt`
 
-Pretty-print the configuration with consistent formatting.
+Pretty\-print the configuration with consistent formatting\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Pretty-print the configuration with consistent formatting.
 - Command pipes: none
 - Pipe aliases: none
 
-Normalizes indentation and ordering. Output goes to stdout (read-only). To rewrite the file in place, use 'ze config fmt -w' from the CLI.
+Normalizes indentation and ordering\. Output goes to stdout \(read\-only\)\. To rewrite the file in place\, use \'ze config fmt \-w\' from the CLI\.
 
 ## Arguments
 

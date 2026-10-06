@@ -1,6 +1,6 @@
 # `show gnmi`
 
-Show whether the gNMI server is running and how it is configured.
+Show whether the gNMI server is running and how it is configured\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show whether the gNMI server is running and how it is configured.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns listen address, TLS details, authentication mode, and the number of active streaming subscribers.
+Returns listen address\, TLS details\, authentication mode\, and the number of active streaming subscribers\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `request mrt dump-rib`
 
-Write the current RIB to the MRT table dump file.
+Write the current RIB to the MRT table dump file\.
 
 ## Ze command
 

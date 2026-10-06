@@ -1,6 +1,6 @@
 # `update resolve rir`
 
-Refresh the RIR delegation table from the five registry delegation files.
+Refresh the RIR delegation table from the five registry delegation files\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Refresh the RIR delegation table from the five registry delegation files.
 - Command pipes: none
 - Pipe aliases: none
 
-Fetches the delegation file of each of the five Regional Internet Registries, parses them, and stores one table under the meta/rir/delegation key. All-or-nothing: a run in which any fetch or parse fails stores nothing and leaves the previous copy in place.
+Fetches the delegation file of each of the five Regional Internet Registries\, parses them\, and stores one table under the meta\/rir\/delegation key\. All\-or\-nothing\: a run in which any fetch or parse fails stores nothing and leaves the previous copy in place\.
 
 ## Arguments
 

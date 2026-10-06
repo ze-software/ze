@@ -1,6 +1,6 @@
 # `show l2tp listeners`
 
-Show which UDP sockets are listening for L2TP.
+Show which UDP sockets are listening for L2TP\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show which UDP sockets are listening for L2TP.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each bound address, port, and the number of tunnels on it.
+Lists each bound address\, port\, and the number of tunnels on it\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `resolve dns ptr`
 
-Reverse-lookup an IP address to its hostname (PTR).
+Reverse\-lookup an IP address to its hostname \(PTR\)\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Reverse-lookup an IP address to its hostname (PTR).
 - Command pipes: none
 - Pipe aliases: none
 
-The address is turned into its in-addr.arpa or ip6.arpa name before the query. The cache holds the answer under that name, so show dns cache record takes it in that form.
+The address is turned into its in\-addr\.arpa or ip6\.arpa name before the query\. The cache holds the answer under that name\, so show dns cache record takes it in that form\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `ip-address` | string | yes | any value of this type | IP address to reverse-look-up. | An IPv4 or IPv6 address in its usual text form. The resolver turns it into the reverse name itself, so pass the address and not the in-addr.arpa name. |
+| `ip-address` | string | yes | any value of this type | IP address to reverse\-look\-up\. | An IPv4 or IPv6 address in its usual text form\. The resolver turns it into the reverse name itself\, so pass the address and not the in\-addr\.arpa name\. |
 
 ## Mapping intents
 

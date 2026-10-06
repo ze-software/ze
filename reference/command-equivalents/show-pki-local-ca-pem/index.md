@@ -1,6 +1,6 @@
 # `show pki local-ca pem`
 
-Export the root certificate of the local certificate authority as PEM.
+Export the root certificate of the local certificate authority as PEM\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Export the root certificate of the local certificate authority as PEM.
 - Command pipes: none
 - Pipe aliases: none
 
-Give this text to each client that must trust this node, in its `pki ca <name> certificate` block. The output holds the certificate only: the root private key never leaves the daemon.
+Give this text to each client that must trust this node\, in its \`pki ca \<name\> certificate\` block\. The output holds the certificate only\: the root private key never leaves the daemon\.
 
 ## Arguments
 

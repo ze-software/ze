@@ -1,6 +1,6 @@
 # `show ospf ipv6 database`
 
-Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340).
+Show the OSPFv3 \(IPv6\) link\-state database with each native scope\-aware LSA decoded \(RFC 5340\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA deco
 - Command pipes: none
 - Pipe aliases: none
 
-Base types decode into named fields; unknown function codes fall back to a scope-aware header + body-hex view (spec-ospf-ext-14).
+Base types decode into named fields\; unknown function codes fall back to a scope\-aware header \+ body\-hex view \(spec\-ospf\-ext\-14\)\.
 
 ## Arguments
 

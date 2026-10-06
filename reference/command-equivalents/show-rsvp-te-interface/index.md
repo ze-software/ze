@@ -1,6 +1,6 @@
 # `show rsvp-te interface`
 
-Show RSVP-TE bandwidth allocation per interface.
+Show RSVP\-TE bandwidth allocation per interface\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show RSVP-TE bandwidth allocation per interface.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns reserved, available, and maximum bandwidth for each TE-enabled interface.
+Returns reserved\, available\, and maximum bandwidth for each TE\-enabled interface\.
 
 ## Arguments
 

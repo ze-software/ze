@@ -1,6 +1,6 @@
 # `show isis route ipv6`
 
-Show IS-IS-computed IPv6 routes (RFC 5308).
+Show IS\-IS\-computed IPv6 routes \(RFC 5308\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show IS-IS-computed IPv6 routes (RFC 5308).
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each IPv6 prefix the SPF installed with its metric, level, and next-hops (link-local address and outgoing interface).
+Lists each IPv6 prefix the SPF installed with its metric\, level\, and next\-hops \(link\-local address and outgoing interface\)\.
 
 ## Arguments
 

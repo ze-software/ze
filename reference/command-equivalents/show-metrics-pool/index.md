@@ -1,6 +1,6 @@
 # `show metrics pool`
 
-Show attribute pool memory usage and dedup efficiency.
+Show attribute pool memory usage and dedup efficiency\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show attribute pool memory usage and dedup efficiency.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns allocated entries, reference counts, and deduplication hit rates per attribute type. Watch the dedup rate to gauge how much memory pooling is saving you.
+Returns allocated entries\, reference counts\, and deduplication hit rates per attribute type\. Watch the dedup rate to gauge how much memory pooling is saving you\.
 
 ## Arguments
 

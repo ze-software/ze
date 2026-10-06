@@ -1,6 +1,6 @@
 # `show l2tp tunnels`
 
-List all active L2TP tunnels.
+List all active L2TP tunnels\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all active L2TP tunnels.
 - Command pipes: none
 - Pipe aliases: none
 
-One line per tunnel: local/remote ID, peer address, session count, and uptime.
+One line per tunnel\: local\/remote ID\, peer address\, session count\, and uptime\.
 
 ## Arguments
 

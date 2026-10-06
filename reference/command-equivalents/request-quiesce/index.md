@@ -1,6 +1,6 @@
 # `request quiesce`
 
-Block until every subsystem has drained pending async work, then reply.
+Block until every subsystem has drained pending async work\, then reply\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Block until every subsystem has drained pending async work, then reply.
 - Command pipes: none
 - Pipe aliases: none
 
-It is a test and operator barrier that replaces a fixed sleep.
+It is a test and operator barrier that replaces a fixed sleep\.
 
 ## Arguments
 

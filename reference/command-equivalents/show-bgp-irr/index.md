@@ -1,6 +1,6 @@
 # `show bgp irr`
 
-Show IRR filter status per ASN.
+Show IRR filter status per ASN\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show IRR filter status per ASN.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each enrolled ASN with its resolved AS-SET, prefix counts, last refresh time, and error status. Use this to confirm that IRR prefix-lists are loaded and current.
+Lists each enrolled ASN with its resolved AS\-SET\, prefix counts\, last refresh time\, and error status\. Use this to confirm that IRR prefix\-lists are loaded and current\.
 
 ## Arguments
 

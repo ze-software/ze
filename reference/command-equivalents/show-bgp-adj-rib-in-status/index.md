@@ -1,6 +1,6 @@
 # `show bgp adj-rib-in status`
 
-Show whether the Adj-RIB-In runs, its total route count, and the count for each peer.
+Show whether the Adj\-RIB\-In runs\, its total route count\, and the count for each peer\.
 
 ## Ze command
 

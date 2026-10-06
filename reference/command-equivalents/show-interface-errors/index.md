@@ -1,6 +1,6 @@
 # `show interface errors`
 
-Show interfaces that have errors or drops.
+Show interfaces that have errors or drops\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show interfaces that have errors or drops.
 - Command pipes: none
 - Pipe aliases: none
 
-Filters to only interfaces with non-zero Rx/Tx error or drop counters. It is the quick way to find troubled links.
+Filters to only interfaces with non\-zero Rx\/Tx error or drop counters\. It is the quick way to find troubled links\.
 
 ## Arguments
 

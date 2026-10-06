@@ -1,6 +1,6 @@
 # `show rib`
 
-Show each route the system RIB holds, with its family, next hop, protocol and equal-cost paths.
+Show each route the system RIB holds\, with its family\, next hop\, protocol and equal\-cost paths\.
 
 ## Ze command
 

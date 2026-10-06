@@ -1,6 +1,6 @@
 # `create interface bridge name unit`
 
-Add a VLAN sub-interface to the bridge.
+Add a VLAN sub\-interface to the bridge\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Add a VLAN sub-interface to the bridge.
 - Command pipes: none
 - Pipe aliases: none
 
-The VLAN id is 1 to 4094, and the new interface is named <name>.<vid>. The bridge is created first when it is absent, and deleted again when this step fails.
+The VLAN id is 1 to 4094\, and the new interface is named \<name\>\.\<vid\>\. The bridge is created first when it is absent\, and deleted again when this step fails\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Parent interface name | The bridge the unit hangs off. The dispatcher creates it first when it is absent. |
-| `vid` | uint | yes | any value of this type | VLAN ID | The 802.1Q tag of the unit. The new device is named <name>.<vid>, and a tag outside 1 to 4094 is refused before the backend is called. |
+| `name` | string | yes | any value of this type | Parent interface name | The bridge the unit hangs off\. The dispatcher creates it first when it is absent\. |
+| `vid` | uint | yes | any value of this type | VLAN ID | The 802\.1Q tag of the unit\. The new device is named \<name\>\.\<vid\>\, and a tag outside 1 to 4094 is refused before the backend is called\. |
 
 ## Mapping intents
 

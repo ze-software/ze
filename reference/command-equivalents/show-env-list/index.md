@@ -1,6 +1,6 @@
 # `show env list`
 
-List all Ze environment variables with their current values.
+List all Ze environment variables with their current values\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all Ze environment variables with their current values.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows which env vars are set and their defaults.
+Shows which env vars are set and their defaults\.
 
 ## Arguments
 

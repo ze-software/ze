@@ -1,6 +1,6 @@
 # `show policy routes`
 
-Show policy-based routing rules.
+Show policy\-based routing rules\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show policy-based routing rules.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists PBR rules with match criteria and routing actions.
+Lists PBR rules with match criteria and routing actions\.
 
 ## Arguments
 

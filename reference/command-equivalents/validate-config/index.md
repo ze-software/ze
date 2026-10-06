@@ -1,6 +1,6 @@
 # `validate config`
 
-Check a config for errors without applying it.
+Check a config for errors without applying it\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Check a config for errors without applying it.
 - Command pipes: none
 - Pipe aliases: none
 
-Both the grammar of the file and the meaning of its values are checked, and each problem is reported with the diagnostic code that explains it.
+Both the grammar of the file and the meaning of its values are checked\, and each problem is reported with the diagnostic code that explains it\.
 
 ## Arguments
 

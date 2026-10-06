@@ -1,6 +1,6 @@
 # `show ospf database router-information`
 
-Show the Router Information LSAs (RFC 7770) for both address families.
+Show the Router Information LSAs \(RFC 7770\) for both address families\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the Router Information LSAs (RFC 7770) for both address families.
 - Command pipes: none
 - Pipe aliases: none
 
-OSPFv2 opaque type 4 and OSPFv3 function code 12, decoded into the advertised informational capability bits and the TLV list.
+OSPFv2 opaque type 4 and OSPFv3 function code 12\, decoded into the advertised informational capability bits and the TLV list\.
 
 ## Arguments
 

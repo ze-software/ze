@@ -1,6 +1,6 @@
 # `show pppoe session id`
 
-Show full detail for one PPPoE session.
+Show full detail for one PPPoE session\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show full detail for one PPPoE session.
 - Command pipes: none
 - Pipe aliases: none
 
-Pass the session ID. Returns discovery tags, LCP/NCP state, assigned addresses, and traffic counters.
+Pass the session ID\. Returns discovery tags\, LCP\/NCP state\, assigned addresses\, and traffic counters\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | yes | any value of this type | PPPoE session ID. | The decimal sid column of the show pppoe session table. Zero is refused because RFC 2516 reserves it, and an unknown id is refused with 'no session with sid'. |
+| `id` | string | yes | any value of this type | PPPoE session ID\. | The decimal sid column of the show pppoe session table\. Zero is refused because RFC 2516 reserves it\, and an unknown id is refused with \'no session with sid\'\. |
 
 ## Mapping intents
 

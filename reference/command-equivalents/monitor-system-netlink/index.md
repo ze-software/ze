@@ -1,6 +1,6 @@
 # `monitor system netlink`
 
-Watch kernel networking changes in real time.
+Watch kernel networking changes in real time\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Watch kernel networking changes in real time.
 - Command pipes: none
 - Pipe aliases: none
 
-Streams netlink events: route adds and deletes, link state changes, address assignments. Filter with route, link, address, or all.
+Streams netlink events\: route adds and deletes\, link state changes\, address assignments\. Filter with route\, link\, address\, or all\.
 
 ## Arguments
 

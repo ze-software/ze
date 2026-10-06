@@ -1,6 +1,6 @@
 # `show host platform`
 
-Show platform capabilities and constraints.
+Show platform capabilities and constraints\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show platform capabilities and constraints.
 - Command pipes: none
 - Pipe aliases: none
 
-Reports read-only root, privilege level, systemd presence, gokrazy update socket, reboot-allowed flag, persistent-storage writability, and fd limits. Helps you understand what operations are possible on this particular deployment.
+Reports read\-only root\, privilege level\, systemd presence\, gokrazy update socket\, reboot\-allowed flag\, persistent\-storage writability\, and fd limits\. Helps you understand what operations are possible on this particular deployment\.
 
 ## Arguments
 

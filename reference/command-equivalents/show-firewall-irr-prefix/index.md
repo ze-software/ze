@@ -1,6 +1,6 @@
 # `show firewall irr prefix`
 
-Show IRR-resolved prefixes for a cached entry.
+Show IRR\-resolved prefixes for a cached entry\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show IRR-resolved prefixes for a cached entry.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists all IPv4 and IPv6 prefixes in the cached prefix-list for the given ASN or AS-SET.
+Lists all IPv4 and IPv6 prefixes in the cached prefix\-list for the given ASN or AS\-SET\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | ASN or AS-SET name | The cache key, as the update command stored it: an ASN in the form AS64500, or an AS-SET name. A key with no cached data is an error. |
+| `name` | string | yes | any value of this type | ASN or AS\-SET name | The cache key\, as the update command stored it\: an ASN in the form AS64500\, or an AS\-SET name\. A key with no cached data is an error\. |
 
 ## Mapping intents
 

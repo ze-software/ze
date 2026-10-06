@@ -1,6 +1,6 @@
 # `show ddos status`
 
-Show the DDoS observation status.
+Show the DDoS observation status\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the DDoS observation status.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns whether the incident store is running, the number of active attacks, and the number of incidents the ring retains.
+Returns whether the incident store is running\, the number of active attacks\, and the number of incidents the ring retains\.
 
 ## Arguments
 

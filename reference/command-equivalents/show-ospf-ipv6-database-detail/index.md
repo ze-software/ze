@@ -1,6 +1,6 @@
 # `show ospf ipv6 database detail`
 
-Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2.1).
+Decode every OSPFv3 LSA body with its scope\-aware header \(RFC 5340 section A\.4\.2\.1\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2
 - Command pipes: none
 - Pipe aliases: none
 
-The parent command decodes the base types only. This form decodes every LSA body. An unknown function code then arrives as a scope-aware header beside its body hex, rather than as a named record.
+The parent command decodes the base types only\. This form decodes every LSA body\. An unknown function code then arrives as a scope\-aware header beside its body hex\, rather than as a named record\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `delete interface name unit`
 
-Remove a VLAN sub-interface.
+Remove a VLAN sub\-interface\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Remove a VLAN sub-interface.
 - Command pipes: none
 - Pipe aliases: none
 
-The VLAN id is 1 to 4094. The interface deleted is <name>.<vid>, so the parent interface stays.
+The VLAN id is 1 to 4094\. The interface deleted is \<name\>\.\<vid\>\, so the parent interface stays\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Parent interface name | The parent interface. Ze joins it with the VLAN id into <name>.<vid> and deletes that device. |
-| `vid` | uint | yes | any value of this type | VLAN ID | The 802.1Q tag of the unit to remove. A tag outside 1 to 4094 is refused before the backend is called. |
+| `name` | string | yes | any value of this type | Parent interface name | The parent interface\. Ze joins it with the VLAN id into \<name\>\.\<vid\> and deletes that device\. |
+| `vid` | uint | yes | any value of this type | VLAN ID | The 802\.1Q tag of the unit to remove\. A tag outside 1 to 4094 is refused before the backend is called\. |
 
 ## Mapping intents
 

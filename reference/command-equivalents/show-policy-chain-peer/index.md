@@ -1,6 +1,6 @@
 # `show policy chain peer`
 
-Show the import/export filter chain applied to a peer.
+Show the import\/export filter chain applied to a peer\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show the import/export filter chain applied to a peer.
 - Command pipes: none
 - Pipe aliases: none
 
-The selector (IP, name, as<N>) and the optional direction are parsed by the handler. Shows the effective chain after group inheritance is resolved. Without a direction keyword, shows both import and export.
+The selector \(IP\, name\, as\<N\>\) and the optional direction are parsed by the handler\. Shows the effective chain after group inheritance is resolved\. Without a direction keyword\, shows both import and export\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, or * for every peer. The chain of each peer it matches is shown. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, or \* for every peer\. The chain of each peer it matches is shown\. |
 
 ## Mapping intents
 

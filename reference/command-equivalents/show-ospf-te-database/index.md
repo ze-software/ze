@@ -1,6 +1,6 @@
 # `show ospf te-database`
 
-Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392).
+Show the OSPF Traffic Engineering Database \(RFC 3630 \/ RFC 5392\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392).
 - Command pipes: none
 - Pipe aliases: none
 
-Router addresses plus TE links with their Link ID, local/remote address, link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR.
+Router addresses plus TE links with their Link ID\, local\/remote address\, link type\, TE metric\, bandwidths\, admin group\, and \(for inter\-AS links\) remote AS and remote ASBR\.
 
 ## Arguments
 

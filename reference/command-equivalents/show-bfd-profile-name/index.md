@@ -1,6 +1,6 @@
 # `show bfd profile name`
 
-Show one BFD profile by name.
+Show one BFD profile by name\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show one BFD profile by name.
 - Command pipes: none
 - Pipe aliases: none
 
-Give the profile name after the name keyword. The answer is one profile object, not a list. An unknown name fails with 'bfd: no profile named <name>'.
+Give the profile name after the name keyword\. The answer is one profile object\, not a list\. An unknown name fails with \'bfd\: no profile named \<name\>\'\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Profile name | The name a bfd profile block declares in the configuration. The match is exact, and the values answered are the ones in effect after inheritance. |
+| `name` | string | yes | any value of this type | Profile name | The name a bfd profile block declares in the configuration\. The match is exact\, and the values answered are the ones in effect after inheritance\. |
 
 ## Mapping intents
 

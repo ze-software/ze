@@ -1,6 +1,6 @@
 # `show uptime`
 
-Show how long the daemon has been running.
+Show how long the daemon has been running\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show how long the daemon has been running.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the start time and elapsed uptime. Handy after a maintenance window to confirm the process restarted.
+Returns the start time and elapsed uptime\. Handy after a maintenance window to confirm the process restarted\.
 
 ## Arguments
 

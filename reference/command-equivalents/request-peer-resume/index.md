@@ -1,6 +1,6 @@
 # `request peer resume`
 
-Resume reading from a previously paused peer.
+Resume reading from a previously paused peer\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Resume reading from a previously paused peer.
 - Command pipes: none
 - Pipe aliases: none
 
-The read loop restarts after a flow-control pause. The selector resolves to one peer and a wildcard is refused, for the reason pause states. Nothing else about the session changes.
+The read loop restarts after a flow\-control pause\. The selector resolves to one peer and a wildcard is refused\, for the reason pause states\. Nothing else about the session changes\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 
 ## Mapping intents
 

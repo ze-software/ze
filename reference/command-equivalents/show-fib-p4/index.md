@@ -1,6 +1,6 @@
 # `show fib p4`
 
-Show the routes this backend programmed into the P4 forwarding pipeline.
+Show the routes this backend programmed into the P4 forwarding pipeline\.
 
 ## Ze command
 

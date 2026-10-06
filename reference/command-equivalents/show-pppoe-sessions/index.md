@@ -1,6 +1,6 @@
 # `show pppoe sessions`
 
-List all active PPPoE sessions.
+List all active PPPoE sessions\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all active PPPoE sessions.
 - Command pipes: none
 - Pipe aliases: none
 
-One line per session: session ID, MAC, subscriber login, uptime, and assigned addresses.
+One line per session\: session ID\, MAC\, subscriber login\, uptime\, and assigned addresses\.
 
 ## Arguments
 

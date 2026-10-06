@@ -1,6 +1,6 @@
 # `show bgp irr prefix`
 
-Show IRR-resolved prefixes for a peer.
+Show IRR\-resolved prefixes for a peer\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show IRR-resolved prefixes for a peer.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists all IPv4 and IPv6 prefixes in the IRR-resolved prefix-list for the given peer address.
+Lists all IPv4 and IPv6 prefixes in the IRR\-resolved prefix\-list for the given peer address\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `peer` | string | yes | any value of this type | Peer address. | The address of an IRR-filtered peer, spelled as the configuration spells it. The plugin finds the ASN the peer is enrolled under and answers that ASN's prefix list. An address no enrolled ASN carries is refused. |
+| `peer` | string | yes | any value of this type | Peer address\. | The address of an IRR\-filtered peer\, spelled as the configuration spells it\. The plugin finds the ASN the peer is enrolled under and answers that ASN\'s prefix list\. An address no enrolled ASN carries is refused\. |
 
 ## Mapping intents
 

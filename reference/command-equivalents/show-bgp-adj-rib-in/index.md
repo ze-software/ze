@@ -1,6 +1,6 @@
 # `show bgp adj-rib-in`
 
-Show the routes held for each peer, with the wire bytes and validation state of each.
+Show the routes held for each peer\, with the wire bytes and validation state of each\.
 
 ## Ze command
 

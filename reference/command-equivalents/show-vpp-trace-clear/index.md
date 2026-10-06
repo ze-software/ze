@@ -1,6 +1,6 @@
 # `show vpp trace clear`
 
-Discard the captured VPP trace buffer.
+Discard the captured VPP trace buffer\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Discard the captured VPP trace buffer.
 - Command pipes: none
 - Pipe aliases: none
 
-Clears all packets so you can start a fresh trace. Requires the VPP backend.
+Clears all packets so you can start a fresh trace\. Requires the VPP backend\.
 
 ## Arguments
 

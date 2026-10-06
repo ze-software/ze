@@ -1,6 +1,6 @@
 # `show bgp`
 
-BGP peers, sessions, RIB, and protocol tools.
+BGP peers\, sessions\, RIB\, and protocol tools\.
 
 ## Ze command
 
@@ -19,9 +19,9 @@ BGP peers, sessions, RIB, and protocol tools.
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
-- Pipe aliases: `peers`: The peer rows, without the aggregate fields (`display peers`); `summary`: The aggregate fields, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
+- Pipe aliases: `peers`: The peer rows\, without the aggregate fields (`display peers`); `summary`: The aggregate fields\, without the peer rows (`display router-id local-as uptime peers-configured peers-established`)
 
-Typed with no subcommand, lists every peer with state, ASN, prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6, or l2vpn.
+Typed with no subcommand\, lists every peer with state\, ASN\, prefixes received\, and uptime\. Optionally scope by address family\: ipv4\, ipv6\, or l2vpn\.
 
 ## Arguments
 

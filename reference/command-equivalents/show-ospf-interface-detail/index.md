@@ -1,6 +1,6 @@
 # `show ospf interface detail`
 
-Show the full per-interface state (spec-ospf-ext-14).
+Show the full per\-interface state \(spec\-ospf\-ext\-14\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the full per-interface state (spec-ospf-ext-14).
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the ISM state, the DR and BDR election detail, all three timers, and the opaque-capable neighbor count.
+Returns the ISM state\, the DR and BDR election detail\, all three timers\, and the opaque\-capable neighbor count\.
 
 ## Arguments
 

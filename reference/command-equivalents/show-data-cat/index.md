@@ -1,6 +1,6 @@
 # `show data cat`
 
-Print the value of a storage key.
+Print the value of a storage key\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Print the value of a storage key.
 - Command pipes: none
 - Pipe aliases: none
 
-Outputs the decoded value for the given storage key.
+Outputs the decoded value for the given storage key\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `key` | string | yes | any value of this type | Storage key to print | The key of one entry, as show data list prints it. The bytes stored under it are written out unchanged, and a key the store does not hold is an error. |
+| `key` | string | yes | any value of this type | Storage key to print | The key of one entry\, as show data list prints it\. The bytes stored under it are written out unchanged\, and a key the store does not hold is an error\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `update system firmware download`
 
-Download the latest firmware image right now.
+Download the latest firmware image right now\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Download the latest firmware image right now.
 - Command pipes: none
 - Pipe aliases: none
 
-Bypasses the maintenance window and spread timers. The image is staged but not applied. Use 'update system firmware apply' or 'restart' to activate it.
+Bypasses the maintenance window and spread timers\. The image is staged but not applied\. Use \'update system firmware apply\' or \'restart\' to activate it\.
 
 ## Arguments
 

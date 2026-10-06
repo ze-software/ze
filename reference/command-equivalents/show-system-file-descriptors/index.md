@@ -1,6 +1,6 @@
 # `show system file-descriptors`
 
-Show how many file descriptors the daemon has open.
+Show how many file descriptors the daemon has open\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show how many file descriptors the daemon has open.
 - Command pipes: none
 - Pipe aliases: none
 
-Summary mode: totals by type (socket, pipe, file). Detail mode: every fd with its path and type. Linux only (reads /proc/self/fd). Check this when you suspect fd exhaustion.
+Summary mode\: totals by type \(socket\, pipe\, file\)\. Detail mode\: every fd with its path and type\. Linux only \(reads \/proc\/self\/fd\)\. Check this when you suspect fd exhaustion\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `mode` | enum | no | `summary`, `detail` | Display mode. | The word is optional and the default is summary. Detail keeps the totals and appends the descriptor rows, so the output grows with the number of open files. |
+| `mode` | enum | no | `summary`, `detail` | Display mode\. | The word is optional and the default is summary\. Detail keeps the totals and appends the descriptor rows\, so the output grows with the number of open files\. |
 
 ## Mapping intents
 

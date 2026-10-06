@@ -1,6 +1,6 @@
 # `show system subsystem list`
 
-List every registered subsystem and whether it is running.
+List every registered subsystem and whether it is running\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List every registered subsystem and whether it is running.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows you which components (bgp, dns, web, l2tp, etc.) are active, stopped, or failed.
+Shows you which components \(bgp\, dns\, web\, l2tp\, etc\.\) are active\, stopped\, or failed\.
 
 ## Arguments
 

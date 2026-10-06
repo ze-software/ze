@@ -1,6 +1,6 @@
 # `show rsvp-te session`
 
-Show each signaling session with its LSP state, role, bandwidth and labels.
+Show each signaling session with its LSP state\, role\, bandwidth and labels\.
 
 ## Ze command
 

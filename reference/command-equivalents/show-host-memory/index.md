@@ -1,6 +1,6 @@
 # `show host memory`
 
-Show installed memory and ECC health.
+Show installed memory and ECC health\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show installed memory and ECC health.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns DIMM sizes and, when the edac driver is present, correctable and uncorrectable error counters. Non-zero ECC counts mean you should plan a DIMM replacement.
+Returns DIMM sizes and\, when the edac driver is present\, correctable and uncorrectable error counters\. Non\-zero ECC counts mean you should plan a DIMM replacement\.
 
 ## Arguments
 

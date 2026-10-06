@@ -1,6 +1,6 @@
 # `show l2tp session id`
 
-Show full detail for one L2TP session.
+Show full detail for one L2TP session\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show full detail for one L2TP session.
 - Command pipes: none
 - Pipe aliases: none
 
-Pass the local session ID. Returns PPP state, assigned addresses, negotiated LCP/NCP options, and traffic counters.
+Pass the local session ID\. Returns PPP state\, assigned addresses\, negotiated LCP\/NCP options\, and traffic counters\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `id` | string | yes | any value of this type | Local session ID. | The decimal local session ID from the show l2tp session table. Zero is refused because RFC 2661 reserves it, and an unknown ID is refused with 'no session with local-sid'. |
+| `id` | string | yes | any value of this type | Local session ID\. | The decimal local session ID from the show l2tp session table\. Zero is refused because RFC 2661 reserves it\, and an unknown ID is refused with \'no session with local\-sid\'\. |
 
 ## Mapping intents
 

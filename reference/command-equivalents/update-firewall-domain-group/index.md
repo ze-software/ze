@@ -1,6 +1,6 @@
 # `update firewall domain-group`
 
-Resolve a domain group's DNS names now and program its set.
+Resolve a domain group\'s DNS names now and program its set\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Resolve a domain group's DNS names now and program its set.
 - Command pipes: none
 - Pipe aliases: none
 
-Asks for each name in the group at once rather than waiting for its TTL. A name that fails to resolve keeps the addresses Ze already had for it, and only a name that answers NXDOMAIN empties its own contribution.
+Asks for each name in the group at once rather than waiting for its TTL\. A name that fails to resolve keeps the addresses Ze already had for it\, and only a name that answers NXDOMAIN empties its own contribution\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Domain group name | A group from the firewall configuration. Every name in that group is resolved, and a name no group carries is an error that lists the groups present. |
+| `name` | string | yes | any value of this type | Domain group name | A group from the firewall configuration\. Every name in that group is resolved\, and a name no group carries is an error that lists the groups present\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `show traffic usage`
 
-Show per-interface traffic byte counters captured by eBPF TCX.
+Show per\-interface traffic byte counters captured by eBPF TCX\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show per-interface traffic byte counters captured by eBPF TCX.
 - Command pipes: none
 - Pipe aliases: none
 
-Per destination/source port and protocol counters are always present; per-IP top-talker counters appear when track-ip is enabled. Without arguments, lists all monitored interfaces. With 'name <interface>', shows that one interface.
+Per destination\/source port and protocol counters are always present\; per\-IP top\-talker counters appear when track\-ip is enabled\. Without arguments\, lists all monitored interfaces\. With \'name \<interface\>\'\, shows that one interface\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | no | any value of this type | Interface name (used with 'name <interface>') | The kernel interface name, as configured under traffic usage. An interface the plugin does not monitor fails with interface not monitored. |
+| `name` | string | no | any value of this type | Interface name \(used with \'name \<interface\>\'\) | The kernel interface name\, as configured under traffic usage\. An interface the plugin does not monitor fails with interface not monitored\. |
 
 ## Mapping intents
 

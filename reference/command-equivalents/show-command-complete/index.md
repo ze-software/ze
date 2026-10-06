@@ -1,6 +1,6 @@
 # `show command complete`
 
-Get tab-completion candidates for a partial command.
+Get tab\-completion candidates for a partial command\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Get tab-completion candidates for a partial command.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns possible completions for the given input. Used internally by the CLI editor, but also callable for scripting.
+Returns possible completions for the given input\. Used internally by the CLI editor\, but also callable for scripting\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show subscriber`
 
-Show a summary of all subscriber sessions.
+Show a summary of all subscriber sessions\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show a summary of all subscriber sessions.
 - Command pipes: none
 - Pipe aliases: none
 
-Counts by access type (PPPoE, L2TP, IPoE) with totals. It is the quick way to see how many subscribers are online.
+Counts by access type \(PPPoE\, L2TP\, IPoE\) with totals\. It is the quick way to see how many subscribers are online\.
 
 ## Arguments
 

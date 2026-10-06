@@ -1,6 +1,6 @@
 # `explain`
 
-Explain one diagnostic code Ze printed.
+Explain one diagnostic code Ze printed\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Explain one diagnostic code Ze printed.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer gives the meaning of the code, its likely cause and the recommended fix. Pass the code you read in a log line or an error message.
+The answer gives the meaning of the code\, its likely cause and the recommended fix\. Pass the code you read in a log line or an error message\.
 
 ## Arguments
 

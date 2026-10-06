@@ -1,6 +1,6 @@
 # `show ospf database nssa-external`
 
-Show only NSSA-external-LSAs (Type 7, RFC 3101).
+Show only NSSA\-external\-LSAs \(Type 7\, RFC 3101\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show only NSSA-external-LSAs (Type 7, RFC 3101).
 - Command pipes: none
 - Pipe aliases: none
 
-RFC 3101 Section 2.3 states that a Type 7 LSA is advertised only within a single NSSA. A border router does not flood it into the backbone. It translates selected Type 7 LSAs into Type 5 instead, so a translated route appears under the AS-external view and not here.
+RFC 3101 Section 2\.3 states that a Type 7 LSA is advertised only within a single NSSA\. A border router does not flood it into the backbone\. It translates selected Type 7 LSAs into Type 5 instead\, so a translated route appears under the AS\-external view and not here\.
 
 ## Arguments
 

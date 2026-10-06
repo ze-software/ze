@@ -1,6 +1,6 @@
 # `show pki certificate name pem`
 
-Export the certificate, and any intermediate it carries, as PEM.
+Export the certificate\, and any intermediate it carries\, as PEM\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Export the certificate, and any intermediate it carries, as PEM.
 - Command pipes: none
 - Pipe aliases: none
 
-Use this form to give the certificate to another system.
+Use this form to give the certificate to another system\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Certificate name | The name of a CA or device certificate in the store. An unknown name is refused, and the refusal lists the names the store holds. |
+| `name` | string | yes | any value of this type | Certificate name | The name of a CA or device certificate in the store\. An unknown name is refused\, and the refusal lists the names the store holds\. |
 
 ## Mapping intents
 

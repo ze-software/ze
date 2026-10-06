@@ -1,6 +1,6 @@
 # `show firewall group`
 
-Show members of a firewall address/port group.
+Show members of a firewall address\/port group\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show members of a firewall address/port group.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, lists all known groups. With a name, shows the set elements. Reads from the last applied config, not the kernel.
+Without arguments\, lists all known groups\. With a name\, shows the set elements\. Reads from the last applied config\, not the kernel\.
 
 ## Arguments
 

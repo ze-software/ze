@@ -1,6 +1,6 @@
 # `show bgp decode`
 
-Decode a hex-encoded BGP message into readable JSON.
+Decode a hex\-encoded BGP message into readable JSON\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Decode a hex-encoded BGP message into readable JSON.
 - Command pipes: none
 - Pipe aliases: none
 
-Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and withdrawn prefixes. Use it to read pcap captures or to debug wire issues. The web UI carries the same tool under tools.
+Paste a hex BGP UPDATE and get back parsed attributes\, NLRI\, and withdrawn prefixes\. Use it to read pcap captures or to debug wire issues\. The web UI carries the same tool under tools\.
 
 ## Arguments
 

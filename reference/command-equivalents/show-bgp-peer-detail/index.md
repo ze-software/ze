@@ -1,6 +1,6 @@
 # `show bgp peer detail`
 
-Show full detail for one or more peers.
+Show full detail for one or more peers\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show full detail for one or more peers.
 - Command pipes: none
 - Pipe aliases: none
 
-Each peer row carries the remote and local ASN, the router ID, the peer type, and four timers: receive hold time, send hold time, keepalive, and connect retry. The 'connect' and 'accept' flags say which directions this session opens. A 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and End-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear under capabilities.paths-limit, keyed by family: send is the peer's maximum paths per prefix enforced on our outbound updates; receive is our advertised receive request, not a locally enforced inbound limit. Zero or absent limits are omitted.
+Each peer row carries the remote and local ASN\, the router ID\, the peer type\, and four timers\: receive hold time\, send hold time\, keepalive\, and connect retry\. The \'connect\' and \'accept\' flags say which directions this session opens\. A \'messages\' map counts OPEN\, UPDATE\, NOTIFICATION\, KEEPALIVE\, ROUTE\-REFRESH and End\-of\-RIB in each direction\. Negotiated nonzero PATHS\-LIMIT values appear under capabilities\.paths\-limit\, keyed by family\: send is the peer\'s maximum paths per prefix enforced on our outbound updates\; receive is our advertised receive request\, not a locally enforced inbound limit\. Zero or absent limits are omitted\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches, except 'list', which reads every peer. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Every command under \'show bgp peer\' reads the peers it matches\, except \'list\'\, which reads every peer\. |
 
 ## Mapping intents
 

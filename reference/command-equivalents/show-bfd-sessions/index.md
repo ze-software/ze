@@ -1,6 +1,6 @@
 # `show bfd sessions`
 
-List all active BFD sessions.
+List all active BFD sessions\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all active BFD sessions.
 - Command pipes: none
 - Pipe aliases: none
 
-One line per session: peer address, state, negotiated tx/rx intervals, and detect multiplier.
+One line per session\: peer address\, state\, negotiated tx\/rx intervals\, and detect multiplier\.
 
 ## Arguments
 

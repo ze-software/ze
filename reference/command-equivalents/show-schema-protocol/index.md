@@ -1,6 +1,6 @@
 # `show schema protocol`
 
-Show the wire protocol version and format details.
+Show the wire protocol version and format details\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the wire protocol version and format details.
 - Command pipes: none
 - Pipe aliases: none
 
-Useful for checking compatibility between Ze versions.
+Useful for checking compatibility between Ze versions\.
 
 ## Arguments
 

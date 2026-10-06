@@ -1,6 +1,6 @@
 # `show l2tp config`
 
-Show the resolved L2TP configuration.
+Show the resolved L2TP configuration\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the resolved L2TP configuration.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the effective config after defaults and overrides. Confirms what the daemon uses.
+Returns the effective config after defaults and overrides\. Confirms what the daemon uses\.
 
 ## Arguments
 

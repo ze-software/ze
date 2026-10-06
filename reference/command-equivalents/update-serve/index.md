@@ -1,6 +1,6 @@
 # `update serve`
 
-Serve this binary and its version manifest for update checks.
+Serve this binary and its version manifest for update checks\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Serve this binary and its version manifest for update checks.
 - Command pipes: none
 - Pipe aliases: none
 
-The server answers a version manifest, the running binary and its SHA-256 digest. It is meant for build infrastructure rather than for a router in production.
+The server answers a version manifest\, the running binary and its SHA\-256 digest\. It is meant for build infrastructure rather than for a router in production\.
 
 ## Arguments
 

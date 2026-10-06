@@ -1,6 +1,6 @@
 # `create interface address`
 
-Add an IP address to an interface.
+Add an IP address to an interface\.
 
 ## Ze command
 
@@ -21,14 +21,14 @@ Add an IP address to an interface.
 - Command pipes: none
 - Pipe aliases: none
 
-The interface must already exist.
+The interface must already exist\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The interface that receives the address. This form creates no interface, so the name must be present in the kernel before the command runs. |
-| `prefix` | union | yes | any value of this type | Address in CIDR form | An IPv4 or IPv6 address with its prefix length, for example 10.0.0.1/24. Ze passes the string to the netlink backend. |
+| `name` | string | yes | any value of this type | Interface name | The interface that receives the address\. This form creates no interface\, so the name must be present in the kernel before the command runs\. |
+| `prefix` | union | yes | any value of this type | Address in CIDR form | An IPv4 or IPv6 address with its prefix length\, for example 10\.0\.0\.1\/24\. Ze passes the string to the netlink backend\. |
 
 ## Mapping intents
 

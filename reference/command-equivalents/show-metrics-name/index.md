@@ -1,6 +1,6 @@
 # `show metrics name`
 
-Show one Prometheus metric by name.
+Show one Prometheus metric by name\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show one Prometheus metric by name.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump.
+Returns matching time series from the internal registry\. Multiple label filters are ANDed\. More targeted than the full metrics dump\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Prometheus metric name | The value is the whole metric name, such as ze_bgp_connect_retry_counter, compared as text with the start of each sample line. A name that matches no sample answers an empty list. |
+| `name` | string | yes | any value of this type | Prometheus metric name | The value is the whole metric name\, such as ze\_bgp\_connect\_retry\_counter\, compared as text with the start of each sample line\. A name that matches no sample answers an empty list\. |
 
 ## Mapping intents
 

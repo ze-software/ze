@@ -1,6 +1,6 @@
 # `show schema events`
 
-List all notification types defined in YANG API modules.
+List all notification types defined in YANG API modules\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List all notification types defined in YANG API modules.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows which events a plugin can subscribe to.
+Shows which events a plugin can subscribe to\.
 
 ## Arguments
 

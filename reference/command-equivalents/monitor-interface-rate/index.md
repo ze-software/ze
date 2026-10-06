@@ -1,6 +1,6 @@
 # `monitor interface rate`
 
-Stream per-second traffic rates for your interfaces.
+Stream per\-second traffic rates for your interfaces\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Stream per-second traffic rates for your interfaces.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows rx/tx bytes and packets per second, updating every second. Optionally pass an interface name to watch just one link.
+Shows rx\/tx bytes and packets per second\, updating every second\. Optionally pass an interface name to watch just one link\.
 
 ## Arguments
 

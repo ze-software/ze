@@ -1,6 +1,6 @@
 # `show host nic`
 
-Show physical NICs installed in this box.
+Show physical NICs installed in this box\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show physical NICs installed in this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns driver, PCI vendor/device IDs, link speed, queue counts, and firmware version. Virtual interfaces are excluded. Use this to confirm NIC firmware before an upgrade.
+Returns driver\, PCI vendor\/device IDs\, link speed\, queue counts\, and firmware version\. Virtual interfaces are excluded\. Use this to confirm NIC firmware before an upgrade\.
 
 ## Arguments
 

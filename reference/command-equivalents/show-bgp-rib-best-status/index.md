@@ -1,6 +1,6 @@
 # `show bgp rib best status`
 
-Check whether best-path computation is still running.
+Check whether best\-path computation is still running\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Check whether best-path computation is still running.
 - Command pipes: none
 - Pipe aliases: none
 
-Reports idle, pending, or running, plus the last run duration.
+Reports idle\, pending\, or running\, plus the last run duration\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show rr status`
 
-Show whether the route reflector is active.
+Show whether the route reflector is active\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show whether the route reflector is active.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns cluster ID, running state, and summary statistics (reflected routes, client count).
+Returns cluster ID\, running state\, and summary statistics \(reflected routes\, client count\)\.
 
 ## Arguments
 

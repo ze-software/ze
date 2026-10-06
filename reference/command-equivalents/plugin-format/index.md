@@ -1,6 +1,6 @@
 # `plugin format`
 
-Choose how BGP message bytes appear in events.
+Choose how BGP message bytes appear in events\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Choose how BGP message bytes appear in events.
 - Command pipes: none
 - Pipe aliases: none
 
-hex and base64 are compact wire representations. parsed decodes attributes into structured fields. full includes both wire bytes and parsed content.
+hex and base64 are compact wire representations\. parsed decodes attributes into structured fields\. full includes both wire bytes and parsed content\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `update system firmware apply`
 
-Full upgrade: download, verify, stage, and restart.
+Full upgrade\: download\, verify\, stage\, and restart\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Full upgrade: download, verify, stage, and restart.
 - Command pipes: none
 - Pipe aliases: none
 
-Runs the complete update cycle in one command. Only available on platforms where Ze owns the update lifecycle (e.g. gokrazy). The box will reboot into the new version.
+Runs the complete update cycle in one command\. Only available on platforms where Ze owns the update lifecycle \(e\.g\. gokrazy\)\. The box will reboot into the new version\.
 
 ## Arguments
 

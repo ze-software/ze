@@ -1,6 +1,6 @@
 # `update firewall irr all`
 
-Refresh all cached IRR prefix-lists.
+Refresh all cached IRR prefix\-lists\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Refresh all cached IRR prefix-lists.
 - Command pipes: none
 - Pipe aliases: none
 
-Re-queries the IRR server for every cached ASN/AS-SET entry and updates the zefs cache on success. A failed refresh preserves the existing cache and reports an error.
+Re\-queries the IRR server for every cached ASN\/AS\-SET entry and updates the zefs cache on success\. A failed refresh preserves the existing cache and reports an error\.
 
 ## Arguments
 

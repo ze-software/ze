@@ -1,6 +1,6 @@
 # `clear ospf neighbor`
 
-Tear down every OSPF adjacency so neighbors re-form.
+Tear down every OSPF adjacency so neighbors re\-form\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Tear down every OSPF adjacency so neighbors re-form.
 - Command pipes: none
 - Pipe aliases: none
 
-Adjacencies re-learn from the next Hello.
+Adjacencies re\-learn from the next Hello\.
 
 ## Arguments
 

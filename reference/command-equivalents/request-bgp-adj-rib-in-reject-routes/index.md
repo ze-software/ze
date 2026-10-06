@@ -1,6 +1,6 @@
 # `request bgp adj-rib-in reject-routes`
 
-Discard one pending route and do not install it.
+Discard one pending route and do not install it\.
 
 ## Ze command
 

@@ -372,7 +372,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         }
                     });
                 },
-                { threshold: 0.01 },
+                // A long reference section can exceed one hundred viewports.
+                // Reveal on any intersection, not a fraction it cannot expose.
+                { threshold: 0 },
             );
             reveals.forEach(function (el) {
                 el.classList.add("reveal-pending");

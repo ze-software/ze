@@ -1,6 +1,6 @@
 # `request bgp adj-rib-in accept-routes`
 
-Install one pending route under the validation state given.
+Install one pending route under the validation state given\.
 
 ## Ze command
 

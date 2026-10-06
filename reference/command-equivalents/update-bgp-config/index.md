@@ -1,6 +1,6 @@
 # `update bgp config`
 
-Write the running peer set to the configuration file.
+Write the running peer set to the configuration file\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Write the running peer set to the configuration file.
 - Command pipes: none
 - Pipe aliases: none
 
-Ze writes the running peer set into the configuration file. A peer 'create bgp peer' built is added to the file, and a peer the file declares that 'delete bgp peer' removed is taken out of it. A peer both sides already hold is left exactly as it was written. The running daemon does not change: the file is brought to it. The command takes no selector, because after a delete no peer is left to name and that absence is half of what the command persists. A created peer is written under a name derived from its address, such as 'peer-192.0.2.7', because a peer name cannot start with a digit. The answer names what was added, what was removed, and the file that was written.
+Ze writes the running peer set into the configuration file\. A peer \'create bgp peer\' built is added to the file\, and a peer the file declares that \'delete bgp peer\' removed is taken out of it\. A peer both sides already hold is left exactly as it was written\. The running daemon does not change\: the file is brought to it\. The command takes no selector\, because after a delete no peer is left to name and that absence is half of what the command persists\. A created peer is written under a name derived from its address\, such as \'peer\-192\.0\.2\.7\'\, because a peer name cannot start with a digit\. The answer names what was added\, what was removed\, and the file that was written\.
 
 ## Arguments
 

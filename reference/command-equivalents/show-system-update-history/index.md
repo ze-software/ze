@@ -1,6 +1,6 @@
 # `show system update history`
 
-Show recent firmware update activity.
+Show recent firmware update activity\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show recent firmware update activity.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists the last 20 update events: checks, downloads, installs, and rollbacks with timestamps and outcomes.
+Lists the last 20 update events\: checks\, downloads\, installs\, and rollbacks with timestamps and outcomes\.
 
 ## Arguments
 

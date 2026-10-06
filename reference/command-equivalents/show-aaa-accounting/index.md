@@ -1,6 +1,6 @@
 # `show aaa accounting`
 
-Show AAA accounting counters and any dropped records.
+Show AAA accounting counters and any dropped records\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show AAA accounting counters and any dropped records.
 - Command pipes: none
 - Pipe aliases: none
 
-Tells you whether TACACS+ accounting is working or if records are being lost due to server unreachability.
+Tells you whether TACACS\+ accounting is working or if records are being lost due to server unreachability\.
 
 ## Arguments
 

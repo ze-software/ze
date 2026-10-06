@@ -1,6 +1,6 @@
 # `clear l2tp tunnel id`
 
-Gracefully tear down one L2TP tunnel.
+Gracefully tear down one L2TP tunnel\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Gracefully tear down one L2TP tunnel.
 - Command pipes: none
 - Pipe aliases: none
 
-Sends a StopCCN to the peer. Every session on this tunnel is disconnected. Pass the local tunnel ID: clear l2tp tunnel id <id>.
+Sends a StopCCN to the peer\. Every session on this tunnel is disconnected\. Pass the local tunnel ID\: clear l2tp tunnel id \<id\>\.
 
 ## Arguments
 

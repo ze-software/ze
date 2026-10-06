@@ -1,6 +1,6 @@
 # `plugin encoding`
 
-Choose json or text encoding for plugin events.
+Choose json or text encoding for plugin events\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Choose json or text encoding for plugin events.
 - Command pipes: none
 - Pipe aliases: none
 
-Controls how events are serialized in this session. JSON is structured and parseable; text is more compact.
+Controls how events are serialized in this session\. JSON is structured and parseable\; text is more compact\.
 
 ## Arguments
 

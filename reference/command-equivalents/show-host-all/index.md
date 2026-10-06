@@ -1,6 +1,6 @@
 # `show host all`
 
-Show the full hardware inventory in one shot.
+Show the full hardware inventory in one shot\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the full hardware inventory in one shot.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns every section (cpu, nic, dmi, memory, thermal, storage, kernel, platform) as a single JSON response. Ideal for support bundles or automated inventory collection.
+Returns every section \(cpu\, nic\, dmi\, memory\, thermal\, storage\, kernel\, platform\) as a single JSON response\. Ideal for support bundles or automated inventory collection\.
 
 ## Arguments
 

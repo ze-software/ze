@@ -1,6 +1,6 @@
 # `set debug module`
 
-Enable debug output for one subsystem.
+Enable debug output for one subsystem\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ Enable debug output for one subsystem.
 - Command pipes: none
 - Pipe aliases: none
 
-A level, a flag or a scope can be set in the same command, and each one narrows what the subsystem writes.
+A level\, a flag or a scope can be set in the same command\, and each one narrows what the subsystem writes\.
 
 ## Arguments
 

@@ -1,6 +1,6 @@
 # `show ospf instance`
 
-Show the configured OSPFv2 instances (RFC 6549 Multi-Instance).
+Show the configured OSPFv2 instances \(RFC 6549 Multi\-Instance\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the configured OSPFv2 instances (RFC 6549 Multi-Instance).
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each Instance ID with its router-id and the size of its isolated area, interface, neighbor, and link-state database state.
+Lists each Instance ID with its router\-id and the size of its isolated area\, interface\, neighbor\, and link\-state database state\.
 
 ## Arguments
 

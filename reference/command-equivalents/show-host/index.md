@@ -1,6 +1,6 @@
 # `show host`
 
-Hardware inventory for this box.
+Hardware inventory for this box\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Hardware inventory for this box.
 - Command pipes: none
 - Pipe aliases: none
 
-Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a subcommand for one section, or 'show host all' for everything. The bare 'show host' is an alias of 'show host all'.
+Sections\: cpu\, nic\, dmi\, memory\, thermal\, storage\, kernel\, platform\. Use a subcommand for one section\, or \'show host all\' for everything\. The bare \'show host\' is an alias of \'show host all\'\.
 
 ## Arguments
 

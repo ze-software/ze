@@ -1,6 +1,6 @@
 # `show doctor`
 
-Check if this box is ready to run Ze.
+Check if this box is ready to run Ze\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Check if this box is ready to run Ze.
 - Command pipes: none
 - Pipe aliases: none
 
-Verifies runtime dependencies: required files, sockets, ports, and kernel modules. Each check reports pass or fail with a reason. Run this before first start or after changing the platform setup.
+Verifies runtime dependencies\: required files\, sockets\, ports\, and kernel modules\. Each check reports pass or fail with a reason\. Run this before first start or after changing the platform setup\.
 
 ## Arguments
 

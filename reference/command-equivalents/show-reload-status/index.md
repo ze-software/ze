@@ -1,6 +1,6 @@
 # `show reload-status`
 
-Show how many config reloads the daemon has processed.
+Show how many config reloads the daemon has processed\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show how many config reloads the daemon has processed.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns a generation counter, the outcome of the most recent reload (applied or failed), and when it finished. The counter advances on every processed reload, including one that rejected or changed nothing, so you can confirm a SIGHUP was acted on even when it deliberately left the running config alone.
+Returns a generation counter\, the outcome of the most recent reload \(applied or failed\)\, and when it finished\. The counter advances on every processed reload\, including one that rejected or changed nothing\, so you can confirm a SIGHUP was acted on even when it deliberately left the running config alone\.
 
 ## Arguments
 

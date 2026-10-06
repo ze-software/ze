@@ -1,6 +1,6 @@
 # `request peer plugin session ready`
 
-Signal that per-peer plugin setup is complete.
+Signal that per\-peer plugin setup is complete\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Signal that per-peer plugin setup is complete.
 - Command pipes: none
 - Pipe aliases: none
 
-The daemon closes this process's share of the peer's End-of-RIB barrier, so the peer stops waiting for routes from this process. The signal is keyed on the sending process, so one process does not release another. A peer of '*', and an empty peer, are both ignored.
+The daemon closes this process\'s share of the peer\'s End\-of\-RIB barrier\, so the peer stops waiting for routes from this process\. The signal is keyed on the sending process\, so one process does not release another\. A peer of \'\*\'\, and an empty peer\, are both ignored\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
 
 ## Mapping intents
 

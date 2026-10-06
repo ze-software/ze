@@ -1,6 +1,6 @@
 # `show flow recent`
 
-Show recent conntrack flow records from the bounded recent-flow ring.
+Show recent conntrack flow records from the bounded recent\-flow ring\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show recent conntrack flow records from the bounded recent-flow ring.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, returns every ring record (oldest to newest, up to the configured recent-flow-ring capacity). With 'dst <prefix>', filters to flows whose destination is inside that prefix. The ring is fed only while conntrack export is enabled; the filter is by destination prefix (conntrack is host-global and carries no ingress interface).
+Without arguments\, returns every ring record \(oldest to newest\, up to the configured recent\-flow\-ring capacity\)\. With \'dst \<prefix\>\'\, filters to flows whose destination is inside that prefix\. The ring is fed only while conntrack export is enabled\; the filter is by destination prefix \(conntrack is host\-global and carries no ingress interface\)\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `dst` | string | no | any value of this type | Destination prefix or address to filter by (used with 'dst <prefix>'). | The value is an IPv4 or IPv6 prefix in CIDR form, or a bare address, which Ze reads as a /32 or a /128. Ze keeps only the ring records whose destination is inside that prefix. |
+| `dst` | string | no | any value of this type | Destination prefix or address to filter by \(used with \'dst \<prefix\>\'\)\. | The value is an IPv4 or IPv6 prefix in CIDR form\, or a bare address\, which Ze reads as a \/32 or a \/128\. Ze keeps only the ring records whose destination is inside that prefix\. |
 
 ## Mapping intents
 

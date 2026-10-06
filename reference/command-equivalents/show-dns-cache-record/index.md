@@ -1,6 +1,6 @@
 # `show dns cache record`
 
-Show DNS cache entries for one record name.
+Show DNS cache entries for one record name\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show DNS cache entries for one record name.
 - Command pipes: none
 - Pipe aliases: none
 
-The name must match the cache key exactly, and a reverse lookup is held under its in-addr.arpa or ip6.arpa name. A name that is not cached answers an empty list and a count of zero.
+The name must match the cache key exactly\, and a reverse lookup is held under its in\-addr\.arpa or ip6\.arpa name\. A name that is not cached answers an empty list and a count of zero\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Record name to inspect. | The cache key, compared as an exact string. Each entry reported under it carries the name, the type, the records and the seconds of TTL left. |
+| `name` | string | yes | any value of this type | Record name to inspect\. | The cache key\, compared as an exact string\. Each entry reported under it carries the name\, the type\, the records and the seconds of TTL left\. |
 
 ## Mapping intents
 

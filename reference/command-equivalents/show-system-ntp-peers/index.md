@@ -1,6 +1,6 @@
 # `show system ntp peers`
 
-Show NTP peers with offset, RTT, stratum, and reachability.
+Show NTP peers with offset\, RTT\, stratum\, and reachability\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show NTP peers with offset, RTT, stratum, and reachability.
 - Command pipes: none
 - Pipe aliases: none
 
-Tells you whether your clock is synced and how far off each NTP server thinks you are.
+Tells you whether your clock is synced and how far off each NTP server thinks you are\.
 
 ## Arguments
 

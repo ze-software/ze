@@ -1,6 +1,6 @@
 # `show ospf neighbor detail`
 
-Show the full per-neighbor state (spec-ospf-ext-14).
+Show the full per\-neighbor state \(spec\-ospf\-ext\-14\)\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the full per-neighbor state (spec-ospf-ext-14).
 - Command pipes: none
 - Pipe aliases: none
 
-Returns the DD sequence, the decoded Options including the RFC 5250 O-bit, the request and summary list sizes, the last NSM event, and the timers.
+Returns the DD sequence\, the decoded Options including the RFC 5250 O\-bit\, the request and summary list sizes\, the last NSM event\, and the timers\.
 
 ## Arguments
 

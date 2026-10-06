@@ -1,6 +1,6 @@
 # `request data restore`
 
-Restore a config from a backup file on the daemon's host.
+Restore a config from a backup file on the daemon\'s host\.
 
 ## Ze command
 
@@ -21,16 +21,16 @@ Restore a config from a backup file on the daemon's host.
 - Command pipes: none
 - Pipe aliases: none
 
-Stages the artifact's config as the candidate and runs the same reload a SIGHUP runs. The config becomes active only when the reload accepts it; a refused config leaves the active config and its pointers untouched. Nothing else in the store changes. With client, a hub writes the config it serves to that managed client instead, as a new version, and pushes config-changed to the client; the hub does not reload its own config.
+Stages the artifact\'s config as the candidate and runs the same reload a SIGHUP runs\. The config becomes active only when the reload accepts it\; a refused config leaves the active config and its pointers untouched\. Nothing else in the store changes\. With client\, a hub writes the config it serves to that managed client instead\, as a new version\, and pushes config\-changed to the client\; the hub does not reload its own config\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `path` | string | yes | any value of this type | Absolute artifact path | Absolute path of the artifact, checked before it is read by the same rules as a backup path. |
-| `config` | flag | no | any value of this type | Restore the config only | Restore the artifact's config only. A full restore replaces the whole store and runs offline with ze data restore. |
-| `name` | string | no | any value of this type | Config name inside the artifact | The config to take from an artifact that holds several. Without it, the artifact's only config, or the config named like this device, is taken. |
-| `client` | string | no | any value of this type | Managed client whose served config is restored | The managed client whose served config (client-<name>.conf) the restore writes. The daemon MUST be a hub with a client entry of this name. Without it, the restore replaces this daemon's own config through the reload. |
+| `path` | string | yes | any value of this type | Absolute artifact path | Absolute path of the artifact\, checked before it is read by the same rules as a backup path\. |
+| `config` | flag | no | any value of this type | Restore the config only | Restore the artifact\'s config only\. A full restore replaces the whole store and runs offline with ze data restore\. |
+| `name` | string | no | any value of this type | Config name inside the artifact | The config to take from an artifact that holds several\. Without it\, the artifact\'s only config\, or the config named like this device\, is taken\. |
+| `client` | string | no | any value of this type | Managed client whose served config is restored | The managed client whose served config \(client\-\<name\>\.conf\) the restore writes\. The daemon MUST be a hub with a client entry of this name\. Without it\, the restore replaces this daemon\'s own config through the reload\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `show event list`
 
-List every event type you can subscribe to.
+List every event type you can subscribe to\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List every event type you can subscribe to.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows event name, category, and payload structure. Use this to discover what events are available before subscribing.
+Shows event name\, category\, and payload structure\. Use this to discover what events are available before subscribing\.
 
 ## Arguments
 

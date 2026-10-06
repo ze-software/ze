@@ -1,6 +1,6 @@
 # `show bfd session address`
 
-Show full detail for one BFD session.
+Show full detail for one BFD session\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show full detail for one BFD session.
 - Command pipes: none
 - Pipe aliases: none
 
-Pass the peer address. Returns local/remote discriminators, negotiated timers, detection time, and packet counters.
+Pass the peer address\. Returns local\/remote discriminators\, negotiated timers\, detection time\, and packet counters\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `address` | string | yes | any value of this type | Peer address | An IPv4 or IPv6 address in its usual text form. A value that does not parse fails with bfd: invalid peer address before any lookup. |
+| `address` | string | yes | any value of this type | Peer address | An IPv4 or IPv6 address in its usual text form\. A value that does not parse fails with bfd\: invalid peer address before any lookup\. |
 
 ## Mapping intents
 

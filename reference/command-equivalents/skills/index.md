@@ -1,6 +1,6 @@
 # `skills`
 
-List the agent skills this binary carries, or fetch one by name.
+List the agent skills this binary carries\, or fetch one by name\.
 
 ## Ze command
 
@@ -20,7 +20,7 @@ List the agent skills this binary carries, or fetch one by name.
 - Command pipes: none
 - Pipe aliases: none
 
-Each skill is a Markdown document bundled with the binary, so it always matches the running version. One skill is fetched by name, in its short form or in full.
+Each skill is a Markdown document bundled with the binary\, so it always matches the running version\. One skill is fetched by name\, in its short form or in full\.
 
 ## Arguments
 

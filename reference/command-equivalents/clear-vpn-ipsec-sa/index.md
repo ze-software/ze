@@ -1,6 +1,6 @@
 # `clear vpn ipsec sa`
 
-Tear down IKE Security Associations.
+Tear down IKE Security Associations\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Tear down IKE Security Associations.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments, terminates all SAs. Use 'peer <name>' to clear just one peer. The tunnel WILL renegotiate automatically if the config is still active.
+Without arguments\, terminates all SAs\. Use \'peer \<name\>\' to clear just one peer\. The tunnel WILL renegotiate automatically if the config is still active\.
 
 ## Arguments
 

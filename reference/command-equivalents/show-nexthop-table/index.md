@@ -1,6 +1,6 @@
 # `show nexthop-table`
 
-Show each next hop the resolver tracks and the direct next hop it resolves to.
+Show each next hop the resolver tracks and the direct next hop it resolves to\.
 
 ## Ze command
 

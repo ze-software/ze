@@ -1,6 +1,6 @@
 # `show l2tp reliable`
 
-Show the reliable transport window for a tunnel.
+Show the reliable transport window for a tunnel\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the reliable transport window for a tunnel.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns send and receive sequence numbers, window size, and retransmit queue depth. Check here when tunnel control messages stop moving.
+Returns send and receive sequence numbers\, window size\, and retransmit queue depth\. Check here when tunnel control messages stop moving\.
 
 ## Arguments
 

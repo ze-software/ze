@@ -1,6 +1,6 @@
 # `show interface name counters`
 
-Show counters for one interface.
+Show counters for one interface\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Show counters for one interface.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer is the interface name and its Rx and Tx statistics. A backend that keeps no statistics for the interface answers no counters available rather than an error.
+The answer is the interface name and its Rx and Tx statistics\. A backend that keeps no statistics for the interface answers no counters available rather than an error\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `name` | string | yes | any value of this type | Interface name | The interface whose statistics are read. The answer repeats this name beside the Rx and Tx values. |
+| `name` | string | yes | any value of this type | Interface name | The interface whose statistics are read\. The answer repeats this name beside the Rx and Tx values\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `request data backup`
 
-Write a backup of the whole store to a file on the daemon's host.
+Write a backup of the whole store to a file on the daemon\'s host\.
 
 ## Ze command
 
@@ -21,15 +21,15 @@ Write a backup of the whole store to a file on the daemon's host.
 - Command pipes: none
 - Pipe aliases: none
 
-Copies every key of the store into one blob artifact while the daemon runs. A commit that lands meanwhile is in the backup whole or not at all. The file holds credentials and private keys and is written 0600.
+Copies every key of the store into one blob artifact while the daemon runs\. A commit that lands meanwhile is in the backup whole or not at all\. The file holds credentials and private keys and is written 0600\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `path` | string | yes | any value of this type | Absolute artifact path | Absolute path of the artifact. A relative path, a '..' element, a symlink, and every name the store owns in its folder are refused, each naming the rule it broke. |
-| `spare` | uint | no | any value of this type | Spare capacity percent (0-100) | Spare capacity in percent that each key and data slot carries. An artifact is normally copied whole, so the default is 0. |
-| `force` | flag | no | any value of this type | Replace an existing file | Replace an existing file at path. It never lifts a refusal of a name the store owns. |
+| `path` | string | yes | any value of this type | Absolute artifact path | Absolute path of the artifact\. A relative path\, a \'\.\.\' element\, a symlink\, and every name the store owns in its folder are refused\, each naming the rule it broke\. |
+| `spare` | uint | no | any value of this type | Spare capacity percent \(0\-100\) | Spare capacity in percent that each key and data slot carries\. An artifact is normally copied whole\, so the default is 0\. |
+| `force` | flag | no | any value of this type | Replace an existing file | Replace an existing file at path\. It never lifts a refusal of a name the store owns\. |
 
 ## Mapping intents
 

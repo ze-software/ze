@@ -1,6 +1,6 @@
 # `plugin session ping`
 
-Answer a health check with the daemon process id.
+Answer a health check with the daemon process id\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Answer a health check with the daemon process id.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer carries the process id of the daemon process, not of the plugin that asked. The command takes no argument and never fails.
+The answer carries the process id of the daemon process\, not of the plugin that asked\. The command takes no argument and never fails\.
 
 ## Arguments
 

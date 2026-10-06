@@ -1,6 +1,6 @@
 # `show interface rate`
 
-Show per-second traffic rates on your interfaces.
+Show per\-second traffic rates on your interfaces\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show per-second traffic rates on your interfaces.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns rx/tx bytes and packets per second. Pass an interface name to narrow the output. Requires the rate tracker. For continuous monitoring, use 'monitor interface rate' instead.
+Returns rx\/tx bytes and packets per second\. Pass an interface name to narrow the output\. Requires the rate tracker\. For continuous monitoring\, use \'monitor interface rate\' instead\.
 
 ## Arguments
 

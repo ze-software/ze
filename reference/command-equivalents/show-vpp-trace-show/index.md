@@ -1,6 +1,6 @@
 # `show vpp trace show`
 
-Retrieve packets captured since the last trace start.
+Retrieve packets captured since the last trace start\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Retrieve packets captured since the last trace start.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows per-packet VPP graph node traversal. Requires the VPP backend.
+Shows per\-packet VPP graph node traversal\. Requires the VPP backend\.
 
 ## Arguments
 

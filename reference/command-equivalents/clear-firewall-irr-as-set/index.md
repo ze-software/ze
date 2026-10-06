@@ -1,6 +1,6 @@
 # `clear firewall irr as-set`
 
-Remove the cached IRR prefix-list for an AS-SET.
+Remove the cached IRR prefix\-list for an AS\-SET\.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Remove the cached IRR prefix-list for an AS-SET.
 - Command pipes: none
 - Pipe aliases: none
 
-Drops the entry from memory and from the persisted cache, then re-applies the firewall tables.
+Drops the entry from memory and from the persisted cache\, then re\-applies the firewall tables\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type | AS-SET name | The RPSL set name the update command stored, for example AS-EXAMPLE. The entry under that exact name is purged. |
+| `as-set` | string | yes | any value of this type | AS\-SET name | The RPSL set name the update command stored\, for example AS\-EXAMPLE\. The entry under that exact name is purged\. |
 
 ## Mapping intents
 

@@ -1,6 +1,6 @@
 # `show rsvp-te tunnel`
 
-Show configured RSVP-TE tunnels and their current state.
+Show configured RSVP\-TE tunnels and their current state\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show configured RSVP-TE tunnels and their current state.
 - Command pipes: none
 - Pipe aliases: none
 
-Returns tunnel name, endpoints, signaling state, and active LSP.
+Returns tunnel name\, endpoints\, signaling state\, and active LSP\.
 
 ## Arguments
 

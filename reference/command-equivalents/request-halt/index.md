@@ -1,6 +1,6 @@
 # `request halt`
 
-Dump goroutine stacks to stderr and terminate immediately.
+Dump goroutine stacks to stderr and terminate immediately\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Dump goroutine stacks to stderr and terminate immediately.
 - Command pipes: none
 - Pipe aliases: none
 
-Ze writes every goroutine stack through the daemon logger at warning level, with a 1 MB buffer, and then stops. Use it where a daemon is stuck and the stacks are the evidence.
+Ze writes every goroutine stack through the daemon logger at warning level\, with a 1 MB buffer\, and then stops\. Use it where a daemon is stuck and the stacks are the evidence\.
 
 ## Arguments
 

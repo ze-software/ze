@@ -1,6 +1,6 @@
 # `show isis database`
 
-Show the IS-IS link-state database.
+Show the IS\-IS link\-state database\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the IS-IS link-state database.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each LSP with its LSP ID, sequence number, remaining lifetime, checksum, and overload bit, across Level-1 and Level-2. The own field is true on the LSPs this node originated and false on the LSPs it learned from a neighbor.
+Lists each LSP with its LSP ID\, sequence number\, remaining lifetime\, checksum\, and overload bit\, across Level\-1 and Level\-2\. The own field is true on the LSPs this node originated and false on the LSPs it learned from a neighbor\.
 
 ## Arguments
 
