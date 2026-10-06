@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
+  "archive_bytes": 109959246,
+  "parts": [
+    {
+      "path": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.tar.gz.part-01",
+      "bytes": 83886080,
+      "sha256": "8e387f7e8db19cee8ce3d1435a3c382bd52753d40ef7305502add6c928d4e8b1"
+    },
+    {
+      "path": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.tar.gz.part-02",
+      "bytes": 26073166,
+      "sha256": "2c3e0e3081cfdb31a5110cd947376f0464e50d9a73adb3b51b603aebd0947f8c"
+    }
+  ],
+  "manifest_member": "manifest.json",
+  "manifest_sha256": "0002cb307c2a09f7b0e620422fb15b8a3c8642d9dcb66c58fcc5819d3296a658",
+  "entries": 4063,
+  "regular_members": 2836,
+  "serialized_recipes": 201,
+  "readback": "Every retained member byte hash, size, mode, directory and symlink target verified; serialized recipes decoded and checked; canonical parts reread and ordered concatenation verified.",
+  "staging_archive": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-final-proof-evidence.tar.gz",
+  "related_census_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+  "publication": "Private generated website and actual browser observations only; public siblings were not edited or published.",
+  "acceptance": "Evidence retention does not clear owner RFC approval, public sibling reconciliation, or any recorded red/qualification.",
+  "reassembly": "Concatenate parts in the listed order, verify archive_sha256, then read the gzip-compressed tar. Member paths are repository-root-relative; manifest.json records each retained source and serialized recipe."
+}
