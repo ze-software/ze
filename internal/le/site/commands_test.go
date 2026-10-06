@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	xhtml "golang.org/x/net/html"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // commandSurfacePaths lays out one artifact carrying the two data files every
@@ -79,6 +81,17 @@ func visibleText(fragment string) string {
 			// reader sees, so they change nothing here.
 		}
 	}
+}
+
+// markdownVisibleText reads a mirror through the site's Markdown renderer, so
+// assertions compare the declared text rather than its escape spelling.
+func markdownVisibleText(t *testing.T, markdown string) string {
+	t.Helper()
+	body, _, err := renderMarkdown([]byte(markdown))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return visibleText(body)
 }
 
 // VALIDATES: the published CLI reference carries the whole site shell.
@@ -360,12 +373,72 @@ func TestPublishedCommandRowUsesSummary(t *testing.T) {
 		t.Errorf("the row carries the long form, which the detail page renders:\n%s", row)
 	}
 
-	mirror := readArtifact(t, paths.Output,
-		strings.TrimSuffix(cliReferenceDest, pageIndexFile)+pageMirrorFile)
+	mirror := markdownVisibleText(t, readArtifact(t, paths.Output,
+		strings.TrimSuffix(cliReferenceDest, pageIndexFile)+pageMirrorFile))
 	if !strings.Contains(mirror, "Show the rows of the test table.") {
 		t.Error("the reference mirror does not carry the declared summary")
 	}
 	if strings.Contains(mirror, "since the last clear") {
 		t.Error("the reference mirror carries the long form")
+	}
+}
+
+// TestCommandSurfacesPreserveLiteralHelp renders controlled registry text through
+// each Markdown producer and the site's Markdown engine, not a source-text check.
+func TestCommandSurfacesPreserveLiteralHelp(t *testing.T) {
+	for _, summary := range []string{
+		"Plain summary",
+		"Select <destination> and <source>.",
+		"Keep <strong>literal</strong> &amp; text.",
+		"Keep *stars*, _underscores_, `ticks`, [links](https://example.invalid/), and ~tildes~.",
+		`Keep \paths and left | right.`,
+		"- item",
+		"+ item",
+		"1. item",
+		"---",
+	} {
+		t.Run(summary, func(t *testing.T) {
+			commands := []catalogCommand{{
+				Path:        "show test",
+				Mode:        "read-only",
+				ShortHelp:   summary,
+				Description: summary,
+				Usage:       "show test <destination>",
+			}}
+			var llms textbuf.Buffer
+			writeLLMSCommands(&llms, &llmsInputs{Commands: commands})
+			surfaces := map[string]string{
+				"reference": cliReferenceMirror(commands, groupCommands(commands)),
+				"llms":      llms.String(),
+				"detail": equivalentDetailMirror(
+					&equivalentMapping{}, &equivalentRow{Command: &commands[0]}, nil,
+				),
+			}
+			for name, markdown := range surfaces {
+				t.Run(name, func(t *testing.T) {
+					body, _, err := renderMarkdown([]byte(markdown))
+					if err != nil {
+						t.Fatal(err)
+					}
+					if got := visibleText(body); !strings.Contains(got, summary) {
+						t.Fatalf("literal help lost: want %q in %q", summary, got)
+					}
+					if !strings.Contains(visibleText(body), commands[0].Usage) {
+						t.Fatalf("usage code span lost its placeholder:\n%s", body)
+					}
+					if name == "detail" {
+						if got := strings.Count(visibleText(body), summary); got != 2 {
+							t.Fatalf("summary and long help must both survive: got %d copies", got)
+						}
+					}
+					if name == "reference" {
+						cells := rowCells(body)
+						if len(cells) != 4 {
+							t.Fatalf("literal help changed table shape: %v", cells)
+						}
+					}
+				})
+			}
+		})
 	}
 }

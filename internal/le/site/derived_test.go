@@ -191,10 +191,10 @@ func TestLLMSCommandLineCarriesWholeSummary(t *testing.T) {
 		t.Fatalf("the fixture summary is %d characters, which the retired cut would not have trimmed",
 			len(summary))
 	}
-	if !strings.Contains(content, summary) {
+	line := markdownVisibleText(t, commandLineOf(t, content, "show test"))
+	if !strings.Contains(line, summary) {
 		t.Errorf("llms.txt does not carry the whole summary:\n%s", commandLineOf(t, content, "show test"))
 	}
-	line := commandLineOf(t, content, "show test")
 	if strings.Contains(line, "...") {
 		t.Errorf("the command line was cut and closed with an ellipsis:\n%s", line)
 	}

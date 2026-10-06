@@ -122,13 +122,21 @@ func assertPublishedReadingSurvives(t *testing.T, subject, got, want string) {
 	}
 }
 
-// assertPublishedMirrorSurvives reports the first line of the published mirror
-// a rendered mirror drops. A mirror is line-structured, so the unit of the
-// comparison is the line rather than the word.
+// assertPublishedMirrorSurvives reports the first rendered line the mirror
+// drops. Both inputs use the site's Markdown renderer so escape spelling may
+// differ, but visible prose, markup, links and their order must survive.
 func assertPublishedMirrorSurvives(t *testing.T, got, want string) {
 	t.Helper()
-	rendered := strings.Split(got, "\n")
-	published := strings.Split(want, "\n")
+	renderedHTML, _, err := renderMarkdown([]byte(got))
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishedHTML, _, err := renderMarkdown([]byte(want))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := strings.Split(renderedHTML, "\n")
+	published := strings.Split(publishedHTML, "\n")
 	position := 0
 	for index, line := range published {
 		for position < len(rendered) && rendered[position] != line {

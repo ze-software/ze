@@ -165,6 +165,17 @@ it, as the detail page body. No producer derives one text from the other, and
 none cuts either one. `docs/architecture/api/commands.md` holds the same table
 for every other surface.
 
+Registry help is literal text, not authored Markdown or HTML. The Markdown
+mirrors and `llms.txt` escape Markdown punctuation rather than stripping it, so a
+placeholder such as `<destination>` remains visible and a leading `-` stays text
+rather than starting a list. Usage stays in a code
+span, where prose escapes would change the displayed command. The drift reader
+compares visible text: neutral emphasis, links and HTML wrappers are allowed,
+but an unescaped tag that hides a placeholder is lost contract text.
+<!-- source: internal/le/site/commands.go -- markdownProse, commandMirrorDescription -->
+<!-- source: internal/le/site/derived.go -- writeLLMSCommands -->
+<!-- source: internal/le/doc/yangcontract/command_surfaces.go -- markdownInlineVisibleText, validatePrimaryMarkdownContract, validateLLMSCommandContract -->
+
 `internal/le/doc/yangcontract` publishes no page. Its unexported `renderCommandSurfaces`
 writes a contract fixture into a temporary tree, and the documentation drift
 gate reads that fixture and each published page with one reader, so a fixture

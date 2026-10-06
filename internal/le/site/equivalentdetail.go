@@ -339,7 +339,7 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	grouped := operatorsByAvailability(command)
 	var out textbuf.Buffer
 	out.Str("# `").Str(markdownCell(command.Path)).Str("`\n\n")
-	out.Str(markdownCell(commandLede(command))).Str("\n\n## Ze command\n\n")
+	out.Str(markdownProse(commandLede(command))).Str("\n\n## Ze command\n\n")
 	out.Str("- Registry path: `").Str(markdownCell(command.Path)).Str("`\n")
 	if command.Usage != "" {
 		out.Str("- Usage: `").Str(markdownCell(command.Usage)).Str("`\n")
@@ -359,7 +359,7 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	out.Str("- Command pipes: ").Str(orNone(commandPipeMirrorList(command))).Byte('\n')
 	out.Str("- Pipe aliases: ").Str(orNone(aliasMirrorList(command))).Str("\n\n")
 	if command.Description != "" {
-		out.Str(markdownCell(command.Description)).Str("\n\n")
+		out.Str(markdownProse(command.Description)).Str("\n\n")
 	}
 	out.Str(argumentMirrorTable(command))
 	out.Str("## Mapping intents\n\n")
@@ -432,7 +432,7 @@ func argumentMirrorTable(command *catalogCommand) string {
 		}
 		out.Str("| `").Str(markdownCell(argument.Name)).Str("` | ").Str(markdownCell(argument.Type)).Str(" | ").
 			Str(argumentRequiredLabel(argument)).Str(" | ").Str(values).Str(" | ").
-			Str(markdownCell(argument.ShortHelp)).Str(" | ").Str(markdownCell(argument.Description)).Str(" |\n")
+			Str(markdownProse(argument.ShortHelp)).Str(" | ").Str(markdownProse(argument.Description)).Str(" |\n")
 	}
 	out.Byte('\n')
 	return out.String()
@@ -453,7 +453,7 @@ func commandPipeMirrorList(command *catalogCommand) string {
 	for _, pipe := range command.Pipes {
 		value := "`" + markdownCell(pipeDisplayName(pipe)) + "`"
 		if pipe.Description != "" {
-			value += ": " + markdownCell(pipe.Description)
+			value += ": " + markdownProse(pipe.Description)
 		}
 		values = append(values, value)
 	}
@@ -466,7 +466,7 @@ func aliasMirrorList(command *catalogCommand) string {
 	for _, alias := range command.Aliases {
 		value := "`" + markdownCell(alias.Name) + "`"
 		if alias.Description != "" {
-			value += ": " + markdownCell(alias.Description)
+			value += ": " + markdownProse(alias.Description)
 		}
 		if alias.Expansion != "" {
 			value += " (`" + markdownCell(alias.Expansion) + "`)"

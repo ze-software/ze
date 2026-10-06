@@ -25,7 +25,7 @@ func TestPublishedCommandDetailUsesBothForms(t *testing.T) {
 
 	directory := equivalentsDirectory + "/" + commandSlug("show test") + "/"
 	page := readArtifact(t, paths.Output, directory+pageIndexFile)
-	mirror := readArtifact(t, paths.Output, directory+pageMirrorFile)
+	mirror := markdownVisibleText(t, readArtifact(t, paths.Output, directory+pageMirrorFile))
 
 	if strings.Contains(page, "Command details and vendor equivalents for show test.") {
 		t.Error("the page still leads with the hard-coded sentence rather than the declared summary")

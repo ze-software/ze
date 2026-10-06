@@ -304,7 +304,7 @@ func assertEvidence(t *testing.T, field, surface string, evidence []string, text
 
 // renderEnrichedCommandSurfaces publishes both command surfaces from the
 // enriched catalog and answers what a reader sees on each: the visible text of
-// the page, and the Markdown mirror beside it.
+// the page and the rendered Markdown mirror beside it.
 func renderEnrichedCommandSurfaces(t *testing.T) (reference, referenceMirror, detail, detailMirror string) {
 	t.Helper()
 	paths := commandSurfacePaths(t)
@@ -319,9 +319,9 @@ func renderEnrichedCommandSurfaces(t *testing.T) (reference, referenceMirror, de
 	}
 	detailDirectory := equivalentsDirectory + "/" + commandSlug("show test") + "/"
 	return visibleText(mainContent(t, readArtifact(t, paths.Output, cliReferenceDest))),
-		readArtifact(t, paths.Output, strings.TrimSuffix(cliReferenceDest, pageIndexFile)+pageMirrorFile),
+		markdownVisibleText(t, readArtifact(t, paths.Output, strings.TrimSuffix(cliReferenceDest, pageIndexFile)+pageMirrorFile)),
 		visibleText(mainContent(t, readArtifact(t, paths.Output, detailDirectory+pageIndexFile))),
-		readArtifact(t, paths.Output, detailDirectory+pageMirrorFile)
+		markdownVisibleText(t, readArtifact(t, paths.Output, detailDirectory+pageMirrorFile))
 }
 
 // vendorOnlyMapping is the smallest vendor map the detail page renders against:

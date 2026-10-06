@@ -2486,6 +2486,44 @@ func TestCommandSurfacesAcceptPostprocessedVisiblePrimaryValues(t *testing.T) {
 	}
 }
 
+// TestCommandDescriptionsDistinguishLiteralPlaceholders checks both Markdown
+// contracts against visible text: escaping and code preserve a placeholder,
+// but a raw HTML tag, deleted text, or another placeholder does not.
+func TestCommandDescriptionsDistinguishLiteralPlaceholders(t *testing.T) {
+	command := publishedCommand{
+		Path:      "show test",
+		Mode:      "read-only",
+		ShortHelp: "Select <destination>.",
+	}
+	for _, tc := range []struct {
+		name, description string
+		valid             bool
+	}{
+		{"escaped", `Select \<destination\>.`, true},
+		{"entity", "Select &lt;destination&gt;.", true},
+		{"code", "Select `<destination>`.", true},
+		{"markup", "**Select** <em>&lt;destination&gt;</em>.", true},
+		{"link", "[Select](https://example.invalid/) `<destination>`.", true},
+		{"raw HTML", "Select <destination>.", false},
+		{"missing", "Select .", false},
+		{"altered", "Select `<source>`.", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			row := "| `show test` | read-only | " + tc.description + " | none |"
+			for surface, issues := range map[string][]Issue{
+				"reference": validatePrimaryMarkdownContract("index.md", row, &command),
+				"llms": validateLLMSCommandContract(
+					"llms.txt", command.Path, command.Mode, tc.description, &command,
+				),
+			} {
+				if got := len(issues) == 0; got != tc.valid {
+					t.Errorf("%s accepted=%t, want %t: %+v", surface, got, tc.valid, issues)
+				}
+			}
+		})
+	}
+}
+
 // VALIDATES: both equivalent indexes are exact multisets of visible command
 // path plus detail slug, not substring-presence checks.
 // PREVENTS: stale paths, slug collisions, duplicates, extras, or missing rows

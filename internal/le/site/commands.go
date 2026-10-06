@@ -426,7 +426,7 @@ func operatorGuideMirror(commands []catalogCommand) string {
 		out.Str("| `").Str(markdownCell(row.name)).Str("` | ").
 			Str(markdownCell(operatorClassLabel(row.class))).Str(" | ").
 			Str(markdownCell(availabilityList(row.availability))).Str(" | ").
-			Str(markdownCell(row.description)).Str(" |\n")
+			Str(markdownProse(row.description)).Str(" |\n")
 	}
 	out.Byte('\n')
 	return out.String()
@@ -436,7 +436,7 @@ func operatorGuideMirror(commands []catalogCommand) string {
 // what the command model states beside it, as one table cell.
 func commandMirrorDescription(command *catalogCommand) string {
 	parts := make([]string, 0, 6)
-	if description := markdownCell(command.ShortHelp); description != "" {
+	if description := markdownProse(command.ShortHelp); description != "" {
 		parts = append(parts, description)
 	}
 	if command.Usage != "" {
@@ -478,10 +478,10 @@ func argumentMirrorLines(command *catalogCommand) []string {
 func argumentTextsMarkdown(argument catalogArg) string {
 	var out textbuf.Buffer
 	if argument.ShortHelp != "" {
-		out.Str(": ").Str(markdownCell(argument.ShortHelp))
+		out.Str(": ").Str(markdownProse(argument.ShortHelp))
 	}
 	if argument.Description != "" {
-		out.Byte(' ').Str(markdownCell(argument.Description))
+		out.Byte(' ').Str(markdownProse(argument.Description))
 	}
 	return out.String()
 }
@@ -516,6 +516,27 @@ func commandMirrorPipes(command *catalogCommand) string {
 		return nothingDeclared
 	}
 	return strings.Join(parts, "<br>")
+}
+
+// markdownProse preserves registry text as literal prose, including placeholders
+// and punctuation that could start Markdown blocks. Code spans use markdownCell
+// instead: backslash escapes are not active inside code.
+func markdownProse(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	const punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+	first := strings.IndexAny(value, punctuation)
+	if first == -1 {
+		return value
+	}
+	var escaped textbuf.Buffer
+	escaped.Grow(len(value))
+	for first != -1 {
+		escaped.Str(value[:first]).Byte('\\').Byte(value[first])
+		value = value[first+1:]
+		first = strings.IndexAny(value, punctuation)
+	}
+	escaped.Str(value)
+	return escaped.String()
 }
 
 // markdownCell folds one value onto a single line and escapes the pipe that
