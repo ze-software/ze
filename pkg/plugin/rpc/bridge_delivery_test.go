@@ -24,14 +24,19 @@ func TestDirectBridgeDeliveryShutdown(t *testing.T) {
 			entered := make(chan struct{})
 			release := make(chan struct{})
 			var completed atomic.Bool
-			handle := func() error {
+			handle := func() {
 				close(entered)
 				<-release
 				completed.Store(true)
-				return nil
 			}
-			bridge.SetDeliverEvents(func([]string) error { return handle() })
-			bridge.SetDeliverStructured(func([]any) error { return handle() })
+			bridge.SetDeliverEvents(func([]string) error {
+				handle()
+				return nil
+			})
+			bridge.SetDeliverStructured(func([]any) error {
+				handle()
+				return nil
+			})
 			bridge.SetReady()
 			callDone := make(chan error, 1)
 			go func() {
@@ -258,5 +263,64 @@ func TestDirectBridgeShutdownPreservesCallbackResult(t *testing.T) {
 				t.Fatal("completed callback did not return")
 			}
 		})
+	}
+}
+
+// TestDirectBridgeActivationPublishesReadiness reads sticky activation while a
+// startup worker activates bridges. An activated bridge must already be ready;
+// the two stores must not expose an apparent shutdown during healthy startup.
+func TestDirectBridgeActivationPublishesReadiness(t *testing.T) {
+	const count = 1024
+	bridges := make([]*DirectBridge, count)
+	for i := range bridges {
+		bridges[i] = NewDirectBridge()
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for _, bridge := range bridges {
+			bridge.SetReady()
+		}
+	}()
+	defer func() {
+		<-done
+		for _, bridge := range bridges {
+			bridge.CloseCallbacks()
+		}
+	}()
+	for _, bridge := range bridges {
+		for !bridge.Activated() {
+			if err := ctx.Err(); err != nil {
+				t.Fatal("startup worker did not activate bridge")
+			}
+			runtime.Gosched()
+		}
+		if err := bridge.DeliveryError(); err != nil {
+			t.Fatalf("observed activation before readiness: %v", err)
+		}
+	}
+}
+
+// TestDirectBridgeActivationCannotReviveShutdown closes the bridge on either
+// side of activation, then proves SetReady cannot undo the shutdown fence.
+func TestDirectBridgeActivationCannotReviveShutdown(t *testing.T) {
+	for _, activated := range []bool{false, true} {
+		bridge := NewDirectBridge()
+		if activated {
+			bridge.SetReady()
+		}
+		bridge.CloseCallbacks()
+		bridge.SetReady()
+		if bridge.Activated() != activated {
+			t.Errorf("sticky activation after shutdown = %v, want %v", bridge.Activated(), activated)
+		}
+		if bridge.Ready() {
+			t.Error("SetReady revived a stopped bridge")
+		}
+		if err := bridge.DeliveryError(); !errors.Is(err, ErrBridgeClosed) {
+			t.Errorf("delivery after shutdown = %v, want ErrBridgeClosed", err)
+		}
 	}
 }

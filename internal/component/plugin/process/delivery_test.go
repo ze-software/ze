@@ -31,7 +31,7 @@ func TestProcessDrainBatchReusesBuffer(t *testing.T) {
 
 	// First call: buffer grows from nil.
 	var buf []EventDelivery
-	buf = proc.drainBatch(buf, first)
+	buf = drainBatch(proc.eventChan, buf, first)
 
 	if len(buf) != 3 {
 		t.Fatalf("expected 3 items, got %d", len(buf))
@@ -41,7 +41,7 @@ func TestProcessDrainBatchReusesBuffer(t *testing.T) {
 	// Second call: reuse existing buffer.
 	proc.eventChan <- EventDelivery{Output: "c"}
 	first2 := EventDelivery{Output: "second"}
-	buf = proc.drainBatch(buf, first2)
+	buf = drainBatch(proc.eventChan, buf, first2)
 
 	if len(buf) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(buf))

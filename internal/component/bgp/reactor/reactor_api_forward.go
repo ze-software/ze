@@ -482,6 +482,7 @@ type forwardSourceInfo struct {
 	resolved       bool
 	peer           *Peer
 	sender         plugin.Sender
+	recovery       *recoveryAdmission
 	// initialUpdate is true when the forward carries part of the destination's
 	// initial routing update, a peer-up replay, so it passes the destination's
 	// replay fence (Peer.forwardOrderHold). Only the relay rail sets it, from
@@ -1164,6 +1165,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				}
 			}
 		dispatch:
+			if srcInfo.recovery != nil {
+				item.supersedeKey = 0 // The operation owns every staged section.
+			}
 			// Dedup borrows this item's buffer. Publish only after the body can
 			// dispatch; an earlier failure MUST abandon before returning its slot.
 			if candidate.valid {
@@ -1181,6 +1185,11 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		a.r.recentUpdates.retainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { a.r.recentUpdates.Release(updateID) }
+			if srcInfo.recovery != nil {
+				srcInfo.recovery.items = append(srcInfo.recovery.items, pending[i].item)
+				dispatchedCount++
+				continue
+			}
 			// Ordering gate: a destination inside its initial sync still has
 			// route operations of its own to put on the wire. Sending this
 			// UPDATE now would overtake them, and a forwarded withdraw landing

@@ -177,6 +177,8 @@ type routeServer struct {
 	peers   map[string]*PeerState
 	mu      sync.RWMutex
 	workers *workerPool
+	downWG  sync.WaitGroup  // SDK event delivery MUST stop before shutdown waits.
+	downCtx context.Context // Canceled before downWG.Wait; no command deadline owns DOWN.
 
 	// clk is the time source for peer-up replay convergence (replayForPeer).
 	// Production sets clock.RealClock{}; a test injects a fake so the catch-up
@@ -283,11 +285,13 @@ func RunRouteServer(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rs", conn)
 	defer func() { _ = p.Close() }()
 
+	downCtx, stopDown := context.WithCancel(context.Background())
 	rs := &routeServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
 		withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry),
 		clk:         clock.RealClock{},
+		downCtx:     downCtx,
 	}
 
 	// ze.bgp.route-server.worker-queue-size overrides the per-source-peer worker channel capacity.
@@ -315,6 +319,8 @@ func RunRouteServer(conn net.Conn) int {
 		onDrained: rs.flushWorkerBatch,
 	})
 	defer rs.workers.Stop()
+	defer rs.downWG.Wait()
+	defer stopDown()
 	if bus := validationBus.Load(); bus != nil {
 		unsubscribe := ribevents.ValidationChange.Subscribe(*bus, rs.validationChanged)
 		defer unsubscribe()
@@ -516,14 +522,19 @@ func (rs *routeServer) updateRoute(peerSelector, command string) {
 	}
 }
 
-// updateRouteSel sends a route update using a typed selector via DirectBridge.
-func (rs *routeServer) updateRouteSel(sel *selector.Selector, command string) {
+// recoverRouteSel sends a source-owned DOWN request through the normal UPDATE
+// grammar. The engine MUST reconcile against the RIB before admitting output.
+func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source string, cut uint64) {
 	if rs.updateRouteHook != nil {
 		rs.updateRouteHook(sel.String(), command)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
-	defer cancel()
-	_, _, err := rs.plugin.UpdateRouteSel(ctx, sel, command)
+	ctx := rs.downCtx
+	if ctx == nil {
+		// Struct-literal unit owners have no running plugin lifecycle.
+		ctx = context.Background()
+	}
+	meta := map[string]any{"recovery-source": source, "recovery-cut": strconv.FormatUint(cut, 10)}
+	_, _, err := rs.plugin.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rs.stopping.Load() {
 			logger().Debug("update-route failed (shutting down)", "peer", sel, "command", command, "error", err)

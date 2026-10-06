@@ -65,6 +65,7 @@ type fwdItem struct {
 	sourceMessageID    uint64            // Original received generation for ownership and AIGP, not a replay cache ID
 	receivedPeer       *Peer
 	receivedGeneration uint64
+	recovery           *recoveryAdmission
 	aigpOrigin         sendOrigin
 	aigpRevision       uint64
 	aigpReplay         *aigpAdvertisement
@@ -152,7 +153,8 @@ func fwdWriteDeadline() time.Duration {
 // fwdBatchHandler executes pre-computed send operations for a batch of fwdItems.
 // Acquires the session write lock once, writes all messages to bufWriter, flushes once.
 // On first write error, remaining items in the batch are skipped.
-// Errors are logged but not propagated — TCP failures trigger FSM disconnect independently.
+// Errors are logged; recovery admissions also receive the hard failure so their
+// owner can fail closed. Ordinary forwarding relies on FSM disconnect.
 //
 // Sets a write deadline on the TCP connection before writing to prevent a stuck
 // peer from blocking the worker goroutine indefinitely. The deadline is cleared
@@ -216,6 +218,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			"peer", peer.Settings().Address,
 			"err", err,
 		)
+		failRecoveryWrites(items, session, err)
 		return
 	}
 	defer func() {
@@ -238,43 +241,68 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	items = fwdBucketMerge(items, fwdBucketMaxBodySize(extMsg))
 
 	for i := range items {
-		if !forwardSourceCurrent(items[i].receivedPeer, items[i].receivedGeneration) {
-			continue
-		}
-		// A marker claimed for an earlier session is not this session's to send.
-		if mark := items[i].endOfRIB; mark != nil && mark.session != session {
-			continue
-		}
-		if replay := items[i].aigpReplay; replay != nil &&
-			(replay.session != session || session.aigpReactor == nil || !session.aigpReactor.currentAIGPAdvertisement(replay)) {
-			continue
-		}
-		session.sentAIGPOrigin = items[i].aigpOrigin
-		session.sentAIGPRevision = items[i].aigpRevision
-		session.sentAIGPCostWithheld = items[i].aigpCostWithheld
-		session.sentMeta = items[i].meta                   // Route metadata for sent event callbacks.
-		session.sentSourcePeerStr = items[i].sourcePeerStr // Source peer for ribOut stale-scoping.
-		session.sentSourceMessageID = items[i].sourceMessageID
-		for _, body := range items[i].rawBodies {
-			if err := session.writeRawUpdateBody(body); err != nil {
-				fwdLogger().Warn("forward batch write failed",
-					"peer", peer.Settings().Address,
-					"err", err,
-				)
-				return
+		sections := items[i : i+1]
+		if recovery := items[i].recovery; recovery != nil {
+			if recovery.ctx != nil {
+				if err := recovery.ctx.Err(); err != nil {
+					recovery.err = err
+					continue
+				}
 			}
+			if !recovery.current(session) {
+				continue
+			}
+			// Fence every source before writing any sibling. A generation
+			// change MUST retry the whole lookup, never relabel selected bytes.
+			for j := range recovery.items {
+				section := &recovery.items[j]
+				if !forwardSourceCurrent(section.receivedPeer, section.receivedGeneration) {
+					recovery.retry = true
+					break
+				}
+			}
+			if recovery.retry {
+				continue
+			}
+			sections = recovery.items
 		}
-		for _, update := range items[i].updates {
-			// Pre-filtered: forwardUpdateCore already ran this peer's export chain
-			// (and only then the EBGP prepend). See writeUpdatePreFiltered. An
-			// announce-rail item has not, so it takes the gated write, exactly as
-			// it would have on its own rail (fwdItem.originated).
-			if err := session.writeUpdateGated(update, items[i].originated); err != nil {
-				fwdLogger().Warn("forward batch write failed",
-					"peer", peer.Settings().Address,
-					"err", err,
-				)
-				return
+		for j := range sections {
+			item := &sections[j]
+			if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
+				if recovery := items[i].recovery; recovery != nil {
+					recovery.retry = true
+				}
+				continue
+			}
+			// A marker claimed for an earlier session is not this session's to send.
+			if mark := item.endOfRIB; mark != nil && mark.session != session {
+				continue
+			}
+			if replay := item.aigpReplay; replay != nil &&
+				(replay.session != session || session.aigpReactor == nil || !session.aigpReactor.currentAIGPAdvertisement(replay)) {
+				continue
+			}
+			session.sentAIGPOrigin = item.aigpOrigin
+			session.sentAIGPRevision = item.aigpRevision
+			session.sentAIGPCostWithheld = item.aigpCostWithheld
+			session.sentMeta = item.meta // Route metadata for sent event callbacks.
+			session.sentSourcePeerStr = item.sourcePeerStr
+			session.sentSourceMessageID = item.sourceMessageID
+			for _, body := range item.rawBodies {
+				if err := session.writeRawUpdateBody(body); err != nil {
+					fwdLogger().Warn("forward batch write failed", "peer", peer.Settings().Address, "err", err)
+					failRecoveryWrites(items, session, err)
+					return
+				}
+			}
+			for _, update := range item.updates {
+				// Forward sections already passed policy; originated items
+				// retain the ordinary writer's export gate.
+				if err := session.writeUpdateGated(update, item.originated); err != nil {
+					fwdLogger().Warn("forward batch write failed", "peer", peer.Settings().Address, "err", err)
+					failRecoveryWrites(items, session, err)
+					return
+				}
 			}
 		}
 	}
@@ -283,12 +311,29 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			"peer", peer.Settings().Address,
 			"err", err,
 		)
+		failRecoveryWrites(items, session, err)
 		return
 	}
 	written = true
+	for i := range items {
+		if recovery := items[i].recovery; recovery != nil {
+			recovery.written = !recovery.retry && recovery.err == nil
+		}
+	}
 
 	// Successful batch write -- reset RFC 9687 Send Hold Timer.
 	session.resetSendHoldTimer()
+}
+
+// failRecoveryWrites propagates a batch's hard failure even if an admission
+// already requested re-election after partial output. Admissions for another
+// session retain their retry: this writer never owned their output.
+func failRecoveryWrites(items []fwdItem, session *Session, err error) {
+	for i := range items {
+		if recovery := items[i].recovery; recovery != nil && recovery.session == session {
+			recovery.err = err
+		}
+	}
 }
 
 // peerPoolSize is the number of buffers in each per-peer pool.
@@ -566,6 +611,14 @@ func (fp *fwdPool) outgoingPool(key fwdKey) *peerPool {
 // Handles Outgoing Peer Pool buffers and Global Shared Pool handles.
 // Called from safeBatchHandle and Stop cleanup.
 func (fp *fwdPool) releaseItem(item *fwdItem) {
+	if recovery := item.recovery; recovery != nil {
+		fp.releaseRecoveryItems(recovery)
+		if !recovery.retry && !recovery.written && recovery.err == nil {
+			recovery.err = errRecoveryNotWritten
+		}
+		recovery.done <- recovery.retry
+		item.recovery = nil
+	}
 	if item.peerBufIdx > 0 && item.peerPoolRef != nil {
 		item.peerPoolRef.Return(item.peerBufIdx)
 		item.peerBufIdx = 0
@@ -575,6 +628,20 @@ func (fp *fwdPool) releaseItem(item *fwdItem) {
 		fp.overflowMux.Return(item.overflowBuf)
 		item.overflowBuf = BufHandle{}
 	}
+}
+
+// releaseRecoveryItems releases a cold operation's staged cache and pool handles.
+// The staging producer MUST call this on failure; releaseItem owns it after
+// dispatch. Children have no recovery pointer, so completion belongs to the
+// enclosing item alone, including cancellation and stopped-pool cleanup.
+func (fp *fwdPool) releaseRecoveryItems(recovery *recoveryAdmission) {
+	for i := range recovery.items {
+		if done := recovery.items[i].done; done != nil {
+			done()
+		}
+		fp.releaseItem(&recovery.items[i])
+	}
+	recovery.items = nil
 }
 
 // Dispatch sends a work item to the worker for the given key.

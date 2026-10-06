@@ -780,6 +780,10 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 	if len(peers) == 0 {
 		return route.ErrNoPeersMatch
 	}
+	if batch.RecoverySource.IsValid() {
+		// RFC 4271 Section 6: select a survivor before admitting a withdrawal.
+		return a.recoverNLRIBatch(ctx, batch, peers, sender)
+	}
 
 	var lastErr error
 	// acceptedCount is what went out: one for each peer whose operations were

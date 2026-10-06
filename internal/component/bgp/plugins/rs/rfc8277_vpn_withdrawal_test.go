@@ -167,7 +167,7 @@ func TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes(t *testing.T) {
 				rsApplyVPN(t, rs, fam, addPath, 15, rsVPNRoute(fam, addPath, 0, 1, 10, 0x800000))
 				var commands []string
 				rs.updateRouteHook = func(_, command string) { commands = append(commands, command) }
-				rs.sendBatchedWithdrawals(rsLabeledPeer, rs.withdrawals[rsLabeledPeer])
+				rs.sendBatchedWithdrawals(rsLabeledPeer, rs.withdrawals[rsLabeledPeer], 0)
 				if len(commands) != 1 {
 					t.Fatalf("peer-down emitted %d commands, want 1", len(commands))
 				}

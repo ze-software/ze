@@ -114,7 +114,7 @@ func TestPeerDownWithdrawsOpaqueNLRIAsWireCommand(t *testing.T) {
 		mu.Unlock()
 	}
 
-	rs.sendBatchedWithdrawals("10.0.0.1", entries)
+	rs.sendBatchedWithdrawals("10.0.0.1", entries, 0)
 
 	mu.Lock()
 	defer mu.Unlock()

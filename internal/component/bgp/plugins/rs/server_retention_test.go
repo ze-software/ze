@@ -3,6 +3,9 @@
 package rs
 
 import (
+	"context"
+	"encoding/json"
+	"net"
 	"net/netip"
 	"testing"
 	"time"
@@ -12,6 +15,8 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // TestPeerDownRetainedFamilies checks the real DOWN handler's outgoing commands
@@ -130,6 +135,83 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 				}
 			}
 			require.ElementsMatch(t, tc.wantCommands, commands)
+		})
+	}
+}
+
+// TestPeerDownRecoveryUsesJoinedLifecycle holds the actual SDK recovery call
+// across an arbitrary wait. Only successful completion or cancellation of the
+// RS owner releases its joined DOWN work; ordinary command expiry owns neither.
+func TestPeerDownRecoveryUsesJoinedLifecycle(t *testing.T) {
+	for _, cancelOwner := range []bool{false, true} {
+		t.Run(map[bool]string{false: "complete", true: "shutdown"}[cancelOwner], func(t *testing.T) {
+			rs := newTestRouteServer(t)
+			ctx, stop := context.WithCancel(context.Background())
+			defer stop()
+			rs.downCtx = ctx
+			bridge := rpc.NewDirectBridge()
+			pluginEnd, engineEnd := net.Pipe()
+			t.Cleanup(func() { _ = engineEnd.Close() })
+			p := sdk.NewWithConn("rs-recovery-lifetime-test", rpc.NewBridgedConn(pluginEnd, bridge))
+			t.Cleanup(func() { _ = p.Close() })
+			rs.plugin = p
+			entered := make(chan context.Context, 1)
+			release := make(chan struct{})
+			bridge.SetDispatchRPC(func(call context.Context, method string, raw json.RawMessage) (json.RawMessage, error) {
+				var input rpc.UpdateRouteInput
+				if err := json.Unmarshal(raw, &input); err != nil {
+					return nil, err
+				}
+				if method != rpc.MethodUpdateRoute || input.Meta["recovery-source"] != "192.0.2.1" ||
+					input.Meta["recovery-cut"] != "90" {
+					t.Errorf("wrong recovery request: %s %+v", method, input)
+				}
+				entered <- call
+				select {
+				case <-release:
+					return json.RawMessage(`{"announced":0,"withdrawn":1}`), nil
+				case <-call.Done():
+					return nil, call.Err()
+				}
+			})
+			bridge.SetReady()
+			rs.withdrawals["192.0.2.1"] = map[withdrawalKey]withdrawalEntry{
+				{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("192.0.2.0/24")}: {},
+			}
+			rs.handleStateDown("192.0.2.1", 90)
+			var call context.Context
+			select {
+			case call = <-entered:
+			case <-time.After(3 * time.Second):
+				t.Fatal("DOWN lifecycle never entered the SDK")
+			}
+			_, deadline := call.Deadline()
+			require.False(t, deadline, "required DOWN recovery must not inherit an invented RPC expiry")
+			joined := make(chan struct{})
+			go func() {
+				rs.downWG.Wait()
+				close(joined)
+			}()
+			select {
+			case <-joined:
+				t.Fatal("DOWN ownership released before its destination operation")
+			default:
+			}
+			if cancelOwner {
+				stop()
+			} else {
+				close(release)
+			}
+			select {
+			case <-joined:
+			case <-time.After(3 * time.Second):
+				t.Fatal("DOWN lifecycle did not join after completion or shutdown")
+			}
+			if cancelOwner {
+				require.ErrorIs(t, call.Err(), context.Canceled)
+			} else {
+				require.NoError(t, call.Err())
+			}
 		})
 	}
 }

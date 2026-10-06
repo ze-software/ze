@@ -1,13 +1,19 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // VALIDATES: startupFailureError wraps the recorded cause, so the error ze
@@ -101,3 +107,110 @@ var (
 	errNoBackendForTest = errors.New("interface: no backend configured and no OS default available")
 	errOtherForTest     = errors.New("some other cause")
 )
+
+// startupPublicationReactor observes the real engine's callback transport at
+// the instant startup releases runtime work, before the final ready response.
+type startupPublicationReactor struct {
+	*mockReactor
+	onReady func()
+}
+
+func (r *startupPublicationReactor) SignalAPIReady() { r.onReady() }
+
+// TestStartupBridgePublicationBoundary runs a real SDK handshake and observes
+// publication at the runtime signal. Closing IPC there injects a final-OK write
+// failure, which must roll back rather than leave a published but stranded bridge.
+func TestStartupBridgePublicationBoundary(t *testing.T) {
+	for _, failReady := range []bool{false, true} {
+		name := "success"
+		if failReady {
+			name = "final-ok-failure"
+		}
+		t.Run(name, func(t *testing.T) {
+			snap := registry.Snapshot()
+			registry.Reset()
+			t.Cleanup(func() { registry.Restore(snap) })
+			const pluginName = "startup-publication"
+			const commandName = "show startup publication"
+			started := make(chan struct{})
+			registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+				p := sdk.NewWithConn(pluginName, conn)
+				p.OnStarted(func(context.Context) error {
+					close(started)
+					return nil
+				})
+				if err := p.Run(t.Context(), sdk.Registration{
+					Commands: []sdk.CommandDecl{{Name: commandName}},
+				}); err != nil {
+					return 1
+				}
+				return 0
+			})
+			s, spawner := newLifecycleStartupServer(t)
+			var observed *process.Process
+			var publicationErr error
+			s.reactor = &startupPublicationReactor{
+				mockReactor: &mockReactor{},
+				onReady: func() {
+					observed = spawner.pm.GetProcess(pluginName)
+					if !observed.Conn().HasBridge() {
+						publicationErr = errors.New("runtime signaled before bridge publication")
+					} else if err := observed.Conn().Err(); err != nil {
+						publicationErr = fmt.Errorf("unactivated published bridge: %w", err)
+					}
+					if failReady {
+						if err := observed.Conn().Close(); err != nil {
+							publicationErr = fmt.Errorf("close before final OK: %w", err)
+						}
+					}
+				},
+			}
+			err := s.runPluginPhase([]plugin.PluginConfig{{
+				Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON,
+			}})
+			if publicationErr != nil {
+				t.Error(publicationErr)
+			}
+			if observed == nil {
+				t.Fatalf("startup never reached runtime boundary: %v", err)
+			}
+			if failReady {
+				if err == nil {
+					t.Fatal("failed final OK was reported as successful startup")
+				}
+				if observed.StartupError() == nil {
+					t.Fatal("failed final OK lost its startup error")
+				}
+				if observed.Stage() >= plugin.StageRunning {
+					t.Errorf("failed final OK left stage %v", observed.Stage())
+				}
+				if spawner.pm.GetProcess(pluginName) != nil {
+					t.Error("failed final OK left process registered")
+				}
+				if owner := s.registry.LookupCommand(commandName); owner != "" {
+					t.Errorf("failed final OK retained command owner %q", owner)
+				}
+				callbackCtx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+				defer cancel()
+				if _, err := observed.Bridge().SendCallback(callbackCtx, "test", nil); !errors.Is(err, rpc.ErrBridgeClosed) {
+					t.Errorf("failed startup bridge callback: %v, want ErrBridgeClosed", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("startup: %v", err)
+			}
+			select {
+			case <-started:
+			case <-time.After(5 * time.Second):
+				t.Fatal("SDK did not activate the published bridge")
+			}
+			if !observed.Bridge().Activated() {
+				t.Fatal("SDK startup did not activate the negotiated bridge")
+			}
+			if err := observed.Conn().Err(); err != nil {
+				t.Errorf("activated bridge liveness: %v", err)
+			}
+		})
+	}
+}

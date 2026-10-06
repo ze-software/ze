@@ -72,10 +72,10 @@ announcement. Peers that never require this deferral keep the direct-write path.
 The choice is recorded at receipt even when the fast path is disabled, so
 enabling it cannot overtake cached work already queued for that source.
 
-Live cache entries also retain their source peer and session generation. Source
-removal or re-establishment invalidates queued entries, and destination workers
-check that generation before writing. A new peer at the same address cannot
-forward a cached UPDATE from the removed peer.
+Live cache entries and reconstructed stored-route replays retain their source
+peer and session generation. Source removal or re-establishment invalidates
+queued entries, and destination workers check that generation before writing.
+A new peer at the same address cannot forward an old cached or replayed UPDATE.
 
 The common path serializes eligibility lookup and destination enqueue. Overflow
 superseding removes an older equal body and appends the new item at the tail.
@@ -96,6 +96,23 @@ the current route.
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- dispatchOverflow, forwardSourceCurrent -->
 <!-- source: internal/component/bgp/reactor/received_update.go -- receivedPeer, receivedGeneration -->
 <!-- source: internal/component/bgp/reactor/peer.go -- forwardCached, forwardGeneration, setState, Stop -->
+
+Source-DOWN recovery is a cold selecting-RIB operation, not a second steady-state
+forwarding model. Its replacement uses the existing retained candidate and
+ordinary egress rail. Before querying sent ownership, recovery snapshots the
+destination write sequence, releases `writeMu`, and requires a successful
+applied-delivery receipt from the RIB owner. A peer-generation receipt covers
+the lookup itself, including external IPC, so a source reconnect cannot stamp
+old selected bytes with a new generation or encoding context.
+
+All selected paths and post-policy sections share one final writer admission
+and completion. The writer compares the session, sequence and source generations
+under `writeMu`; an unrelated send causes causal re-resolution, not a dropped
+repair. RS's joined lifecycle owns that work without a command-expiry timer.
+Hard ownership or writer failures retire the affected destination session
+instead of leaving stale advertisements installed. Sent callbacks stay
+asynchronous. See [sent recovery ordering](../plugin/rib-storage-design.md#source-down-replacement-and-sent-ordering).
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverySnapshot, recoverNLRIBatch, recoveryAdmission.current -->
 
 FlowSpec uses the same gate with a full native NLRI key rather than a CIDR
 prefix. Its selecting RIB publishes per-path generation and authorization after

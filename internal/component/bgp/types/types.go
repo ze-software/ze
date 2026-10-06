@@ -261,6 +261,11 @@ type UpdateTextResult struct {
 type NLRIBatch struct {
 	Family family.Family // AFI/SAFI for all NLRIs
 	NLRIs  []nlri.NLRI   // NLRIs to announce or withdraw
+	// RecoverySource marks source-DOWN reconciliation. RecoveryCut is the last
+	// received message admitted before DOWN; zero source means ordinary API
+	// withdrawal. The RIB supplies replacement selection and sent ownership.
+	RecoverySource netip.Addr
+	RecoveryCut    uint64
 	// NextHop is the next-hop policy. An announce resolves it per destination
 	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
 	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.

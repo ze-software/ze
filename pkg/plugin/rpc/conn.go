@@ -216,6 +216,15 @@ func (c *Conn) Close() error {
 	return c.readCloser.Close()
 }
 
+// Err reports the terminal error already observed by the connection reader.
+// Safe for concurrent use. Nil does not probe the remote endpoint.
+func (c *Conn) Err() error {
+	if err := c.readerErr.Load(); err != nil {
+		return *err
+	}
+	return nil
+}
+
 // startReader lazily starts the persistent reader goroutine. Safe to call
 // multiple times -- sync.Once ensures the goroutine starts exactly once.
 //

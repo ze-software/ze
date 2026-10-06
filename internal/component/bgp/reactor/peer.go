@@ -276,6 +276,11 @@ type Peer struct {
 	// Established MUST advance it; receive snapshots MUST retain its value.
 	forwardGeneration atomic.Uint64
 
+	// sentUpdateSequence is one causal receipt counter, not a route inventory.
+	// The session writer advances it while holding writeMu before sent delivery;
+	// recovery snapshots it under that lock, then drains delivery without locks.
+	sentUpdateSequence atomic.Uint64
+
 	// Reconnect configuration
 	reconnectMin time.Duration
 	reconnectMax time.Duration

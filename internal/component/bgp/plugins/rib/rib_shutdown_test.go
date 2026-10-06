@@ -93,8 +93,35 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, []byte{24, 198, 18, 255}, false, nil); !changed {
 		t.Fatal("seeded route did not become best")
 	}
-	if _, present := loc.Lookup(family.IPv4Unicast, prefix); !present {
+	var path locrib.Path
+	present := loc.Inspect(family.IPv4Unicast, prefix, func(group locrib.PathGroup) {
+		path = group.Paths[0]
+	})
+	if !present {
 		t.Fatal("seeded route is absent from Loc-RIB")
+	}
+	// MUST release candidate extraction before stopping the plugin in cleanup.
+	electionEntered := make(chan struct{})
+	electionRelease := make(chan struct{})
+	var electionEnteredOnce, electionReleaseOnce sync.Once
+	igpcost.Set(func(netip.Addr) igpcost.Distance {
+		electionEnteredOnce.Do(func() { close(electionEntered) })
+		<-electionRelease
+		return igpcost.Distance{Resolved: true}
+	})
+	t.Cleanup(func() {
+		// MUST unblock the worker before plugin cleanup can drain DOWN.
+		electionReleaseOnce.Do(func() { close(electionRelease) })
+		igpcost.Set(nil)
+	})
+	// Wake the real reselection worker even if its initial scan already ran.
+	// Its single-prefix scan must finish before DOWN can delete that peer.
+	path.Metric ^= 1
+	loc.Insert(family.IPv4Unicast, prefix, path)
+	select {
+	case <-electionEntered:
+	case <-ctx.Done():
+		t.Fatal("background election did not reach candidate extraction")
 	}
 	entered := make(chan struct{})
 	r.purgeRemoveHook = func(family.Family, netip.Prefix) {
@@ -112,13 +139,41 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 		}
 	}
 	delivered := make(chan error, 1)
+	deliveryDone := make(chan struct{})
+	t.Cleanup(func() {
+		// MUST release and join our delivery even when the SDK drain is broken.
+		electionReleaseOnce.Do(func() { close(electionRelease) })
+		releaseOnce.Do(func() { close(release) })
+		bridge.CloseCallbacks()
+		select {
+		case <-deliveryDone:
+		case <-time.After(5 * time.Second):
+			t.Error("structured DOWN delivery did not join during cleanup")
+		}
+	})
 	go func() {
+		// MUST signal completion for test-owned cleanup independently of Run.
+		defer close(deliveryDone)
 		delivered <- bridge.DeliverStructured([]any{&rpc.StructuredEvent{
 			EventType: rpc.EventKindState, PeerAddress: peer.String(), State: rpc.SessionStateDown,
 		}})
 	}()
+	// The election holds a read admission. A refused read proves the real
+	// structured DOWN handler has queued its writer, not merely been scheduled.
+	for r.peerMu.TryRLock() {
+		r.peerMu.RUnlock()
+		if ctx.Err() != nil {
+			t.Fatal("structured DOWN did not request peer write admission")
+		}
+		runtime.Gosched()
+	}
+	electionReleaseOnce.Do(func() { close(electionRelease) })
 	select {
 	case <-entered:
+	case err := <-delivered:
+		t.Fatalf("structured DOWN returned before its removal hook: %v", err)
+	case code := <-done:
+		t.Fatalf("plugin exited before the admitted removal: %d", code)
 	case <-ctx.Done():
 		t.Fatal("structured DOWN did not reach Loc-RIB removal")
 	}
@@ -269,10 +324,12 @@ func TestLocRIBDetachRejectsRetainedTrackerCallback(t *testing.T) {
 }
 
 // TestLocRIBPublicationConcurrentMirrors exercises every mirror mutation while
-// a lifecycle owner repeatedly publishes and detaches the same shared RIB.
+// a lifecycle owner repeatedly publishes and detaches the same shared RIB, then
+// proves attachment, withdrawal and detached-mirror isolation still work.
 func TestLocRIBPublicationConcurrentMirrors(t *testing.T) {
 	r := newTestRIBManager(t)
 	loc := locrib.NewRIB()
+	t.Cleanup(func() { r.SetLocRIB(nil) })
 	prefix := netip.MustParsePrefix("198.18.253.0/24")
 	var workers sync.WaitGroup
 	workers.Go(func() {
@@ -286,11 +343,32 @@ func TestLocRIBPublicationConcurrentMirrors(t *testing.T) {
 			r.insertLocRIB(family.IPv4Unicast, prefix, locrib.Path{
 				Source: bgpProtocolID, NextHop: netip.MustParseAddr("192.0.2.1"), AdminDistance: 20,
 			}, nil)
-			r.removeLocRIB(family.IPv4Unicast, prefix, 0)
+			r.removeLocRIB(family.IPv4Unicast, prefix)
 		}
 	})
 	workers.Wait()
+	path := locrib.Path{
+		Source: bgpProtocolID, NextHop: netip.MustParseAddr("192.0.2.1"), AdminDistance: 20,
+	}
+	r.SetLocRIB(loc)
+	r.insertLocRIB(family.IPv4Unicast, prefix, path, nil)
+	if !loc.Inspect(family.IPv4Unicast, prefix, func(group locrib.PathGroup) {
+		if len(group.Paths) != 1 || group.Paths[0].NextHop != path.NextHop || group.Paths[0].AdminDistance != path.AdminDistance {
+			t.Errorf("published route differs after concurrent mirror changes: %+v", group.Paths)
+		}
+	}) {
+		t.Fatal("reattached mirror did not publish the route")
+	}
 	r.SetLocRIB(nil)
+	r.removeLocRIB(family.IPv4Unicast, prefix)
+	if _, present := loc.Lookup(family.IPv4Unicast, prefix); !present {
+		t.Fatal("withdrawal changed a detached mirror")
+	}
+	r.SetLocRIB(loc)
+	r.removeLocRIB(family.IPv4Unicast, prefix)
+	if _, present := loc.Lookup(family.IPv4Unicast, prefix); present {
+		t.Fatal("reattached mirror did not withdraw the route")
+	}
 }
 
 // TestRIBPublicationAllowsPeerReaderDuringDown holds a synchronous Loc-RIB
@@ -344,10 +422,7 @@ func TestRIBPublicationAllowsPeerReaderDuringDown(t *testing.T) {
 		defer close(withdrawn)
 		r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown})
 	}()
-	for {
-		if !r.peerMu.TryRLock() {
-			break
-		}
+	for r.peerMu.TryRLock() {
 		_, present := r.bgpPeers[peer]
 		r.peerMu.RUnlock()
 		if !present {

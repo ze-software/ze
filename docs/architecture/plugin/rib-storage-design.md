@@ -90,8 +90,8 @@ releasing the removed references, then dispatch after unlocking. Lifecycle
 feedback is ignored so it cannot delete another source's newer advertisement.
 
 GR supplies the explicit `on-down` argument with its initial retention allowlist.
-Only that handoff silently removes sent entries for the source's nonretained
-families: their ordinary DOWN withdrawals belong to the forwarding owner (RS).
+That handoff leaves nonretained sent entries in place until the forwarding owner
+(RS) reconciles them: ownership is needed to fence withdrawal or replacement.
 Without `on-down`, the public command reconciles and withdraws removed families
 itself, because an established source has no pending forwarding DOWN owner.
 Retained families remain in this inventory; later NO_LLGR removal, EOR purge,
@@ -99,8 +99,70 @@ expiry and release encode their source-specific withdrawals here.
 
 <!-- source: internal/component/bgp/plugins/rib/ribout_entry.go -- ribOutRouteKey, reconstructRoute -->
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- storeSentEntries, removeSentNLRIs -->
-<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- retainSentSourceFamiliesLocked, reconcileSentSourceLocked, dispatchSentLifecycle -->
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- reconcileSentSourceLocked, dispatchSentLifecycle -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- formatCursorCommands -->
+
+### Source-DOWN replacement and sent ordering
+
+RS drains the departed source's workers and submits its existing native/text
+withdrawal batches with the source address and a received-message cut. The RIB
+excludes that source from its existing whole-set election, without deleting any
+received state from a possibly reconnected session. A non-ADD-PATH destination
+receives the surviving candidate's own NLRI, attributes, next hop and received
+generation, or a withdrawal if its failed owner has no usable replacement.
+ADD-PATH destinations instead withdraw only the failed source's actual sent
+identifiers, including zero. The RIB normalizes the affected identities once per
+batch and scans that destination's sent family once, rather than restarting from
+the first route after every identifier. The sent inventory remains the only
+authority for those identifiers. Entries learned after the DOWN cut are not
+candidates for removal.
+
+Sent event callbacks enqueue delivery; they do not synchronously update the RIB.
+The engine first snapshots a destination's send sequence under its session
+`writeMu`, releases the lock, then drains the RIB command owner's existing FIFO
+event-delivery queue with `DrainEventsApplied`. Unlike the soft quiesce barrier,
+this receipt proves successful application and checks owner liveness for both
+DirectBridge and plugin IPC, including internal runners whose allocated bridge
+was never activated. A stopped or failed activated bridge cannot fall back to
+its startup IPC connection to authorize recovery. Earlier delivery failures remain sticky
+for that Process incarnation; a later successful delivery cannot clear them.
+Only then does recovery query the RIB, in-process or through the same hidden
+`request bgp rib recovery` producer.
+
+Before either lookup transport starts, a cold receipt captures configured peer
+identities and their source-session generations. Reconstruction must match that
+receipt; reconnecting between selection and reconstruction cannot relabel old
+bytes with a new session's encoding context.
+
+Every selected path and every post-policy output section is staged in one
+destination operation. The destination worker checks its session, send sequence
+and all source generations under `writeMu` before writing. An intervening send
+requests a new barrier and election after releasing all write locks. Siblings
+do not invalidate one another through their own sends, and item release answers
+one completion after releasing all child resources, including cancellation and
+pool shutdown. A hard deadline, write or flush error takes precedence over a
+retry request, including source loss after a sibling has already written.
+Sent callbacks remain asynchronous.
+
+There is no timer retry and no second route inventory. RS owns and joins each
+DOWN operation using its plugin lifecycle context, without an unrelated
+60-second command expiry. Once traffic permits admission, unrelated-prefix
+conflicts still finish the required repair; a newer target owner remains
+protected by the cut. A hard projection, lookup or writer failure retires the
+affected destination session through the existing AutomaticStop/Cease path
+rather than leaving known-invalid advertisements installed. Fail-close ownership
+follows the session selected by each attempt, before its delivery barrier or
+lookup can fail, and ends when that destination's obligation completes. A
+replacement session admitted by a retry is therefore retired on hard failure;
+an unrelated subsequent reconnect is not retired by the old attempt's failure.
+Replacement UPDATEs pass ordinary egress policy and reflection rules; a
+policy-denied replacement withdraws the obsolete advertised identity.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoveryCandidate, recoverySentNLRI -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverySnapshot, recoverNLRIBatch, relayRecovery, recoveryAdmission.current -->
+<!-- source: internal/component/plugin/process/delivery.go -- DrainEventsApplied -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, releaseItem -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- recoverRouteSel, RunRouteServer -->
 
 ### Supersedes
 

@@ -656,6 +656,8 @@ func runRIBPlugin(conn net.Conn) int {
 	defer activeManager.Store(nil)
 	ribevents.RegisterFlowSpecLookup(r.flowSpecEligible, r.flowSpecPresent, r.flowSpecPath, r.flowSpecRoutes)
 	defer ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil)
+	recovery := ribevents.PublishRecovery(r.recoveryRoutes)
+	defer recovery.Close() // SDK Run MUST drain event delivery before unpublishing.
 
 	// In-process consumers use the shared Loc-RIB; a subprocess mirrors selected
 	// routes and resolves next-hop distances over the registered engine RPC.
@@ -1467,6 +1469,8 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "request bgp rib release-routes"},
 		{Name: "request bgp rib mark-stale"},
 		{Name: "request bgp rib purge-stale"},
+		// Source-owned DOWN selection; the engine provides causal sent ordering.
+		{Name: "request bgp rib recovery", Hidden: true, Shape: shapeMap},
 		// LLGR uses these through the engine dispatcher, not private handlers.
 		{Name: "request bgp rib attach-community"},
 		{Name: "request bgp rib delete-with-community"},

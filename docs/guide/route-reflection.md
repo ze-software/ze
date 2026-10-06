@@ -128,12 +128,23 @@ reactor's ordinary reflection rules and egress policy.
 
 For VPNv4 and VPNv6, a received withdrawal removes only the route with the
 matching RD, prefix and negotiated Path Identifier. The Compatibility field
-does not affect the match. A source-peer departure withdraws the remaining
-inventory with its native VPN encoding, including ADD-PATH identifier zero.
-The route server does not choose a replacement from another source.
+does not affect the match. In the route server, a source-peer departure
+reconciles the remaining inventory through the selecting RIB. On a destination without ADD-PATH, an
+eligible surviving best route replaces the departed source with its own
+attributes; a route without a usable replacement is withdrawn. ADD-PATH
+destinations keep surviving source paths and withdraw only the departed source's
+advertised identifiers, including zero. Native VPN identity is preserved.
+This cold departure path does not change the steady-state forward-all model.
+Departure recovery remains owned until the destination operation completes or
+the plugin shuts down; ordinary command timeouts do not discard it. If the RIB
+cannot establish truthful sent ownership, the affected destination session is
+reset rather than left with routes that should have been withdrawn. Recovery
+does not reset a destination that has already reconnected.
 <!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendOpaqueRecords, recordKey -->
 <!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkVPNNLRIs -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryRoutes, recoverySentNLRI -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, relayRecovery -->
 
 The VPN daemon fixtures wait for the owning server or reflector to report both
 peers UP before releasing the source's first route. They then fence each marker

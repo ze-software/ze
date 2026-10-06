@@ -152,8 +152,8 @@ func TestSharedStartupDriverSinkDispatch(t *testing.T) {
 		"Transition",
 		"OnReady",
 		"Transition",
-		"OnRunning",
 		"PostReady",
+		"OnRunning",
 	}, sink.order)
 
 	assert.Equal(t, [][2]plugin.PluginStage{

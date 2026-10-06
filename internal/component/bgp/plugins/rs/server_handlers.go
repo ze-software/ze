@@ -125,12 +125,13 @@ func (rs *routeServer) handleState(event *Event) {
 	// From here on `!Up` means DOWN for this peer, never "not yet" -- see
 	// PeerState.StateSeen and processForward's guard.
 	rs.peers[peerAddr].StateSeen = true
+	cut := rs.seenMsgID
 	rs.mu.Unlock()
 
 	logger().Debug("peer state applied", "peer", peerAddr, "state", state)
 
 	if state == "down" {
-		rs.handleStateDown(peerAddr)
+		rs.handleStateDown(peerAddr, cut)
 	}
 }
 
@@ -141,9 +142,9 @@ func (rs *routeServer) handleState(event *Event) {
 const withdrawalBatchSize = 500
 
 // handleStateDown processes peer session teardown.
-// Sends withdrawals asynchronously -- per-lifecycle goroutine (not hot path).
-// Batches withdrawal RPCs by family to reduce GC pressure from text-RPC overhead.
-func (rs *routeServer) handleStateDown(peerAddr string) {
+// Reconciles sent ownership asynchronously in one joined lifecycle goroutine.
+// Batches native/text identities by family; the RIB elects any replacement.
+func (rs *routeServer) handleStateDown(peerAddr string, cut uint64) {
 	// Drain workers first: in-flight forwards may update the withdrawal map.
 	// PeerDown waits for all workers to finish, so after this call no more
 	// updates for this peer can occur.
@@ -172,7 +173,15 @@ func (rs *routeServer) handleStateDown(peerAddr string) {
 		}
 	}
 
-	go rs.sendBatchedWithdrawals(peerAddr, entries)
+	rs.downWG.Add(1)
+	go rs.sendPeerDown(peerAddr, entries, cut)
+}
+
+// sendPeerDown owns one DOWN lifecycle. Shutdown MUST stop event delivery and
+// wait for downWG before releasing the plugin connection.
+func (rs *routeServer) sendPeerDown(peerAddr string, entries map[withdrawalKey]withdrawalEntry, cut uint64) {
+	defer rs.downWG.Done()
+	rs.sendBatchedWithdrawals(peerAddr, entries, cut)
 }
 
 // withdrawalGroup names one batched withdrawal command: every entry in it
@@ -196,7 +205,7 @@ type withdrawalGroup struct {
 // type as an opaque object, and that is exactly what the text form cannot
 // carry: sending it as text failed with route.ErrFamilyNotSupported and left
 // the departing peer's Link-State routes announced to every other client.
-func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]withdrawalEntry) {
+func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]withdrawalEntry, cut uint64) {
 	if len(entries) == 0 {
 		return
 	}
@@ -252,10 +261,9 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 				buf.Str(" del ").Str(p)
 			}
 			command := buf.String()
-			// A destination still replaying gets this withdrawal behind its
-			// replay: the engine queues it with the destination's held live
-			// changes (reactor Peer.withdrawBehindForwards).
-			rs.updateRouteSel(excludeSel, command)
+			// The engine chooses replacement or withdrawal from the selecting
+			// RIB, then queues it behind this destination's prior forwards.
+			rs.recoverRouteSel(excludeSel, command, peerAddr, cut)
 		}
 	}
 }

@@ -91,6 +91,7 @@ type DirectBridge struct {
 	failureMu             sync.RWMutex // Guards failureErr, read only after failed is set.
 	failureErr            error        // First callback loop failure reported to later callers.
 	ready                 atomic.Bool
+	activated             atomic.Bool // Remains set after readiness is withdrawn during shutdown.
 }
 
 // NewDirectBridge creates a bridge. Both sides must register handlers and call
@@ -317,7 +318,10 @@ func (b *DirectBridge) SetDispatchRPC(fn func(ctx context.Context, method string
 func (b *DirectBridge) SetReady() {
 	b.dispatchMu.Lock()
 	if !b.dispatchClosed {
+		// Publish readiness before sticky activation: an observer of Activated
+		// must not mistake the remaining startup write for bridge shutdown.
 		b.ready.Store(true)
+		b.activated.Store(true)
 	}
 	b.dispatchMu.Unlock()
 }
@@ -325,6 +329,27 @@ func (b *DirectBridge) SetReady() {
 // Ready reports whether the bridge is ready for direct transport.
 func (b *DirectBridge) Ready() bool {
 	return b.ready.Load()
+}
+
+// Activated reports whether the bridge ever became the delivery transport.
+// Unlike Ready, it remains true after shutdown or callback failure, so callers
+// MUST NOT fall back to startup IPC after an activated bridge stops.
+func (b *DirectBridge) Activated() bool {
+	return b.activated.Load()
+}
+
+// DeliveryError reports whether the bridge rejects event delivery now.
+// Safe for concurrent use. It does not invoke handlers or reserve admission.
+func (b *DirectBridge) DeliveryError() error {
+	b.deliveryMu.Lock()
+	defer b.deliveryMu.Unlock()
+	if b.deliveryClosed {
+		return ErrBridgeClosed
+	}
+	if !b.ready.Load() {
+		return ErrBridgeClosed
+	}
+	return b.callbackFailure()
 }
 
 // SetDeliverStructured registers the plugin-side structured event handler.

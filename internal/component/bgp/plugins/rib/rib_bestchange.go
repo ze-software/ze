@@ -503,19 +503,14 @@ func (s *bestPrevStore) insert(pfx netip.Prefix, routeKey []byte, rec bestPrevRe
 	s.direct.Insert(pfx, rec)
 }
 
-// delete removes the record under the same key lookup reads. Returns true when
-// a record existed.
-func (s *bestPrevStore) delete(pfx netip.Prefix, nlriBytes []byte) bool {
+// delete removes the record under the same key lookup reads.
+func (s *bestPrevStore) delete(pfx netip.Prefix, nlriBytes []byte) {
 	if !s.cidr {
-		key := string(nlriBytes)
-		if _, exists := s.opaque[key]; !exists {
-			return false
-		}
-		delete(s.opaque, key)
-		return true
+		delete(s.opaque, string(nlriBytes))
+		return
 	}
 	delete(s.labels, pfx)
-	return s.direct.Delete(pfx)
+	s.direct.Delete(pfx)
 }
 
 // purgeBestPrevForPeer walks every bestPrev shard across every family and
@@ -719,7 +714,7 @@ func (r *RIBManager) withdrawIfUnheld(fam family.Family, pfx netip.Prefix, route
 		if r.purgeRemoveHook != nil {
 			r.purgeRemoveHook(fam, pfx)
 		}
-		r.removeLocRIB(fam, pfx, bgpLocRIBInstance)
+		r.removeLocRIB(fam, pfx)
 	}
 	return true
 }
@@ -939,7 +934,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		// The Loc-RIB is prefix-keyed and feeds the kernel FIB, so it takes
 		// CIDR families only. See mirrorToLocRIB below for why.
 		if cidr {
-			r.removeLocRIB(fam, pfx, bgpLocRIBInstance)
+			r.removeLocRIB(fam, pfx)
 		}
 		if !cidr {
 			return bestChangeEntry{

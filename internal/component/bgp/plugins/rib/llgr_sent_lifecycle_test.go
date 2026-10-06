@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -191,9 +192,9 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 }
 
 // TestRetainRoutesLeavesUnretainedWithdrawalsToForwardingOwner separates the
-// DOWN owners: RS withdraws families that were not retained; RIB owns later
-// purge/expiry withdrawals only for the retained families. Both must prune
-// their inventory, but retain-routes must not send a second DOWN withdrawal.
+// DOWN owners: RS reconciles families that were not retained; RIB owns later
+// purge/expiry withdrawals only for the retained families. The initial handoff
+// must retain sent ownership for RS and must not send a second DOWN withdrawal.
 func TestRetainRoutesLeavesUnretainedWithdrawalsToForwardingOwner(t *testing.T) {
 	testRetainRoutesSentOwnership(t, true)
 }
@@ -276,8 +277,25 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 					t.Fatalf("public retain-routes must withdraw pruned live family exactly once: got %v, want %q", commands, want)
 				}
 			}
-			if len(r.ribOut[dest][tc.fam]) != 0 {
-				t.Fatal("unretained sent family survived the DOWN decision")
+			wantPending := 0
+			if onDown {
+				wantPending = 1
+			}
+			if len(r.ribOut[dest][tc.fam]) != wantPending {
+				t.Fatal("unretained sent ownership did not match the DOWN handoff")
+			}
+			if onDown {
+				// The forwarding owner first consumes the retained identity;
+				// only its successful sent withdrawal releases that ownership.
+				routes, err := r.recoveryRoutes(ribevents.RecoveryRequest{Source: source,
+					Destination: dest, Family: tc.fam, NLRIs: [][]byte{tc.wire}, Cut: 91})
+				if err != nil || len(routes) != 1 || !routes[0].Withdraw {
+					t.Fatalf("DOWN withdrawal handoff: routes=%v error=%v", routes, err)
+				}
+				r.handleSent(nativeSentEvent(t, dest, tc.fam, routes[0].NLRI, nil, false, true))
+				if len(r.ribOut[dest][tc.fam]) != 0 {
+					t.Fatal("successful sent withdrawal did not prune unretained ownership")
+				}
 			}
 			if len(r.ribOut[dest][family.IPv4Unicast]) != 1 {
 				t.Fatal("retained sent family was removed")

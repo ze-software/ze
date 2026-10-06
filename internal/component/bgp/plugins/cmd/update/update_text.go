@@ -1099,6 +1099,10 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	// A RESEND exists to put those same routes back on the wire, so it says so
 	// and the reactor sends them.
 	replay := replayFromMeta(ctx.Meta)
+	recoverySource, recoveryCut, recoveryErr := recoveryFromMeta(ctx.Meta)
+	if recoveryErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: recoveryErr.Error()}, recoveryErr
+	}
 
 	for _, group := range groups {
 		if len(group.Announce) > 0 {
@@ -1131,10 +1135,12 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			// contains the MP_UNREACH_NLRI is not required to carry any other path
 			// attributes" -- so the command is what decides which one is sent.
 			batch := bgptypes.NLRIBatch{
-				Family:  group.Family,
-				NLRIs:   group.Withdraw,
-				NextHop: group.NextHop,
-				Wire:    group.Wire,
+				Family:         group.Family,
+				NLRIs:          group.Withdraw,
+				NextHop:        group.NextHop,
+				Wire:           group.Wire,
+				RecoverySource: recoverySource,
+				RecoveryCut:    recoveryCut,
 			}
 			switch err := bgpReactor.WithdrawNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); {
 			case err == nil:

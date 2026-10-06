@@ -108,6 +108,11 @@ type Process struct {
 	eventClosed bool
 	eventMu     sync.RWMutex
 
+	// projectionErr is the first failed event application in this Process lifetime.
+	// Only the delivery goroutine accesses it; barrier receipts publish the error.
+	// A successful batch MUST NOT clear it: only a new Process starts clean.
+	projectionErr error
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup

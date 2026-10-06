@@ -111,14 +111,14 @@ func (r *RIBManager) runRemoteMetrics(ctx context.Context) {
 	}
 }
 
-func (r *RIBManager) removeLocRIB(fam family.Family, prefix netip.Prefix, pathID uint32) {
+func (r *RIBManager) removeLocRIB(fam family.Family, prefix netip.Prefix) {
 	if loc := r.locRIB.Load(); loc != nil {
-		loc.Remove(fam, prefix, bgpProtocolID, pathID)
+		loc.Remove(fam, prefix, bgpProtocolID, bgpLocRIBInstance)
 	} else if remote := r.forkRIB; remote != nil {
 		remote.mu.Lock()
 		defer remote.mu.Unlock()
-		delete(remote.installed, remoteRoute{fam: fam, prefix: prefix, instance: pathID})
-		remote.sink.Remove(fam, prefix, bgpProtocolID, pathID)
+		delete(remote.installed, remoteRoute{fam: fam, prefix: prefix, instance: bgpLocRIBInstance})
+		remote.sink.Remove(fam, prefix, bgpProtocolID, bgpLocRIBInstance)
 		remote.sink.Flush()
 	}
 }

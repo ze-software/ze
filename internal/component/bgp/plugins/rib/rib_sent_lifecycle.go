@@ -4,7 +4,6 @@ package rib
 import (
 	"encoding/binary"
 	"net/netip"
-	"slices"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
@@ -37,34 +36,6 @@ func receivedOwnerKey(fam family.Family, raw []byte, addPath bool, message uint6
 	key, ok := ribOutRouteKey(fam, raw, addPath)
 	key.PathID = 0
 	return receivedOwner{key: key, message: message}, ok
-}
-
-// retainSentSourceFamiliesLocked mirrors the received retention allowlist in
-// sent inventory. Families outside the set belong to the forwarding owner's
-// ordinary DOWN withdrawal, not a second RIB lifecycle withdrawal.
-// Caller MUST hold peerMu.
-func (r *RIBManager) retainSentSourceFamiliesLocked(source netip.Addr, families []family.Family) {
-	sourcePeer := source.String()
-	for destination, destinations := range r.ribOut {
-		for fam, routes := range destinations {
-			if slices.Contains(families, fam) {
-				continue
-			}
-			for key, entry := range routes {
-				if entry.SourcePeer != sourcePeer {
-					continue
-				}
-				delete(routes, key)
-				entry.release()
-			}
-			if len(routes) == 0 {
-				delete(destinations, fam)
-			}
-		}
-		if len(destinations) == 0 {
-			delete(r.ribOut, destination)
-		}
-	}
 }
 
 // reconcileSentSourceLocked projects current received ownership onto the existing

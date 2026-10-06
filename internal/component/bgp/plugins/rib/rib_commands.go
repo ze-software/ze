@@ -137,6 +137,7 @@ func doRegisterBuiltinCommands() {
 		help    string
 		handler CommandHandler
 	}{
+		{[]string{"request bgp rib recovery"}, "Read source-owned DOWN recovery", (*RIBManager).recoveryCommand},
 		{[]string{"show bgp rib status"}, "Show RIB status (peer count, route counts)",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				// Optional first arg scopes the per-peer route-counts to one
@@ -835,11 +836,11 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 		r.retainedPeers[peer] = true
 		if len(families) != 0 {
 			r.bgpPeers[peer].RetainFamilies(families)
-			if onDown {
-				r.retainSentSourceFamiliesLocked(peer, families)
-			} else {
+			if !onDown {
 				writes = append(writes, r.reconcileSentSourceLocked(peer, family.Family{}, nil)...)
 			}
+			// On DOWN, keep sent ownership until RS's fenced withdrawal or
+			// replacement reaches the destination. GR owns retained families.
 			affected = append(affected, peer)
 		}
 		retained++

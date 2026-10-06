@@ -744,6 +744,38 @@ site.
 
 All methods are prefixed with `ze-plugin-callback:`.
 
+**Event delivery receipts:**
+
+Each process owns a FIFO event queue. A sent-event callback enqueues work without
+waiting for its handler; the delivery worker applies it through DirectBridge or
+the plugin's acknowledged `deliver-batch` RPC. Internal runners that never
+activate their allocated bridge retain the same JSON IPC delivery path.
+
+`DrainEvents` is soft quiesce: it waits for earlier delivery attempts, not for
+successful application, and a stopped process owes no drain. Recovery instead
+uses `DrainEventsApplied`. Its FIFO receipt includes the first delivery error
+in that `Process` lifetime, including an earlier fire-and-forget failure, timeout
+or panic. A later successful batch or barrier MUST NOT clear the error; only a
+new process lifecycle represented by a new `Process` starts without it. There
+is no authoritative in-place resynchronization.
+
+The strict drain bounds both queue admission and receipt waiting by the caller's
+context. It rejects an unstarted, stopped or rejecting owner and checks lifecycle
+and known transport failure again after a successful receipt. This check is not
+a lease on the owner's future lifetime and sends no probe RPC. The caller MUST
+release locks needed by handlers before waiting; neither application nor IPC runs
+under the drain's lifecycle locks.
+
+Transport liveness follows activation, not bridge allocation: a never-activated
+bridge uses the live IPC connection's state. Once activated, the bridge remains
+the strict receipt's authority even if shutdown or failure clears readiness;
+a healthy startup connection MUST NOT mask that stopped bridge.
+
+<!-- source: internal/component/plugin/process/delivery.go -- deliverBatch, DrainEvents, DrainEventsApplied, deliveryOwnerError -->
+<!-- source: internal/component/plugin/process/process.go -- Process.projectionErr -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DeliveryError -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.Err -->
+
 **config-operation-\*:** The five operation callbacks carry a `ConfigOperation`
 whose payload is the ordering contract. Beside `id`, `root`, `owner`, `type`,
 `target` and `params` it carries three kebab-case keys: `verb`, which is
@@ -1399,16 +1431,24 @@ For Go plugins (`ze.pluginname`) -- runs in same process:
 | Step | Side | Action |
 |------|------|--------|
 | 1 | Engine | `wireBridgeDispatch()` registers `DispatchRPC` handler on bridge |
-| 2 | Engine | Sends Stage 5 OK response over pipe (last pipe message) |
-| 3 | Engine | If `ReadyInput.Transport == "bridge"`: calls `conn.SetBridge(bridge)` |
+| 2 | Engine | After the final startup barrier, atomically publishes the negotiated bridge with `conn.SetBridge(bridge)` before signaling runtime readiness |
+| 3 | Engine | Sends Stage 5 OK response over pipe (last pipe message) |
 | 4 | SDK | Receives OK, registers `DeliverEvents` handler on bridge |
 | 5 | SDK | Calls `bridge.SetReady()` -- bridge now active |
 | 6 | SDK | Closes pipe (`engineMux.Close()`), enters `bridgeEventLoop` |
 
-The engine wires its handler (step 1) before sending OK (step 2), ensuring no race
-between SDK bridge activation and engine readiness. After bridge activation, the pipe
-is fully shut down -- the MuxConn readLoop exits, and all engine-to-plugin callbacks
-flow through `bridge.CallbackCh()`.
+The engine wires its handler and publishes the negotiated callback transport
+before acknowledging ready. Each callback selects one published bridge; it does
+not fall back to IPC if that bridge stops. Liveness still uses startup IPC until
+the SDK activates the bridge, then follows sticky activation even after shutdown.
+If IPC closes while liveness is being read, the engine rechecks activation before
+reporting the IPC failure. The SDK publishes readiness before sticky activation,
+so an observer cannot confuse incomplete activation with shutdown.
+
+After activation the pipe is fully shut down, the MuxConn read loop exits, and
+engine-to-plugin callbacks flow through the bridge callback channels. A failed
+final OK leaves startup unsuccessful: the engine records the error and restores
+the pre-running stage so startup rollback stops the process and closes its bridge.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
 <!-- source: internal/component/plugin/server/startup.go -- handleProcessStartupRPC -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- SetBridge -->
@@ -1478,7 +1518,7 @@ every queued event, and does not forcibly cancel arbitrary handler work.
 | `pkg/plugin/sdk/sdk_dispatch.go` | `eventLoop`, `bridgeEventLoop`, `getCallback` -- generic dispatch |
 | `internal/component/plugin/process/process.go` | Bridge creation in `startInternal()`, bridge check in `deliverBatch()`, `CloseCallbacks` in `Stop()` |
 | `internal/component/plugin/ipc/rpc.go` | `PluginConn.SetBridge()`, `CallRPC` bridge routing |
-| `internal/component/plugin/server/startup.go` | Bridge transport activation after Stage 5 OK |
+| `internal/component/plugin/server/startup.go` | Bridge transport publication before Stage 5 OK |
 | `pkg/plugin/sdk/sdk.go` | Bridge discovery, `callEngineRaw()` bridge path, `SetReady()`, pipe close |
 
 ### Mode 2: Subprocess (TLS connect-back)

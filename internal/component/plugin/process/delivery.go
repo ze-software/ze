@@ -44,11 +44,10 @@ type EventDelivery struct {
 	Event     any                // Structured event for DirectBridge consumers (nil for text/JSON)
 	Result    chan<- EventResult // Caller-provided result channel (nil if fire-and-forget)
 	OnFailure func()             // Called on fire-and-forget delivery failure (e.g. cache count release)
-	// Barrier carries no event and reaches no plugin. The channel is FIFO and
-	// the delivery loop answers every Result in the batch it processed, so a
-	// barrier answered means every item enqueued BEFORE it has been delivered.
-	// That is what makes it a drain: DrainEvents waits on one, and
-	// `request quiesce` waits on every process's (quiesce.go).
+	// Barrier carries no event and reaches no plugin. Its FIFO receipt reports
+	// the first application failure in this Process lifetime, if any.
+	// DrainEvents ignores that error for soft quiesce; DrainEventsApplied
+	// requires successful application for recovery.
 	Barrier bool
 }
 
@@ -117,8 +116,10 @@ func (p *Process) deliveryLoop() {
 	var batchBuf []EventDelivery
 	var eventsBuf []string
 
-	for first := range p.eventChan {
-		batchBuf = p.drainBatch(batchBuf, first)
+	// The range and its batch drain MUST consume the same lifecycle queue.
+	queue := p.eventChan
+	for first := range queue {
+		batchBuf = drainBatch(queue, batchBuf, first)
 		eventsBuf = p.safeDeliverBatch(batchBuf, eventsBuf, timeout)
 	}
 }
@@ -130,6 +131,9 @@ func (p *Process) safeDeliverBatch(batch []EventDelivery, eventsBuf []string, ti
 	defer func() {
 		if rec := recover(); rec != nil {
 			panicErr := fmt.Errorf("delivery panic: %v", rec)
+			if p.projectionErr == nil {
+				p.projectionErr = panicErr
+			}
 			logger().Error("deliveryLoop panic recovered",
 				"plugin", p.config.Name,
 				"panic", rec,
@@ -138,9 +142,13 @@ func (p *Process) safeDeliverBatch(batch []EventDelivery, eventsBuf []string, ti
 			// Signal all waiting callers so they are not blocked forever.
 			for _, req := range batch {
 				if req.Result != nil {
+					deliveryErr := panicErr
+					if req.Barrier {
+						deliveryErr = p.projectionErr
+					}
 					req.Result <- EventResult{
 						ProcName: p.config.Name,
-						Err:      panicErr,
+						Err:      deliveryErr,
 					}
 				} else if req.OnFailure != nil {
 					req.OnFailure()
@@ -155,11 +163,11 @@ func (p *Process) safeDeliverBatch(batch []EventDelivery, eventsBuf []string, ti
 // drainBatch collects the first event plus any additional events available
 // without blocking. Returns when the channel is empty or closed.
 // buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
-func (p *Process) drainBatch(buf []EventDelivery, first EventDelivery) []EventDelivery {
+func drainBatch(queue <-chan EventDelivery, buf []EventDelivery, first EventDelivery) []EventDelivery {
 	buf = append(buf[:0], first)
 	for {
 		select {
-		case req, ok := <-p.eventChan:
+		case req, ok := <-queue:
 			if !ok {
 				return buf
 			}
@@ -194,15 +202,24 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 	var batchErr error
 	if len(carried) != 0 {
 		batchErr = p.sendBatch(carried, events, timeout)
+		if batchErr != nil {
+			if p.projectionErr == nil {
+				p.projectionErr = batchErr
+			}
+		}
 	}
 
 	isCacheConsumer := p.IsCacheConsumer()
 	for _, req := range batch {
 		if req.Result != nil {
+			deliveryErr := batchErr
+			if req.Barrier {
+				deliveryErr = p.projectionErr
+			}
 			req.Result <- EventResult{
 				ProcName:      p.config.Name,
-				Err:           batchErr,
-				CacheConsumer: batchErr == nil && isCacheConsumer,
+				Err:           deliveryErr,
+				CacheConsumer: deliveryErr == nil && isCacheConsumer,
 			}
 		} else if batchErr != nil {
 			// Fire-and-forget delivery (no Result channel): log errors here
@@ -320,16 +337,11 @@ func (p *Process) deliverViaConn(events []string, timeout time.Duration) error {
 	return err
 }
 
-// DrainEvents returns when every event enqueued for this process before the
-// call has reached the plugin, or when ctx ends.
+// DrainEvents returns when every event enqueued before the call has finished
+// its delivery attempt, or when ctx ends.
 //
-// It enqueues one Barrier item and waits for its answer. The channel is FIFO
-// and deliveryLoop answers every Result in the batch it processed, so an
-// answered barrier is a statement about everything ahead of it and about
-// nothing behind it. A process whose channel is closed or whose context has
-// ended owes nothing and returns at once, because a stopped plugin cannot be
-// waited for and reporting one as a drain failure would fail `request quiesce`
-// for a plugin that is gone.
+// This is soft quiesce: failed deliveries and a stopped process do not fail the
+// drain. Callers requiring successful application MUST use DrainEventsApplied.
 func (p *Process) DrainEvents(ctx context.Context) error {
 	result := make(chan EventResult, 1)
 	if !p.Deliver(EventDelivery{Barrier: true, Result: result}) {
@@ -341,4 +353,99 @@ func (p *Process) DrainEvents(ctx context.Context) error {
 	case <-ctx.Done():
 		return fmt.Errorf("plugin %s: event delivery did not drain: %w", p.Name(), ctx.Err())
 	}
+}
+
+// DrainEventsApplied waits for successful application of every prior admission.
+// The first delivery failure is retained for this Process lifetime, including
+// fire-and-forget failures, timeouts and panics. Success never clears it.
+//
+// Nil means the FIFO receipt succeeded and the owner was still accepting work
+// at the final liveness check; it does not lease the owner's future lifetime.
+// Callers MUST NOT hold locks needed by plugin handlers while waiting.
+// Safe for concurrent use after process startup.
+func (p *Process) DrainEventsApplied(ctx context.Context) error {
+	result := make(chan EventResult, 1)
+	if err := p.admitAppliedBarrier(ctx, result); err != nil {
+		return fmt.Errorf("plugin %s: event application did not drain: %w", p.Name(), err)
+	}
+	select {
+	case receipt := <-result:
+		if receipt.Err != nil {
+			return fmt.Errorf("plugin %s: event application failed: %w", p.Name(), receipt.Err)
+		}
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("plugin %s: event application did not drain: %w", p.Name(), err)
+		}
+		p.eventMu.RLock()
+		err := p.deliveryOwnerError()
+		p.eventMu.RUnlock()
+		if err != nil {
+			return fmt.Errorf("plugin %s: event owner stopped: %w", p.Name(), err)
+		}
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("plugin %s: event application did not drain: %w", p.Name(), ctx.Err())
+	case <-p.ctx.Done():
+		return fmt.Errorf("plugin %s: event owner stopped: %w", p.Name(), ErrConnectionClosed)
+	case <-p.engineDone:
+		return fmt.Errorf("plugin %s: event owner exited: %w", p.Name(), ErrConnectionClosed)
+	}
+}
+
+// admitAppliedBarrier bounds queue admission by the caller's context too.
+// Deliver's ordinary fire-and-forget admission semantics remain unchanged.
+func (p *Process) admitAppliedBarrier(ctx context.Context, result chan<- EventResult) error {
+	p.eventMu.RLock()
+	defer p.eventMu.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := p.deliveryOwnerError(); err != nil {
+		return err
+	}
+	select {
+	case p.eventChan <- EventDelivery{Barrier: true, Result: result}:
+		if p.deliveryInc != nil {
+			p.deliveryInc()
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.ctx.Done():
+		return ErrConnectionClosed
+	case <-p.engineDone:
+		return ErrConnectionClosed
+	}
+}
+
+// deliveryOwnerError reads lifecycle state without invoking a handler or IPC.
+// Caller MUST hold eventMu for reading; no lock survives a handler call.
+func (p *Process) deliveryOwnerError() error {
+	if p.eventClosed {
+		return ErrConnectionClosed
+	}
+	if p.eventChan == nil {
+		return ErrConnectionClosed
+	}
+	if p.ctx == nil {
+		return ErrConnectionClosed
+	}
+	if p.ctx.Err() != nil {
+		return ErrConnectionClosed
+	}
+	select {
+	case <-p.engineDone:
+		return ErrConnectionClosed
+	default:
+	}
+	// Internal runners may leave their allocated bridge unused and retain IPC.
+	// Once activated, a stopped bridge must fail rather than fall back to IPC.
+	if p.bridge != nil && p.bridge.Activated() {
+		return p.bridge.DeliveryError()
+	}
+	conn := p.Conn()
+	if conn == nil {
+		return ErrConnectionClosed
+	}
+	return conn.Err()
 }

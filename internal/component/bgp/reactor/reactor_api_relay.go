@@ -94,12 +94,13 @@ var (
 // zero-valued source would send the route with the WRONG transform rather than
 // none at all.
 type relaySource struct {
-	addr   netip.Addr
-	info   forwardSourceInfo
-	ctxID  bgpctx.ContextID
-	srcID  source.SourceID
-	strAdr string
-	ok     bool
+	addr       netip.Addr
+	info       forwardSourceInfo
+	ctxID      bgpctx.ContextID
+	srcID      source.SourceID
+	strAdr     string
+	ok         bool
+	generation uint64
 }
 
 // resolveRelaySource resolves the source peer's forwarding facts and receive
@@ -118,6 +119,7 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 	a.r.mu.RLock()
 	srcPeer, found := a.r.findPeerByAddr(srcAddr)
 	if found && srcPeer.State() == PeerStateEstablished {
+		out.generation = srcPeer.forwardGeneration.Load()
 		s := srcPeer.Settings()
 		out.info = forwardSourceInfo{
 			// Guarded: source may be a dynamic peer still resolving its ASN.
@@ -144,7 +146,7 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 		out.ctxID = fwdContextIDWithASN4(srcPeer.recvContextID(), true)
 		out.srcID = srcPeer.SourceID()
 		out.strAdr = srcPeer.addrString
-		out.ok = true
+		out.ok = forwardSourceCurrent(srcPeer, out.generation)
 	}
 	a.r.mu.RUnlock()
 	return out
@@ -571,8 +573,10 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	n := writeRelayPayload(out.Buf, 0, scanned, attrs, nextHop, nlri, fam, needNextHop)
 
 	ru := &ReceivedUpdate{
-		poolBuf:      out,
-		SourcePeerIP: src.addr,
+		poolBuf:            out,
+		SourcePeerIP:       src.addr,
+		receivedPeer:       src.info.peer,
+		receivedGeneration: src.generation,
 		// The forward path threads this into fwdItem.sourcePeerStr for the sent
 		// event callback; the peer's cached string avoids a per-route allocation.
 		SourcePeerStr:    src.strAdr,
@@ -661,12 +665,14 @@ func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src rel
 		return nil, 0, 0, errRelayHex
 	}
 	update := &ReceivedUpdate{
-		poolBuf:          out,
-		SourcePeerIP:     src.addr,
-		SourcePeerStr:    src.strAdr,
-		ReceivedAt:       a.r.clock.Now(),
-		validationReplay: true,
-		validationMsgID:  route.MsgID,
+		poolBuf:            out,
+		SourcePeerIP:       src.addr,
+		SourcePeerStr:      src.strAdr,
+		receivedPeer:       src.info.peer,
+		receivedGeneration: src.generation,
+		ReceivedAt:         a.r.clock.Now(),
+		validationReplay:   true,
+		validationMsgID:    route.MsgID,
 	}
 	wireu.InitWireUpdate(&update.wireUpdateInline, buf, src.ctxID)
 	updateID := nextMsgID()

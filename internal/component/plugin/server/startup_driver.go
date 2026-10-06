@@ -101,8 +101,8 @@ type startupSink interface {
 	// the final OK response (engine signals the reactor API-ready).
 	onRunning()
 
-	// postReady runs after the final OK response is sent (engine switches to
-	// bridge transport when the plugin requested it).
+	// postReady publishes the negotiated callback transport after the final
+	// barrier, before onRunning and the OK let either side enter runtime.
 	postReady(input *rpc.ReadyInput)
 
 	// transition advances the barrier from one stage to the next and records
@@ -229,10 +229,10 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	if !sink.transition(plugin.StageReady, plugin.StageRunning) {
 		return errStartupBarrierAborted
 	}
+	sink.postReady(&readyInput)
 	sink.onRunning()
 	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 5 respond: %w", err)
 	}
-	sink.postReady(&readyInput)
 	return nil
 }

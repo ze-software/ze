@@ -563,6 +563,12 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	if err := runStartupHandshake(s.ctx, &engineStartupSink{s: s, proc: proc}); err != nil {
 		logger().Debug("rpc startup: handshake ended before running", "plugin", proc.Name(), "error", err)
 		proc.SetStartupError(err)
+		// The final barrier precedes the ready acknowledgement. A failed write
+		// has not committed startup, even though that barrier reached Running.
+		// Keep it on the existing failed-startup Stop/Wait rollback path.
+		if proc.Stage() == plugin.StageRunning {
+			proc.SetStage(plugin.StageReady)
+		}
 	}
 }
 
@@ -795,8 +801,8 @@ func (e *engineStartupSink) onRunning() {
 	}
 }
 
-// PostReady switches the PluginConn to bridge transport when the plugin
-// requested it, after the final OK (the last message on the pipe).
+// PostReady publishes bridge callbacks when requested, before the final OK
+// allows the SDK to activate the bridge and close its startup pipe.
 func (e *engineStartupSink) postReady(input *rpc.ReadyInput) {
 	if input.Transport == "bridge" && e.proc.Bridge() != nil {
 		e.proc.Conn().SetBridge(e.proc.Bridge())
@@ -894,7 +900,7 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 // answers with a plain error response, which would stop being a refusal and
 // would let ze start on a configuration that plugin rejected. And at Stage 2
 // the transport is always the pipe, because the DirectBridge is switched in
-// only after Stage 5 (postReady, this file), so no second transport needs a
+// only at Stage 5 (postReady, this file), so no second transport needs a
 // code to carry the distinction the response type already carries.
 func isConfigRefusal(err error) bool {
 	var callErr *rpc.RPCCallError

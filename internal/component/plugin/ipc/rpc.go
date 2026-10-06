@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"slices"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -26,8 +27,8 @@ import (
 //     ReadRequest reads from MuxConn.Requests(), CallRPC/SendResult delegate to MuxConn.
 type PluginConn struct {
 	*rpc.Conn
-	mux    *rpc.MuxConn      // Non-nil for single-conn mode.
-	bridge *rpc.DirectBridge // Non-nil after bridge transport negotiation.
+	mux    *rpc.MuxConn                     // Non-nil for single-conn mode.
+	bridge atomic.Pointer[rpc.DirectBridge] // Published after bridge transport negotiation.
 }
 
 // NewPluginConn creates a PluginConn that reads from readConn and writes to writeConn.
@@ -62,30 +63,30 @@ func (pc *PluginConn) ReadRequest(ctx context.Context) (*rpc.Request, error) {
 	}
 }
 
-// SetBridge activates bridge transport for engine->plugin callbacks.
-// After this, CallRPC routes through bridge.SendCallback instead of the pipe.
+// SetBridge publishes the negotiated bridge for engine->plugin callbacks.
+// The startup owner MUST publish it before acknowledging ready and MUST NOT
+// replace or clear it. Safe for concurrent use with transport readers.
 func (pc *PluginConn) SetBridge(b *rpc.DirectBridge) {
-	pc.bridge = b
+	pc.bridge.Store(b)
 }
 
-// HasBridge reports whether bridge transport has been activated.
-// When true, the SDK has closed its end of the mux (all plugin->engine
-// RPCs flow via DirectBridge), so server-side mux readers must NOT
-// treat mux close as a plugin-exited signal.
+// HasBridge reports whether bridge transport has been negotiated.
+// The SDK can close its mux after receiving the ready acknowledgement, so
+// server-side mux readers MUST NOT treat that close as a plugin-exited signal.
 func (pc *PluginConn) HasBridge() bool {
-	return pc.bridge != nil
+	return pc.bridge.Load() != nil
 }
 
 // CallRPC sends an RPC and waits for the response.
 // Routes through: bridge (if set) -> MuxConn (if set) -> direct Conn.
 // Most typed methods call this; SendExecuteCommandAnswer has a typed bridge fast path.
 func (pc *PluginConn) CallRPC(ctx context.Context, method string, params any) (json.RawMessage, error) {
-	if pc.bridge != nil {
+	if bridge := pc.bridge.Load(); bridge != nil {
 		paramsRaw, err := json.Marshal(params)
 		if err != nil {
 			return nil, fmt.Errorf("marshal params: %w", err)
 		}
-		return pc.bridge.SendCallback(ctx, method, paramsRaw)
+		return bridge.SendCallback(ctx, method, paramsRaw)
 	}
 	if pc.mux != nil {
 		return pc.mux.CallRPC(ctx, method, params)
@@ -156,6 +157,37 @@ func (pc *PluginConn) Close() error {
 		return pc.mux.Close()
 	}
 	return pc.Conn.Close()
+}
+
+// Err reports an observed transport failure without sending a probe.
+// Safe for concurrent use, including during transport negotiation.
+func (pc *PluginConn) Err() error {
+	if bridge := pc.bridge.Load(); bridge != nil {
+		if bridge.Activated() {
+			return bridge.DeliveryError()
+		}
+	}
+	var err error
+	if pc.mux != nil {
+		select {
+		case <-pc.mux.Done():
+			err = rpc.ErrMuxConnClosed
+		default:
+			return nil
+		}
+	} else {
+		err = pc.Conn.Err()
+	}
+	if err != nil {
+		// The SDK activates the published bridge before closing startup IPC.
+		// Recheck after observing IPC failure so that cutover is not a failure.
+		if bridge := pc.bridge.Load(); bridge != nil {
+			if bridge.Activated() {
+				return bridge.DeliveryError()
+			}
+		}
+	}
+	return err
 }
 
 // --- Stage RPCs ---
@@ -323,8 +355,8 @@ var errRecordAnswerNeedsMux = errors.New(
 // deliberately, and MUST read Answer.Verdict, Answer.Err and Answer.Message
 // after the range has returned (rpc.Answer).
 func (pc *PluginConn) SendExecuteCommandAnswer(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.Answer, error) {
-	if pc.bridge != nil {
-		return pc.bridgeAnswer(ctx, input)
+	if bridge := pc.bridge.Load(); bridge != nil {
+		return bridgeAnswer(ctx, bridge, input)
 	}
 	if pc.mux == nil {
 		return nil, errRecordAnswerNeedsMux
@@ -337,15 +369,15 @@ func (pc *PluginConn) SendExecuteCommandAnswer(ctx context.Context, input *rpc.E
 // carry a record on and no frame to read: the typed slot answers a built value,
 // and a bridge that has no such slot yet reaches the same handler through the
 // generic callback path.
-func (pc *PluginConn) bridgeAnswer(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.Answer, error) {
-	if pc.bridge.HasExecuteCommand() {
-		out, err := pc.bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer)
+func bridgeAnswer(ctx context.Context, bridge *rpc.DirectBridge, input *rpc.ExecuteCommandInput) (*rpc.Answer, error) {
+	if bridge.HasExecuteCommand() {
+		out, err := bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer)
 		if err != nil {
 			return nil, err
 		}
 		return valueAnswer(out), nil
 	}
-	out, err := pc.executeCommandValue(ctx, input)
+	out, err := executeCommandValue(ctx, bridge, input)
 	if err != nil {
 		return nil, err
 	}
@@ -399,8 +431,12 @@ func ExecuteCommandValue(answer *rpc.Answer) (*rpc.ExecuteCommandOutput, error) 
 
 // executeCommandValue sends one execute-command over the bridge's generic
 // callback path and reads the one marshaled value it answers with.
-func (pc *PluginConn) executeCommandValue(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
-	result, err := pc.CallRPC(ctx, methodExecuteCommand, input)
+func executeCommandValue(ctx context.Context, bridge *rpc.DirectBridge, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+	params, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("marshal params: %w", err)
+	}
+	result, err := bridge.SendCallback(ctx, methodExecuteCommand, params)
 	if err != nil {
 		return nil, err
 	}
