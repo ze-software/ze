@@ -1,0 +1,12 @@
+{
+  "feature": "cli-session-transcript",
+  "runs": [
+    {
+      "test": "test/ui/cli-transcript-redacts-credential.ci",
+      "test-blob": "103e1128ef26fedef69c636756beae7813bbe293",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}
