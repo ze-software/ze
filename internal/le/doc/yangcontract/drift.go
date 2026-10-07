@@ -53,7 +53,6 @@ func (c *checker) run() []Issue {
 	issues = append(issues, c.checkDesignMD(pluginNames, familyNames, ciTotal, interopCount, fuzzCount, goTestCount)...)
 	issues = append(issues, c.checkComparisonMD(familyNames)...)
 	issues = append(issues, c.checkReadmeMD(ciTotal, interopCount, fuzzCount, goTestCount)...)
-	issues = append(issues, c.checkFeaturesMD()...)
 	issues = append(issues, c.checkFunctionalTestsMD(releaseGateSuites)...)
 	issues = append(issues, c.checkForbiddenDocClaims()...)
 	issues = append(issues, c.checkPipeOperatorReference()...)
@@ -78,7 +77,6 @@ const (
 	textParserDoc      = "docs/architecture/api/text-parser.md"
 	designDoc          = "docs/DESIGN.md"
 	readmeDoc          = "README.md"
-	featuresDoc        = "docs/features.md"
 	functionalTestsDoc = "docs/functional-tests.md"
 )
 
@@ -450,70 +448,6 @@ func checkReadmeCount(line string, lineNum int, unit, label string, actual int) 
 		return Issue{File: readmeDoc, Line: lineNum, Message: tb.String()}, true
 	}
 	return Issue{}, false
-}
-
-// featureStatuses are the statuses a feature inventory row may carry.
-var featureStatuses = map[string]bool{
-	"supported":    true,
-	"partial":      true,
-	"experimental": true,
-	"stub-backed":  true,
-	"rejected":     true,
-	"future":       true,
-}
-
-func (c *checker) checkFeaturesMD() []Issue {
-	path := filepath.Join(c.root, "docs", "features.md")
-	lines, err := c.readLines(path)
-	if err != nil {
-		return nil
-	}
-
-	var issues []Issue
-	var tb textbuf.Buffer
-	foundHeader := false
-	for i, line := range lines {
-		lineNum := i + 1
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "| Feature |") {
-			foundHeader = true
-			if !strings.Contains(trimmed, "| Status |") || !strings.Contains(trimmed, "| Description |") {
-				issues = append(issues, Issue{
-					File: featuresDoc, Line: lineNum,
-					Message: "feature inventory table must include Feature, Status, and Description columns",
-				})
-			}
-			continue
-		}
-		if !foundHeader || !strings.HasPrefix(trimmed, "|") || strings.Contains(trimmed, "---") {
-			continue
-		}
-		cells := splitTableRow(trimmed)
-		if len(cells) < 3 {
-			issues = append(issues, Issue{
-				File: featuresDoc, Line: lineNum,
-				Message: "feature inventory row must include status",
-			})
-			continue
-		}
-		status := strings.ToLower(strings.TrimSpace(cells[1]))
-		if !featureStatuses[status] {
-			tb.Reset()
-			issues = append(issues, Issue{
-				File: featuresDoc, Line: lineNum,
-				Message: tb.Str("unknown feature status ").Quoted(cells[1]).String(),
-				Detail:  "valid statuses: supported, partial, experimental, stub-backed, rejected, future",
-			})
-		}
-	}
-	if !foundHeader {
-		issues = append(issues, Issue{
-			File:    featuresDoc,
-			Line:    0,
-			Message: "feature inventory table not found",
-		})
-	}
-	return issues
 }
 
 // suiteDerivationFailed is what both suite checks report when the functional

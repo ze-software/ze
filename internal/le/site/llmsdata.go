@@ -102,7 +102,6 @@ func loadLLMSInputs(paths Paths) (*llmsInputs, error) {
 	}{
 		{factsFile, &inputs.Facts},
 		{pluginFile, &inputs.Plugins},
-		{featuresFile, &inputs.Features},
 		{configTreeFile, &inputs.ConfigTree},
 		{dependencyFile, &inputs.Dependencies},
 		{navFile, &inputs.Nav},
@@ -111,6 +110,13 @@ func loadLLMSInputs(paths Paths) (*llmsInputs, error) {
 			return nil, err
 		}
 	}
+	// The feature cards come from the source and the declarations, not the
+	// output copy of data/features.json: that copy states no card's state.
+	features, err := loadFeatureData(paths)
+	if err != nil {
+		return nil, err
+	}
+	inputs.Features = features
 	commands, err := loadCommandCatalog(paths.Output)
 	if err != nil {
 		return nil, err

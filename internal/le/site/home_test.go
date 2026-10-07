@@ -28,6 +28,7 @@ func homeFixture(t *testing.T) Paths {
 		filepath.Join(source, "data", whatsNewDataFile))
 	copyFixture(t, filepath.Join("testdata", "published-features.json"),
 		filepath.Join(source, "data", featuresDataFile))
+	copyDeclarations(t, root)
 	copyFixture(t, filepath.Join(repository, "website", "data", "topics.json"),
 		filepath.Join(source, "data", "topics.json"))
 	writeArtifactFile(t, source, blogSourceDirectory+"/reference-from-the-system.md", blogRenderingSource)

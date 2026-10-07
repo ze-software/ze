@@ -2,13 +2,15 @@
 
 52 shipped or experimental feature cards. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
-## Built for demanding operators.
+## Experimental and growing.
 
-Ze starts with a configuration and protocol engine. The shipped network operating system adds BGP, interface management, FIB programming, plugins, operator tools, a minimal appliance runtime, and diagnostics as one product.
+Implemented and tested, still waiting for production evidence.
+
+> These still need deployment evidence or hardening before production claims. Configuration may change.
 
 ### AI Tool Interfaces
 
-*automate* -- `MCP` `Generated` `AI tools`
+*automate / Experimental* -- `MCP` `Generated` `AI tools`
 
 - **MCP** exposes CLI/API commands
 - AI tools read **structured output**
@@ -18,7 +20,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### SSH CLI
 
-*operate* -- `Built-in SSH` `RBAC`
+*operate / Experimental* -- `Built-in SSH` `RBAC`
 
 - Manage Ze without **OS shell** accounts
 - **Profiles**, audit, and accounting
@@ -28,7 +30,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### YANG Configuration
 
-*operate* -- `YANG` `ExaBGP`
+*operate / Experimental* -- `YANG` `ExaBGP`
 
 - Schema-driven **validation**
 - **One model** feeds every surface
@@ -38,7 +40,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Output Formatting
 
-*operate* -- `Shell-like pipes` `Offline`
+*operate / Experimental* -- `Shell-like pipes` `Offline`
 
 - **table**, **json**, **yaml**, **ndjson**
 - **match**, **count**, **first**/**last**
@@ -48,7 +50,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Web Workbench
 
-*operate* -- `HTMX` `SSE`
+*operate / Experimental* -- `HTMX` `SSE`
 
 - YANG-driven **config tree**
 - Same **CLI grammar** in browser
@@ -58,7 +60,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Looking Glass
 
-*operate* -- `Routes` `Topology` `Birdwatcher`
+*operate / Experimental* -- `Routes` `Topology` `Birdwatcher`
 
 - Peer and **route viewer**
 - **Topology** graph
@@ -68,7 +70,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### System Readiness
 
-*operate* -- `ze doctor` `ze explain`
+*operate / Experimental* -- `ze doctor` `ze explain`
 
 - Offline **pre-start checks**
 - Health, warnings, and **errors**
@@ -78,7 +80,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Native BGP Engine
 
-*routing* -- `BGP` `IPv4/IPv6` `FlowSpec`
+*routing / Experimental* -- `BGP` `IPv4/IPv6` `FlowSpec`
 
 - Full implementation in **Go**
 - **Lazy parsing**, buffer-first encoding
@@ -88,7 +90,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Static Routes
 
-*routing* -- `ECMP` `BFD` `PBR`
+*routing / Experimental* -- `ECMP` `BFD` `PBR`
 
 - Named tables, **policy routing**
 - **BFD**-tracked failover
@@ -98,7 +100,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### BFD
 
-*routing* -- `RFC 5880` `Auth`
+*routing / Experimental* -- `RFC 5880` `Auth`
 
 - **Single-hop** and **multi-hop**
 - GTSM, jitter, **BGP** integration
@@ -108,7 +110,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### MRT Recording
 
-*routing* -- `RFC 6396` `Analysis`
+*routing / Experimental* -- `RFC 6396` `Analysis`
 
 - Updates, messages, **RIB snapshots**
 - **Strftime** file rotation
@@ -118,7 +120,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### DNS Resolver
 
-*services* -- `Cache` `Pipes`
+*services / Experimental* -- `Cache` `Pipes`
 
 - Built-in **cached** resolver
 - **| resolve** and **| origin** pipe operators
@@ -128,7 +130,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Plugin System
 
-*automate* -- `ExaBGP` `RPKI` `Policy`
+*automate / Experimental* -- `ExaBGP` `RPKI` `Policy`
 
 - Plugins add **commands**, RPCs, events
 - YANG roots join **CLI** and web
@@ -138,7 +140,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Programmable
 
-*automate* -- `REST` `gRPC` `gNMI`
+*automate / Experimental* -- `REST` `gRPC` `gNMI`
 
 - **REST API**, **gRPC**, **gNMI**
 - Shared engine for **identical output**
@@ -148,7 +150,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### AI-First Design
 
-*automate* -- `Self-describing` `Skills`
+*automate / Experimental* -- `Self-describing` `Skills`
 
 - **Self-describing** command catalogue from the live binary
 - Every command is an **automation** surface
@@ -158,7 +160,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### MCP Integration
 
-*automate* -- `MCP` `OAuth 2.1`
+*automate / Experimental* -- `MCP` `OAuth 2.1`
 
 - **Streamable HTTP** transport, OAuth 2.1 resource server
 - Server-initiated **elicitation**, task-augmented tool calls
@@ -168,7 +170,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### ExaBGP Compatibility
 
-*automate* -- `Migration` `Bridge`
+*automate / Experimental* -- `Migration` `Bridge`
 
 - Automatic config **migration**
 - **Plugin bridge** for existing workflows
@@ -178,7 +180,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Evidence Over Claims
 
-*observe* -- `Fuzz` `Interop` `Docker`
+*observe / Experimental* -- `Fuzz` `Interop` `Docker`
 
 - Unit, functional, **fuzz**, chaos
 - Performance **benchmarks**
@@ -188,7 +190,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Development Activity
 
-*observe* -- `Heatmap` `Live data`
+*observe / Experimental* -- `Heatmap` `Live data`
 
 - A year of **commits** and added lines, at a glance
 - Built from git history each time
@@ -198,7 +200,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Prometheus Telemetry
 
-*observe* -- `Netdata` `Prometheus`
+*observe / Experimental* -- `Netdata` `Prometheus`
 
 - **138 metrics** from /proc and /sys
 - **Netdata** naming, drop-in replacement
@@ -208,7 +210,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Health Registry
 
-*observe* -- `HTTP` `503`
+*observe / Experimental* -- `HTTP` `503`
 
 - **/health** HTTP endpoint
 - Per-component **status** checks
@@ -218,7 +220,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Host Inventory
 
-*observe* -- `CPU` `NIC` `SMART`
+*observe / Experimental* -- `CPU` `NIC` `SMART`
 
 - **CPU**, NIC, DMI, memory, thermal
 - **SMART** disk health and self-tests
@@ -228,7 +230,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Crash Capture
 
-*observe* -- `Panic` `Syslog`
+*observe / Experimental* -- `Panic` `Syslog`
 
 - Automatic **panic** stack traces
 - Ring buffer **context** (last 64 entries)
@@ -238,7 +240,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Tech-Support Bundle
 
-*observe* -- `Offline` `JSON`
+*observe / Experimental* -- `Offline` `JSON`
 
 - **20 modules**, pure Go, no shell-outs
 - Structured **JSON** per module
@@ -248,7 +250,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Production Diagnostics
 
-*observe* -- `CLI` `MCP`
+*observe / Experimental* -- `CLI` `MCP`
 
 - 11 built-in tools replacing **ss, dmesg, lsof**
 - **tcpdump**, traceroute, ping, mtr
@@ -258,7 +260,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Secure by Default
 
-*secure* -- `SSH` `RBAC` `RPKI` `ASPA`
+*secure / Experimental* -- `SSH` `RBAC` `RPKI` `ASPA`
 
 - **SSH** access to the CLI
 - **RPKI** route origin validation
@@ -268,7 +270,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### TACACS+ AAA
 
-*secure* -- `RFC 8907` `Accounting`
+*secure / Experimental* -- `RFC 8907` `Accounting`
 
 - SSH login via **TACACS+**
 - Command **accounting** START/STOP
@@ -278,7 +280,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Audit Trail
 
-*secure* -- `Commits` `Auth`
+*secure / Experimental* -- `Commits` `Auth`
 
 - Config **commit**, discard, and reload
 - Failed **auth** on every interface
@@ -288,7 +290,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### PKI Store
 
-*secure* -- `X.509` `TLS`
+*secure / Experimental* -- `X.509` `TLS`
 
 - YANG-modelled **certificate** management
 - Chain validation, **expiry** checks
@@ -298,7 +300,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Minimal Appliance Mode
 
-*platform* -- `Appliance` `Server`
+*platform / Experimental* -- `Appliance` `Server`
 
 - **Kernel, init, Ze** runtime
 - No **package manager** or general shell
@@ -309,7 +311,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Runs Itself
 
-*platform* -- `Update` `Systemd`
+*platform / Experimental* -- `Update` `Systemd`
 
 - Binary **self-update**
 - Built-in **readiness** checks
@@ -319,7 +321,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Docker Support
 
-*platform* -- `Daemon only` `Scratch` `Compose`
+*platform / Experimental* -- `Daemon only` `Scratch` `Compose`
 
 - **Static binary** on scratch base
 - **Compose** support included
@@ -329,19 +331,13 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Feature Gates
 
-*platform* -- `36 subsystems` `Default on`
+*platform / Experimental* -- `36 subsystems` `Default on`
 
 - Compile out **whole subsystems**, BGP included
 - Smaller binary, smaller **attack surface**
 - Config **fails closed** on blocks the build lacks
 
 [Learn more](https://ze-software.net/guides/quickstart/)
-
-## Experimental and growing.
-
-Implemented and tested, still waiting for production evidence.
-
-> These still need deployment evidence or hardening before production claims. Configuration may change.
 
 ### IPsec VPN
 

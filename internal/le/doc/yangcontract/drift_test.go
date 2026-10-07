@@ -353,28 +353,6 @@ func TestDriftDerivesSuitesWithoutAnLESubprocess(t *testing.T) {
 	}
 }
 
-// VALIDATES: a feature inventory row carrying an unknown status is reported,
-// and a missing table is reported too.
-// PREVENTS: a status nobody defined passing as a documented one.
-func TestDriftReadsTheFeatureInventory(t *testing.T) {
-	root := t.TempDir()
-	writeDoc(t, root, "docs/features.md",
-		"| Feature | Status | Description |\n|---|---|---|\n| a | supported | fine |\n| b | almost | not a status |\n")
-	report := Drift(root)
-	if !reports(report, `unknown feature status "almost"`) {
-		t.Fatalf("an unknown status was accepted: %v", messages(report))
-	}
-	if reports(report, `unknown feature status "supported"`) {
-		t.Fatalf("a documented status was rejected: %v", messages(report))
-	}
-
-	empty := t.TempDir()
-	writeDoc(t, empty, "docs/features.md", "# Features\n\nnothing here\n")
-	if report := Drift(empty); !reports(report, "feature inventory table not found") {
-		t.Fatalf("a features page with no table was accepted: %v", messages(report))
-	}
-}
-
 // VALIDATES: the comparison page's family claims are checked in both
 // directions against the registry this build carries.
 // PREVENTS: the page claiming a family the binary does not have, or denying one

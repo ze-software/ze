@@ -319,7 +319,7 @@ func renderStatusPage(metas map[string]Meta, coverage []CoverageRow) (string, er
 			tb.Str(" |\n")
 		}
 	}
-	tb.Str("\n<!-- source: docs/features.md -- feature status vocabulary and draft-backed feature rows -->\n")
+	tb.Str("\n<!-- source: internal/le/feature/vocabulary.go -- StatusLabel, the feature status vocabulary -->\n")
 	tb.Str("<!-- source: docs/features/bgp-protocol.md -- draft-backed BGP capability rows -->\n")
 	tb.Str("<!-- source: docs/guide/rpki.md -- ASPA draft verification behavior -->\n")
 	return tb.String(), nil

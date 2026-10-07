@@ -134,8 +134,8 @@ func renderHome(paths Paths) ([]string, error) {
 	if whatsNew.Link == nil {
 		return nil, fmt.Errorf("data/%s states no link, so the Latest news heading would lead nowhere", whatsNewDataFile)
 	}
-	var features featureData
-	if err := readSourceJSON(paths.Source, featuresDataFile, &features); err != nil {
+	features, err := loadFeatureData(paths)
+	if err != nil {
 		return nil, err
 	}
 	var facts siteFacts
@@ -384,13 +384,8 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 // a category no card carries.
 func featureCategoryLinks(features featureData) string {
 	counts := map[string]int{}
-	for _, section := range features.Sections {
-		if section.ID != featureSectionCore && section.ID != featureSectionExperimental {
-			continue
-		}
-		for _, card := range section.Cards {
-			counts[card.Category]++
-		}
+	for index := range features.Cards {
+		counts[features.Cards[index].Category]++
 	}
 	links := make([]string, 0, len(legendCategories))
 	for _, category := range legendCategories {

@@ -8,6 +8,7 @@ package feature
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -26,4 +27,16 @@ func init() {
 	leroot.RegisterActions(area, Actions)
 	// Both answers carry row sets, so the row operators act on them.
 	leroot.RegisterShape(area, command.ShapeMap)
+
+	// docs/features.md is DERIVED from the declarations (render.go), so it is
+	// not tracked and no gate compares a re-render against a committed copy.
+	// It is built at SESSION START: a grep over docs/ reads it without naming
+	// its path, so an absent page would answer "no match", and one render of
+	// the declarations costs milliseconds (derived.SessionStartPolicy).
+	derived.Register(derived.Artifact{
+		Path:         pageRel,
+		Feeds:        feedsPage,
+		Rebuild:      rebuildPage,
+		SessionStart: derived.SessionStartBuild,
+	})
 }

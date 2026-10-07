@@ -171,9 +171,12 @@ func writeLLMSFeatures(out *textbuf.Buffer, inputs *llmsInputs) {
 	out.Str("## Feature inventory\n\n")
 	for index := range inputs.Features.Sections {
 		section := &inputs.Features.Sections[index]
+		if len(section.Cards) == 0 {
+			continue // the page publishes no section its cards' state left empty
+		}
 		counts := make(map[string]int, 4)
 		for _, card := range section.Cards {
-			counts[cardStatus(card.Status)]++
+			counts[cardStatus(card.status())]++
 		}
 		summary := make([]string, 0, len(counts))
 		for _, status := range sortedStatuses(counts) {
@@ -214,7 +217,7 @@ func sortedStatuses(counts map[string]int) []string {
 // featureCardLine writes one feature card as one line.
 func featureCardLine(card *featureCard) string {
 	line := "- " + cleanInline(card.Title) + " [" + cleanInline(orUncategorized(card.Category)) +
-		", " + cardStatus(card.Status) + "]"
+		", " + cardStatus(card.status()) + "]"
 	var parts []string
 	if chips := cardChipNames(card); len(chips) != 0 {
 		parts = append(parts, "chips: "+strings.Join(chips, ", "))

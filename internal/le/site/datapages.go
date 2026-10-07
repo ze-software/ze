@@ -3,6 +3,7 @@
 package site
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/feature"
 )
 
 // The three data pages register from here. A build discovers them through the
@@ -119,39 +121,40 @@ const (
 	featureSectionExperimental = "experimental"
 )
 
-// featureStatusLabels names the experimental maturity. A card with no status
-// is shipped and takes no badge.
-var featureStatusLabels = map[string]string{
-	"experimental": "Experimental",
-}
-
-// featureData is data/features.json: an ordered list of sections, each an
-// ordered list of cards. Both orders are the file's own and are published
-// verbatim, so nothing here is sorted.
+// featureData is data/features.json: the two titled sections of the page, and
+// one ordered list of cards. A card states which feature declarations it
+// represents and never its own maturity: loadFeatureData derives from the
+// declarations whether it is shipped, and so which section it sits in (D-9 of
+// plan/pre-release/spec-feature-maturity-declared.md). The card order is the
+// file's own within each section, so nothing here is sorted.
 type featureData struct {
 	Sections []featureSection `json:"sections"`
+	Cards    []featureCard    `json:"cards"`
 }
 
-// featureSection is one titled block of the features page.
+// featureSection is one titled block of the features page. Cards is derived by
+// loadFeatureData and is never read from the file.
 type featureSection struct {
 	ID      string        `json:"id"`
 	Heading string        `json:"heading"`
 	Lead    string        `json:"lead"`
 	Note    string        `json:"note"`
-	Cards   []featureCard `json:"cards"`
+	Cards   []featureCard `json:"-"`
 }
 
-// featureCard is one feature. Status is empty for a shipped feature. External
-// says whether Href leaves this site, which decides both the link target and
-// whether the href is rewritten relative to the page.
+// featureCard is one feature. Features names the declarations under features/
+// the card represents. External says whether Href leaves this site, which
+// decides both the link target and whether the href is rewritten relative to
+// the page. shipped is derived from the declarations, never read from the file.
 type featureCard struct {
 	Category string        `json:"category"`
-	Status   string        `json:"status"`
+	Features []string      `json:"features"`
 	Title    string        `json:"title"`
 	Href     string        `json:"href"`
 	External bool          `json:"external"`
 	Chips    []featureChip `json:"chips"`
 	Bullets  []string      `json:"bullets"`
+	shipped  bool
 }
 
 // featureChip is one badge on a card. Mode marks a chip that states where the
@@ -176,16 +179,20 @@ func (card *featureCard) validate(where string) error {
 		return fmt.Errorf("%s: feature card %q states category %q, which is not one of the seven",
 			where, card.Title, card.Category)
 	}
-	if card.Status != "" {
-		if _, known := featureStatusLabels[card.Status]; !known {
-			return fmt.Errorf("%s: feature card %q states unknown status %q",
-				where, card.Title, card.Status)
-		}
-	}
 	if card.Href == "" {
 		return fmt.Errorf("%s: feature card %q links nowhere", where, card.Title)
 	}
 	return nil
+}
+
+// status answers the card's maturity class: empty when shipped, the
+// experimental level's name otherwise. The word comes from internal/le/feature,
+// the one declaration of the maturity vocabulary.
+func (card *featureCard) status() string {
+	if card.shipped {
+		return ""
+	}
+	return feature.CardClass()
 }
 
 // href answers what the card's title links to: an external address as the file
@@ -206,58 +213,112 @@ func (card *featureCard) mirrorHref() string {
 	return siteBase + card.Href
 }
 
-// section answers one section of the file by its id.
+// loadFeatureData reads data/features.json and derives each card's state from
+// the declarations under the repository's features/.
 //
-// The count in the page's own lead is core plus experimental, so a file missing
-// either would publish a number that means something else. It is refused by
-// name rather than counted as zero.
-func (data featureData) section(id string) (featureSection, error) {
-	for _, section := range data.Sections {
-		if section.ID == id {
-			return section, nil
-		}
+// Every reader of the feature cards (the page, the facts, the homepage,
+// llms.txt) goes through here, so the published count is the count of the cards
+// this derivation kept. The file is decoded strictly: a card that still states a
+// "status", or a section that still holds its own cards, is a hand-typed
+// maturity this build no longer reads, and is refused rather than ignored.
+func loadFeatureData(paths Paths) (featureData, error) {
+	var data featureData
+	where := "data/" + featuresDataFile
+	content, err := os.ReadFile(filepath.Join(paths.Source, "data", featuresDataFile)) //nolint:gosec // a site build reads the checkout it was pointed at
+	if err != nil {
+		return data, fmt.Errorf("read %s: %w", where, err)
 	}
-	return featureSection{}, fmt.Errorf("data/%s declares no %q section", featuresDataFile, id)
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&data); err != nil {
+		return data, fmt.Errorf("read %s: %w", where, err)
+	}
+	if err := data.checkSections(); err != nil {
+		return data, err
+	}
+	declarations, err := feature.Declared(paths.Repository)
+	if err != nil {
+		return data, fmt.Errorf("%s: read the feature declarations: %w", where, err)
+	}
+	byID := feature.ByID(declarations)
+	for index := range data.Cards {
+		card := &data.Cards[index]
+		if err := card.validate(where); err != nil {
+			return data, err
+		}
+		shipped, err := feature.CardShipped(byID, card.Features)
+		if err != nil {
+			return data, fmt.Errorf("%s: feature card %q %w", where, card.Title, err)
+		}
+		card.shipped = shipped
+	}
+	if err := data.place(); err != nil {
+		return data, err
+	}
+	return data, nil
 }
 
-// shippedCards answers the core and experimental feature cards.
-func (data featureData) shippedCards() ([]featureCard, error) {
+// checkSections refuses a section with no id or a repeated one.
+func (data *featureData) checkSections() error {
+	seen := make(map[string]bool, len(data.Sections))
+	for _, section := range data.Sections {
+		if section.ID == "" {
+			return fmt.Errorf("data/%s carries a section with no id", featuresDataFile)
+		}
+		if seen[section.ID] {
+			return fmt.Errorf("data/%s declares two %q sections", featuresDataFile, section.ID)
+		}
+		seen[section.ID] = true
+	}
+	return nil
+}
+
+// place puts each card in the section its derived state names: core when
+// shipped, experimental otherwise, each in the file's own card order.
+//
+// Both sections must exist, because the page's count is core plus
+// experimental: a file missing either would publish a number that means
+// something else. A file with no card is refused for the same reason, as a
+// zero count.
+func (data *featureData) place() error {
 	core, err := data.section(featureSectionCore)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	experimental, err := data.section(featureSectionExperimental)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return append(append([]featureCard{}, core.Cards...), experimental.Cards...), nil
+	for index := range data.Cards {
+		if data.Cards[index].shipped {
+			core.Cards = append(core.Cards, data.Cards[index])
+			continue
+		}
+		experimental.Cards = append(experimental.Cards, data.Cards[index])
+	}
+	if len(data.Cards) == 0 {
+		return fmt.Errorf("data/%s states no shipped or experimental feature, so the published feature count would be zero", featuresDataFile)
+	}
+	return nil
+}
+
+// section answers one section of the file by its id, for place to fill.
+func (data *featureData) section(id string) (*featureSection, error) {
+	for index := range data.Sections {
+		if data.Sections[index].ID == id {
+			return &data.Sections[index], nil
+		}
+	}
+	return nil, fmt.Errorf("data/%s declares no %q section", featuresDataFile, id)
 }
 
 // renderFeatures publishes the features page and its mirror.
 func renderFeatures(paths Paths) ([]string, error) {
-	var data featureData
-	if err := readSourceJSON(paths.Source, featuresDataFile, &data); err != nil {
-		return nil, err
-	}
-	seen := make(map[string]bool, len(data.Sections))
-	for _, section := range data.Sections {
-		if section.ID == "" {
-			return nil, fmt.Errorf("data/%s carries a section with no id", featuresDataFile)
-		}
-		if seen[section.ID] {
-			return nil, fmt.Errorf("data/%s declares two %q sections", featuresDataFile, section.ID)
-		}
-		seen[section.ID] = true
-		for index := range section.Cards {
-			if err := section.Cards[index].validate("data/" + featuresDataFile); err != nil {
-				return nil, err
-			}
-		}
-	}
-	shipped, err := data.shippedCards()
+	data, err := loadFeatureData(paths)
 	if err != nil {
 		return nil, err
 	}
+	shipped := data.Cards
 	links, err := loadPageLinks(paths.Source)
 	if err != nil {
 		return nil, err
@@ -310,6 +371,11 @@ func featuresBody(data featureData, shipped []featureCard) string {
 	body.Str("            </section>\n\n")
 
 	for _, section := range data.Sections {
+		// A section no card's derived state places in is not published: its
+		// heading and lead describe cards that are not there.
+		if len(section.Cards) == 0 {
+			continue
+		}
 		body.Str(featureSectionHTML(section))
 		body.Byte('\n')
 	}
@@ -350,8 +416,8 @@ func featureSectionHTML(section featureSection) string {
 // linked title, its chips and its bullets.
 func featureCardHTML(card *featureCard) string {
 	classes := "card feature-card"
-	if card.Status != "" {
-		classes += " " + card.Status
+	if status := card.status(); status != "" {
+		classes += " " + status
 	}
 	classes += " cat-" + card.Category
 
@@ -360,9 +426,9 @@ func featureCardHTML(card *featureCard) string {
 		Str(html.EscapeString(card.Category)).Str("\">\n")
 	out.Str("                    <span class=\"cat\">").Str(html.EscapeString(capitalizeWord(card.Category))).
 		Str("</span>\n")
-	if card.Status != "" {
+	if label := feature.CardLabel(card.shipped); label != "" {
 		out.Str("                    <span class=\"status\">").
-			Str(html.EscapeString(featureStatusLabels[card.Status])).Str("</span>\n")
+			Str(html.EscapeString(label)).Str("</span>\n")
 	}
 	target := ""
 	if card.External {
@@ -399,6 +465,9 @@ func featuresMirror(data featureData, shipped int) string {
 		Str("observe, secure, or platform. Everything shipped runs in both daemon and appliance modes ").
 		Str("unless a card says otherwise.\n\n")
 	for _, section := range data.Sections {
+		if len(section.Cards) == 0 {
+			continue
+		}
 		mirror.Str("## ").Str(section.Heading).Str("\n\n")
 		mirror.Str(section.Lead).Str("\n\n")
 		if section.Note != "" {
@@ -408,8 +477,8 @@ func featuresMirror(data featureData, shipped int) string {
 			card := &section.Cards[index]
 			mirror.Str("### ").Str(card.Title).Str("\n\n")
 			meta := card.Category
-			if card.Status != "" {
-				meta += " / " + featureStatusLabels[card.Status]
+			if label := feature.CardLabel(card.shipped); label != "" {
+				meta += " / " + label
 			}
 			line := "*" + meta + "*"
 			if len(card.Chips) != 0 {

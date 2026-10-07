@@ -93,6 +93,38 @@ var scopeLabels = map[Scope]string{
 	ScopeRejected: "Rejected",
 }
 
+// levelMeanings and scopeMeanings are what each public label asserts, for the
+// vocabulary sentence that opens the rendered docs/features.md. Each states
+// what the check requires of the level, so the sentence cannot promise more
+// than check.go enforces.
+var levelMeanings = map[Level]string{
+	LevelSupported: "every completion criterion its kind requires holds, " +
+		"including a current recorded green run of each real-path test and of each counted interop scenario",
+	LevelExperimental: "implemented and reachable through its real entry point, " +
+		"without the evidence Supported requires",
+	LevelStubBacked: "implemented, with the evidence for its external dependency " +
+		"coming only from a stub harness",
+}
+
+var scopeMeanings = map[Scope]string{
+	ScopePartial:  "the named scope gaps are not implemented or not proven",
+	ScopeFuture:   "planned but not shipped",
+	ScopeRejected: "unsupported by design",
+}
+
+// kindHeadings titles the table each kind's features render under, in the
+// order of kindNames (D-11: product and tooling rows stay on one page,
+// labeled by Kind).
+var kindHeadings = map[Kind]string{
+	KindProtocol:  "Protocols",
+	KindDaemon:    "Daemon services",
+	KindLibrary:   "Libraries",
+	KindDevTool:   "Development tools",
+	KindPackaging: "Packaging",
+	KindTestInfra: "Test infrastructure",
+	KindUmbrella:  "Umbrellas",
+}
+
 type namedValue[T comparable] struct {
 	value T
 	name  string

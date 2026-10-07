@@ -72,8 +72,8 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 	}
 	page := readArtifact(t, paths.Output, featuresDest)
 
-	var data featureData
-	if err := readSourceJSON(paths.Source, featuresDataFile, &data); err != nil {
+	data, err := loadFeatureData(paths)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -84,6 +84,15 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 	previous := -1
 	cards := 0
 	for _, section := range data.Sections {
+		if len(section.Cards) == 0 {
+			// No declaration a card names is supported yet, so the derivation
+			// places every card in experimental and core is left empty. An
+			// empty section is not published.
+			if strings.Contains(page, `<section id="`+section.ID+`"`) {
+				t.Fatalf("the page publishes the empty %q section", section.ID)
+			}
+			continue
+		}
 		at := strings.Index(page, `<section id="`+section.ID+`" aria-labelledby="`+section.ID+`-title"`)
 		if at < 0 {
 			t.Fatalf("the page carries no %q section", section.ID)
@@ -198,6 +207,15 @@ func TestTheFeaturesPageReadsAsThePublishedPage(t *testing.T) {
 // attributes with every parity test still green.
 func TestEveryFeatureSectionIsLabelledByItsOwnHeading(t *testing.T) {
 	paths := featuresPaths(t)
+	paths.Repository = declaredRepository(t, map[string]string{
+		"solid":  siteDeclaration("Solid", "complete", "supported"),
+		"dashed": siteDeclaration("Dashed", "complete", "experimental"),
+	})
+	writeSourceData(t, paths, featuresDataFile, `{"sections":[
+		{"id":"core","heading":"Core","lead":"Lead","note":null},
+		{"id":"experimental","heading":"Experimental","lead":"Lead","note":null}],"cards":[
+		{"category":"operate","features":["solid"],"title":"Solid","href":"features/"},
+		{"category":"operate","features":["dashed"],"title":"Dashed","href":"features/"}]}`)
 
 	if _, err := renderFeatures(paths); err != nil {
 		t.Fatal(err)
@@ -223,11 +241,10 @@ func TestEveryFeatureSectionIsLabelledByItsOwnHeading(t *testing.T) {
 // link stays relative to the page.
 func TestAnExternalFeatureCardLeavesTheSite(t *testing.T) {
 	paths := featuresPaths(t)
-	writeSourceData(t, paths, featuresDataFile, `{"sections":[
-		{"id":"core","cards":[
-			{"category":"automate","title":"AI Tool Interfaces","href":"features/ai-first/"},
-			{"category":"secure","title":"External evidence","href":"https://example.test/evidence","external":true}]},
-		{"id":"experimental","cards":[]}]}`)
+	writeSourceData(t, paths, featuresDataFile, `{"sections":[{"id":"core"},{"id":"experimental"}],"cards":[
+		{"category":"automate","features":["ai-first-design"],"title":"AI Tool Interfaces","href":"features/ai-first/"},
+		{"category":"secure","features":["interoperability-testing"],"title":"External evidence",
+			"href":"https://example.test/evidence","external":true}]}`)
 
 	if _, err := renderFeatures(paths); err != nil {
 		t.Fatal(err)
@@ -252,8 +269,8 @@ func TestFeaturesLinkTheCanonicalRoadmap(t *testing.T) {
 	if _, err := renderFeatures(paths); err != nil {
 		t.Fatal(err)
 	}
-	var data featureData
-	if err := readSourceJSON(paths.Source, featuresDataFile, &data); err != nil {
+	data, err := loadFeatureData(paths)
+	if err != nil {
 		t.Fatal(err)
 	}
 	for _, section := range data.Sections {
@@ -290,9 +307,9 @@ func TestFeaturesLinkTheCanonicalRoadmap(t *testing.T) {
 func TestAFeatureCardWithAnUnknownCategoryIsRefused(t *testing.T) {
 	paths := featuresPaths(t)
 	writeSourceData(t, paths, featuresDataFile, `{"sections":[
-		{"id":"core","heading":"Core","lead":"Lead","note":null,"cards":[
-			{"category":"telepathy","status":null,"title":"Mind Reading","href":"features/","external":false,"chips":[],"bullets":[]}]},
-		{"id":"experimental","heading":"Experimental","lead":"Lead","note":null,"cards":[]}]}`)
+		{"id":"core","heading":"Core","lead":"Lead","note":null},
+		{"id":"experimental","heading":"Experimental","lead":"Lead","note":null}],"cards":[
+		{"category":"telepathy","features":["web-interface"],"title":"Mind Reading","href":"features/","external":false,"chips":[],"bullets":[]}]}`)
 
 	_, err := renderFeatures(paths)
 	if err == nil {
@@ -310,7 +327,8 @@ func TestAFeatureCardWithAnUnknownCategoryIsRefused(t *testing.T) {
 func TestFeaturesWithNoShippedSectionAreRefused(t *testing.T) {
 	paths := featuresPaths(t)
 	writeSourceData(t, paths, featuresDataFile, `{"sections":[
-		{"id":"core","heading":"Core","lead":"Lead","note":null,"cards":[]}]}`)
+		{"id":"core","heading":"Core","lead":"Lead","note":null}],"cards":[
+		{"category":"operate","features":["web-interface"],"title":"Web","href":"features/"}]}`)
 
 	_, err := renderFeatures(paths)
 	if err == nil {
@@ -671,7 +689,7 @@ func TestAMalformedDataFileIsRefusedByName(t *testing.T) {
 		{
 			name:    "a section with no id",
 			file:    featuresDataFile,
-			content: `{"sections":[{"id":"","heading":"H","lead":"L","note":null,"cards":[]}]}`,
+			content: `{"sections":[{"id":"","heading":"H","lead":"L","note":null}],"cards":[]}`,
 			render:  renderFeatures,
 			names:   "no id",
 		},
@@ -679,24 +697,24 @@ func TestAMalformedDataFileIsRefusedByName(t *testing.T) {
 			name: "two sections sharing an id",
 			file: featuresDataFile,
 			content: `{"sections":[
-				{"id":"core","heading":"H","lead":"L","note":null,"cards":[]},
-				{"id":"core","heading":"H","lead":"L","note":null,"cards":[]}]}`,
+				{"id":"core","heading":"H","lead":"L","note":null},
+				{"id":"core","heading":"H","lead":"L","note":null}],"cards":[]}`,
 			render: renderFeatures,
 			names:  `two "core" sections`,
 		},
 		{
 			name:    "a card that links nowhere",
 			file:    featuresDataFile,
-			content: `{"sections":[{"id":"core","heading":"H","lead":"L","note":null,"cards":[{"category":"operate","status":null,"title":"Linkless","href":"","external":false,"chips":[],"bullets":[]}]}]}`,
+			content: `{"sections":[{"id":"core","heading":"H","lead":"L","note":null},{"id":"experimental"}],"cards":[{"category":"operate","features":["web-interface"],"title":"Linkless","href":"","external":false,"chips":[],"bullets":[]}]}`,
 			render:  renderFeatures,
 			names:   "Linkless",
 		},
 		{
-			name:    "a card with an unknown status",
+			name:    "a card that types its own status",
 			file:    featuresDataFile,
-			content: `{"sections":[{"id":"core","heading":"H","lead":"L","note":null,"cards":[{"category":"operate","status":"almost","title":"Almost","href":"features/","external":false,"chips":[],"bullets":[]}]}]}`,
+			content: `{"sections":[{"id":"core","heading":"H","lead":"L","note":null},{"id":"experimental"}],"cards":[{"category":"operate","features":["web-interface"],"status":"almost","title":"Almost","href":"features/","external":false,"chips":[],"bullets":[]}]}`,
 			render:  renderFeatures,
-			names:   "almost",
+			names:   `"status"`,
 		},
 		{
 			name:    "a timeline with no lead",
@@ -767,5 +785,119 @@ func TestADataFileThatIsNotJSONIsRefused(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "data/"+featuresDataFile) {
 		t.Errorf("the refusal is %q, which does not name the file it read", err)
+	}
+}
+
+// siteDeclaration is a features/<id>.md the site tests state the maturity of.
+// It parses; whether its evidence holds is `./le feature check`'s question,
+// not the site's.
+func siteDeclaration(name, scope, level string) string {
+	text := "# " + name + "\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+		"| Name | " + name + " |\n| Kind | daemon |\n| Scope | " + scope + " |\n"
+	if level != "" {
+		text += "| Level | " + level + " |\n| Components | internal/x |\n"
+	}
+	if scope == "partial" {
+		text += "| Scope gaps | the rest |\n"
+	}
+	return text + "\n## Description\n\n" + name + " does its job.\n"
+}
+
+// declaredRepository writes a repository root whose features/ holds the given
+// declarations, keyed by id.
+func declaredRepository(t *testing.T, declarations map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
+	for id, text := range declarations {
+		writeArtifactFile(t, root, "features/"+id+".md", text)
+	}
+	return root
+}
+
+// copyDeclarations gives a fixture repository this checkout's own declarations,
+// so cards naming real feature ids derive their real state.
+func copyDeclarations(t *testing.T, target string) {
+	t.Helper()
+	matches, err := filepath.Glob(filepath.Join(repositoryRoot(t), "features", "*.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, match := range matches {
+		copyFixture(t, match, filepath.Join(target, "features", filepath.Base(match)))
+	}
+}
+
+// VALIDATES: a card is solid, in core and without a badge, exactly when every
+// declaration it names is complete and supported (D-9); otherwise it is dashed,
+// in experimental, with the experimental badge, on the page and in the mirror.
+// A card naming an unknown id, only future features, or nothing is refused by
+// name, and so is a card that still types its own status (AC-18, AC-19).
+func TestFeaturesProducerDerivesCardState(t *testing.T) {
+	paths := featuresPaths(t)
+	paths.Repository = declaredRepository(t, map[string]string{
+		"solid":   siteDeclaration("Solid", "complete", "supported"),
+		"dashed":  siteDeclaration("Dashed", "complete", "experimental"),
+		"partial": siteDeclaration("Partial", "partial", "supported"),
+		"later":   siteDeclaration("Later", "future", ""),
+	})
+	cards := func(list string) string {
+		return `{"sections":[{"id":"core","heading":"Core","lead":"L"},` +
+			`{"id":"experimental","heading":"Experimental","lead":"L"}],"cards":[` + list + `]}`
+	}
+	writeSourceData(t, paths, featuresDataFile, cards(
+		`{"category":"operate","features":["dashed"],"title":"Dashed card","href":"features/"},
+		{"category":"routing","features":["solid"],"title":"Solid card","href":"features/"},
+		{"category":"secure","features":["solid","partial"],"title":"Mixed card","href":"features/"},
+		{"category":"observe","features":["solid","later"],"title":"Planned part","href":"features/"}`))
+
+	if _, err := renderFeatures(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := readArtifact(t, paths.Output, featuresDest)
+	core := strings.Index(page, `<section id="core"`)
+	experimental := strings.Index(page, `<section id="experimental"`)
+	if core < 0 || experimental < core {
+		t.Fatalf("the page does not carry core then experimental:\n%s", page)
+	}
+	for title, shipped := range map[string]bool{
+		"Solid card": true, "Dashed card": false, "Mixed card": false, "Planned part": false,
+	} {
+		at := strings.Index(page, ">"+title+"</a></h3>")
+		if at < 0 {
+			t.Fatalf("the page carries no card %q", title)
+		}
+		article := page[strings.LastIndex(page[:at], "<article"):at]
+		if shipped != (at < experimental) {
+			t.Errorf("%q sits in the wrong section (shipped %v)", title, shipped)
+		}
+		if shipped == strings.Contains(article, "feature-card experimental") {
+			t.Errorf("%q carries the wrong class for shipped %v: %s", title, shipped, article)
+		}
+		if shipped == strings.Contains(article, `<span class="status">Experimental</span>`) {
+			t.Errorf("%q carries the wrong badge for shipped %v: %s", title, shipped, article)
+		}
+	}
+	mirror := readArtifact(t, paths.Output, "features/"+pageMirrorFile)
+	for _, line := range []string{"### Solid card\n\n*routing*", "### Dashed card\n\n*operate / Experimental*"} {
+		if !strings.Contains(mirror, line) {
+			t.Errorf("the mirror is missing %q", line)
+		}
+	}
+
+	for _, refusal := range []struct{ list, says string }{
+		{`{"category":"operate","features":["unicorn"],"title":"Unknown","href":"features/"}`, "unicorn"},
+		{`{"category":"operate","features":["later"],"title":"Only later","href":"features/"}`, "only future or rejected"},
+		{`{"category":"operate","title":"Nothing","href":"features/"}`, "names no feature"},
+		{`{"category":"operate","features":["solid"],"status":"","title":"Typed","href":"features/"}`, `"status"`},
+	} {
+		writeSourceData(t, paths, featuresDataFile, cards(refusal.list))
+		_, err := renderFeatures(paths)
+		if err == nil {
+			t.Errorf("%s was published", refusal.list)
+			continue
+		}
+		if !strings.Contains(err.Error(), refusal.says) {
+			t.Errorf("the refusal is %q, which does not name %q", err, refusal.says)
+		}
 	}
 }

@@ -40,9 +40,15 @@ func factsFixture(t *testing.T) Paths {
 	  },
 	  "live": {}
 	}`)
-	writeFixtureFile(t, filepath.Join(source, "data", "features.json"), `{"sections":[
-	  {"id":"core","cards":[{"category":"routing"},{"category":"operate"},{"category":"secure"}]},
-	  {"id":"experimental","cards":[{"category":"observe"}]}
+	// Four cards, three on one supported declaration and one on an
+	// experimental one, so the count is the cards kept, whatever their state.
+	writeFixtureFile(t, filepath.Join(root, "features", "solid.md"), siteDeclaration("Solid", "complete", "supported"))
+	writeFixtureFile(t, filepath.Join(root, "features", "dashed.md"), siteDeclaration("Dashed", "complete", "experimental"))
+	writeFixtureFile(t, filepath.Join(source, "data", "features.json"), `{"sections":[{"id":"core"},{"id":"experimental"}],"cards":[
+	  {"category":"routing","features":["solid"],"title":"A","href":"features/"},
+	  {"category":"operate","features":["solid"],"title":"B","href":"features/"},
+	  {"category":"secure","features":["solid"],"title":"C","href":"features/"},
+	  {"category":"observe","features":["dashed"],"title":"D","href":"features/"}
 	]}`)
 	writeFixtureFile(t, filepath.Join(source, "blog", "posts", "one.md"), "# One\n")
 	writeFixtureFile(t, filepath.Join(source, "changes", "posts", "2026-08-17.md"), "# Week\n")
@@ -278,8 +284,13 @@ func TestAFactTheTreeCannotAnswerStopsTheBuild(t *testing.T) {
 		}, "states no requirement"},
 		{"a features file with no shipped section", func(t *testing.T, paths Paths) {
 			writeFixtureFile(t, filepath.Join(paths.Source, "data", "features.json"),
-				`{"sections":[{"id":"core","cards":[]},{"id":"experimental","cards":[]}]}`)
+				`{"sections":[{"id":"core"},{"id":"experimental"}],"cards":[]}`)
 		}, "no shipped or experimental feature"},
+		{"a feature card no declaration backs", func(t *testing.T, paths Paths) {
+			writeFixtureFile(t, filepath.Join(paths.Source, "data", "features.json"),
+				`{"sections":[{"id":"core"},{"id":"experimental"}],"cards":[
+				{"category":"routing","features":["solid","unicorn"],"title":"A","href":"features/"}]}`)
+		}, "unicorn"},
 		{"a blog with no article", func(t *testing.T, paths Paths) {
 			if err := os.Remove(filepath.Join(paths.Source, "blog", "posts", "one.md")); err != nil {
 				t.Fatal(err)
@@ -696,4 +707,27 @@ func publishedFactsOfThisCheckout(t *testing.T) siteFacts {
 		t.Fatalf("this checkout cannot answer its own published facts: %v", checkoutFactsSnapshot.err)
 	}
 	return checkoutFactsSnapshot.facts
+}
+
+// VALIDATES: the published feature count is the number of cards the derivation
+// kept, each backed by the declarations it names, and it moves when a card is
+// added, not when a declaration's level changes (AC-19).
+func TestFactsFeatureCountFromDeclarations(t *testing.T) {
+	paths := factsFixture(t)
+	facts, err := deriveSiteFacts(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if facts.Features.CoreExperimental != 4 {
+		t.Fatalf("the count is %d, want the 4 cards the fixture keeps", facts.Features.CoreExperimental)
+	}
+	writeFixtureFile(t, filepath.Join(paths.Repository, "features", "solid.md"),
+		siteDeclaration("Solid", "complete", "experimental"))
+	facts, err = deriveSiteFacts(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if facts.Features.CoreExperimental != 4 {
+		t.Errorf("a level change moved the count to %d", facts.Features.CoreExperimental)
+	}
 }

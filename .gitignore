@@ -196,6 +196,8 @@ gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 /rfc/enrolled.txt
 /rfc/not-enrolled.txt
 /docs/features/rfc-status.md
+# Rendered from features/*.md by internal/le/feature (derived artifact).
+/docs/features.md
 # The temporaries derived.WriteAtomic renames over, for the two that do not sit
 # under an ignored directory of their own.
 /rfc/.*.txt.tmp-*

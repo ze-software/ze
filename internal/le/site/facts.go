@@ -444,19 +444,14 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 // artifact hold: the feature cards, the articles, the weeks, the dependencies,
 // the commands and the configuration sections.
 func factsFromSiteData(paths Paths, facts *siteFacts) error {
-	var features featureData
-	if err := readSourceJSON(paths.Source, featuresDataFile, &features); err != nil {
+	// The count is the cards loadFeatureData kept: each one backed by the
+	// declarations it names, and placed by the state they derive. It refuses
+	// a zero count itself, so no reader can publish one.
+	features, err := loadFeatureData(paths)
+	if err != nil {
 		return err
 	}
-	for _, section := range features.Sections {
-		switch section.ID {
-		case featureSectionCore, featureSectionExperimental:
-			facts.Features.CoreExperimental += len(section.Cards)
-		}
-	}
-	if facts.Features.CoreExperimental == 0 {
-		return fmt.Errorf("data/%s states no shipped or experimental feature, so the published feature count would be zero", featuresDataFile)
-	}
+	facts.Features.CoreExperimental = len(features.Cards)
 	facts.Sources["features"] = "website/" + featuresFile
 
 	articles, err := countMarkdownSources(paths.Source, blogSourceDirectory)
