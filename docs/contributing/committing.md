@@ -180,9 +180,10 @@ them. One commit block holds, in order:
    (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
    throwaway index, and the copy is deleted only when its entry line is one of
    the lines step 5 captured. A copy whose content or mode differs, a copy Git
-   cannot read or stage, and a path HEAD never held each leave the file in
-   place and print `NOTE: kept <path>: ...` on stderr, because that content is
-   in no commit and somebody has to decide about it. A path already absent is
+   cannot read or stage, a path HEAD never held, and a directory (a `remove`
+   naming a tracked directory, a removed file replaced by one, or a submodule)
+   each leave the path in place and print `NOTE: kept <path>: ...` on stderr,
+   because that content is in no commit and somebody has to decide about it. A path already absent is
    skipped in silence. The step runs after `git commit` under `set -e`, so a
    failed commit deletes nothing, and a deleted copy is always one `git show`
    away. A spec closure therefore leaves no file behind: commit A carries the

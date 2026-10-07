@@ -358,8 +358,9 @@ func removalFixture(t *testing.T, session string) (string, Prepared) {
 	return root, prepared
 }
 
-// TestARemovalDeletesTheWorkingTreeCopyItCommitted is AC-1 of
-// plan/immediate/spec-remove-takes-the-working-tree-copy.md: the file the
+// TestARemovalDeletesTheWorkingTreeCopyItCommitted is AC-1 of the closed
+// spec-remove-takes-the-working-tree-copy (contract: docs/contributing/committing.md,
+// "What the generated script contains", step 9): the file the
 // commit removed, identical to what git held, is gone from disk afterwards.
 //
 // PREVENTS: plan/journal/removal-leaves-the-file-on-disk.md, a closed spec left
@@ -516,6 +517,68 @@ func TestAFailedBlockDeletesNothing(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(root, "tracked.txt")); err != nil {
 		t.Fatal("a failed block deleted the working-tree copy")
+	}
+}
+
+// TestARemovedDirectoryIsKeptAndTheScriptFinishes covers a `remove` naming a
+// directory, which `validateRemovePath` accepts because `git ls-files` matches
+// the files under it. Staging the directory answers one entry per file, and
+// `grep -F` reads a multi-line pattern as one pattern per line, so a single
+// matching file proved the whole directory; `rm -f` then failed on it under
+// `set -e` and stopped the script after its commit. A directory is never one
+// entry's content, so it is kept and named, and the script runs to its end.
+func TestARemovedDirectoryIsKeptAndTheScriptFinishes(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "removal-directory-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "notes/a.txt", "a\n")
+	writeCommitFixture(t, root, "notes/b.txt", "b\n")
+	runCommitGit(t, root, "add", "--", "notes")
+	runCommitGit(t, root, "commit", "-q", "-m", "notes")
+	prepared, err := Create(root, &Options{Subject: "remove notes", Remove: []string{"notes"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := runCommitScript(t, root, prepared.Script)
+	for _, name := range []string{"notes/a.txt", "notes/b.txt"} {
+		if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(name))); err != nil {
+			t.Fatalf("a file under the removed directory was deleted: %s\n%s", name, output)
+		}
+	}
+	if !strings.Contains(output, "kept notes") {
+		t.Fatalf("the run did not name the directory it kept:\n%s", output)
+	}
+}
+
+// TestACopyBehindASymlinkedParentIsKept covers a removed path whose parent
+// directory became a symlink to a directory outside the checkout, holding a
+// file with the removed content. Git refuses to stage a path beyond a symbolic
+// link, so no entry proves it, and the file outside the checkout survives.
+func TestACopyBehindASymlinkedParentIsKept(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "removal-symlink-parent-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "linked/f.txt", "same\n")
+	runCommitGit(t, root, "add", "--", "linked")
+	runCommitGit(t, root, "commit", "-q", "-m", "linked")
+	prepared, err := Create(root, &Options{Subject: "remove linked/f.txt", Remove: []string{"linked/f.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	writeCommitFixture(t, outside, "f.txt", "same\n")
+	if err := os.RemoveAll(filepath.Join(root, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	output := runCommitScript(t, root, prepared.Script)
+	if _, err := os.Lstat(filepath.Join(outside, "f.txt")); err != nil {
+		t.Fatalf("the run deleted a file outside the checkout through a symlink\n%s", output)
+	}
+	if !strings.Contains(output, "kept linked/f.txt") {
+		t.Fatalf("the run did not name the copy it kept:\n%s", output)
 	}
 }
 

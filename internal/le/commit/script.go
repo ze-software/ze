@@ -206,6 +206,12 @@ func renderSharedIndexRepair(block commitBlock) string {
 // the entries renderPrivateIndex captured from HEAD before the removal. A
 // missing file, an unreadable file, a file git cannot stage, and a path HEAD
 // never held each produce no matching entry, so each copy is left where it is.
+// A directory is kept before it is staged: staging one answers an entry per
+// file beneath it, and `grep -F` reads a multi-line pattern as one pattern per
+// line, so one matching file would prove the whole directory. A submodule's
+// gitlink is the one directory HEAD can hold as a single entry, and it is kept
+// too, because `rm -f` cannot delete a directory and `set -e` would stop the
+// script after its commit.
 // Every copy left on disk is named on stderr, because a kept copy is content
 // no commit carries and somebody has to decide about it. The comparison stages
 // into a throwaway index, as renderDriftNote does, so neither the shared index
@@ -217,6 +223,10 @@ func renderWorkingTreeRemoval(removed []string) string {
 		`rm -f "$_ze_index.gone"`,
 		`for _ze_path in "${_ze_gone[@]}"; do`,
 		`  if [ ! -e "$_ze_path" ] && [ ! -L "$_ze_path" ]; then continue; fi`,
+		`  if [ -d "$_ze_path" ] && [ ! -L "$_ze_path" ]; then`,
+		`    echo "NOTE: kept $_ze_path: a directory is not the content this commit removed." >&2`,
+		"    continue",
+		"  fi",
 		`  GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs add -f -- "$_ze_path" 2>/dev/null || true`,
 		`  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs -c core.quotePath=false ls-files -s -- "$_ze_path")`,
 		`  if [ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"; then`,

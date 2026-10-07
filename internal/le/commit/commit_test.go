@@ -69,8 +69,9 @@ func TestAddAndRemoveValidationProtectExplicitStaging(t *testing.T) {
 	}
 }
 
-// TestCreateAcceptsARemovalWhoseFileIsStillOnDisk is AC-11 of
-// plan/immediate/spec-remove-takes-the-working-tree-copy.md: preparing a
+// TestCreateAcceptsARemovalWhoseFileIsStillOnDisk is AC-11 of the closed
+// spec-remove-takes-the-working-tree-copy (contract: docs/contributing/committing.md,
+// "What the generated script contains", step 9): preparing a
 // removal puts no condition on the working tree, and leaves the file where it
 // is, because the generated script deletes it only after its commit succeeds.
 // PREVENTS: a `create` that refuses, or deletes early, unless the caller ran
@@ -1170,8 +1171,9 @@ func debtGateFixture(t *testing.T, gate string) string {
 // working-tree deletion, with a path holding a space and a quote quoted the
 // way every other path is.
 //
-// VALIDATES: AC-9 and the ordering AC-7 relies on in
-// plan/immediate/spec-remove-takes-the-working-tree-copy.md.
+// VALIDATES: AC-9 and the ordering AC-7 relies on in the closed
+// spec-remove-takes-the-working-tree-copy; the contract is
+// docs/contributing/committing.md, "What the generated script contains", step 9.
 // PREVENTS: a deletion rendered before `git commit`, which would delete a file
 // whose content no commit holds yet.
 func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {

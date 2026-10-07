@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/spec-commit-stages-in-a-private-index.md` (product code recorded landed; shares `internal/le/commit/script.go`; proof and closure remain open) |
-| Phase | 6/6 (implemented; review and closure owed) |
+| Phase | 6/6 (implemented, reviewed, closing) |
 | Handoff | - |
 | Updated | 2026-10-07 |
 
@@ -180,7 +180,7 @@ operator. The three instruction sites are corrected to the new contract.
 | A-2 | Two identical `git ls-files -s` entry lines mean the working-tree file and the removed content are the same file to Git, in content and in mode | `renderDriftNote` decides drift on the same comparison, and `snapshotIndexEntries` binds commit content to the same line format | A file differing in a way the entry line hides would be deleted | `TestADivergentWorkingTreeCopySurvivesTheRemoval` and `TestAModeOnlyDifferenceLeavesTheFile` | validated: both green, both red under the unguarded rendering |
 | A-3 | When block B of a closure script runs, HEAD is commit A, which carries the spec's current content, so the captured entry matches the working-tree copy | `renderPrivateIndex` emits `git read-tree HEAD` per block, and `ai/skills/ze-close.md` requires commit A to name `file plan/<spec-name>` | The closure case would report instead of deleting, leaving the defect unfixed for its main caller | `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex`, extended to assert the removed file is gone | validated by a NEW test, `TestAClosureLeavesNoSpecBehind` (`ai/rules/testing.md`: a new behavior gets a new case, an existing test is not repurposed); the two-block test keeps its own assertions and its stale PREVENTS clause was corrected |
 | A-4 | A `remove` path can be tracked in the shared index and absent from HEAD, because `validateRemovePath` tests the index | `validateRemovePath` (`internal/le/commit/input.go`) | An unguarded design would delete a file whose content no commit holds | `TestARemovalOfAPathHeadDoesNotHoldDeletesNothing` | validated: green, red under the unguarded rendering |
-| A-5 | The working tree is the correct authority for the spec population, so `specpath.All` and `specpath.Find` need no change | `Claim` (`internal/le/spec/session/session.go`) resolves a session claim through `specpath.Find`, and `/ze-spec` writes the spec file before it is ever committed | The file-existence test would be a second defect and would need its own spec | Ruling recorded under Key Design Decisions, re-checked at closure against the claim path | unvalidated |
+| A-5 | The working tree is the correct authority for the spec population, so `specpath.All` and `specpath.Find` need no change | `Claim` (`internal/le/spec/session/session.go`) resolves a session claim through `specpath.Find`, and `/ze-spec` writes the spec file before it is ever committed | The file-existence test would be a second defect and would need its own spec | Ruling recorded under Key Design Decisions, re-checked at closure against the claim path | validated at closure 2026-10-07: `specOwner.Claim` (now `internal/le/spec/session.go`) calls `specpath.Find` (now `internal/le/spec/path/specpath.go`), which `os.Stat`s each bucket path; `All` globs. Unchanged ruling |
 | A-6 | No caller depends on a removed path's file surviving | The `remove` keyword is documented as "One tracked path to delete", and the callers are the two skills plus site republish through `remove-list` | A workflow that untracks a file while keeping it locally would break | Grep every `remove` and `remove-list` caller in `ai/skills/`, `.claude/`, and `docs/` before landing, and name each in the closure report | validated 2026-10-07: the callers are `/ze-close` commit B (`remove plan/<spec-name>`), `/ze-progress` row 5 (same route), the closure example in `docs/contributing/committing.md`, and the sibling-checkout republish there, whose `remove-list` is built from `git status` ` D` lines, so every path is already absent and takes the silent AC-4 route. `internal/le/commit/actions.go` is the keyword parser. No caller untracks a path while keeping the file |
 
 ### Risks
@@ -532,14 +532,146 @@ Not applicable. No RFC governs a commit script.
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** the spec removal only (commit A preserves the spec in history)
 
+## Implementation Summary
+
+### What Was Implemented
+- `renderPrivateIndex` (`internal/le/commit/script.go`) captures the removed paths' `git ls-files -s` lines from the private index into `_ze_removed`, immediately before the private `force-remove` (d70bbec7fc).
+- `renderWorkingTreeRemoval` (same file) runs after `git commit` and the shared-index repair: per removed path it skips an absent path, keeps a real directory, stages the copy into `$_ze_index.gone`, and deletes it only when its single entry line is one of the captured lines (`[ -n "$_ze_now" ]` plus `grep -q -x -F`); every other copy is kept and named on stderr.
+- Instruction sites moved to the new contract: `ai/skills/ze-close.md`, `ai/skills/ze-progress.md`, `ai/INSTRUCTIONS.md` (d70bbec7fc) and, at closure, the refusal text of `bashDestructiveGit` (`internal/le/hookruntime/bash.go`).
+
+### Bugs Found/Fixed
+- Closure review: a `remove` naming a tracked directory passed `validateRemovePath`; staging the directory answered one entry per file, `grep -F` read that multi-line pattern as one pattern per line, the match "proved" the directory and `rm -f` failed under `set -e`, stopping the script after its commit (later blocks and the approval prune never ran). A submodule gitlink took the same route. Fixed by keeping a real directory before staging; `TestARemovedDirectoryIsKeptAndTheScriptFinishes` was RED on d70bbec7fc (`rm: cannot remove 'notes': Is a directory`) and is GREEN now.
+- Closure review: `bashDestructiveGit` still told every refused session "use plain `rm` and pass the path to `remove`", the old contract. Text now states the new one.
+
+### Documentation Updates
+- `docs/contributing/committing.md`: keyword rows, step 5 and step 9 (d70bbec7fc); step 9 now also names the directory case. Anchor `<!-- source: internal/le/commit/script.go -- renderPrivateIndex, renderWorkingTreeRemoval -->` re-read against source.
+
+### Deviations from Plan
+- Tests landed as new cases rather than extensions of `TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex` and `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex` (`ai/rules/testing.md`); AC-10 is `TestAClosureLeavesNoSpecBehind`.
+- Two cases added at closure: the directory case above and `TestACopyBehindASymlinkedParentIsKept` (a removed path whose parent became a symlink to a directory outside the checkout keeps the outside file).
+- The spec's Current Behavior names `internal/le/spec/session/session.go` and `internal/le/spec/specpath/specpath.go`; those files now live at `internal/le/spec/session.go` and `internal/le/spec/path/specpath.go`. The A-5 re-check read the current paths.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The guard compared a possibly multi-line staging result with `grep -F`, assuming one entry per removed path | A directory (or a gitlink) at a removed path stages to several entries or to a directory `rm -f` cannot delete | Closure review probe over a tracked-directory `remove` | Real directories are kept before staging; test added |
+| approach | The hook refusal text was not in the list of instruction sites | Every refused staging verb prints the contract | Closure review grep for the old sentence | Text corrected in `bashDestructiveGit` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A removal removes the working-tree copy Git holds | Done | `internal/le/commit/script.go` `renderWorkingTreeRemoval` | after the commit, on proof |
+| A divergent copy is left and named | Done | same | stderr `NOTE: kept <path>: ...` |
+| The three instruction sites state the new contract | Done | `ai/skills/ze-close.md`, `ai/skills/ze-progress.md`, `ai/INSTRUCTIONS.md` | plus the hook refusal text |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestARemovalDeletesTheWorkingTreeCopyItCommitted` | |
+| AC-2 | Done | `TestADivergentWorkingTreeCopySurvivesTheRemoval` | |
+| AC-3 | Done | `TestAModeOnlyDifferenceLeavesTheFile` | |
+| AC-4 | Done | `TestARemovalOfAnAbsentPathReportsNothing` | |
+| AC-5 | Done | `TestAnUnreadableCopyIsKeptAndReported`, `TestAnUnstageableCopyIsKeptAndReported` | unreadable half skips as root |
+| AC-6 | Done | `TestARemovalOfAPathHeadDoesNotHoldDeletesNothing` | |
+| AC-7 | Done | `TestAFailedBlockDeletesNothing` | |
+| AC-8 | Done | `TestABlockWithoutRemovalsRendersNoWorkingTreeDeletion` | |
+| AC-9 | Done | `TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit` | |
+| AC-10 | Done | `TestAClosureLeavesNoSpecBehind` | |
+| AC-11 | Done | `TestCreateAcceptsARemovalWhoseFileIsStillOnDisk` | |
+| AC-12 | Done | Instruction Checks below | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Render-order and no-removal tests | Done | `internal/le/commit/commit_test.go` | new cases |
+| AC-1..AC-7, AC-10 run tests | Done | `internal/le/commit/snapshot_test.go` | |
+| `.ci` functional test | Changed | N-A | `./le` is `ze_le` tooling; the run tests drive `Create` and the real script through `bash` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/commit/script.go` | Done | |
+| `internal/le/commit/commit_test.go`, `snapshot_test.go` | Done | |
+| `ai/skills/ze-close.md`, `ai/skills/ze-progress.md`, `ai/INSTRUCTIONS.md` | Done | |
+| `docs/contributing/committing.md` | Done | |
+| `plan/journal/removal-leaves-the-file-on-disk.md` | Done | closing row |
+
+### Audit Summary
+- **Total items:** 12 ACs, 3 requirements, 6 files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (no `.ci`: tooling, recorded above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A closure leaves no spec file on disk | run test, real Git repo and `bash` | `TestAClosureLeavesNoSpecBehind` RED on the pre-change tree, GREEN after; this spec's own commit B is the live run |
+| A removal removes the file for every caller | run test | `TestARemovalDeletesTheWorkingTreeCopyItCommitted` RED then GREEN |
+| No operator edit is destroyed | run tests under mutation | AC-2, AC-3, AC-5, AC-6 RED under an unguarded rendering; directory and symlinked-parent cases GREEN |
+| The guard fails closed | run tests | AC-4, AC-6, AC-7 and the directory case |
+| The instructions no longer contradict the command | grep | the old "plain `rm`" sentence survives only in the rename sentence of `committing.md`, which describes a rename, not a precondition |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC landed | - |
+
 ## Review Gate
 
-<!-- Filled at implementation time by /ze-review, not now. -->
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (path in the commit A body) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | security (path kinds: symlink, symlinked parent, directory, gitlink, spaces, quotes, leading dash, glob), fail-closed guard, ordering under `set -e`, instruction reach, Go style |
 
-### Run 1
-| Severity | Finding | File | Resolution |
-|----------|---------|------|------------|
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A directory or gitlink at a removed path matched the guard and `rm -f` aborted the script after its commit | `renderWorkingTreeRemoval` | real directories kept before staging; `TestARemovedDirectoryIsKeptAndTheScriptFinishes` |
+| 2 | ISSUE | Hook refusal still taught "use plain `rm`" | `bashDestructiveGit` (`internal/le/hookruntime/bash.go`) | text states the new contract |
 
-### Run 2
-| Severity | Finding | File | Resolution |
-|----------|---------|------|------------|
+NOTEs: the guard comparison `[ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"` is present in HEAD (d70bbec7fc) and correct: the `-n` test stops an empty pattern matching every line, and `-x` makes the match a whole entry line (mode, blob, stage, path). A write landing between the staging and the `rm` of the same path is a window of a few process spawns; it is inherent to a shell delete and not closed here. On a case-insensitive filesystem a differently-cased copy is deleted only when its content equals the committed blob, so nothing Git lacks is lost. `validateRemovePath` accepting a directory or glob pathspec is pre-existing and journaled in `plan/journal/silent-fall-through.md`. Paths with spaces, quotes and a leading dash are quoted by `quotePaths` and passed after `--`; line breaks and control characters are refused by `normalizePath`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/commit/script.go` | yes | `renderWorkingTreeRemoval` present |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-11 | run and render tests pass | `./le job run label unit-pkg quiet command go test -count=1 ./internal/le/commit/...`: `ok github.com/ze-software/ze/internal/le/commit 47.003s` |
+| AC-12 | instructions match | `grep -n "git rm" ai/skills/ze-progress.md` empty; `ai/INSTRUCTIONS.md` Hard Bans reads "pass the path to `remove` and leave the file in" place |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le commit create ... remove` then `bash <script>` | N-A (tooling) | run tests call `Create` and execute the generated script with `bash` in a real repository |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestAFailedBlockDeletesNothing` |
+| A-2 | confirmed, narrowed | holds for a file; a directory stages to several entries, now kept before staging |
+| A-3 | confirmed | `TestAClosureLeavesNoSpecBehind` |
+| A-4 | confirmed | `TestARemovalOfAPathHeadDoesNotHoldDeletesNothing` |
+| A-5 | confirmed | `specOwner.Claim` (`internal/le/spec/session.go`) resolves through `specpath.Find` (`internal/le/spec/path/specpath.go`), which `os.Stat`s the bucket paths; `specpath.All` globs them. A just-written uncommitted spec must resolve, so the working tree stays the authority |
+| A-6 | confirmed | callers listed in the A-6 row; the hook refusal text was a further instruction, not a caller |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `committing.md` step 9 | `renderWorkingTreeRemoval` matches: absent skipped silently, directory kept, staged entry compared, kept copies named | yes |
+| `docs/features/ai-first.md` unaffected | describes `commit.Answer` only | yes |
+
+## Core Insight
+A guard that compares with `grep -F` inherits grep's reading of its pattern: a multi-line value is a set of patterns, so "the entry matches" quietly became "some entry matches".
