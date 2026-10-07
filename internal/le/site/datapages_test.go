@@ -593,6 +593,9 @@ func TestTheDataPagesClaimEachPublishedRouteOnce(t *testing.T) {
 	})
 	repository := t.TempDir()
 	copyFixture(t, filepath.Join("testdata", "published-go.mod"), filepath.Join(repository, "go.mod"))
+	// The published cards name real feature ids, and the features producer
+	// derives each card's state from their declarations.
+	copyDeclarations(t, repository)
 	paths.Repository = repository
 
 	writers := make(map[string][]string)
