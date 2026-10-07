@@ -59,6 +59,9 @@ func renderBlock(block commitBlock, scriptPath string) string {
 		renderPrivateIndex(block, scriptPath),
 		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath),
 		renderSharedIndexRepair(block))
+	if len(block.Removed) != 0 {
+		lines = append(lines, renderWorkingTreeRemoval(block.Removed))
+	}
 	if len(block.ApprovalsDropped) != 0 {
 		lines = append(lines, renderApprovalPrune(block))
 	}
@@ -115,7 +118,11 @@ func renderPrivateIndex(block commitBlock, scriptPath string) string {
 		lines = append(lines, indexInfoDelimiter)
 	}
 	if len(block.Removed) != 0 {
+		// The entries HEAD holds for the removed paths, captured while the
+		// private index still carries them: renderWorkingTreeRemoval compares
+		// the working-tree copies against exactly these lines.
 		lines = append(lines,
+			`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- `+quotePaths(block.Removed)+`)`,
 			`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- `+quotePaths(block.Removed))
 	}
 	if len(block.Paths) != 0 {
@@ -183,6 +190,43 @@ func renderSharedIndexRepair(block commitBlock) string {
 		lines = append(lines, "git update-index --force-remove -- "+quotePaths(block.Removed))
 	}
 	lines = append(lines, `rm -f "$_ze_index"`)
+	return strings.Join(lines, "\n")
+}
+
+// renderWorkingTreeRemoval emits the deletion of each removed path's
+// working-tree copy, for the copies git provably holds and no others.
+//
+// It runs AFTER `git commit` under `set -e`, so it is reached only once the
+// commit exists, and the content it deletes is then one `git show` away. A
+// deletion before the commit would remove content that only a blob hash in
+// this script names.
+//
+// The guard is an intersection, never the absence of a difference: a copy is
+// deleted only when the entry git stages for it now, mode included, is one of
+// the entries renderPrivateIndex captured from HEAD before the removal. A
+// missing file, an unreadable file, a file git cannot stage, and a path HEAD
+// never held each produce no matching entry, so each copy is left where it is.
+// Every copy left on disk is named on stderr, because a kept copy is content
+// no commit carries and somebody has to decide about it. The comparison stages
+// into a throwaway index, as renderDriftNote does, so neither the shared index
+// nor the private one is written.
+func renderWorkingTreeRemoval(removed []string) string {
+	lines := []string{
+		"# Delete each removed path's working-tree copy that git now holds byte for byte.",
+		`_ze_gone=(` + quotePaths(removed) + `)`,
+		`rm -f "$_ze_index.gone"`,
+		`for _ze_path in "${_ze_gone[@]}"; do`,
+		`  if [ ! -e "$_ze_path" ] && [ ! -L "$_ze_path" ]; then continue; fi`,
+		`  GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs add -f -- "$_ze_path" 2>/dev/null || true`,
+		`  _ze_now=$(GIT_INDEX_FILE="$_ze_index.gone" git --literal-pathspecs -c core.quotePath=false ls-files -s -- "$_ze_path")`,
+		`  if [ -n "$_ze_now" ] && printf '%s\n' "$_ze_removed" | grep -q -x -F -- "$_ze_now"; then`,
+		`    rm -f -- "$_ze_path"`,
+		"  else",
+		`    echo "NOTE: kept $_ze_path: its working-tree copy is not the content this commit removed." >&2`,
+		"  fi",
+		"done",
+		`rm -f "$_ze_index.gone"`,
+	}
 	return strings.Join(lines, "\n")
 }
 

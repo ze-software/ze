@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/spec-commit-stages-in-a-private-index.md` (product code recorded landed; shares `internal/le/commit/script.go`; proof and closure remain open) |
-| Phase | - |
+| Phase | 6/6 (implemented; review and closure owed) |
 | Handoff | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-10-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -176,12 +176,12 @@ operator. The three instruction sites are corrected to the new contract.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `set -euo pipefail` makes the deletion section unreachable when `git commit` fails | `composeScript` (`internal/le/commit/prepare.go`) writes the header, and `TestABlockLeavesTheSharedIndexAloneWhenItsCommitFails` already relies on this ordering | A failed commit could delete a file Git does not hold, the exact loss this design exists to avoid | `TestAFailedBlockDeletesNothing` | unvalidated |
-| A-2 | Two identical `git ls-files -s` entry lines mean the working-tree file and the removed content are the same file to Git, in content and in mode | `renderDriftNote` decides drift on the same comparison, and `snapshotIndexEntries` binds commit content to the same line format | A file differing in a way the entry line hides would be deleted | `TestADivergentWorkingTreeCopySurvivesTheRemoval` and `TestAModeOnlyDifferenceLeavesTheFile` | unvalidated |
-| A-3 | When block B of a closure script runs, HEAD is commit A, which carries the spec's current content, so the captured entry matches the working-tree copy | `renderPrivateIndex` emits `git read-tree HEAD` per block, and `ai/skills/ze-close.md` requires commit A to name `file plan/<spec-name>` | The closure case would report instead of deleting, leaving the defect unfixed for its main caller | `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex`, extended to assert the removed file is gone | unvalidated |
-| A-4 | A `remove` path can be tracked in the shared index and absent from HEAD, because `validateRemovePath` tests the index | `validateRemovePath` (`internal/le/commit/input.go`) | An unguarded design would delete a file whose content no commit holds | `TestARemovalOfAPathHeadDoesNotHoldDeletesNothing` | unvalidated |
+| A-1 | `set -euo pipefail` makes the deletion section unreachable when `git commit` fails | `composeScript` (`internal/le/commit/prepare.go`) writes the header, and `TestABlockLeavesTheSharedIndexAloneWhenItsCommitFails` already relies on this ordering | A failed commit could delete a file Git does not hold, the exact loss this design exists to avoid | `TestAFailedBlockDeletesNothing` | validated: green, the file survives a commit with no message file |
+| A-2 | Two identical `git ls-files -s` entry lines mean the working-tree file and the removed content are the same file to Git, in content and in mode | `renderDriftNote` decides drift on the same comparison, and `snapshotIndexEntries` binds commit content to the same line format | A file differing in a way the entry line hides would be deleted | `TestADivergentWorkingTreeCopySurvivesTheRemoval` and `TestAModeOnlyDifferenceLeavesTheFile` | validated: both green, both red under the unguarded rendering |
+| A-3 | When block B of a closure script runs, HEAD is commit A, which carries the spec's current content, so the captured entry matches the working-tree copy | `renderPrivateIndex` emits `git read-tree HEAD` per block, and `ai/skills/ze-close.md` requires commit A to name `file plan/<spec-name>` | The closure case would report instead of deleting, leaving the defect unfixed for its main caller | `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex`, extended to assert the removed file is gone | validated by a NEW test, `TestAClosureLeavesNoSpecBehind` (`ai/rules/testing.md`: a new behavior gets a new case, an existing test is not repurposed); the two-block test keeps its own assertions and its stale PREVENTS clause was corrected |
+| A-4 | A `remove` path can be tracked in the shared index and absent from HEAD, because `validateRemovePath` tests the index | `validateRemovePath` (`internal/le/commit/input.go`) | An unguarded design would delete a file whose content no commit holds | `TestARemovalOfAPathHeadDoesNotHoldDeletesNothing` | validated: green, red under the unguarded rendering |
 | A-5 | The working tree is the correct authority for the spec population, so `specpath.All` and `specpath.Find` need no change | `Claim` (`internal/le/spec/session/session.go`) resolves a session claim through `specpath.Find`, and `/ze-spec` writes the spec file before it is ever committed | The file-existence test would be a second defect and would need its own spec | Ruling recorded under Key Design Decisions, re-checked at closure against the claim path | unvalidated |
-| A-6 | No caller depends on a removed path's file surviving | The `remove` keyword is documented as "One tracked path to delete", and the callers are the two skills plus site republish through `remove-list` | A workflow that untracks a file while keeping it locally would break | Grep every `remove` and `remove-list` caller in `ai/skills/`, `.claude/`, and `docs/` before landing, and name each in the closure report | unvalidated |
+| A-6 | No caller depends on a removed path's file surviving | The `remove` keyword is documented as "One tracked path to delete", and the callers are the two skills plus site republish through `remove-list` | A workflow that untracks a file while keeping it locally would break | Grep every `remove` and `remove-list` caller in `ai/skills/`, `.claude/`, and `docs/` before landing, and name each in the closure report | validated 2026-10-07: the callers are `/ze-close` commit B (`remove plan/<spec-name>`), `/ze-progress` row 5 (same route), the closure example in `docs/contributing/committing.md`, and the sibling-checkout republish there, whose `remove-list` is built from `git status` ` D` lines, so every path is already absent and takes the silent AC-4 route. `internal/le/commit/actions.go` is the keyword parser. No caller untracks a path while keeping the file |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -276,6 +276,35 @@ present tree. `TestADivergentWorkingTreeCopySurvivesTheRemoval` and
 `TestAModeOnlyDifferenceLeavesTheFile` PASS today and would pass against a stub,
 so each is also run against a deliberately unguarded rendering that deletes every
 removed path, and each must go RED there. All four red results are recorded.
+
+**Recorded 2026-10-07.** Tests landed as NEW cases rather than extensions
+(`ai/rules/testing.md`): `TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit`
+(AC-9, order), `TestABlockWithoutRemovalsRendersNoWorkingTreeDeletion` (AC-8),
+`TestCreateAcceptsARemovalWhoseFileIsStillOnDisk` (AC-11),
+`TestAClosureLeavesNoSpecBehind` (AC-10), and in `snapshot_test.go` the AC-1..AC-7
+run tests, AC-5 split into `TestAnUnreadableCopyIsKeptAndReported` (skips as root,
+row in `test/weakened/cf36fbca.md`) and `TestAnUnstageableCopyIsKeptAndReported`
+(a FIFO, runs everywhere).
+- RED on the unchanged tree: AC-1, AC-10 and the render-order test.
+- RED under the unguarded rendering (`if true; then` in place of the entry
+  comparison, applied and restored inside one run, `-count=1`): AC-2, AC-3, AC-5
+  (both halves) and AC-6 (`snapshot_test.go`: "the divergent copy was deleted",
+  "a copy differing in mode only was deleted", "a copy git cannot stage was
+  deleted", "a file no commit holds was deleted"). AC-1 stayed green there.
+- RED with the absent-path skip removed: AC-4 ("the run reported a path that was
+  already gone").
+- GREEN: `./le job run label unit-pkg quiet command go test -count=1 ./internal/le/commit/...`.
+- `grep -rn MUTATION-APPLIED internal/le/` is empty after every run.
+- Instruction checks: `grep -n "git rm" ai/skills/ze-progress.md` empty;
+  `destroys the working copy` matches nothing in `ai/skills/` or `.claude/skills/`;
+  `./le ai sync write` regenerated the ignored mirrors and `AGENTS.md`.
+- Residue (Phase 6, owner gate, nothing deleted): `plan/spec-password-weakness-warning.md`
+  is untracked, removed by `b080fe755e`, on-disk hash `5c5b8fee4c` equal to the
+  removed blob. `plan/.roadmap.md.tmp-1095422799` and `plan/.roadmap.md.tmp-624488661`
+  were never committed; they are `WriteAtomic` temporaries, the journal row's
+  other producer, not removal residue.
+- Owed, not run here: `./le go lint run`, `./le verify worktree`, `/ze-review`,
+  and A-5's re-check at closure.
 
 ## Goal Validation
 

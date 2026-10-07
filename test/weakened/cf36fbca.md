@@ -6,4 +6,4 @@ the suite only because it takes its original name back.
 
 | Test | Reason |
 |------|--------|
-| judgeOne | Nothing left the suite: its three assertions (Check error, parse problems, widget verdict found) moved unchanged into judgeOn, which judgeOne now calls with fixtureToday so every fixture run is judged on a fixed day instead of the wall clock |
+| snapshot_test | New test TestAnUnreadableCopyIsKeptAndReported, nothing removed: it skips only as root, which reads a file with no permission bits, so the unreadable copy AC-5 needs cannot be built there (testing.md permits t.Skip with a reason for a test that cannot run everywhere). The unstageable half of AC-5 is TestAnUnstageableCopyIsKeptAndReported, which runs everywhere |

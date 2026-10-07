@@ -17,7 +17,8 @@ you have broken one, stop and tell the user.
   loose command carries another session's work.
 - Commit with `./le commit create`, then run the script at the exact `script=`
   path it prints. Never construct that path.
-- To delete a tracked file, use plain `rm` and pass the path to `remove`.
+- To delete a tracked file, pass the path to `remove` and leave the file in
+  place: the script deletes the working-tree copy once the commit lands.
 - Push only when the owner ordered it, through `./le commit create ... push "<owner
   authorisation>"`. A throwaway script that carries a push is the same ban.
 - Never `--no-verify`, never `--no-gpg-sign`.

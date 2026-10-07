@@ -69,6 +69,27 @@ func TestAddAndRemoveValidationProtectExplicitStaging(t *testing.T) {
 	}
 }
 
+// TestCreateAcceptsARemovalWhoseFileIsStillOnDisk is AC-11 of
+// plan/immediate/spec-remove-takes-the-working-tree-copy.md: preparing a
+// removal puts no condition on the working tree, and leaves the file where it
+// is, because the generated script deletes it only after its commit succeeds.
+// PREVENTS: a `create` that refuses, or deletes early, unless the caller ran
+// `rm` first, the step the old contract demanded and closures forgot.
+func TestCreateAcceptsARemovalWhoseFileIsStillOnDisk(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "removal-present-fixture")
+	prepared, err := Create(root, &Options{Subject: "remove tracked.txt", Remove: []string{"tracked.txt"}})
+	if err != nil {
+		t.Fatalf("Create refused a removal whose file is on disk: %v", err)
+	}
+	if len(prepared.Removed) != 1 || prepared.Removed[0] != "tracked.txt" {
+		t.Fatalf("Create did not record the removal: %v", prepared.Removed)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "tracked.txt")); err != nil {
+		t.Fatalf("Create deleted the file before any commit ran: %v", err)
+	}
+}
+
 func TestMessageAndKeywordGrammarAreClosed(t *testing.T) {
 	t.Parallel()
 	if _, err := Message("", nil, nil); err == nil {
@@ -1141,4 +1162,52 @@ func debtGateFixture(t *testing.T, gate string) string {
 		t.Fatalf("record the fixture debt row: %v", err)
 	}
 	return root
+}
+
+// TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit asserts the order of
+// the rendered block for a removal: the captured entries before the private
+// `force-remove`, the commit, the shared-index repair, and only then the
+// working-tree deletion, with a path holding a space and a quote quoted the
+// way every other path is.
+//
+// VALIDATES: AC-9 and the ordering AC-7 relies on in
+// plan/immediate/spec-remove-takes-the-working-tree-copy.md.
+// PREVENTS: a deletion rendered before `git commit`, which would delete a file
+// whose content no commit holds yet.
+func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
+	t.Parallel()
+	block := commitBlock{Tag: "a", Subject: "remove", Removed: []string{"it's old.txt"}, MessagePath: "tmp/m.txt"}
+	script := renderBlock(block, "tmp/commit-owner.sh")
+	quoted := shellQuote("it's old.txt")
+	order := []string{
+		`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- ` + quoted + `)`,
+		`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- ` + quoted,
+		`git commit -F `,
+		`git update-index --force-remove -- ` + quoted,
+		`_ze_gone=(` + quoted + `)`,
+		`rm -f -- "$_ze_path"`,
+	}
+	at := 0
+	for _, want := range order {
+		next := strings.Index(script[at:], want)
+		if next < 0 {
+			t.Fatalf("generated block lacks %q after offset %d:\n%s", want, at, script)
+		}
+		at += next + len(want)
+	}
+}
+
+// TestABlockWithoutRemovalsRendersNoWorkingTreeDeletion asserts AC-8: a block
+// that only adds renders neither the capture nor the deletion, so `set -u`
+// never meets an unset `_ze_removed`.
+func TestABlockWithoutRemovalsRendersNoWorkingTreeDeletion(t *testing.T) {
+	t.Parallel()
+	block := commitBlock{Tag: "a", Subject: "add", Paths: []string{"new.txt"}, MessagePath: "tmp/m.txt",
+		IndexEntries: []string{"100644 0000000000000000000000000000000000000000 0\tnew.txt"}}
+	script := renderBlock(block, "tmp/commit-owner.sh")
+	for _, absent := range []string{"_ze_removed", "_ze_gone", "rm -f -- "} {
+		if strings.Contains(script, absent) {
+			t.Fatalf("a block with no removal renders %q:\n%s", absent, script)
+		}
+	}
 }

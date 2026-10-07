@@ -221,14 +221,15 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
         leaves it red is not closed.
       - **Commit A (implementation + spec):** run `./le commit create replace` with `file <path>` for every implementation file (code, tests, docs, schema), `file plan/journal/<class>.md` when step 6a wrote a journal row, and `file plan/<spec-name>` to preserve all implementation edits in git history.
       - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
-      - **Commit B (spec closure):** run `./le commit create append remove plan/<spec-name>` with the spec closure commit message.
+      - **Commit B (spec closure):** run `./le commit create append remove plan/<spec-name>` with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file plan/<spec-name>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 
    **Why one script, two commits, no follow-up:** closure must not depend on a
    later reminder to remove the spec. Include all required changes in the script.
-   Two commits because removing the spec destroys the working copy. Commit A
-   preserves the edited spec in git history; commit B cleanly removes it.
+   Two commits because commit B's removal deletes the spec's working copy, and
+   it deletes only a copy whose content a commit holds. Commit A preserves the
+   edited spec in git history; commit B removes it from git and from disk.
 
 ## Rules
 

@@ -21,7 +21,7 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 | 2 | Work Not Done | Every row in this spec's **Work Not Done** table names a spec that exists on disk, and no other spec's table routes unfinished work here. See step 5 for the two-class test |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
 | 4 | Commit A | `./le verify worktree` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
-| 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/spec-<name>.md` has been removed via `git rm` in the same commit |
+| 5 | Commit B (closure) | A journal row in `plan/journal/<class>.md` naming this spec is committed AND `plan/spec-<name>.md` has been removed via `./le commit create ... remove plan/spec-<name>.md` in the same commit, which also deletes its working-tree copy |
 
 A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpoints, not endpoints.
 
@@ -114,7 +114,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 | 2 (genuine) | Write the destination spec in the right bucket and name it by path, or ask the owner to drop the item | The item survives this spec's closure as a spec of its own, which is the only form a count can see. Dropping it is the owner's decision, never the author's (`ai/rules/completion.md`). A row that names a spec on disk clears stage 2 |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
 | 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
-| 5 | Append a journal row to `plan/journal/<class>.md` naming this spec, stage `git rm plan/spec-<name>.md` + the journal file, then `/ze-commit` | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
+| 5 | Append a journal row to `plan/journal/<class>.md` naming this spec, prepare one commit through `./le commit create` with `file` for the journal file and `remove plan/spec-<name>.md` (the script deletes the spec's working-tree copy once the commit lands), then run its script | Two-commit rule (`ai/rules/planning.md`): never delete a spec without committing it first |
 | done | "Spec complete. `/ze-spec` to pick the next one." | Nothing pending |
 
 ## Rules

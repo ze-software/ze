@@ -37,8 +37,8 @@ to an author who had been warned about those exact files minutes beforehand.
 | `body` | yes | One body chunk, wrapped to 72 characters without breaking a word. Two chunks run together, so a paragraph break is an empty `body ""` between them |
 | `file` | yes | One explicit file to stage. Never a directory |
 | `file-list` | yes | A file holding one path to stage per line. Blank lines and `#` comments are skipped |
-| `remove` | yes | One tracked path to delete |
-| `remove-list` | yes | A file holding one tracked path to delete per line |
+| `remove` | yes | One tracked path to delete. The commit removes it from Git, then the script deletes the working-tree copy when that copy is what the commit removed. Leave the file in place: no `rm` beforehand |
+| `remove-list` | yes | A file holding one tracked path to delete per line, each handled as `remove` handles one |
 | `replace` | no | Start a fresh script. Use it for the first commit of a session |
 | `append` | no | Add another commit block to a script that already exists |
 | `script` | no | The script to append to. `create` with no `script` always gets a distinct path |
@@ -162,9 +162,10 @@ them. One commit block holds, in order:
 4. `git update-index --index-info` with one `git ls-files -s` line per path,
    written by `snapshotIndexEntries` when `create` ran. The line names the blob,
    so the content is fixed at preparation time.
-5. `git update-index --force-remove` for any `remove` paths. A removal no longer
-   deletes the working-tree file, so `rm` the file first, as the keyword table
-   above says.
+5. For any `remove` paths, their `git ls-files -s` lines captured from the
+   private index into `_ze_removed`, then `git update-index --force-remove`.
+   The captured lines are the entries HEAD holds, mode included, and step 9
+   compares against them.
 6. A drift note. It stages the working tree into a throwaway index and reports
    any named path whose content, mode, or existence moved since preparation. It
    never refuses: the commit is already safe, and the difference is still in the
@@ -175,6 +176,19 @@ them. One commit block holds, in order:
 8. `git ls-tree HEAD -- <paths> | git update-index --index-info`, which points
    the SHARED index at what was just committed. Without it every other session
    reads those paths as staged changes of yours.
+9. For a block with `remove` paths, the working-tree deletion
+   (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
+   throwaway index, and the copy is deleted only when its entry line is one of
+   the lines step 5 captured. A copy whose content or mode differs, a copy Git
+   cannot read or stage, and a path HEAD never held each leave the file in
+   place and print `NOTE: kept <path>: ...` on stderr, because that content is
+   in no commit and somebody has to decide about it. A path already absent is
+   skipped in silence. The step runs after `git commit` under `set -e`, so a
+   failed commit deletes nothing, and a deleted copy is always one `git show`
+   away. A spec closure therefore leaves no file behind: commit A carries the
+   spec's final content with `file`, and commit B's `remove` finds the copy
+   equal to it.
+<!-- source: internal/le/commit/script.go -- renderPrivateIndex, renderWorkingTreeRemoval -->
 
 The script opens with `set -euo pipefail` and a `cd` to the checkout it was
 PREPARED for, named as an absolute path, so a failed step stops it and a script

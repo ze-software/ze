@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -142,7 +143,8 @@ func TestABlockLeavesTheSharedIndexAloneWhenItsCommitFails(t *testing.T) {
 // VALIDATES: `append` still works, each block seeds its index from the HEAD its
 // own commit will build on, and a removal reaches the commit without `git rm`.
 // PREVENTS: a two-commit closure whose second block commits the first block's
-// tree, and a removal that deletes the working-tree file as a side effect.
+// tree. What a removal does to the working-tree copy is proved separately, by
+// TestAClosureLeavesNoSpecBehind and the removal tests below it.
 func TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex(t *testing.T) {
 	root := newCommitRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "two-block-fixture")
@@ -339,5 +341,212 @@ func TestAPeerStagedEntryForANamedPathIsResetToTheCommit(t *testing.T) {
 	if !strings.Contains(output, "these paths changed on disk after this commit was prepared") ||
 		!strings.Contains(output, "shared.txt") {
 		t.Fatalf("the run did not report the peer's content it left on disk:\n%s", output)
+	}
+}
+
+// removalFixture prepares a one-block commit removing tracked.txt, the path
+// newCommitRepository commits, and answers the prepared commit.
+func removalFixture(t *testing.T, session string) (string, Prepared) {
+	t.Helper()
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", session)
+	configureCommitAuthor(t, root)
+	prepared, err := Create(root, &Options{Subject: "remove tracked.txt", Remove: []string{"tracked.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root, prepared
+}
+
+// TestARemovalDeletesTheWorkingTreeCopyItCommitted is AC-1 of
+// plan/immediate/spec-remove-takes-the-working-tree-copy.md: the file the
+// commit removed, identical to what git held, is gone from disk afterwards.
+//
+// PREVENTS: plan/journal/removal-leaves-the-file-on-disk.md, a closed spec left
+// untracked on disk and counted as open work.
+func TestARemovalDeletesTheWorkingTreeCopyItCommitted(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-deletes-fixture")
+	output := runCommitScript(t, root, prepared.Script)
+	if code, _ := gitExit(root, "cat-file", "-e", "HEAD:tracked.txt"); code == 0 {
+		t.Fatalf("the removal did not reach the commit\n%s", output)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "tracked.txt")); err == nil {
+		t.Fatalf("the removed file is still on disk\n%s", output)
+	}
+	if status := strings.TrimSpace(runCommitGitOutput(t, root, "status", "--porcelain", "--", "tracked.txt")); status != "" {
+		t.Fatalf("git status still names the removed path: %q", status)
+	}
+}
+
+// TestADivergentWorkingTreeCopySurvivesTheRemoval is AC-2: a copy edited after
+// preparation is not what git held, so it stays with its bytes and is named.
+// MUTATION: render the deletion without the entry comparison and this goes red.
+func TestADivergentWorkingTreeCopySurvivesTheRemoval(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-divergent-fixture")
+	writeCommitFixture(t, root, "tracked.txt", "edited after preparation\n")
+	output := runCommitScript(t, root, prepared.Script)
+	if code, _ := gitExit(root, "cat-file", "-e", "HEAD:tracked.txt"); code == 0 {
+		t.Fatal("the removal did not reach the commit")
+	}
+	content, err := os.ReadFile(filepath.Join(root, "tracked.txt"))
+	if err != nil {
+		t.Fatalf("the divergent copy was deleted: %v\n%s", err, output)
+	}
+	if string(content) != "edited after preparation\n" {
+		t.Fatalf("the divergent copy changed: %q", content)
+	}
+	if !strings.Contains(output, "kept tracked.txt") {
+		t.Fatalf("the run did not name the copy it kept:\n%s", output)
+	}
+}
+
+// TestAModeOnlyDifferenceLeavesTheFile is AC-3: identical bytes with the
+// execute bit set are a different entry to git, so the file stays.
+// MUTATION: render the deletion without the entry comparison and this goes red.
+func TestAModeOnlyDifferenceLeavesTheFile(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-mode-fixture")
+	if err := os.Chmod(filepath.Join(root, "tracked.txt"), 0o755); err != nil { //nolint:gosec // the fixture needs the execute bit so the copy differs in mode only
+		t.Fatal(err)
+	}
+	output := runCommitScript(t, root, prepared.Script)
+	if _, err := os.Lstat(filepath.Join(root, "tracked.txt")); err != nil {
+		t.Fatalf("a copy differing in mode only was deleted\n%s", output)
+	}
+	if !strings.Contains(output, "kept tracked.txt") {
+		t.Fatalf("the run did not name the copy it kept:\n%s", output)
+	}
+}
+
+// TestARemovalOfAnAbsentPathReportsNothing is AC-4: the author already deleted
+// the file, so the run succeeds and says nothing about it.
+func TestARemovalOfAnAbsentPathReportsNothing(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-absent-fixture")
+	if err := os.Remove(filepath.Join(root, "tracked.txt")); err != nil {
+		t.Fatal(err)
+	}
+	output := runCommitScript(t, root, prepared.Script)
+	// `git commit` itself prints "delete mode 100644 tracked.txt", so the
+	// assertion is on this section's own report line.
+	if strings.Contains(output, "kept tracked.txt") {
+		t.Fatalf("the run reported a path that was already gone:\n%s", output)
+	}
+}
+
+// TestAnUnreadableCopyIsKeptAndReported is AC-5, the unreadable half: a copy
+// git cannot read cannot be staged, so no entry proves it is the removed
+// content, and it stays. Method: the copy loses every permission bit before
+// the run. Root reads through that, so the test skips as root rather than
+// pass vacuously; the unstageable half below runs everywhere.
+// MUTATION: render the deletion without the entry comparison and this goes red.
+func TestAnUnreadableCopyIsKeptAndReported(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a file with no permission bits, so the copy stays readable")
+	}
+	root, prepared := removalFixture(t, "removal-unreadable-fixture")
+	copyPath := filepath.Join(root, "tracked.txt")
+	if err := os.Chmod(copyPath, 0); err != nil {
+		t.Fatal(err)
+	}
+	assertKeptAfterRemoval(t, root, prepared.Script, copyPath)
+}
+
+// TestAnUnstageableCopyIsKeptAndReported is AC-5, the unstageable half: a FIFO
+// at the removed path is a file git refuses to add, so it stays and is named.
+// MUTATION: render the deletion without the entry comparison and this goes red.
+func TestAnUnstageableCopyIsKeptAndReported(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-unstageable-fixture")
+	copyPath := filepath.Join(root, "tracked.txt")
+	if err := os.Remove(copyPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(copyPath, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	assertKeptAfterRemoval(t, root, prepared.Script, copyPath)
+}
+
+// assertKeptAfterRemoval runs the removal script and asserts the commit
+// removed tracked.txt from git while the copy at copyPath stayed and was named.
+func assertKeptAfterRemoval(t *testing.T, root, script, copyPath string) {
+	t.Helper()
+	output := runCommitScript(t, root, script)
+	if code, _ := gitExit(root, "cat-file", "-e", "HEAD:tracked.txt"); code == 0 {
+		t.Fatalf("the removal did not reach the commit\n%s", output)
+	}
+	if _, err := os.Lstat(copyPath); err != nil {
+		t.Fatalf("a copy git cannot stage was deleted\n%s", output)
+	}
+	if !strings.Contains(output, "kept tracked.txt") {
+		t.Fatalf("the run did not name the copy it kept:\n%s", output)
+	}
+}
+
+// TestARemovalOfAPathHeadDoesNotHoldDeletesNothing is AC-6: a path staged in
+// the shared index and never committed has no captured entry, so no proof.
+func TestARemovalOfAPathHeadDoesNotHoldDeletesNothing(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "removal-unheld-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "staged.txt", "staged, never committed\n")
+	runCommitGit(t, root, "add", "--", "staged.txt")
+	prepared, err := Create(root, &Options{Subject: "remove staged.txt", Remove: []string{"staged.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := runCommitScript(t, root, prepared.Script)
+	if _, err := os.Lstat(filepath.Join(root, "staged.txt")); err != nil {
+		t.Fatalf("a file no commit holds was deleted\n%s", output)
+	}
+	if !strings.Contains(output, "kept staged.txt") {
+		t.Fatalf("the run did not name the copy it kept:\n%s", output)
+	}
+}
+
+// TestAFailedBlockDeletesNothing is AC-7: with the message file gone the commit
+// fails, and `set -e` stops the script before the deletion.
+func TestAFailedBlockDeletesNothing(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-failed-fixture")
+	if err := os.Remove(filepath.Join(root, filepath.FromSlash(prepared.Message))); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.CommandContext(t.Context(), "bash", filepath.Join(root, filepath.FromSlash(prepared.Script)))
+	command.Dir = root
+	if output, err := command.CombinedOutput(); err == nil {
+		t.Fatalf("the block committed with no message file: %s", output)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "tracked.txt")); err != nil {
+		t.Fatal("a failed block deleted the working-tree copy")
+	}
+}
+
+// TestAClosureLeavesNoSpecBehind is AC-10, the two-block shape `/ze-close`
+// prepares: block A commits the edited spec, block B removes it. Block B's
+// private index is seeded from commit A, so the captured entry is the edited
+// content and the copy on disk matches it.
+func TestAClosureLeavesNoSpecBehind(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "removal-closure-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "notes/spec-x.md", "# spec x, as committed before\n")
+	runCommitGit(t, root, "add", "--", "notes/spec-x.md")
+	runCommitGit(t, root, "commit", "-q", "-m", "spec x lands")
+	writeCommitFixture(t, root, "notes/spec-x.md", "# spec x, closed\n")
+
+	first, err := Create(root, &Options{Subject: "close spec x", Files: []string{"notes/spec-x.md"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Create(root, &Options{Subject: "remove spec x", Remove: []string{"notes/spec-x.md"}, Append: true}); err != nil {
+		t.Fatal(err)
+	}
+	output := runCommitScript(t, root, first.Script)
+	if code, _ := gitExit(root, "cat-file", "-e", "HEAD:notes/spec-x.md"); code == 0 {
+		t.Fatal("the spec is still in git")
+	}
+	if content := runCommitGitOutput(t, root, "show", "HEAD^:notes/spec-x.md"); content != "# spec x, closed\n" {
+		t.Fatalf("commit A does not hold the closed spec: %q", content)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "notes", "spec-x.md")); err == nil {
+		t.Fatalf("the closed spec is still on disk\n%s", output)
 	}
 }
